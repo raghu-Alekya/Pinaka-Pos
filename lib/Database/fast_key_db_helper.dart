@@ -76,7 +76,10 @@ class FastKeyDBHelper { // Build #1.0.11 : FastKeyHelper for all fast key relate
     final db = await DBHelper.instance.database;
     await db.update(
       AppDBConst.fastKeyTable,
-      updatedData,
+      {
+        ...updatedData,
+        AppDBConst.fastKeyTabSynced: 0, // // Build #1.0.19: Updated Mark as unsynced
+      },
       where: '${AppDBConst.fastKeyId} = ?',
       whereArgs: [tabId],
     );
@@ -126,8 +129,8 @@ class FastKeyDBHelper { // Build #1.0.11 : FastKeyHelper for all fast key relate
     }
   }
 
-  Future<int> addFastKeyItem(int tabId, String name, String image, double price,
-      {String? sku, String? variantId}) async {
+  Future<int> addFastKeyItem(int tabId, String name, String image,  String price, int productId,
+      {String? sku, String? variantId, int? slNumber}) async {
     final db = await DBHelper.instance.database;
     final itemId = await db.insert(AppDBConst.fastKeyItemsTable, {
       AppDBConst.fastKeyIdForeignKey: tabId,
@@ -136,6 +139,8 @@ class FastKeyDBHelper { // Build #1.0.11 : FastKeyHelper for all fast key relate
       AppDBConst.fastKeyItemPrice: price,
       AppDBConst.fastKeyItemSKU: sku ?? 'N/A',
       AppDBConst.fastKeyItemVariantId: variantId ?? 'N/A',
+      AppDBConst.fastKeyProductId: productId, // Build #1.0.19: Updated req elements
+      AppDBConst.fastKeySlNumber: slNumber,
     });
 
     if (kDebugMode) {

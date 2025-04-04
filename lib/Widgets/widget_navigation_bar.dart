@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:pinaka_pos/Screens/Home/categories_screen.dart';
 import 'package:pinaka_pos/Screens/Home/fast_key_screen.dart';
 import 'package:pinaka_pos/Screens/Home/orders_screen.dart';
-import 'package:pinaka_pos/Widgets/widget_logout_dialog.dart';
 import 'package:quickalert/models/quickalert_animtype.dart';
 import 'package:quickalert/models/quickalert_type.dart';
 import 'package:quickalert/widgets/quickalert_dialog.dart';

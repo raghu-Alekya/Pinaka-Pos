@@ -56,6 +56,8 @@ class AppDBConst { // Build #1.0.10 - Naveen: Updated DB tables constants
   // Build #1.0.11 : FastKey Items Table Added
   static const String fastKeyItemsTable = 'fast_key_items';
   static const String fastKeyItemId = 'fast_key_item_id';
+  static const String fastKeyProductId = 'fast_key_product_id'; // Build #1.0.19: Updated new colum's
+  static const String fastKeySlNumber = 'fast_key_sl_number';
   static const String fastKeyIdForeignKey = 'fast_key_id';
   static const String fastKeyItemName = 'fast_key_item_name';
   static const String fastKeyItemImage = 'fast_key_item_image';
@@ -164,6 +166,8 @@ class DBHelper {
       ${AppDBConst.fastKeyItemId} INTEGER PRIMARY KEY AUTOINCREMENT,
       ${AppDBConst.fastKeyIdForeignKey} INTEGER NOT NULL,
       ${AppDBConst.fastKeyItemName} TEXT NOT NULL,
+      ${AppDBConst.fastKeyProductId} TEXT NOT NULL,
+      ${AppDBConst.fastKeySlNumber} TEXT NOT NULL,
       ${AppDBConst.fastKeyItemImage} TEXT NOT NULL,
       ${AppDBConst.fastKeyItemPrice} REAL NOT NULL,
       ${AppDBConst.fastKeyItemSKU} TEXT NOT NULL,

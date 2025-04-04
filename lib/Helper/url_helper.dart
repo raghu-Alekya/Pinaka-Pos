@@ -69,5 +69,6 @@ class EndUrlConstants { // Build #1.0.13
   static const  String getFastKeyEndUrl           = "/get-by-user";
   static const  String addFastKeyProductEndUrl    = "/add-products";
   static const  String getFastKeyProductsEndUrl   = "/get-by-fastkey-id/";
+  static const String deleteFastKeyEndUrl         = "/delete-fastkey"; // Build #1.0.19
 }
 

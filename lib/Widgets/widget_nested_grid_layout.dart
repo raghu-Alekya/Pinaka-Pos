@@ -162,7 +162,7 @@ class _NestedGridWidgetState extends State<NestedGridWidget> {
 
   }
 
-  Future<void> _addFastKeyTabItem(String name, String image, double price) async {
+  Future<void> _addFastKeyTabItem(String name, String image, String price) async {
     if (_fastKeyTabId == null) {
       if (kDebugMode) {
         print("### _fastKeyTabId is null, cannot add item");
@@ -190,11 +190,21 @@ class _NestedGridWidgetState extends State<NestedGridWidget> {
     ///4. call add fast keys product API
     _fastKeyProductBloc.addProducts(fastKeyId: fastKeyServerId, products: [item]);
 
-    ///5. save to DB along with productid and index
-    await fastKeyDBHelper.addFastKeyItem(_fastKeyTabId!, name, image, price);
+    ///5. save to DB with all required parameters
+    await fastKeyDBHelper.addFastKeyItem(
+      _fastKeyTabId!,
+      name,
+      image,
+      price,
+      selectedProduct!['id'], // productId
+      sku: selectedProduct!['sku'] ?? 'N/A',
+      variantId: selectedProduct!['variantId'] ?? 'N/A',
+      slNumber: countProductInFastKey + 1,
+    );
 
-    // Increase count manually before reloading
-    await fastKeyDBHelper.updateFastKeyTabCount(_fastKeyTabId!, fastKeyProductItems.length + 1);
+    // Update count and reload
+    await fastKeyDBHelper.updateFastKeyTabCount(_fastKeyTabId!, countProductInFastKey + 1);
+    await _loadFastKeyTabItems();
 
     await _loadFastKeyTabItems(); // Reload items after adding
     // Call setState synchronously after all async operations
@@ -339,14 +349,15 @@ class _NestedGridWidgetState extends State<NestedGridWidget> {
                         if (item is ProductItem) {
                           _productSearchController.text = item.label;
                           var product = item.value;
-                          setStateDialog((){
+                          // Update where selectedProduct is set to include all required fields
+                          setStateDialog(() {
                             selectedProduct = {
                               'title': product.name ?? 'Unknown',
-                              'image': product.images?.isNotEmpty == true
-                                  ? product.images!.first
-                                  : '',
+                              'image': product.images?.isNotEmpty == true ? product.images!.first : '',
                               'price': product.regularPrice ?? '0.00',
                               'id': product.id,
+                              'sku': product.sku ?? 'N/A',
+                              'variantId': product.variantId ?? 'N/A',
                             };
                           });
 
@@ -398,6 +409,7 @@ class _NestedGridWidgetState extends State<NestedGridWidget> {
                                                 : '',
                                             'price': product.regularPrice ?? '0.00',
                                             'id': product.id,
+                                            'sku': product.sku ?? 'N/A',
                                           };
                                         });
                                       },
@@ -439,7 +451,7 @@ class _NestedGridWidgetState extends State<NestedGridWidget> {
                     await _addFastKeyTabItem(
                       selectedProduct!['title'],
                       selectedProduct!['image'],
-                      double.tryParse(selectedProduct!['price']) ?? 0.0,
+                      selectedProduct!['price'],
                     );
 
                     await fastKeyDBHelper.updateFastKeyTabCount(

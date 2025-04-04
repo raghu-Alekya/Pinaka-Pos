@@ -79,20 +79,25 @@ class FastKeyProductBloc {  // Build #1.0.15
       if(fastKeyTabs.length != response.products.length){
         ///if all the data mismatches then delete all db contents and replace with API response
         fastKeyDBHelper.deleteAllFastKeyProductItems(fastKeyId);
-        for(var product in response.products){
-          fastKeyDBHelper.addFastKeyItem(fastKeyId, product.name, product.image, double.parse(product.price));
-          ///Naveen: add few paramter as product_id, sl_number, and make price as string only
+        for(var product in response.products){ ///Naveen: add few paramter as product_id, sl_number, and make price as string only
+          fastKeyDBHelper.addFastKeyItem( // Build #1.0.19: Updated parameters
+            fastKeyId,
+            product.name,
+            product.image,
+            product.price, // Now stored as string
+            product.productId,
+            slNumber: product.slNumber);
         }
       } else {
         ///else just update the data for each fast key
         var i=0;
         for(var product in response.products){
-          final updatedTab = {
+          final updatedTab = { ///Naveen : please update the db with product id and category, sl_number
             AppDBConst.fastKeyItemName: product.name.toString(),
-            AppDBConst.fastKeyItemPrice: product.name.toString(),
-            AppDBConst.fastKeyItemSKU: product.name.toString(),
-            AppDBConst.fastKeyItemImage: product.name.toString()
-            ///Naveen : please update the db with product id and category, sl_number
+            AppDBConst.fastKeyItemPrice: product.price.toString(),
+            AppDBConst.fastKeySlNumber: product.slNumber.toString(),
+            AppDBConst.fastKeyItemImage: product.image.toString(),
+            AppDBConst.fastKeyProductId: product.productId.toString(),  // Build #1.0.19: Updated parameters
           };
           fastKeyDBHelper.updateFastKeyProductItem(i++, updatedTab);
         }

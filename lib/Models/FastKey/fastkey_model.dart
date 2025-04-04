@@ -1,19 +1,19 @@
 import 'fastkey_product_model.dart';
 
-// Using for Fast Key Screen Horizontal List Scroll
-class FastKeyModel {
-  late int id; // Build #1.0.11
-  late String name; //Build #1.0.4
-  late String itemCount;
-  late String imageAsset;
-
-  FastKeyModel({
-    required this.id,
-    required this.name,
-    required this.itemCount,
-    required this.imageAsset,
-  });
-}
+// //Using for Fast Key Screen Horizontal List Scroll
+// class FastKeyModel { // Build #1.0.19: No need
+//   late int id; // Build #1.0.11
+//   late String name; //Build #1.0.4
+//   late String itemCount;
+//   late String imageAsset;
+//
+//   FastKeyModel({
+//     required this.id,
+//     required this.name,
+//     required this.itemCount,
+//     required this.imageAsset,
+//   });
+// }
 
 /// ==============================================
 /// 1. FAST KEY CREATION AND LISTING MODELS
@@ -104,7 +104,7 @@ class FastKeyListResponse {
 /// Shared model for FastKey representation
 /// Used in both creation and listing responses
 class FastKey {
-  final int fastkeyId;
+  final int fastkeyServerId; // Build #1.0.19: Updated fastkeyId to fastkeyServerId for better understanding
   final int userId;
   final String fastkeyTitle;
   final dynamic fastkeyImage; // Can be bool or String
@@ -112,7 +112,7 @@ class FastKey {
   final int itemCount;
 
   FastKey({
-    required this.fastkeyId,
+    required this.fastkeyServerId,
     required this.userId,
     required this.fastkeyTitle,
     required this.fastkeyImage,
@@ -122,12 +122,30 @@ class FastKey {
 
   factory FastKey.fromJson(Map<String, dynamic> json) {
     return FastKey(
-      fastkeyId: json['fastkey_id'] ?? 0,
+      fastkeyServerId: json['fastkey_id'] ?? 0,
       userId: json['user_id'] ?? 0,
       fastkeyTitle: json['fastkey_title'] ?? '',
       fastkeyImage: json['fastkey_image'],
       fastkeyIndex: json['fastkey_index']?.toString() ?? '0',
       itemCount: json['itemCount'] ?? 0,
+    );
+  }
+
+  FastKey copyWith({
+    int? fastkeyServerId,
+    int? userId,
+    String? fastkeyTitle,
+    dynamic fastkeyImage,
+    String? fastkeyIndex,
+    int? itemCount,
+  }) {
+    return FastKey(
+      fastkeyServerId: fastkeyServerId ?? this.fastkeyServerId,
+      userId: userId ?? this.userId,
+      fastkeyTitle: fastkeyTitle ?? this.fastkeyTitle,
+      fastkeyImage: fastkeyImage ?? this.fastkeyImage,
+      fastkeyIndex: fastkeyIndex ?? this.fastkeyIndex,
+      itemCount: itemCount ?? this.itemCount,
     );
   }
 }

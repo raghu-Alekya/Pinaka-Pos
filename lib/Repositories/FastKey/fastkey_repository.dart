@@ -65,4 +65,34 @@ class FastKeyRepository {  // Build #1.0.15
       throw Exception("Unexpected response type in GET");
     }
   }
+
+  // // Build #1.0.19: POST: Delete FastKey
+  Future<FastKeyResponse> deleteFastKey(int fastkeyServerId) async {
+    final url = "${UrlHelper.componentVersionUrl}${UrlMethodConstants.fastKeys}${EndUrlConstants.deleteFastKeyEndUrl}";
+
+    if (kDebugMode) {
+      print("FastKeyRepository - DELETE URL: $url");
+      print("Request body: {'fastkey_id': $fastkeyServerId}");
+    }
+
+    final response = await _helper.post(url, {'fastkey_id': fastkeyServerId}, true);
+
+    if (kDebugMode) {
+      print("FastKeyRepository - DELETE Raw Response: $response");
+    }
+
+    if (response is String) {
+      try {
+        final responseData = json.decode(response);
+        return FastKeyResponse.fromJson(responseData);
+      } catch (e) {
+        if (kDebugMode) print("Error parsing DELETE response: $e");
+        throw Exception("Failed to parse FastKey delete response");
+      }
+    } else if (response is Map<String, dynamic>) {
+      return FastKeyResponse.fromJson(response);
+    } else {
+      throw Exception("Unexpected response type in DELETE");
+    }
+  }
 }

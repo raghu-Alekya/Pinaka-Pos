@@ -24,6 +24,13 @@ class FastKeyBloc { // Build #1.0.15
   StreamSink<APIResponse<FastKeyListResponse>> get getFastKeysSink => _getFastKeysController.sink;
   Stream<APIResponse<FastKeyListResponse>> get getFastKeysStream => _getFastKeysController.stream;
 
+  // Build #1.0.19: Fast Key Delete API Code
+  final StreamController<APIResponse<FastKeyResponse>> _deleteFastKeyController =
+  StreamController<APIResponse<FastKeyResponse>>.broadcast();
+
+  StreamSink<APIResponse<FastKeyResponse>> get deleteFastKeySink => _deleteFastKeyController.sink;
+  Stream<APIResponse<FastKeyResponse>> get deleteFastKeyStream => _deleteFastKeyController.stream;
+
   FastKeyBloc(this._fastKeyRepository) {
     if (kDebugMode) {
       print("FastKeyBloc Initialized");
@@ -83,17 +90,33 @@ class FastKeyBloc { // Build #1.0.15
         ///if all the data mismatches then delete all db contents and replace with API response
         fastKeyDBHelper.deleteAllFastKeyTab(userId);
         for(var fastkey in response.fastkeys){
-          fastKeyDBHelper.addFastKeyTab(userId, fastkey.fastkeyTitle, "", 0, int.parse(fastkey.fastkeyIndex), fastkey.fastkeyId );
+          fastKeyDBHelper.addFastKeyTab(userId, fastkey.fastkeyTitle, "", 0, int.parse(fastkey.fastkeyIndex), fastkey.fastkeyServerId );
         }
       } else {
         ///else just update the data for each fast key
-        var i = 0; ///@Naveen please correct this logic use tabid instead of i
-        for(var fastkey in response.fastkeys){
-          final updatedTab = {
-            AppDBConst.fastKeyTabTitle: fastkey.fastkeyTitle.toString()
-          };
-          fastKeyDBHelper.updateFastKeyTab(i++, updatedTab);
-            //(userId, fastkey.fastkeyTitle, "", 0, int.parse(fastkey.fastkeyIndex));
+      //  var i = 0; ///@Naveen please correct this logic use tabid instead of i
+        for (var fastkey in response.fastkeys) {
+          // Try to find the matching local tab by server ID
+          final matchingTab = fastKeyTabs.firstWhere(
+                (tab) => tab[AppDBConst.fastKeyServerId] == fastkey.fastkeyServerId,
+                orElse: () => {},
+          );
+
+          if (matchingTab.isNotEmpty) {
+            final tabId = matchingTab[AppDBConst.fastKeyId];
+            final updatedTab = {
+              AppDBConst.fastKeyTabTitle: fastkey.fastkeyTitle.toString(),
+            };
+            await fastKeyDBHelper.updateFastKeyTab(tabId, updatedTab);
+
+            if (kDebugMode) {
+              print("Updated tab $tabId with title ${fastkey.fastkeyTitle}");
+            }
+          } else {
+            if (kDebugMode) {
+              print("No matching tab found for fastKeyServerId: ${fastkey.fastkeyServerId}");
+            }
+          }
         }
       }
       getFastKeysSink.add(APIResponse.completed(response));
@@ -107,13 +130,38 @@ class FastKeyBloc { // Build #1.0.15
     }
   }
 
-  // Dispose all controllers
+  // Build #1.0.19: Add this method to your FastKeyBloc class
+  Future<void> deleteFastKey(int fastkeyServerId) async {
+    if (_deleteFastKeyController.isClosed) return;
+
+    deleteFastKeySink.add(APIResponse.loading(TextConstants.loading));
+    try {
+      final response = await _fastKeyRepository.deleteFastKey(fastkeyServerId);
+
+      if (kDebugMode) {
+        print("FastKeyBloc - Deleted FastKey: $fastkeyServerId");
+      }
+      deleteFastKeySink.add(APIResponse.completed(response));
+    } catch (e) {
+      if (e.toString().contains('SocketException')) {
+        deleteFastKeySink.add(APIResponse.error("Network error. Please check your connection."));
+      } else {
+        deleteFastKeySink.add(APIResponse.error("Failed to delete FastKey: ${e.toString()}"));
+      }
+      if (kDebugMode) print("Exception in deleteFastKey: $e");
+    }
+  }
+
+// Update the dispose method to include the new controller
   void dispose() {
     if (!_createFastKeyController.isClosed) {
       _createFastKeyController.close();
     }
     if (!_getFastKeysController.isClosed) {
       _getFastKeysController.close();
+    }
+    if (!_deleteFastKeyController.isClosed) { // Build #1.0.19
+      _deleteFastKeyController.close();
     }
     if (kDebugMode) print("FastKeyBloc disposed");
   }

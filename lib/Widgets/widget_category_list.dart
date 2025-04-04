@@ -10,7 +10,6 @@ import '../Database/db_helper.dart';
 import '../Database/fast_key_db_helper.dart';
 import '../Database/user_db_helper.dart';
 import '../Helper/file_helper.dart';
-import '../Models/Auth/login_model.dart';
 import '../Models/FastKey/fastkey_model.dart';
 import '../Utilities/shimmer_effect.dart';
 import '../Constants/text.dart';
@@ -40,8 +39,10 @@ class _CategoryListState extends State<CategoryList> {
   // FastKey helper instance
   final FastKeyDBHelper fastKeyDBHelper = FastKeyDBHelper();
   late FastKeyBloc _fastKeyBloc;
-  // List of FastKey products fetched from the database
-  List<FastKeyModel> fastKeyProducts = [];
+  // List of FastKey tabs fetched from the database
+  // now using FastKey object model
+  List<FastKey> fastKeyTabs = []; // Build #1.0.19: Updated fastKeyProducts to fastKeyTabs for better understanding
+  var isLoading = false;
 
   @override
   void initState() {
@@ -78,7 +79,7 @@ class _CategoryListState extends State<CategoryList> {
     }
     if (lastSelectedTabId != null) {
       setState(() {
-        _selectedIndex = fastKeyProducts.indexWhere((tab) => tab.id == lastSelectedTabId);
+        _selectedIndex = fastKeyTabs.indexWhere((tab) => tab.fastkeyServerId == lastSelectedTabId);
       });
     }
 
@@ -149,24 +150,26 @@ class _CategoryListState extends State<CategoryList> {
   // Add a method to check if content overflows
   bool _doesContentOverflow() { // Build #1.0.11
     final screenWidth = MediaQuery.of(context).size.width;
-    final contentWidth = fastKeyProducts.length * 120; // Adjust based on item width
+    final contentWidth = fastKeyTabs.length * 120; // Adjust based on item width
     return contentWidth > screenWidth;
   }
 
   Future<void> _loadFastKeysTabs() async { // Build #1.0.11
-    final fastKeyTabs = await fastKeyDBHelper.getFastKeyTabsByUserId(userId ?? 1);
+    final fastKeyTabsData = await fastKeyDBHelper.getFastKeyTabsByUserId(userId ?? 1);
     if (kDebugMode) {
       print("#### fastKeyTabs : $fastKeyTabs");
     }
     // Convert the list of maps to a list of CategoryModel
     if(mounted){
       setState(() {
-        fastKeyProducts = fastKeyTabs.map((product) {
-          return FastKeyModel(
-            name: product[AppDBConst.fastKeyTabTitle],
-            itemCount: product[AppDBConst.fastKeyTabCount].toString(),
-            imageAsset: product[AppDBConst.fastKeyTabImage],
-            id: product[AppDBConst.fastKeyId],
+        fastKeyTabs = fastKeyTabsData.map((product) {
+          return FastKey(
+            fastkeyServerId: product[AppDBConst.fastKeyId],
+            userId: userId ?? 1,
+            fastkeyTitle: product[AppDBConst.fastKeyTabTitle],
+            fastkeyImage: product[AppDBConst.fastKeyTabImage],
+            fastkeyIndex: product[AppDBConst.fastKeyTabIndex]?.toString() ?? '0',
+            itemCount: int.tryParse(product[AppDBConst.fastKeyTabCount]?.toString() ?? '0') ?? 0,
           );
         }).toList();
       });
@@ -177,41 +180,112 @@ class _CategoryListState extends State<CategoryList> {
     final newTabId = await fastKeyDBHelper.addFastKeyTab(userId ?? 1, title, image, 0, 0, 0);
 
     /// call Create fast key API
-    _fastKeyBloc.createFastKey(title: title, index: fastKeyProducts.length+1, imageUrl: "", userId: userId ?? 0);
-
+    _fastKeyBloc.createFastKey(title: title, index: fastKeyTabs.length+1, imageUrl: image, userId: userId ?? 0);
     // Add the new tab to the local list
     setState(() {
-      fastKeyProducts.add(FastKeyModel(
-        name: title,
-        itemCount: "0",
-        imageAsset: image,
-        id: newTabId,
+      isLoading = true;
+      fastKeyTabs.add(FastKey(
+        fastkeyServerId: newTabId, // Temporary ID
+        userId: userId ?? 1,
+        fastkeyTitle: title,
+        fastkeyImage: image,
+        fastkeyIndex: (fastKeyTabs.length + 1).toString(),
+        itemCount: 0,
       ));
-      _selectedIndex = fastKeyProducts.length - 1; // Set the selected index to the new tab
+      _selectedIndex = fastKeyTabs.length - 1;
     });
 
-    // Save the selected tab ID
-    await fastKeyDBHelper.saveActiveFastKeyTab(newTabId);
-    if (kDebugMode) {
-      print("### _addFastKeyTab: Setting ValueNotifier to $newTabId");
-    }
-    widget.fastKeyTabIdNotifier.value = newTabId; // Notify NestedGridWidget
+    // Listen for API response to update with real server ID
+    _fastKeyBloc.createFastKeyStream.listen((response) async {
+      if (response.status == Status.COMPLETED && response.data != null) {
+        // Update DB with real server ID
+        await fastKeyDBHelper.updateFastKeyTab(newTabId, {
+          AppDBConst.fastKeyServerId: response.data!.fastkeyId,
+        });
+
+        // Reload tabs to get updated data
+        await _loadFastKeysTabs();
+
+        // Save as active tab
+        await fastKeyDBHelper.saveActiveFastKeyTab(response.data!.fastkeyId);
+        if (kDebugMode) {
+          print("### _addFastKeyTab: Setting ValueNotifier to ${response.data!.fastkeyId}");
+        }
+        widget.fastKeyTabIdNotifier.value = response.data!.fastkeyId;
+      }
+
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
+    });
   }
 
   Future<void> _deleteFastKeyTab(int fastKeyProductId) async {
-    await fastKeyDBHelper.deleteFastKeyTab(fastKeyProductId);
+    if (kDebugMode) {
+      print("#### Deleting FastKey tab with ID: $fastKeyProductId");
+    }
 
-    // Remove the tab from the local list
+    /// Get the active fastkey server id from _fastKeyTabId
+    var tabs = await fastKeyDBHelper.getFastKeyTabsByTabId(fastKeyProductId);
+    if(tabs.isEmpty){
+      setState(() => isLoading = false);
+      return;
+    }
+    var fastKeyServerId = tabs.first[AppDBConst.fastKeyServerId];
+
+    // 1. First delete from API
+    _fastKeyBloc.deleteFastKey(fastKeyServerId);
+
+    // 2. Remove from local list immediately
     setState(() {
-      fastKeyProducts.removeWhere((tab) => tab.id == fastKeyProductId);
+      fastKeyTabs.removeWhere((tab) => tab.fastkeyServerId == fastKeyProductId);
+
+      // Handle active tab selection after deletion
+      if (_selectedIndex != null) {
+        if (_selectedIndex! >= fastKeyTabs.length) {
+          _selectedIndex = fastKeyTabs.isNotEmpty ? fastKeyTabs.length - 1 : null;
+        }
+
+        // Update the notifier with new selected tab or null if no tabs left
+        widget.fastKeyTabIdNotifier.value = _selectedIndex != null
+            ? fastKeyTabs[_selectedIndex!].fastkeyServerId
+            : null;
+      }
+    });
+
+    // 3. Listen for API response
+    await _fastKeyBloc.deleteFastKeyStream.firstWhere((response) => response.status == Status.COMPLETED || response.status == Status.ERROR
+    ).then((response) async {
+      if (response.status == Status.COMPLETED && response.data?.status == "success") {
+        // Only delete from DB if API deletion succeeds
+        await fastKeyDBHelper.deleteFastKeyTab(fastKeyProductId);
+        if (kDebugMode) {
+          print("#### Successfully deleted tab from DB and API");
+        }
+      } else {
+        // If API deletion failed, reload from DB to restore the tab
+        if (kDebugMode) {
+          print("#### API deletion failed, reloading tabs from DB");
+        }
+        await _loadFastKeysTabs();
+      }
     });
 
     // Update the item count in the FastKey tab
-    await fastKeyDBHelper.updateFastKeyTabCount(fastKeyProductId, fastKeyProducts.length);
+    await fastKeyDBHelper.updateFastKeyTabCount(fastKeyProductId, fastKeyTabs.length);
   }
 
   @override
   Widget build(BuildContext context) {
+    if (isLoading) { // Build #1.0.19: added for loading while adding deleting fastKeys
+      return ShimmerEffect.rectangular(
+        height: widget.isHorizontal ? 100 : 800,
+      );
+    }
+
+    // Your existing build code
     return Padding(
       padding: const EdgeInsets.all(8.0),
       child: widget.isLoading
@@ -283,12 +357,13 @@ class _CategoryListState extends State<CategoryList> {
                     _editingIndex = index; // Show edit button when reorder starts
                    });
                 },
-                onReorder: (oldIndex, newIndex) {
+                onReorder: (oldIndex, newIndex) async {
+                  // Your existing code
                   if (newIndex > oldIndex) newIndex--;
 
                   setState(() {
-                    final item = fastKeyProducts.removeAt(oldIndex);
-                    fastKeyProducts.insert(newIndex, item);
+                    final item = fastKeyTabs.removeAt(oldIndex);
+                    fastKeyTabs.insert(newIndex, item);
 
                     // Keep edit mode after reordering
                     _editingIndex = newIndex;
@@ -311,27 +386,31 @@ class _CategoryListState extends State<CategoryList> {
                     child: child,
                   );
                 },
-                children: List.generate(fastKeyProducts.length, (index) {
-                  final product = fastKeyProducts[index];
+                children: List.generate(fastKeyTabs.length, (index) {
+                  final product = fastKeyTabs[index];
                   bool isSelected = _selectedIndex == index;
                   bool showEditButton = _editingIndex == index;
 
                   return GestureDetector(
-                    key: ValueKey(product.name),
+                    key: ValueKey(product.fastkeyTitle),
                     onTap: () async {
                       setState(() {
                         if (_editingIndex == index) {
-                         // _selectedIndex = index;
+                          // If tapping the item being edited, just dismiss edit mode
+                          _editingIndex = null;
                         } else if (_selectedIndex == index) {
+                          // If already selected, do nothing
                           return;
                         } else {
+                          // Select the item
                           _selectedIndex = index;
                         }
                       });
-                      // Save the selected tab ID
-                      await fastKeyDBHelper.saveActiveFastKeyTab(product.id);
-                      if(_editingIndex == null) {
-                        widget.fastKeyTabIdNotifier.value = product.id; // Build #1.0.12: fixed fast key tab changes grid items will re load
+
+                      // Save the selected tab ID only if not in edit mode
+                      if (_editingIndex == null) {
+                        await fastKeyDBHelper.saveActiveFastKeyTab(product.fastkeyServerId);
+                        widget.fastKeyTabIdNotifier.value = product.fastkeyServerId;
                       }
                       _editingIndex = null;
                     },
@@ -359,7 +438,7 @@ class _CategoryListState extends State<CategoryList> {
                                 duration: const Duration(milliseconds: 300),
                                 opacity: showEditButton ? 1.0 : 0.0,
                                 child: GestureDetector(
-                                  onTap: () => _showCategoryDialog(index: index),
+                                  onTap: () => _showCategoryDialog(context: context, index: index),
                                   child: Container(
                                     padding: const EdgeInsets.all(4),
                                     decoration: BoxDecoration(
@@ -374,10 +453,10 @@ class _CategoryListState extends State<CategoryList> {
                             Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                _buildImage(product.imageAsset),
+                                _buildImage(product.fastkeyImage),
                                 const SizedBox(height: 8),
                                 Text(
-                                  product.name,
+                                  product.fastkeyTitle,
                                   maxLines: 1,
                                   style: TextStyle(
                                     overflow: TextOverflow.ellipsis,
@@ -387,7 +466,7 @@ class _CategoryListState extends State<CategoryList> {
                                   ),
                                 ),
                                 Text(
-                                  product.itemCount,
+                                  product.itemCount.toString(),
                                   style: TextStyle(
                                     color: isSelected ? Colors.white : Colors.grey,
                                   ),
@@ -419,7 +498,7 @@ class _CategoryListState extends State<CategoryList> {
           ),
           const SizedBox(width: 8),
           _buildScrollButton(Icons.add, () {
-            _showCategoryDialog();
+            _showCategoryDialog(context: context);
           }),
         ],
       ),
@@ -440,19 +519,13 @@ class _CategoryListState extends State<CategoryList> {
             width: MediaQuery.of(context).size.width * 0.35,
             child: ReorderableListView(
               scrollDirection: Axis.vertical,
-              onReorderStart: (index) {
-                if (kDebugMode) {
-                  print("##### onReorderStart $index");
-                }
-              },
-              onReorder: (oldIndex, newIndex) {
+              onReorderStart: (index) => setState(() => _editingIndex = index),
+              onReorder: (oldIndex, newIndex) async {
                 if (newIndex > oldIndex) newIndex--;
 
                 setState(() {
-                  final item = fastKeyProducts.removeAt(oldIndex);
-                  fastKeyProducts.insert(newIndex, item);
-
-                  // Keep edit mode after reordering
+                  final item = fastKeyTabs.removeAt(oldIndex);
+                  fastKeyTabs.insert(newIndex, item);
                   _editingIndex = newIndex;
 
                   if (_selectedIndex != null) {
@@ -465,38 +538,39 @@ class _CategoryListState extends State<CategoryList> {
                     }
                   }
                 });
+
+                // Update indices in DB
+                for (int i = 0; i < fastKeyTabs.length; i++) {
+                  await fastKeyDBHelper.updateFastKeyTab(fastKeyTabs[i].fastkeyServerId, {
+                    AppDBConst.fastKeyTabIndex: i.toString(),
+                  });
+                }
               },
-              proxyDecorator: (Widget child, int index, Animation<double> animation) {
-                return Material(
-                  elevation: 0,
-                  color: Colors.transparent,
-                  child: child,
-                );
-              },
-              children: List.generate(fastKeyProducts.length, (index) {
-                final product = fastKeyProducts[index];
+              proxyDecorator: (child, index, animation) => Material(
+                elevation: 0,
+                color: Colors.transparent,
+                child: child,
+              ),
+              children: List.generate(fastKeyTabs.length, (index) {
+                final product = fastKeyTabs[index];
                 bool isSelected = _selectedIndex == index;
                 bool showEditButton = _editingIndex == index;
 
                 return GestureDetector(
-                  key: ValueKey(product.name),
+                  key: ValueKey(product.fastkeyTitle),
                   onTap: () async {
                     setState(() {
                       if (_editingIndex == index) {
                         // If item is in edit mode, just dismiss edit mode
                         _editingIndex = null;
-                      } else if (_selectedIndex == index) {
-                        // If item is already selected, do nothing (keep selection)
-                        return;
-                      } else {
-                        // If item is not selected, select it
+                      } else if (_selectedIndex != index) {
                         _selectedIndex = index;
                         _editingIndex = null;
                       }
                     });
-                    // Save the selected tab ID
-                    await fastKeyDBHelper.saveActiveFastKeyTab(product.id);
-                    widget.fastKeyTabIdNotifier.value = product.id; // Notify NestedGridWidget // Build #1.0.12: fixed fast key tab changes grid items will re load
+
+                    await fastKeyDBHelper.saveActiveFastKeyTab(product.fastkeyServerId);
+                    widget.fastKeyTabIdNotifier.value = product.fastkeyServerId;
                   },
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 5.0),
@@ -521,7 +595,7 @@ class _CategoryListState extends State<CategoryList> {
                               duration: const Duration(milliseconds: 300),
                               opacity: showEditButton ? 1.0 : 0.0,
                               child: GestureDetector(
-                                onTap: () => _showCategoryDialog(index: index),
+                                onTap: () => _showCategoryDialog(context: context, index: index),
                                 child: Container(
                                   padding: const EdgeInsets.all(4),
                                   decoration: BoxDecoration(
@@ -535,20 +609,20 @@ class _CategoryListState extends State<CategoryList> {
                           ),
                           Row(
                             children: [
-                              _buildImage(product.imageAsset),
+                              _buildImage(product.fastkeyImage),
                               const SizedBox(width: 8),
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    product.name,
+                                    product.fastkeyTitle,
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       color: isSelected ? Colors.white : Colors.black,
                                     ),
                                   ),
                                   Text(
-                                    product.itemCount,
+                                    product.itemCount.toString(),
                                     style: TextStyle(
                                       color: isSelected ? Colors.white : Colors.grey,
                                     ),
@@ -578,9 +652,7 @@ class _CategoryListState extends State<CategoryList> {
               width: double.infinity, // Take full width of container
               child: IconButton(
                 icon: const Icon(Icons.add, color: Colors.redAccent),
-                onPressed: () {
-                  _showCategoryDialog();
-                },
+                onPressed: () => _showCategoryDialog(context: context),
               ),
             ),
           ),
@@ -606,11 +678,11 @@ class _CategoryListState extends State<CategoryList> {
     );
   }
 
-  void _showCategoryDialog({int? index}) {
+  void _showCategoryDialog({required BuildContext context, int? index}) {
     bool isEditing = index != null;
-    TextEditingController nameController =
-    TextEditingController(text: isEditing ? fastKeyProducts[index].name : '');
-    String imagePath = isEditing ? fastKeyProducts[index].imageAsset : 'assets/default.png'; // Build #1.0.13 : changed to default image path
+    TextEditingController nameController = TextEditingController(
+        text: isEditing ? fastKeyTabs[index!].fastkeyTitle : '');
+    String imagePath = isEditing ? fastKeyTabs[index!].fastkeyImage : 'assets/default.png';
     bool showError = false;
 
     showDialog(
@@ -631,43 +703,15 @@ class _CategoryListState extends State<CategoryList> {
                         alignment: Alignment.center,
                         child: Stack(
                           children: [
-                            imagePath.isNotEmpty
-                                ? (imagePath.startsWith('assets/')
-                                ? SvgPicture.asset(
-                              imagePath,
-                              height: 80,
-                              width: 80,
-                              placeholderBuilder: (context) => Icon(Icons.image, size: 40),
-                            )
-                                : Image.file(
-                              File(imagePath),
-                              height: 80,
-                              width: 80,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return SvgPicture.asset(
-                                  'assets/password_placeholder.svg', // Fallback to default SVG
-                                  height: 80,
-                                  width: 80,
-                                );
-                              },
-                            ))
-                                : SvgPicture.asset(
-                              'assets/password_placeholder.svg', // Default image
-                              height: 80,
-                              width: 80,
-                            ),
+                            _buildImageWidget(imagePath),
                             Positioned(
                               right: 0,
                               bottom: 0,
                               child: GestureDetector(
                                 onTap: () async {
-                                  final pickedFile = await ImagePicker()
-                                      .pickImage(source: ImageSource.gallery);
+                                  final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
                                   if (pickedFile != null) {
-                                    setStateDialog(() {
-                                      imagePath = pickedFile.path;
-                                    });
+                                    setStateDialog(() => imagePath = pickedFile.path);
                                   }
                                 },
                                 child: const Icon(Icons.edit,
@@ -702,7 +746,7 @@ class _CategoryListState extends State<CategoryList> {
                         Padding(
                           padding: const EdgeInsets.only(top: 8.0),
                           child: Text(
-                            '${TextConstants.itemCountText} ${fastKeyProducts[index].itemCount}',
+                            '${TextConstants.itemCountText} ${fastKeyTabs[index].itemCount}',
                             style: const TextStyle(color: Colors.grey),
                           ),
                         ),
@@ -718,25 +762,27 @@ class _CategoryListState extends State<CategoryList> {
                 TextButton(
                   onPressed: () async {
                     if (!isEditing && nameController.text.isEmpty) {
-                      setStateDialog(() {
-                        showError = true;
-                      });
+                      setStateDialog(() => showError = true);
                       return;
                     }
 
                     if (isEditing) {
-                      // Update existing FastKey tab in the database
-                      final updatedTab = {
-                        AppDBConst.fastKeyTabTitle: nameController.text,
-                        AppDBConst.fastKeyTabImage: imagePath,
-                      };
-                      await fastKeyDBHelper.updateFastKeyTab(fastKeyProducts[index].id, updatedTab);
+                      // Update existing tab
+                      await fastKeyDBHelper.updateFastKeyTab(
+                          fastKeyTabs[index!].fastkeyServerId,
+                          {
+                            AppDBConst.fastKeyTabTitle: nameController.text,
+                            AppDBConst.fastKeyTabImage: imagePath,
+                          }
+                      );
 
                       // Update the local list
                       setState(() {
                         _editingIndex = null;
-                        fastKeyProducts[index].name = nameController.text;
-                        fastKeyProducts[index].imageAsset = imagePath;
+                        fastKeyTabs[index] = fastKeyTabs[index].copyWith(
+                          fastkeyTitle: nameController.text,
+                          fastkeyImage: imagePath,
+                        );
                       });
                     } else {
                       // Add new FastKey tab to the database
@@ -761,67 +807,73 @@ class _CategoryListState extends State<CategoryList> {
     );
   }
 
-  //Build #1.0.4 🔹 New Function: Show Confirmation Before Deleting
+  Widget _buildImageWidget(String imagePath) { // Build #1.0.19: added code for image fetching / updating errors
+    if (imagePath.isEmpty) return _safeSvgPicture('assets/password_placeholder.svg');
+
+    if (imagePath.startsWith('assets/') && imagePath.endsWith('.svg')) {
+      return _safeSvgPicture(imagePath);
+    } else if (imagePath.startsWith('assets/')) {
+      return Image.asset(imagePath, height: 80, width: 80, fit: BoxFit.cover);
+    } else {
+      return Image.file(
+        File(imagePath),
+        height: 80,
+        width: 80,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _safeSvgPicture('assets/password_placeholder.svg'),
+      );
+    }
+  }
+
+  Widget _safeSvgPicture(String assetPath) {
+    try {
+      return SvgPicture.asset(
+        assetPath,
+        height: 80,
+        width: 80,
+        placeholderBuilder: (context) => const Icon(Icons.image, size: 40),
+      );
+    } catch (e) {
+      debugPrint("SVG Parsing Error: $e");
+      return Image.asset('assets/default.png', height: 80, width: 80);
+    }
+  }
+
   void _showDeleteConfirmationDialog(int index) {
+    bool isDeleting = false;
+    final product = fastKeyTabs[index];
+
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text(TextConstants.deleteTabText),
-          content: const Text(TextConstants.deleteConfirmText),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context), // Cancel
-              child: const Text(TextConstants.noText),
-            ),
-            TextButton(
-              onPressed: () async { // Build #1.0.11
-                // Store the ID of the currently selected tab
-                final selectedTabId = _selectedIndex != null ? fastKeyProducts[_selectedIndex!].id : null;
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              title: const Text(TextConstants.deleteTabText),
+              content: const Text(TextConstants.deleteConfirmText),
+              actions: [
+                TextButton(
+                  onPressed: isDeleting ? null : () => Navigator.pop(context),
+                  child: const Text(TextConstants.noText),
+                ),
+                TextButton(
+                  onPressed: isDeleting ? null : () async {
 
-                // Delete the tab from the database
-                await _deleteFastKeyTab(fastKeyProducts[index].id);
+                    setStateDialog(() => isDeleting = true);
+                    await _deleteFastKeyTab(product.fastkeyServerId);
 
-                // Reset the editing index
-                setState(() {
-                  _editingIndex = null;
-                });
-
-                // Update the selected index based on the visual order
-                if (_selectedIndex != null) {
-                  if (_selectedIndex == index) {
-                    // If the deleted tab was the selected one, select the next tab
-                    if (fastKeyProducts.isNotEmpty) {
-                      if (index < fastKeyProducts.length) {
-                        _selectedIndex = index; // Select the next tab
-                      } else {
-                        _selectedIndex = fastKeyProducts.length - 1; // Select the last tab if the deleted tab was the last one
-                      }
-                    } else {
-                      _selectedIndex = null; // No tabs left
+                    if (mounted) {
+                      Navigator.pop(context);
+                      Navigator.pop(context);
                     }
-                  } else if (_selectedIndex! > index) {
-                    // If the deleted tab was before the selected one, adjust the selected index
-                    _selectedIndex = _selectedIndex! - 1;
-                  }
-                }
-
-                // Save the new selected tab ID
-                if (_selectedIndex != null) {
-                  await fastKeyDBHelper.saveActiveFastKeyTab(fastKeyProducts[_selectedIndex!].id);
-                  widget.fastKeyTabIdNotifier.value = fastKeyProducts[_selectedIndex!].id; // Notify NestedGridWidget // Build #1.0.12: fixed fast key tab changes grid items will re load
-                } else {
-                  await fastKeyDBHelper.saveActiveFastKeyTab(-1); // No tab selected
-                  widget.fastKeyTabIdNotifier.value = -1; // Notify NestedGridWidget
-                }
-
-                // Close the dialogs
-                Navigator.pop(context); // Close confirmation dialog
-                Navigator.pop(context); // Close edit dialog
-              },
-              child: const Text(TextConstants.yesText, style: TextStyle(color: Colors.red)),
-            ),
-          ],
+                  },
+                  child: isDeleting
+                      ? const CircularProgressIndicator()
+                      : const Text(TextConstants.yesText, style: TextStyle(color: Colors.red)),
+                ),
+              ],
+            );
+          },
         );
       },
     );

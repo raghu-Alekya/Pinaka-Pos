@@ -106,6 +106,7 @@ class FastKeyBloc { // Build #1.0.15
             final tabId = matchingTab[AppDBConst.fastKeyId];
             final updatedTab = {
               AppDBConst.fastKeyTabTitle: fastkey.fastkeyTitle.toString(),
+              AppDBConst.fastKeyTabItemCount: fastkey.itemCount
             };
             await fastKeyDBHelper.updateFastKeyTab(tabId, updatedTab);
 

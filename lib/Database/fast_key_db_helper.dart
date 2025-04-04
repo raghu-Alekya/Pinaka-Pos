@@ -20,7 +20,7 @@ class FastKeyDBHelper { // Build #1.0.11 : FastKeyHelper for all fast key relate
       AppDBConst.fastKeyServerId: fastKeyServerId, /// use this fast key to call get fast key product by fast key id
       AppDBConst.fastKeyTabTitle: title,
       AppDBConst.fastKeyTabImage: image,
-      AppDBConst.fastKeyTabCount: count,
+      AppDBConst.fastKeyTabItemCount: count,
       AppDBConst.fastKeyTabIndex: index ?? 'N/A', // Build #1.0.12: new row added
     });
 
@@ -93,7 +93,7 @@ class FastKeyDBHelper { // Build #1.0.11 : FastKeyHelper for all fast key relate
     final db = await DBHelper.instance.database;
     await db.update(
       AppDBConst.fastKeyTable,
-      {AppDBConst.fastKeyTabCount: newCount},
+      {AppDBConst.fastKeyTabItemCount: newCount},
       where: '${AppDBConst.fastKeyId} = ?',
       whereArgs: [tabId],
     );

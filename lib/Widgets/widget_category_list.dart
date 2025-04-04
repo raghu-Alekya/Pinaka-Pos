@@ -169,7 +169,7 @@ class _CategoryListState extends State<CategoryList> {
             fastkeyTitle: product[AppDBConst.fastKeyTabTitle],
             fastkeyImage: product[AppDBConst.fastKeyTabImage],
             fastkeyIndex: product[AppDBConst.fastKeyTabIndex]?.toString() ?? '0',
-            itemCount: int.tryParse(product[AppDBConst.fastKeyTabCount]?.toString() ?? '0') ?? 0,
+            itemCount: int.tryParse(product[AppDBConst.fastKeyTabItemCount]?.toString() ?? '0') ?? 0,
           );
         }).toList();
       });

@@ -172,25 +172,27 @@ class _NestedGridWidgetState extends State<NestedGridWidget> {
     if (kDebugMode) {
       print("### _addFastKeyTabItem _fastKeyTabId: $_fastKeyTabId");
     }
-
-    ///Add a logic to add to API then push to DB and final load from DB
-    ///1. get fastkey_server_id from DB and use for step 2
-    var tabs = await fastKeyDBHelper.getFastKeyTabsByTabId(_fastKeyTabId ?? 1);
-    if(tabs.length == 0){
-      return;
-    }
-    var fastKeyServerId = tabs.first[AppDBConst.fastKeyServerId];
-
+    // ///Add a logic to add to API then push to DB and final load from DB
+    // ///1. get fastkey_server_id from DB and use for step 2
+    // var tabs = await fastKeyDBHelper.getFastKeyTabsByTabId(_fastKeyTabId ?? 1);
+    // if(tabs.length == 0){
+    //   return;
+    // }
+    // var fastKeyServerId = tabs.first[AppDBConst.fastKeyServerId];
+    //
     ///2. get list of products in this tab
     var productsInFastKey = await fastKeyDBHelper.getFastKeyItems(_fastKeyTabId ?? 1);
     var countProductInFastKey = productsInFastKey.length;
-
-    ///3. create a FastKeyProductItem and pass to add product
-    FastKeyProductItem item = FastKeyProductItem(productId: selectedProduct!['id'], slNumber: countProductInFastKey+1);
-    ///4. call add fast keys product API
-    _fastKeyProductBloc.addProducts(fastKeyId: fastKeyServerId, products: [item]);
-
-    ///5. save to DB with all required parameters
+    //
+    // ///3. create a FastKeyProductItem and pass to add product
+    // FastKeyProductItem item = FastKeyProductItem(productId: selectedProduct!['id'], slNumber: countProductInFastKey+1);
+    // ///4. call add fast keys product API
+    // _fastKeyProductBloc.addProducts(fastKeyId: fastKeyServerId, products: [item]);
+    //
+    // if (kDebugMode) {
+    //   print("save product $name in DB");
+    // }
+    ///5. save to DB along with productid and index
     await fastKeyDBHelper.addFastKeyItem(
       _fastKeyTabId!,
       name,

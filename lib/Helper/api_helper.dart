@@ -88,13 +88,6 @@ class APIHelper { // Build #1.0.8, Naveen added
       token =  userData?[AppDBConst.userToken] ?? "";
       body = json.encode(params);
 
-      if (kDebugMode) {
-        print("URL: $finalUrl");
-        print("Environment: ${UrlHelper.environment[UrlHelper.baseUrl]}");
-        print("Body: $body");
-        print("Bearer Token: $token");
-      }
-
       // Add Bearer token if required
       final headers = {
         'Content-Type': 'application/json',
@@ -102,12 +95,39 @@ class APIHelper { // Build #1.0.8, Naveen added
           HttpHeaders.authorizationHeader: "Bearer $token",
       };
 
+      if (kDebugMode) {
+        print("URL: $finalUrl");
+        print("Environment: ${UrlHelper.environment[UrlHelper.baseUrl]}");
+        print("Body: $body");
+        if (useToken && token != null && token.isNotEmpty) {
+          print("Bearer Token: $token");
+        }
+        print("Headers: $headers");
+      }
+
       final response = await http.post(Uri.parse(finalUrl), body: body, headers: headers);
       responseJson = _returnResponse(response);
-    } on SocketException {
-      throw FetchDataException('No Internet connection');
-    } catch (e, s) {
+    }
+    // on SocketException {
+    //   throw FetchDataException('No Internet connection $');
+    // }
+    catch (e, s) {
       _logError("POST", finalUrl, token, e, s, body: body);
+      if(e is SocketException){
+        //treat SocketException
+        if (kDebugMode) {
+          print("Socket exception: ${e.toString()}");
+        }
+      }
+      else if(e is TimeoutException){
+        //treat TimeoutException
+        if (kDebugMode) {
+          print("Timeout exception: ${e.toString()}");
+        }
+      }
+      else if (kDebugMode) {
+        print("Unhandled exception: ${e.toString()}");
+      }
       throw Exception("Exception: $e; Stack: $s");
     }
 

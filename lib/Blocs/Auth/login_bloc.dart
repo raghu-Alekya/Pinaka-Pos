@@ -45,7 +45,7 @@ class LoginBloc { // Build #1.0.8
         loginSink.add(APIResponse.error(
             loginResponse.message ?? "Invalid PIN or user not found."));
       }
-    } catch (e) {
+    } catch (e, s) {
       // Handle specific API error response
       if (e.toString().contains('invalid_pin')) {
         loginSink.add(APIResponse.error("Invalid PIN or user not found."));
@@ -54,7 +54,7 @@ class LoginBloc { // Build #1.0.8
       } else {
         loginSink.add(APIResponse.error("An error occurred. Please try again."));
       }
-      if (kDebugMode) print("Exception in fetchLoginToken: $e");
+      if (kDebugMode) print("Exception in LoginBlock.fetchLoginToken: $e; Stack: $s");
     }
   }
 

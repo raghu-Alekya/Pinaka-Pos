@@ -6,8 +6,10 @@ import 'package:pinaka_pos/Screens/Home/orders_screen.dart';
 import 'package:quickalert/models/quickalert_animtype.dart';
 import 'package:quickalert/models/quickalert_type.dart';
 import 'package:quickalert/widgets/quickalert_dialog.dart';
+import 'package:flutter_swipe_button/flutter_swipe_button.dart';
 
 import '../Constants/text.dart';
+import '../Screens/Home/add_screen.dart';
 import '../Screens/Home/settings_screen.dart';
 
 class NavigationBar extends StatelessWidget {
@@ -94,7 +96,15 @@ class NavigationBar extends StatelessWidget {
             icon: Icons.add,
             label: TextConstants.addText,
             isSelected: selectedSidebarIndex == 2,
-            onTap: () => onSidebarItemSelected(2),
+            onTap: () {
+              if (kDebugMode) {
+                print("##### AddScreen button tapped");
+              }
+              lastSelectedIndex = 2;
+              onSidebarItemSelected(2);
+              Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => AddScreen(lastSelectedIndex: lastSelectedIndex)),
+              );
+            },
             isVertical: isVertical,
           ),
           SidebarButton(
@@ -184,22 +194,24 @@ class NavigationBar extends StatelessWidget {
                   // Widget for the Close Shift button
                   widget: Padding(
                     padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
-                    child: ElevatedButton(
-                      onPressed: () {
-                        /// close shift
-                        Navigator.of(context).pop();
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.orange,
-                        minimumSize: const Size(double.infinity, 50),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(25),
-                        ),
+                    child: SwipeButton(
+                      thumb: const Icon(
+                        Icons.double_arrow_rounded,
+                        color: Colors.white,
                       ),
                       child: const Text(
-                        'Close Shift',
+                        'Swipe to Close Shift',
                         style: TextStyle(color: Colors.white, fontSize: 16),
                       ),
+                      borderRadius: BorderRadius.circular(25),
+                      activeThumbColor: Colors.orangeAccent,
+                      activeTrackColor: Colors.orange,
+                      onSwipe: () {
+                        // Close shift functionality
+                        print("Shift closed");
+                        Navigator.of(context).pop();
+                        // Add your close shift logic here
+                      },
                     ),
                   ),
                   onConfirmBtnTap: () {
@@ -291,7 +303,17 @@ class NavigationBar extends StatelessWidget {
             icon: Icons.add,
             label: TextConstants.addText,
             isSelected: selectedSidebarIndex == 2,
-            onTap: () => onSidebarItemSelected(2),
+            onTap: () {
+              if (kDebugMode) {
+                print("##### AddScreen button tapped");
+              }
+              lastSelectedIndex = 2;
+              onSidebarItemSelected(2);
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => AddScreen()),
+              );
+            },
             isVertical: isVertical,
           ),
           SidebarButton(

@@ -391,8 +391,11 @@ class _CategoryListState extends State<CategoryList> {
                   bool isSelected = _selectedIndex == index;
                   bool showEditButton = _editingIndex == index;
 
+                  if (kDebugMode) {
+                    print('>>>>>>>>>>>>>>>> Tab view key : ${product.fastkeyTitle}_$index');
+                  }
                   return GestureDetector(
-                    key: ValueKey(product.fastkeyTitle),
+                    key: ValueKey('${product.fastkeyTitle}_$index'),
                     onTap: () async {
                       setState(() {
                         if (_editingIndex == index) {

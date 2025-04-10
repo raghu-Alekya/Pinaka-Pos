@@ -39,7 +39,7 @@ class SearchProduct {
   Future<List> getProductResults() async {
     await Future.delayed(const Duration(milliseconds: 500));
     if (kDebugMode) {
-      print("1 object######################### ${_productList.length} \n");
+      print("1 auto_search.getProductResults object######################### ${_productList.length} \n");
     }
     return _productList;
   }
@@ -48,9 +48,9 @@ class SearchProduct {
    // _autoSuggestExample(text , isChooseOnMapAvailable);
     _productList.clear();
     if (kDebugMode) {
-      print("_fetchProductByText ######################### $text, $_productList \n");
+      print("auto_search.listentextchange ######################### $text, $_productList \n");
       _productList.forEach((element) {
-        print("product #########################${element.label} \n");
+        print("auto_search.listentextchange product #########################${element.label} \n");
       });
     }
     if(text.isEmpty){
@@ -59,11 +59,11 @@ class SearchProduct {
     await _productBloc.fetchProducts(searchQuery: text).whenComplete((){
       _loadProduct();
       if (kDebugMode) {
-        print("2 object#########################${_productList.length} \n");
+        print("2 auto_search.listentextchange object#########################${_productList.length} \n");
       }
     });
     if (kDebugMode) {
-      print("3 object#########################${_productList.length} \n");
+      print("3 auto_search.listentextchange object#########################${_productList.length} \n");
     }
   }
 

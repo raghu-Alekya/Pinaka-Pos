@@ -1,57 +1,83 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import '../../Database/order_panel_db_helper.dart';
+import 'package:pinaka_pos/Widgets/widget_tabs.dart';
+
 import '../../Widgets/widget_category_list.dart';
+import '../../Widgets/widget_edit_product_items.dart';
 import '../../Widgets/widget_nested_grid_layout.dart';
 import '../../Widgets/widget_order_panel.dart';
 import '../../Widgets/widget_topbar.dart';
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../../Widgets/widget_navigation_bar.dart' as custom_widgets;
+import '../../Widgets/widget_custom_num_pad.dart';
 
 // Enum for sidebar position
 enum SidebarPosition { left, right, bottom }
 // Enum for order panel position
 enum OrderPanelPosition { left, right }
 
-class FastKeyScreen extends StatefulWidget {
-  final int? lastSelectedIndex; //Build #1.0.7: Make it nullable
+class EditProductScreen extends StatefulWidget { // Build #1.0.6 - Updated Horizontal & Vertical Scrolling
+  final int? lastSelectedIndex;
+  final Map<String, dynamic> orderItem;
+  final Function(int) onQuantityUpdated;// Make it nullable
 
-  const FastKeyScreen({super.key, this.lastSelectedIndex}); // Optional, no default value
+  const EditProductScreen({super.key, this.lastSelectedIndex,
+    required this.orderItem,
+    required this.onQuantityUpdated,}); // Optional, no default value
+
 
   @override
-  State<FastKeyScreen> createState() => _FastKeyScreenState();
+  State<EditProductScreen> createState() => _EditProductScreenState();
 }
 
-class _FastKeyScreenState extends State<FastKeyScreen> {
+class _EditProductScreenState extends State<EditProductScreen> with SingleTickerProviderStateMixin {
   final List<String> items = List.generate(18, (index) => 'Bud Light');
-  int _selectedSidebarIndex = 0; //Build #1.0.2 : By default fast key should be selected after login
+  int _selectedSidebarIndex = 2; //Build #1.0.2 : By default fast key should be selected after login
   DateTime now = DateTime.now();
   List<int> quantities = [1, 1, 1, 1];
   SidebarPosition sidebarPosition = SidebarPosition.left; // Default to bottom sidebar
   OrderPanelPosition orderPanelPosition = OrderPanelPosition.right; // Default to right
   bool isLoading = true; // Add a loading state
-  final ValueNotifier<int?> fastKeyTabIdNotifier = ValueNotifier<int?>(null); // Add this
-  final OrderHelper orderHelper = OrderHelper();
+  final ValueNotifier<int?> fastKeyTabIdNotifier = ValueNotifier<int?>(null);// Add this
+
+  late AnimationController _animationController;
+  late Animation<Offset> _slideAnimation;
+
 
   @override
   void initState() {
     super.initState();
-    _selectedSidebarIndex = widget.lastSelectedIndex ?? 0; // Build #1.0.7: Restore previous selection
-
+    _selectedSidebarIndex = widget.lastSelectedIndex ?? 2; // Build #1.0.7: Restore previous selection
     // Simulate a loading delay
     Future.delayed(const Duration(seconds: 3), () {
-      if(mounted) {
-        setState(() {
-          isLoading = false; // Set loading to false after 3 seconds
-        });
-      }
+      setState(() {
+        isLoading = false; // Set loading to false after 3 seconds
+      });
     });
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(1.0, 0.0),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOut,
+    ));
+    _animationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
   }
 
   void _refreshOrderList() { // Build #1.0.10 - Naveen: This will trigger a rebuild of the RightOrderPanel (Callback)
     setState(() {
       if (kDebugMode) {
-        print("###### FastKeyScreen _refreshOrderList");
+        print("###### CategoriesScreen _refreshOrderList");
       }
     });
   }
@@ -78,28 +104,11 @@ class _FastKeyScreenState extends State<FastKeyScreen> {
                 }
               });
             },
-            onProductSelected: (product) { // Build #1.0.13 : Added product search
-              // Convert price from String to double safely
-              double price;
-              try {
-                price = double.tryParse(product.price ?? '0.00') ?? 0.00;
-              } catch (e) {
-                price = 0.00;
-              }
-
-              orderHelper.addItemToOrder(
-                product.name ?? 'Unknown',
-                product.images?.isNotEmpty == true ? product.images!.first : '',
-                price, // Now properly converted to double
-                1, // quantity
-                'SKU${product.name}', // SKU
-              );
-            },
           ),
-          Divider( // Build #1.0.6
-            color: Colors.grey,
-            thickness: 0.4,
-            height: 1,
+          Divider(
+            color: Colors.grey, // Light grey color
+            thickness: 0.4, // Very thin line
+            height: 1, // Minimal height
           ),
           // Main Content
           Expanded(
@@ -127,26 +136,13 @@ class _FastKeyScreenState extends State<FastKeyScreen> {
                     refreshOrderList: _refreshOrderList, // Pass the callback
                   ),
 
-                // Main Content (Horizontal Scroll and Grid View)
                 Expanded(
-                  child: Column(
-                    children: [
-                      // Add the CategoryScroll widget here
-                      CategoryList(isHorizontal: true, isLoading: isLoading,isAddButtonEnabled: true, fastKeyTabIdNotifier: fastKeyTabIdNotifier),// Build #1.0.7
-
-                      // Grid Layout
-                      ValueListenableBuilder<int?>( // Build #1.0.11 : Added Notifier for update list and counts
-                        valueListenable: fastKeyTabIdNotifier,
-                        builder: (context, fastKeyTabId, child) {
-                          return NestedGridWidget(
-                            isHorizontal: true,
-                            isLoading: isLoading,
-                            onItemAdded: _refreshOrderList,
-                            fastKeyTabIdNotifier: fastKeyTabIdNotifier,
-                          );
-                        },
-                      ),
-                    ],
+                  child: SlideTransition(
+                    position: _slideAnimation,
+                    child: ProductEditScreen(
+                      orderItem: widget.orderItem,
+                      onQuantityUpdated: widget.onQuantityUpdated,
+                    ),
                   ),
                 ),
 
@@ -190,5 +186,6 @@ class _FastKeyScreenState extends State<FastKeyScreen> {
       ),
     );
   }
+
 }
 

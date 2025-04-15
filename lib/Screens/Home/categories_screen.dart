@@ -110,12 +110,9 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
 
                 // Main Content (Horizontal Scroll and Grid View)
                 Expanded(
-                  child: Row(
+                  child: Column(
                     children: [
-                      SizedBox(
-                        width: 200,
-                          child: CategoryList(isHorizontal: false, isLoading: isLoading,  fastKeyTabIdNotifier: fastKeyTabIdNotifier) // Build #1.0.11
-                      ),
+                      CategoryList(isHorizontal: true, isLoading: isLoading, isAddButtonEnabled: false, fastKeyTabIdNotifier: fastKeyTabIdNotifier),
                       // Grid Layout
                       ValueListenableBuilder<int?>( // Build #1.0.11
                         valueListenable: fastKeyTabIdNotifier,

@@ -17,10 +17,11 @@ import '../Helper/api_response.dart';
 
 class CategoryList extends StatefulWidget {
   final bool isHorizontal; // Build #1.0.6
-  final bool isLoading; // Add a loading state
+  final bool isLoading;// Add a loading state
+  final bool isAddButtonEnabled;
   final ValueNotifier<int?> fastKeyTabIdNotifier; // Add this
 
-  const CategoryList({super.key, required this.isHorizontal, this.isLoading = false, required this.fastKeyTabIdNotifier});
+  const CategoryList({super.key, required this.isHorizontal, required this.isAddButtonEnabled, this.isLoading = false, required this.fastKeyTabIdNotifier});
 
   @override
   _CategoryListState createState() => _CategoryListState();
@@ -43,6 +44,7 @@ class _CategoryListState extends State<CategoryList> {
   // now using FastKey object model
   List<FastKey> fastKeyTabs = []; // Build #1.0.19: Updated fastKeyProducts to fastKeyTabs for better understanding
   var isLoading = false;
+
 
   @override
   void initState() {
@@ -391,9 +393,6 @@ class _CategoryListState extends State<CategoryList> {
                   bool isSelected = _selectedIndex == index;
                   bool showEditButton = _editingIndex == index;
 
-                  if (kDebugMode) {
-                    print('>>>>>>>>>>>>>>>> Tab view key : ${product.fastkeyTitle}_$index');
-                  }
                   return GestureDetector(
                     key: ValueKey('${product.fastkeyTitle}_$index'),
                     onTap: () async {
@@ -500,9 +499,11 @@ class _CategoryListState extends State<CategoryList> {
             }) : SizedBox.shrink(),
           ),
           const SizedBox(width: 8),
+          widget.isAddButtonEnabled ?
           _buildScrollButton(Icons.add, () {
             _showCategoryDialog(context: context);
-          }),
+          })
+          : SizedBox(),
         ],
       ),
     );
@@ -560,7 +561,7 @@ class _CategoryListState extends State<CategoryList> {
                 bool showEditButton = _editingIndex == index;
 
                 return GestureDetector(
-                  key: ValueKey(product.fastkeyTitle),
+                  key:  ValueKey('${product.fastkeyTitle}_$index'),
                   onTap: () async {
                     setState(() {
                       if (_editingIndex == index) {

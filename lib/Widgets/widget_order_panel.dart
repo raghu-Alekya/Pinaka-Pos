@@ -12,6 +12,7 @@ import 'package:pinaka_pos/Widgets/widget_nested_grid_layout.dart';
 import '../Constants/text.dart';
 import '../Database/db_helper.dart';
 import '../Database/order_panel_db_helper.dart';
+import '../Screens/Home/edit_product_screen.dart';
 
 class RightOrderPanel extends StatefulWidget {
   final String formattedDate;
@@ -58,7 +59,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
   void _getOrderTabs() async {
     await orderHelper.loadData(); // Load order data from DB
 
-     if(mounted)   {
+    if (mounted) {
       setState(() {
         // Convert order IDs into tab format
         tabs = orderHelper.orderIds
@@ -394,14 +395,60 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                     ),
                     child: GestureDetector(
                       onTap: () {
-                        showNumPadDialog(context, orderItem[AppDBConst.itemName], (selectedQuantity) {
-                          setState(() {
-                            orderItem[AppDBConst.itemCount] = selectedQuantity;
-                          });
-                        });
+                        // Replace dialog with center screen
+
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => EditProductScreen(
+                              orderItem: orderItem,
+                              onQuantityUpdated: (newQuantity) {
+                                // Handle the quantity update
+                                setState(() {
+                                  orderItem[AppDBConst.itemCount] = newQuantity;
+                                });
+                              },
+                            ),
+                          ),
+                        );
+                        // showGeneralDialog(
+                        //   context: context,
+                        //   pageBuilder: (context, animation, secondaryAnimation) => Container(), // Placeholder, we use transitionBuilder
+                        //   barrierDismissible: true,
+                        //   barrierLabel: "Dismiss",
+                        //   transitionDuration: const Duration(milliseconds: 500), // Animation duration
+                        //   transitionBuilder: (context, animation, secondaryAnimation, child) {
+                        //     // Define the slide animation
+                        //     final Tween<Offset> tween = Tween(
+                        //       begin: const Offset(1.0, 0.0), // Start from the right
+                        //       end: Offset.zero, // End at the center
+                        //     );
+                        //     final Animation<Offset> offsetAnimation = animation.drive(tween);
+                        //
+                        //     return SlideTransition(
+                        //       position: offsetAnimation,
+                        //       child: ProductEditScreen(
+                        //         orderItem: orderItem,
+                        //         onQuantityUpdated: (newQuantity) {
+                        //           setState(() {
+                        //             orderItem[AppDBConst.itemCount] = newQuantity;
+                        //           });
+                        //         },
+                        //       ),
+                        //     );
+                        //   },
+                        // );
+                        //showProductEditScreen(context, orderItem);
+                        //Navigator.push(context, MaterialPageRoute(builder: (context) => OrdersScreen()));
+                        // showNumPadDialog(context, orderItem[AppDBConst.itemName], (selectedQuantity) {
+                        //   setState(() {
+                        //     orderItem[AppDBConst.itemCount] = selectedQuantity;
+                        //   });
+                        // });
                       },
                       child: Container(
-                        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                        margin: const EdgeInsets.symmetric(
+                            vertical: 8, horizontal: 8),
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
                           color: Colors.white,
@@ -421,40 +468,44 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                               borderRadius: BorderRadius.circular(10),
                               child: orderItem[AppDBConst.itemImage].toString().startsWith('http')
                                   ? Image.network(
-                                orderItem[AppDBConst.itemImage],
-                                height: 30,
-                                width: 30,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return SvgPicture.asset(
-                                    'assets/svg/password_placeholder.svg',
-                                    height: 30,
-                                    width: 30,
-                                    fit: BoxFit.cover,
-                                  );
-                                },
-                              )
-                                  : orderItem[AppDBConst.itemImage].toString().startsWith('assets/')
-                                  ? SvgPicture.asset(
-                                orderItem[AppDBConst.itemImage],
-                                height: 30,
-                                width: 30,
-                                fit: BoxFit.cover,
-                              )
-                                  : Image.file(
-                                File(orderItem[AppDBConst.itemImage]),
-                                height: 30,
-                                width: 30,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return SvgPicture.asset(
-                                    'assets/svg/password_placeholder.svg',
-                                    height: 30,
-                                    width: 30,
-                                    fit: BoxFit.cover,
-                                  );
-                                },
-                              ),
+                                      orderItem[AppDBConst.itemImage],
+                                      height: 30,
+                                      width: 30,
+                                      fit: BoxFit.cover,
+                                      errorBuilder:
+                                          (context, error, stackTrace) {
+                                        return SvgPicture.asset(
+                                          'assets/svg/password_placeholder.svg',
+                                          height: 30,
+                                          width: 30,
+                                          fit: BoxFit.cover,
+                                        );
+                                      },
+                                    )
+                                  : orderItem[AppDBConst.itemImage]
+                                          .toString()
+                                          .startsWith('assets/')
+                                      ? SvgPicture.asset(
+                                          orderItem[AppDBConst.itemImage],
+                                          height: 30,
+                                          width: 30,
+                                          fit: BoxFit.cover,
+                                        )
+                                      : Image.file(
+                                          File(orderItem[AppDBConst.itemImage]),
+                                          height: 30,
+                                          width: 30,
+                                          fit: BoxFit.cover,
+                                          errorBuilder:
+                                              (context, error, stackTrace) {
+                                            return SvgPicture.asset(
+                                              'assets/svg/password_placeholder.svg',
+                                              height: 30,
+                                              width: 30,
+                                              fit: BoxFit.cover,
+                                            );
+                                          },
+                                        ),
                             ),
                             const SizedBox(width: 10),
                             Expanded(
@@ -463,11 +514,15 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                                 children: [
                                   Text(
                                     orderItem[AppDBConst.itemName],
-                                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black),
+                                    style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.black),
                                   ),
                                   Text(
                                     "${orderItem[AppDBConst.itemCount]} * \$${orderItem[AppDBConst.itemPrice]}", // Build #1.0.12: now item count will update in order panel
-                                    style: const TextStyle(color: Colors.black54),
+                                    style:
+                                        const TextStyle(color: Colors.black54),
                                   ),
                                 ],
                               ),
@@ -477,7 +532,9 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                               children: [
                                 Text(
                                   "\$${(orderItem[AppDBConst.itemCount] * orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}",
-                                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                  style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold),
                                 ),
                               ],
                             ),
@@ -497,7 +554,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
           //   color: Colors.grey.shade200,
           //   borderRadius: BorderRadius.circular(16),
           // ),
-          child:  Row(
+          child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               // EBT Container
@@ -506,13 +563,18 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                   padding: EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: Colors.grey.shade200,
-
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Text(TextConstants.ebtText, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black45)),
-                      Text("\$0.00", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                      Text(TextConstants.ebtText,
+                          style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black45)),
+                      Text("\$0.00",
+                          style: TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ),
@@ -527,8 +589,14 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Text(TextConstants.payoutsText, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black45)),
-                      Text("\$0.00", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                      Text(TextConstants.payoutsText,
+                          style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black45)),
+                      Text("\$0.00",
+                          style: TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ),
@@ -543,8 +611,14 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Text(TextConstants.subTotalText, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black45)),
-                      Text("\$0.00", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                      Text(TextConstants.subTotalText,
+                          style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black45)),
+                      Text("\$0.00",
+                          style: TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.bold)),
                     ],
                   ),
                 ),
@@ -559,8 +633,16 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Text(TextConstants.taxText, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white)),
-                      Text("\$0.00", style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white)),
+                      Text(TextConstants.taxText,
+                          style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white)),
+                      Text("\$0.00",
+                          style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white)),
                     ],
                   ),
                 ),
@@ -568,7 +650,6 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
             ],
           ),
         ),
-
         Container(
           padding: const EdgeInsets.all(16),
           child: Row(
@@ -583,7 +664,8 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                       side: const BorderSide(color: Colors.black),
                     ),
                   ),
-                  child: const Text(TextConstants.holdOrderText, style: TextStyle(color: Colors.black)),
+                  child: const Text(TextConstants.holdOrderText,
+                      style: TextStyle(color: Colors.black)),
                 ),
               ),
               const SizedBox(width: 10),
@@ -592,7 +674,8 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                   onPressed: () {},
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
                   ),
                   child: Text(
                     "${TextConstants.payText} \$${(widget.quantities.fold(0.0, (double sum, qty) => sum + qty * 0.99)).toStringAsFixed(2)}",
@@ -608,112 +691,161 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
   }
 
   /// //Build #1.0.2 : Added showNumPadDialog if user tap on order layout list item
-  void showNumPadDialog(BuildContext context, String itemName, Function(int) onQuantitySelected) {
-    TextEditingController controller = TextEditingController();
-    int quantity = 0;
 
-    showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            void updateQuantity(int newQuantity) {
-              setState(() {
-                quantity = newQuantity;
-                controller.text = quantity == 0 ? "" : quantity.toString();
-              });
-            }
-
-            return Dialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              insetPadding: EdgeInsets.symmetric(horizontal: 40, vertical: 100),
-              child: Container(
-                width: 600,
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Title
-                    Text(TextConstants.enterQuanText, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500)),
-                    Text(itemName, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                    SizedBox(height: 12),
-
-                    // TextField with + and - buttons
-                    Container(
-                      width: 500,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade400, width: 1.5),
-                        color: Colors.grey.shade100,
-                      ),
-                      padding: EdgeInsets.symmetric(horizontal: 20), // Match NumPad padding
-                      child: Row(
-                        children: [
-                          // Decrement Button
-                          IconButton(
-                            icon: Icon(Icons.remove_circle, size: 32, color: Colors.redAccent),
-                            onPressed: () {
-                              if (quantity > 0) updateQuantity(quantity - 1);
-                            },
-                          ),
-
-                          // Quantity TextField
-                          Expanded(
-                            child: TextField(
-                              controller: controller,
-                              textAlign: TextAlign.center,
-                              readOnly: true,
-                              style: TextStyle(
-                                fontSize: 28,
-                                fontWeight: controller.text.isEmpty ? FontWeight.normal : FontWeight.bold,
-                                color: controller.text.isEmpty ? Colors.grey : Colors.black87, // Fix: Color updates correctly
-                              ),
-                              decoration: InputDecoration(
-                                border: InputBorder.none,
-                                hintText: "00", // Fix: Shows properly when empty
-                                hintStyle: TextStyle(fontSize: 28, color: Colors.grey),
-                                contentPadding: EdgeInsets.symmetric(vertical: 12), // Fix: Consistent padding
-                              ),
-                            ),
-                          ),
-
-                          // Increment Button
-                          IconButton(
-                            icon: Icon(Icons.add_circle, size: 32, color: Colors.green),
-                            onPressed: () {
-                              updateQuantity(quantity + 1);
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(height: 16),
-
-                    // CustomNumPad with OK button
-                    CustomNumPad(
-                      onDigitPressed: (digit) {
-                        setState(() {
-                          int newQty = int.tryParse((controller.text.isEmpty ? "0" : controller.text) + digit) ?? quantity;
-                          updateQuantity(newQty);
-                        });
-                      },
-                      onClearPressed: () => updateQuantity(0),
-                      onConfirmPressed: () {
-                        onQuantitySelected(quantity);
-                        Navigator.pop(context);
-                      },
-                      actionButtonType: ActionButtonType.ok, // OK instead of Delete
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
+  // New method to show product edit screen (replace the existing showNumPadDialog)
+  // void showProductEditScreen(BuildContext context, Map<String, dynamic> orderItem) {
+  //   showDialog(
+  //       context: context,
+  //       barrierDismissible: false,
+  //       builder: (context) {
+  //     return ProductEditScreen(
+  //       orderItem: orderItem,
+  //       onQuantityUpdated: (newQuantity) {
+  //         setState(() {
+  //           orderItem[AppDBConst.itemCount] = newQuantity;
+  //         });
+  //         // Here you would update the database if needed
+  //         // For now we're just updating the UI state
+  //         fetchOrderItems();
+  //       },
+  //     );
+  //   }
+  //   );
+  // }
+  // void showNumPadDialog(BuildContext context, String itemName, Function(int) onQuantitySelected) {
+  //   TextEditingController controller = TextEditingController();
+  //   int quantity = 0;
+  //
+  //   showDialog(
+  //     context: context,
+  //     builder: (context) {
+  //       return StatefulBuilder(
+  //         builder: (context, setState) {
+  //           void updateQuantity(int newQuantity) {
+  //             setState(() {
+  //               quantity = newQuantity;
+  //               controller.text = quantity == 0 ? "" : quantity.toString();
+  //             });
+  //           }
+  //
+  //           return Dialog(
+  //             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+  //             insetPadding: EdgeInsets.symmetric(horizontal: 40, vertical: 100),
+  //             child: Container(
+  //               width: 600,
+  //               padding: const EdgeInsets.all(16.0),
+  //               child: Column(
+  //                 mainAxisSize: MainAxisSize.min,
+  //                 children: [
+  //                   // Title
+  //                   Text(TextConstants.enterQuanText, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500)),
+  //                   Text(itemName, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+  //                   SizedBox(height: 12),
+  //
+  //                   // TextField with + and - buttons
+  //                   Container(
+  //                     width: 500,
+  //                     decoration: BoxDecoration(
+  //                       borderRadius: BorderRadius.circular(12),
+  //                       border: Border.all(color: Colors.grey.shade400, width: 1.5),
+  //                       color: Colors.grey.shade100,
+  //                     ),
+  //                     padding: EdgeInsets.symmetric(horizontal: 20), // Match NumPad padding
+  //                     child: Row(
+  //                       children: [
+  //                         // Decrement Button
+  //                         IconButton(
+  //                           icon: Icon(Icons.remove_circle, size: 32, color: Colors.redAccent),
+  //                           onPressed: () {
+  //                             if (quantity > 0) updateQuantity(quantity - 1);
+  //                           },
+  //                         ),
+  //
+  //                         // Quantity TextField
+  //                         Expanded(
+  //                           child: TextField(
+  //                             controller: controller,
+  //                             textAlign: TextAlign.center,
+  //                             readOnly: true,
+  //                             style: TextStyle(
+  //                               fontSize: 28,
+  //                               fontWeight: controller.text.isEmpty ? FontWeight.normal : FontWeight.bold,
+  //                               color: controller.text.isEmpty ? Colors.grey : Colors.black87, // Fix: Color updates correctly
+  //                             ),
+  //                             decoration: InputDecoration(
+  //                               border: InputBorder.none,
+  //                               hintText: "00", // Fix: Shows properly when empty
+  //                               hintStyle: TextStyle(fontSize: 28, color: Colors.grey),
+  //                               contentPadding: EdgeInsets.symmetric(vertical: 12), // Fix: Consistent padding
+  //                             ),
+  //                           ),
+  //                         ),
+  //
+  //                         // Increment Button
+  //                         IconButton(
+  //                           icon: Icon(Icons.add_circle, size: 32, color: Colors.green),
+  //                           onPressed: () {
+  //                             updateQuantity(quantity + 1);
+  //                           },
+  //                         ),
+  //                       ],
+  //                     ),
+  //                   ),
+  //                   SizedBox(height: 16),
+  //
+  //                   // CustomNumPad with OK button
+  //                   CustomNumPad(
+  //                     onDigitPressed: (digit) {
+  //                       setState(() {
+  //                         int newQty = int.tryParse((controller.text.isEmpty ? "0" : controller.text) + digit) ?? quantity;
+  //                         updateQuantity(newQty);
+  //                       });
+  //                     },
+  //                     onClearPressed: () => updateQuantity(0),
+  //                     onConfirmPressed: () {
+  //                       onQuantitySelected(quantity);
+  //                       Navigator.pop(context);
+  //                     },
+  //                     actionButtonType: ActionButtonType.ok, // OK instead of Delete
+  //                   ),
+  //                 ],
+  //               ),
+  //             ),
+  //           );
+  //         },
+  //       );
+  //     },
+  //   );
+  // }
+  // void showProductEditScreen(BuildContext context, Map<String, dynamic> orderItem) {
+  //   showDialog(
+  //     context: context,
+  //     barrierDismissible: false,
+  //     builder: (BuildContext dialogContext) {
+  //       return ProductEditScreen(
+  //         orderItem: orderItem,
+  //         onQuantityUpdated: (newQuantity) async {
+  //           // Update the item in the database first
+  //           // if (orderHelper.activeOrderId != null) {
+  //           //   await orderHelper.updateItemQuantity(
+  //           //       orderItem[AppDBConst.itemId],
+  //           //       newQuantity
+  //           //   );
+  //           // }
+  //
+  //           // Then update the UI state
+  //           setState(() {
+  //             orderItem[AppDBConst.itemCount] = newQuantity;
+  //             // Also update the sum price to maintain consistency
+  //             orderItem[AppDBConst.itemSumPrice] =
+  //                 orderItem[AppDBConst.itemPrice] * newQuantity;
+  //           });
+  //
+  //           // Refresh the order items
+  //           fetchOrderItems();
+  //         },
+  //       );
+  //     },
+  //   );
+  // }
 }
-
-
-

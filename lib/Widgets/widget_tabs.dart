@@ -30,16 +30,20 @@ class _TabsScreenState extends State<TabsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey.shade100,
-      body: Padding(
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.9,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        color: Colors.grey.shade50,),
+      //backgroundColor: Colors.grey.shade100,
+      child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
             // Top Tabs
             _buildTabs(),
 
-            const SizedBox(height: 30),
+            const SizedBox(height: 40),
 
             // Content based on selected tab
             _buildTabContent(),
@@ -187,7 +191,7 @@ class _TabsScreenState extends State<TabsScreen> {
           ),
         ),
 
-        const SizedBox(height: 20),
+        const SizedBox(height: 30),
 
         // Discount Input Toggle
         _buildDiscountToggle(),
@@ -202,7 +206,7 @@ class _TabsScreenState extends State<TabsScreen> {
         // Custom Numpad
         SizedBox(
           width: MediaQuery.of(context).size.width / 2.5,
-          height: MediaQuery.of(context).size.height / 2.25,
+          height: MediaQuery.of(context).size.height / 2.0,
           child: CustomNumPad(
             onDigitPressed: (digit) {
               setState(() {
@@ -254,7 +258,7 @@ class _TabsScreenState extends State<TabsScreen> {
 
         // Coupon Code Display
         Container(
-          width: MediaQuery.of(context).size.width / 2.8,
+          width: MediaQuery.of(context).size.width / 2.75,
           height: MediaQuery.of(context).size.height / 12,
           padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
           decoration: BoxDecoration(
@@ -278,7 +282,7 @@ class _TabsScreenState extends State<TabsScreen> {
         // Custom Numpad
         SizedBox(
           width: MediaQuery.of(context).size.width / 2.5,
-          height: MediaQuery.of(context).size.height / 2.25,
+          height: MediaQuery.of(context).size.height / 2.0,
           child: CustomNumPad(
             onDigitPressed: (digit) {
               setState(() {
@@ -309,7 +313,7 @@ class _TabsScreenState extends State<TabsScreen> {
         Stack(
           children: [
             Container(
-              width: MediaQuery.of(context).size.width / 2.8,
+              width: MediaQuery.of(context).size.width / 2.75,
               height: MediaQuery.of(context).size.height / 12,
               padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
               decoration: BoxDecoration(
@@ -354,7 +358,7 @@ class _TabsScreenState extends State<TabsScreen> {
         Stack(
           children: [
             Container(
-              width: MediaQuery.of(context).size.width / 2.8,
+              width: MediaQuery.of(context).size.width / 2.75,
               height: MediaQuery.of(context).size.height / 12,
               padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
               decoration: BoxDecoration(
@@ -398,7 +402,7 @@ class _TabsScreenState extends State<TabsScreen> {
         // Custom Numpad
         SizedBox(
           width: MediaQuery.of(context).size.width / 2.5,
-          height: MediaQuery.of(context).size.height / 2.25,
+          height: MediaQuery.of(context).size.height / 2.0,
           child: CustomNumPad(
             onDigitPressed: (digit) {
               setState(() {
@@ -434,7 +438,7 @@ class _TabsScreenState extends State<TabsScreen> {
         Stack(
           children: [
             Container(
-              width: MediaQuery.of(context).size.width / 2.8,
+              width: MediaQuery.of(context).size.width / 2.75,
               height: MediaQuery.of(context).size.height / 12,
               padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
               decoration: BoxDecoration(
@@ -477,7 +481,7 @@ class _TabsScreenState extends State<TabsScreen> {
         // Custom Numpad
         SizedBox(
           width: MediaQuery.of(context).size.width / 2.5,
-          height: MediaQuery.of(context).size.height / 2.25,
+          height: MediaQuery.of(context).size.height / 2.0,
           child: CustomNumPad(
             onDigitPressed: (digit) {
               setState(() {
@@ -507,7 +511,7 @@ class _TabsScreenState extends State<TabsScreen> {
   // Build the percentage/amount toggle
   Widget _buildDiscountToggle() {
     return Container(
-      width: MediaQuery.of(context).size.width / 2.8,
+      width: MediaQuery.of(context).size.width / 2.75,
       height: MediaQuery.of(context).size.height / 12,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
@@ -596,7 +600,7 @@ class _TabsScreenState extends State<TabsScreen> {
   // Build the discount value display
   Widget _buildDiscountDisplay() {
     return Container(
-      width: MediaQuery.of(context).size.width / 2.8,
+      width: MediaQuery.of(context).size.width / 2.75,
       height: MediaQuery.of(context).size.height / 12,
       padding: const EdgeInsets.symmetric(vertical: 15),
       decoration: BoxDecoration(

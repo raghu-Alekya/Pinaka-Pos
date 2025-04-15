@@ -209,4 +209,43 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
       print('#### Item added to order: $name');
     }
   }
+
+  // If using a StatefulWidget
+  // Future<void> updateItemQuantity(int itemId, int quantity) async {
+  //   final db = await DBHelper.instance.database;
+  //
+  //   // Calculate the new sum price based on the updated quantity
+  //   final item = await db.query(
+  //     AppDBConst.purchasedItemsTable,
+  //     where: '${AppDBConst.itemId} = ?',
+  //     whereArgs: [itemId],
+  //   );
+  //
+  //   if (item.isNotEmpty) {
+  //     double price = (item.first[AppDBConst.itemPrice] as num).toDouble();
+  //     double newSumPrice = price * quantity;
+  //
+  //     await db.update(
+  //         AppDBConst.purchasedItemsTable,
+  //         {
+  //           AppDBConst.itemCount: quantity,
+  //           AppDBConst.itemSumPrice: newSumPrice
+  //         },
+  //         where: '${AppDBConst.itemId} = ?',
+  //         whereArgs: [itemId]
+  //     );
+  //
+  //     if (kDebugMode) {
+  //       print('#### Item quantity updated: ID=$itemId, Quantity=$quantity');
+  //     }
+  //
+  //     // After database update, refresh the UI
+  //     // setState(() {
+  //     //   // If needed, update any widget state variables here
+  //     // });
+  //
+  //     // Or if using a provider
+  //     // Provider.of<YourProvider>(context, listen: false).refreshItems();
+  //   }
+  // }
 }

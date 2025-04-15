@@ -93,6 +93,8 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String typeSearchText        = "Type to search...";
   static const String backText              = "Back";
   static const String addItemText           = "Add Item";
+  static const String editProductText       = "Edit Product";
+
 
   static const String ebtText               = "EBT";
   static const String payoutsText           = "Payouts";

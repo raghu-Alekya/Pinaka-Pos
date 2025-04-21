@@ -1,117 +1,18 @@
-// import 'package:flutter/material.dart';
-//
-// // Custom NumPad Widget
-// class CustomNumPad extends StatelessWidget {
-//   final Function(String) onDigitPressed; // Callback for digit press
-//   final VoidCallback onClearPressed; // Callback for "Clear" button
-//   final VoidCallback onDeletePressed; // Callback for "Delete" button
-//
-//   const CustomNumPad({
-//     super.key,
-//     required this.onDigitPressed,
-//     required this.onClearPressed,
-//     required this.onDeletePressed,
-//   });
-//
-//   @override
-//   Widget build(BuildContext context) {
-//     // Get device orientation
-//     bool isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
-//     double paddingValue = isPortrait ? 16 : 30;
-//     return GridView.count(
-//       shrinkWrap: true,
-//       crossAxisCount: 3,
-//       mainAxisSpacing: 12,
-//       crossAxisSpacing: 12,
-//       childAspectRatio: 2,
-//       padding: EdgeInsets.symmetric(horizontal: paddingValue),
-//       children: [
-//         // Numeric Buttons
-//         ...List.generate(9, (index) {
-//           return _buildKey((index + 1).toString());
-//         }),
-//
-//         // Clear Button
-//         _buildActionKey(
-//           text: "Clear",
-//           onPressed: onClearPressed,
-//           color: Colors.white,
-//           textColor: Colors.black,
-//         ),
-//
-//         // Zero Button
-//         _buildKey("0"),
-//
-//         // Delete Button
-//         _buildActionKey(
-//           text: "Delete",
-//           onPressed: onDeletePressed, // Fix to call delete method
-//           color: Colors.white,
-//           textColor: Colors.black,
-//         ),
-//       ],
-//     );
-//   }
-//
-//   // Build Numeric Key
-//   Widget _buildKey(String value) {
-//     return ElevatedButton(
-//       onPressed: () {
-//         onDigitPressed(value);
-//       },
-//       style: ElevatedButton.styleFrom(
-//         backgroundColor: Colors.white,
-//         foregroundColor: Colors.black,
-//         shape: RoundedRectangleBorder(
-//           borderRadius: BorderRadius.circular(12),
-//         ),
-//       ),
-//       child: Text(
-//         value,
-//         style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
-//       ),
-//     );
-//   }
-//
-//   // Build Action Key (Clear, Delete)
-//   Widget _buildActionKey({
-//     required String text,
-//     required VoidCallback onPressed,
-//     required Color color,
-//     required Color textColor,
-//   }) {
-//     return ElevatedButton(
-//       onPressed: onPressed,
-//       style: ElevatedButton.styleFrom(
-//         backgroundColor: color,
-//         foregroundColor: textColor,
-//         shape: RoundedRectangleBorder(
-//           borderRadius: BorderRadius.circular(12),
-//         ),
-//       ),
-//       child: Text(
-//         text,
-//         style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w400),
-//       ),
-//     );
-//   }
-// }
-
-/// UPDATED CODE - NAVEEN
-
 import 'package:flutter/material.dart';
 
 import '../Constants/text.dart';
 
-enum ActionButtonType { delete, ok, add } //Build #1.0.2 : Updated code - Action button types
+enum ActionButtonType { delete, ok, add, pay }
 
 class CustomNumPad extends StatelessWidget {
   final Function(String) onDigitPressed;
   final VoidCallback onClearPressed;
   final VoidCallback? onDeletePressed;
   final VoidCallback? onConfirmPressed;
-  final VoidCallback? onAddPressed; // NEW: Add button callback
-  final ActionButtonType actionButtonType; // NEW: Determines Delete, OK, or Add
+  final VoidCallback? onAddPressed;
+  final VoidCallback? onPayPressed;
+  final ActionButtonType actionButtonType;
+  final bool isPayment;
 
   const CustomNumPad({
     super.key,
@@ -120,7 +21,9 @@ class CustomNumPad extends StatelessWidget {
     this.onDeletePressed,
     this.onConfirmPressed,
     this.onAddPressed,
-    this.actionButtonType = ActionButtonType.delete, // Default: Delete
+    this.onPayPressed,
+    this.actionButtonType = ActionButtonType.delete,
+    this.isPayment = false,
   });
 
   @override
@@ -128,6 +31,72 @@ class CustomNumPad extends StatelessWidget {
     bool isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
     double paddingValue = isPortrait ? 16 : 30;
 
+    if (isPayment) {
+      return Container(
+        padding: EdgeInsets.symmetric(horizontal: paddingValue),
+        height: 485,
+        child: Row(
+          children: [
+            Expanded(
+              flex: 3,
+              child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    double buttonHeight = (constraints.maxHeight - 24) / 4;
+                    double buttonWidth = (constraints.maxWidth / 3) - 8;
+                    // Ensure positive aspect ratio
+                    double aspectRatio = buttonWidth / buttonHeight;
+                    if (aspectRatio <= 0) aspectRatio = 1.0;
+                    
+                    return Container(
+                      padding: const EdgeInsets.only(bottom: 1),
+                      child: GridView.count(
+                        shrinkWrap: true,
+                        padding: EdgeInsets.zero,
+                        physics: const NeverScrollableScrollPhysics(),
+                        crossAxisCount: 3,
+                        mainAxisSpacing: 12,
+                        crossAxisSpacing: 12,
+                        childAspectRatio: aspectRatio,
+                        children: [
+                          _buildKey("7"),
+                          _buildKey("8"),
+                          _buildKey("9"),
+                          _buildKey("4"),
+                          _buildKey("5"),
+                          _buildKey("6"),
+                          _buildKey("1"),
+                          _buildKey("2"),
+                          _buildKey("3"),
+                          _buildKey("00"),
+                          _buildKey("0"),
+                          _buildKey("."),
+                        ],
+                      ),
+                    );
+                  }
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                children: [
+                  Expanded(child: _buildBackspaceKey()),
+                  const SizedBox(height: 12),
+                  Expanded(child: _buildClearKey()),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    flex: 2,
+                    child: _buildPayButton(),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Original numpad layout remains unchanged
     return GridView.count(
       shrinkWrap: true,
       crossAxisCount: 3,
@@ -136,23 +105,16 @@ class CustomNumPad extends StatelessWidget {
       childAspectRatio: 2,
       padding: EdgeInsets.symmetric(horizontal: paddingValue),
       children: [
-        // Numeric Buttons (1-9)
         ...List.generate(9, (index) {
           return _buildKey((index + 1).toString());
         }),
-
-        // Clear Button (Always Present)
         _buildActionKey(
           text: TextConstants.clearText,
           onPressed: onClearPressed,
           color: Colors.white,
           textColor: Colors.black,
         ),
-
-        // Zero Button
         _buildKey("0"),
-
-        // Dynamic Action Button (Delete, OK, or Add)
         _buildActionKey(
           text: _getActionButtonText(),
           onPressed: _getActionButtonCallback(),
@@ -160,6 +122,41 @@ class CustomNumPad extends StatelessWidget {
           textColor: _getActionButtonTextColor(),
         ),
       ],
+    );
+  }
+
+  Widget _buildPayButton() {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: const Color(0xFFFF4444),
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 2,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: TextButton(
+        onPressed: onPayPressed ?? () {},
+        style: TextButton.styleFrom(
+          padding: EdgeInsets.zero,
+          backgroundColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+        child: const Text(
+          'PAY',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
+        ),
+      ),
     );
   }
 
@@ -203,20 +200,37 @@ class CustomNumPad extends StatelessWidget {
 
   // Build Numeric Key
   Widget _buildKey(String value) {
-    return ElevatedButton(
-      onPressed: () {
-        onDigitPressed(value);
-      },
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFE8E8E8)), // Light grey border
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 2,
+            offset: const Offset(0, 1),
+          ),
+        ],
       ),
-      child: Text(
-        value,
-        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+      child: TextButton(
+        onPressed: () => onDigitPressed(value),
+        style: TextButton.styleFrom(
+          padding: EdgeInsets.zero,
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+        child: Text(
+          value,
+          style: const TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w400,
+            color: Colors.black,
+          ),
+        ),
       ),
     );
   }
@@ -227,6 +241,7 @@ class CustomNumPad extends StatelessWidget {
     required VoidCallback onPressed,
     required Color color,
     required Color textColor,
+    Widget? child,
   }) {
     return ElevatedButton(
       onPressed: onPressed,
@@ -237,9 +252,76 @@ class CustomNumPad extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
         ),
       ),
-      child: Text(
+      child: child ?? Text(
         text,
         style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w400),
+      ),
+    );
+  }
+
+  // New method for backspace key
+  Widget _buildBackspaceKey() {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFE8E8E8)), // Light grey border
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 2,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: TextButton(
+        onPressed: onDeletePressed ?? () {},
+        style: TextButton.styleFrom(
+          padding: EdgeInsets.zero,
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+        child: const Icon(Icons.backspace_outlined, color: Colors.black, size: 20),
+      ),
+    );
+  }
+
+  // New method for clear key
+  Widget _buildClearKey() {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFE8E8E8)), // Light grey border
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 2,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: TextButton(
+        onPressed: onClearPressed,
+        style: TextButton.styleFrom(
+          padding: EdgeInsets.zero,
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+        child: const Text(
+          'C',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w400,
+            color: Colors.black,
+          ),
+        ),
       ),
     );
   }

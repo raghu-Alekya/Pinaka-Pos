@@ -183,8 +183,9 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.chevron_left, size: 20),
-                  const SizedBox(width: 8),
+                  // Icon(Icons.chevron_left, size: 20),
+                  BackButton(),
+                  // const SizedBox(width: 8),
                   Text('Back', style: TextStyle(fontSize: 16)),
                 ],
               ),
@@ -245,7 +246,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
           ],
         ),
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(15.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -270,6 +271,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
 
               // Order items list
               Expanded(
+                flex: 6,
                 child: Container(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(10.0),
@@ -290,14 +292,15 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
 
               // Bottom summary container
               Expanded(
+                flex: 7,
                 child: Container(
-                  margin: EdgeInsets.only(top: 16),
+                  margin: EdgeInsets.only(top: 15),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(10.0),
                     color: Colors.white,
                     border: Border.all(color: Colors.grey.shade200),
                   ),
-                  padding: EdgeInsets.all(16),
+                  padding: EdgeInsets.all(15),
                   child: SingleChildScrollView(
                   child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -321,6 +324,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                   ),
                 ),
               ),
+              Expanded(flex: 0, child: SizedBox()),
             ],
           ),
         ),
@@ -623,7 +627,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
         color: Colors.grey[100],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.only(left:20,right:20,top: 15, bottom: 0),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.start,
           children: [
@@ -631,6 +635,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
               flex: 3,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+
                 children: [
                   // Payment amount display row
                   Row(

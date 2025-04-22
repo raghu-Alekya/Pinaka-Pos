@@ -199,12 +199,15 @@ import 'package:intl/intl.dart';
 import 'package:pinaka_pos/Blocs/FastKey/fastkey_bloc.dart';
 import 'package:pinaka_pos/Repositories/FastKey/fastkey_repository.dart';
 import 'dart:io';
+import '../../Blocs/FastKey/fastkey_product_bloc.dart';
 import '../../Database/order_panel_db_helper.dart';
 import '../../Database/db_helper.dart';
 import '../../Database/fast_key_db_helper.dart';
 import '../../Database/user_db_helper.dart';
 import '../../Helper/file_helper.dart';
 import '../../Models/FastKey/fastkey_model.dart';
+import '../../Models/FastKey/fastkey_product_model.dart';
+import '../../Repositories/FastKey/fastkey_product_repository.dart';
 import '../../Utilities/shimmer_effect.dart';
 import '../../Constants/text.dart';
 import '../../Helper/api_response.dart';
@@ -244,14 +247,25 @@ class _FastKeyScreenState extends State<FastKeyScreen> {
   int? _selectedIndex;
   int? _editingIndex;
   int? userId;
+  int? _fastKeyTabId;
+  final FastKeyDBHelper fastKeyDBHelper = FastKeyDBHelper();
+  final DBHelper dbHelper = DBHelper.instance;
+
   late FastKeyBloc _fastKeyBloc;
+  late FastKeyProductBloc _fastKeyProductBloc;
+
   List<FastKey> fastKeyTabs = [];
+  Map<String, dynamic>? selectedProduct;
+  List<Map<String, dynamic>> fastKeyProductItems = [];
+
   bool _isCategoryLoading = false;
 
   @override
   void initState() {
     super.initState();
     _fastKeyBloc = FastKeyBloc(FastKeyRepository());
+    _fastKeyProductBloc = FastKeyProductBloc(FastKeyProductRepository());
+
     _selectedSidebarIndex = widget.lastSelectedIndex ?? 0;
 
     _scrollController.addListener(() {
@@ -273,27 +287,10 @@ class _FastKeyScreenState extends State<FastKeyScreen> {
     });
   }
 
-  void _onTabChanged() {
-    if (kDebugMode) {
-      print("### _onTabChanged: New Tab ID: ${fastKeyTabIdNotifier.value}");
-    }
-    _loadFastKeysTabs().then((_) {
-      if (mounted) {
-        setState(() {});
-      }
-    });
-  }
-
-  Future<void> _loadLastSelectedTab() async {
-    final lastSelectedTabId = await FastKeyDBHelper().getActiveFastKeyTab();
-    if (kDebugMode) {
-      print("#### fastKeyHelper.getFastKeyTabFromPref: $lastSelectedTabId");
-    }
-    if (lastSelectedTabId != null) {
-      setState(() {
-        _selectedIndex = fastKeyTabs.indexWhere((tab) => tab.fastkeyServerId == lastSelectedTabId);
-      });
-    }
+  bool _doesContentOverflow(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final contentWidth = fastKeyTabs.length * 120;
+    return contentWidth > screenWidth;
   }
 
   Future<void> getUserIdFromDB() async {
@@ -323,10 +320,39 @@ class _FastKeyScreenState extends State<FastKeyScreen> {
     await _loadLastSelectedTab();
   }
 
-  bool _doesContentOverflow(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final contentWidth = fastKeyTabs.length * 120;
-    return contentWidth > screenWidth;
+  void _onTabChanged() {
+    if (kDebugMode) {
+      print("### _onTabChanged: New Tab ID: ${fastKeyTabIdNotifier.value}");
+    }
+    _loadFastKeysTabs().then((_) {
+      if (mounted) {
+        setState(() {
+          _fastKeyTabId = fastKeyTabIdNotifier.value;
+          fastKeyDBHelper.saveActiveFastKeyTab(_fastKeyTabId); // Save the active tab ID
+          _loadFastKeyTabItems(); // Reload items when the tab changes
+        });
+      }
+    });
+  }
+
+  Future<void> _loadLastSelectedTab() async {
+    final lastSelectedTabId = await FastKeyDBHelper().getActiveFastKeyTab();
+    if (kDebugMode) {
+      print("#### fastKeyHelper.getFastKeyTabFromPref: $lastSelectedTabId");
+    }
+    if (lastSelectedTabId != null) {
+      setState(() {
+        _selectedIndex = fastKeyTabs.indexWhere((tab) => tab.fastkeyServerId == lastSelectedTabId);
+      });
+    }
+
+    setState(() {
+      _fastKeyTabId = lastSelectedTabId;
+    });
+    if (kDebugMode) {
+      print("### _loadActiveFastKeyTabId: _fastKeyTabId set to $_fastKeyTabId");
+    }
+    _loadFastKeyTabItems();
   }
 
   Future<void> _loadFastKeysTabs() async {
@@ -405,6 +431,87 @@ class _FastKeyScreenState extends State<FastKeyScreen> {
       }
     });
     await FastKeyDBHelper().updateFastKeyTabCount(fastKeyProductId, fastKeyTabs.length);
+  }
+
+  Future<void> _loadFastKeyTabItems() async {
+    if (_fastKeyTabId == null) {
+      if (kDebugMode) {
+        print("### _fastKeyTabId is null, cannot load items");
+      }
+      return;
+    }
+
+    ///1. Get the active fastkey server id from _fastKeyTabId
+    var tabs = await fastKeyDBHelper.getFastKeyTabsByTabId(_fastKeyTabId ?? 1);
+    if(tabs.length == 0){
+      return;
+    }
+    var fastKeyServerId = tabs.first[AppDBConst.fastKeyServerId];
+    ///2. call 'Get Fast Key products by Fast Key ID' API
+
+    await _fastKeyProductBloc.fetchProductsByFastKeyId(_fastKeyTabId ?? 1, fastKeyServerId).whenComplete(() async {
+      ///3. load products from API into DB
+      final items = await fastKeyDBHelper.getFastKeyItems(_fastKeyTabId!);
+      setState(() {
+        fastKeyProductItems = List<Map<String, dynamic>>.from(items);
+       // reorderedIndices = List.filled(fastKeyProductItems.length, null); // Resize reorderedIndices
+      });
+    });
+
+  }
+
+Future<void> _addFastKeyTabItem(String name, String image, String price) async {
+    if (_fastKeyTabId == null) {
+      if (kDebugMode) {
+        print("### _fastKeyTabId is null, cannot add item");
+      }
+      return;
+    }
+    if (kDebugMode) {
+      print("### _addFastKeyTabItem _fastKeyTabId: $_fastKeyTabId");
+    }
+    ///Add a logic to add to API then push to DB and final load from DB
+    ///1. get fastkey_server_id from DB and use for step 2
+    var tabs = await fastKeyDBHelper.getFastKeyTabsByTabId(_fastKeyTabId ?? 1);
+    if(tabs.length == 0){
+      return;
+    }
+    var fastKeyServerId = tabs.first[AppDBConst.fastKeyServerId];
+
+    ///2. get list of products in this tab from db
+    var productsInFastKey = await fastKeyDBHelper.getFastKeyItems(_fastKeyTabId ?? 1);
+    var countProductInFastKey = productsInFastKey.length;
+
+    ///3. create a FastKeyProductItem and pass to add product
+    FastKeyProductItem item = FastKeyProductItem(productId: selectedProduct!['id'], slNumber: countProductInFastKey+1);
+    ///4. call add fast keys product API
+    _fastKeyProductBloc.addProducts(fastKeyId: fastKeyServerId, products: [item]);
+
+    if (kDebugMode) {
+      print("save product $name in DB");
+    }
+    ///5. save to DB along with productid and index
+    await fastKeyDBHelper.addFastKeyItem(
+      _fastKeyTabId!,
+      name,
+      image,
+      price,
+      selectedProduct!['id'], // productId
+      sku: selectedProduct!['sku'] ?? 'N/A',
+      variantId: selectedProduct!['variantId'] ?? 'N/A',
+      slNumber: countProductInFastKey + 1,
+    );
+
+    // Update count and reload
+    await fastKeyDBHelper.updateFastKeyTabCount(_fastKeyTabId!, countProductInFastKey + 1);
+    await _loadFastKeyTabItems();
+
+    await _loadFastKeyTabItems(); // Reload items after adding
+    // Call setState synchronously after all async operations
+    if (mounted) {
+      setState(() {});
+    }
+    fastKeyTabIdNotifier.notifyListeners(); // Notify listeners
   }
 
   Widget _buildImage(String imagePath) {
@@ -691,6 +798,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> {
                             isLoading: isLoading,
                             onItemAdded: _refreshOrderList,
                             fastKeyTabIdNotifier: fastKeyTabIdNotifier,
+                            items: fastKeyProductItems,
                           );
                         },
                       ),

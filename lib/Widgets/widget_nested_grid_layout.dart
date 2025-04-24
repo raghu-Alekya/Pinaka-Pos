@@ -870,6 +870,7 @@ class NestedGridWidget extends StatelessWidget { // Build #1.0.21
   }
 
   Widget _buildGridItem(BuildContext context, Map<String, dynamic> item, int index) {
+    print("item ${item}");
     return Container(
       key: ValueKey('grid_item_$index'),
       child: GestureDetector(
@@ -893,7 +894,7 @@ class NestedGridWidget extends StatelessWidget { // Build #1.0.21
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        item['title'] ?? '',
+                        item['fast_key_item_name'] ?? '',
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -901,9 +902,9 @@ class NestedGridWidget extends StatelessWidget { // Build #1.0.21
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
-                      if (item['price'] != null && item['price'].toString().isNotEmpty)
+                      if (item['fast_key_item_price'] != null && item['fast_key_item_price'].toString().isNotEmpty)
                         Text(
-                          '\$${item['price']}',
+                          '\$${item['fast_key_item_price']}',
                           style: const TextStyle(
                             fontSize: 12,
                             color: Colors.black,
@@ -921,7 +922,7 @@ class NestedGridWidget extends StatelessWidget { // Build #1.0.21
   }
 
   Widget _buildItemImage(Map<String, dynamic> item) {
-    final image = item['image'] ?? '';
+    final image = item['fast_key_item_image'] ?? '';
     if (image.startsWith("http")) {
       return Image.network(
         image,

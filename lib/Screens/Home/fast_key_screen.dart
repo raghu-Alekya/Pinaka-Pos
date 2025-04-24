@@ -200,17 +200,22 @@ import 'package:pinaka_pos/Blocs/FastKey/fastkey_bloc.dart';
 import 'package:pinaka_pos/Repositories/FastKey/fastkey_repository.dart';
 import 'dart:io';
 import '../../Blocs/FastKey/fastkey_product_bloc.dart';
+import '../../Blocs/Search/product_search_bloc.dart';
 import '../../Database/order_panel_db_helper.dart';
 import '../../Database/db_helper.dart';
 import '../../Database/fast_key_db_helper.dart';
 import '../../Database/user_db_helper.dart';
+import '../../Helper/auto_search.dart';
 import '../../Helper/file_helper.dart';
 import '../../Models/FastKey/fastkey_model.dart';
 import '../../Models/FastKey/fastkey_product_model.dart';
+import '../../Models/Search/product_search_model.dart';
 import '../../Repositories/FastKey/fastkey_product_repository.dart';
+import '../../Repositories/Search/product_search_repository.dart';
 import '../../Utilities/shimmer_effect.dart';
 import '../../Constants/text.dart';
 import '../../Helper/api_response.dart';
+import '../../Utilities/textfield_search.dart';
 import '../../Widgets/widget_category_list.dart';
 import '../../Widgets/widget_nested_grid_layout.dart';
 import '../../Widgets/widget_order_panel.dart';
@@ -255,7 +260,12 @@ class _FastKeyScreenState extends State<FastKeyScreen> {
   late FastKeyProductBloc _fastKeyProductBloc;
 
   List<FastKey> fastKeyTabs = [];
+  final TextEditingController searchController = TextEditingController();
+  List<Map<String, dynamic>> searchResults = [];
   Map<String, dynamic>? selectedProduct;
+  TextEditingController _productSearchController = TextEditingController();
+  final _searchTextGridKey = GlobalKey<TextFieldSearchState>();
+  late SearchProduct _autoSuggest;
   List<Map<String, dynamic>> fastKeyProductItems = [];
 
   bool _isCategoryLoading = false;
@@ -265,6 +275,8 @@ class _FastKeyScreenState extends State<FastKeyScreen> {
     super.initState();
     _fastKeyBloc = FastKeyBloc(FastKeyRepository());
     _fastKeyProductBloc = FastKeyProductBloc(FastKeyProductRepository());
+    _autoSuggest= SearchProduct();
+    _productSearchController.addListener(_listenProductItemSearch);
 
     _selectedSidebarIndex = widget.lastSelectedIndex ?? 0;
 
@@ -285,6 +297,13 @@ class _FastKeyScreenState extends State<FastKeyScreen> {
         });
       }
     });
+  }
+
+  _listenProductItemSearch(){
+    if(_productSearchController.text.isEmpty) {
+      _searchTextGridKey.currentState?.resetList();
+    }
+    _autoSuggest.listentextchange(_productSearchController.text ?? "");
   }
 
   bool _doesContentOverflow(BuildContext context) {
@@ -731,10 +750,191 @@ Future<void> _addFastKeyTabItem(String name, String image, String price) async {
   }
 
   void _refreshOrderList() {
+    _showAddItemDialog();
     setState(() {
       if (kDebugMode) {
         print("###### FastKeyScreen _refreshOrderList");
       }
+    });
+  }
+
+  // Update the _showAddItemDialog method in NestedGridWidget
+  Future<void> _showAddItemDialog() async {
+    searchController.clear(); // Clear the search text
+    selectedProduct = null; // Reset the selected product
+    searchResults.clear(); // Clear previous search results
+
+    // Initialize ProductBloc
+    final productBloc = ProductBloc(ProductRepository());
+
+    return showDialog<void>(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(builder: (context, setStateDialog) {
+          return AlertDialog(
+            title: const Text(TextConstants.searchAddItemText),
+            content: SingleChildScrollView(
+              child: SizedBox(
+                width: 700,
+                child: Row(
+                  // mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(child:
+                    TextField(
+                      controller: searchController,
+                      decoration: const InputDecoration(
+                        labelText: TextConstants.searchItemText,
+                        hintText: TextConstants.typeSearchText,
+                      ),
+                      onChanged: (value) {
+                        // Call fetchProducts with search query
+                        productBloc.fetchProducts(searchQuery: value);
+                      },
+                    ),),
+                    // TextFieldSearch(
+                    //   label: "Search Product",
+                    //   controller: _productSearchController,
+                    //   key: _searchTextGridKey,
+                    //   minStringLength: 3,
+                    //   itemsInView: 5,
+                    //   future: () { return _autoSuggest.getProductResults();},
+                    //   getSelectedValue: (item) async {
+                    //     if (item is ProductItem) {
+                    //       _productSearchController.text = item.label;
+                    //       var product = item.value;
+                    //       // Update where selectedProduct is set to include all required fields
+                    //       setStateDialog(() {
+                    //         selectedProduct = {
+                    //           'title': product.name ?? 'Unknown',
+                    //           'image': product.images?.isNotEmpty == true ? product.images!.first : '',
+                    //           'price': product.regularPrice ?? '0.00',
+                    //           'id': product.id,
+                    //           'sku': product.sku ?? 'N/A',
+                    //           'variantId': product.variantId ?? 'N/A',
+                    //         };
+                    //       });
+                    //
+                    //       FocusManager.instance.primaryFocus?.unfocus();
+                    //     }
+                    //   },
+                    // ),
+                    const SizedBox(height: 16),
+                    Expanded(child: StreamBuilder<APIResponse<List<ProductResponse>>>( // Build #1.0.13 : auto search for product item in alert when tap on add item in grid
+                      stream: productBloc.productStream,
+                      builder: (context, snapshot) {
+                        if (snapshot.hasData) {
+                          switch (snapshot.data!.status) {
+                            case Status.LOADING:
+                              return const Center(child: CircularProgressIndicator());
+                            case Status.COMPLETED:
+                              final products = snapshot.data!.data;
+                              if (products == null || products.isEmpty) {
+                                return const Center(child: Text("No products found"));
+                              }
+
+                              return SizedBox(
+                                height: 200,
+                                child: ListView.builder(
+                                  shrinkWrap: true,
+                                  physics: const BouncingScrollPhysics(),
+                                  itemCount: products.length,
+                                  itemBuilder: (context, index) {
+                                    final product = products[index];
+                                    return ListTile(
+                                      leading: product.images != null && product.images!.isNotEmpty
+                                          ? Image.network(
+                                        product.images!.first,
+                                        width: 50,
+                                        height: 50,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, error, stackTrace) =>
+                                        const Icon(Icons.broken_image),
+                                      )
+                                          : const Icon(Icons.image),
+                                      title: Text(product.name ?? 'No Name'),
+                                      subtitle: Text('\$${product.price ?? '0.00'}'),
+                                      onTap: () {
+                                        setStateDialog(() {
+                                          selectedProduct = {
+                                            'title': product.name ?? 'Unknown',
+                                            'image': product.images?.isNotEmpty == true
+                                                ? product.images!.first
+                                                : '',
+                                            'price': product.regularPrice ?? '0.00',
+                                            'id': product.id,
+                                            'sku': product.sku ?? 'N/A',
+                                          };
+                                        });
+                                      },
+                                      selected: selectedProduct != null &&
+                                          selectedProduct!['id'] == product.id,
+                                      selectedTileColor: Colors.grey[300],
+                                    );
+                                  },
+                                ),
+                              );
+                            case Status.ERROR:
+                              print("BIG ERROR");
+                              return Center(
+                                child: Text(snapshot.data!.message ?? "Error loading products"),
+                              );
+                          }
+                        }
+                        return const SizedBox.shrink();
+                      },
+                    ),)
+
+                  ],
+                ),
+              ),
+            ),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () {
+                  productBloc.dispose();
+                  Navigator.of(context).pop();
+                },
+                child: const Text(TextConstants.cancelText),
+              ),
+              TextButton(
+                onPressed: selectedProduct != null ? () async {
+                  if (kDebugMode) {
+                    print("Adding product: $selectedProduct");
+                  }
+                  if (_fastKeyTabId != null) {
+                    await _addFastKeyTabItem(
+                      selectedProduct!['title'],
+                      selectedProduct!['image'],
+                      selectedProduct!['price'],
+                    );
+
+                    await fastKeyDBHelper.updateFastKeyTabCount(
+                      _fastKeyTabId!,
+                      fastKeyProductItems.length,
+                    );
+
+                    await _loadFastKeyTabItems();
+
+                    if (mounted) {
+                      setState(() {});
+                    }
+
+                    fastKeyTabIdNotifier?.notifyListeners();
+                  }
+
+                  _productSearchController.text = "";
+                  productBloc.dispose();
+                  Navigator.of(context).pop();
+                } : null,
+                child: const Text(TextConstants.addText),
+              ),
+            ],
+          );
+        });
+      },
+    ).then((_) {
+      productBloc.dispose();
     });
   }
 

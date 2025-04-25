@@ -701,102 +701,290 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setStateDialog) {
-            return AlertDialog(
-              title: Text(isEditing ? TextConstants.editCateText : TextConstants.addCateText),
-              content: SingleChildScrollView(
-                child: SizedBox(
-                  width: MediaQuery.of(context).size.width * 0.2,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Align(
-                        alignment: Alignment.center,
-                        child: Stack(
-                          children: [
-                            _buildImageWidget(imagePath),
-                            Positioned(
-                              right: 0,
-                              bottom: 0,
-                              child: GestureDetector(
-                                onTap: () async {
-                                  final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
-                                  if (pickedFile != null) {
-                                    setStateDialog(() => imagePath = pickedFile.path);
-                                  }
-                                },
-                                child: const Icon(Icons.edit, size: 18, color: Colors.red),
+            return
+              AlertDialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12.0),
+                ),
+                contentPadding: EdgeInsets.only(left: 24, right: 24, top: 20, bottom: 0),
+                // titlePadding: EdgeInsets.only(left: 24, right: 24, top: 24, bottom: 16),
+                actionsPadding: EdgeInsets.only(right: 24, top: 10),
+                // insetPadding: EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+                title: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      isEditing
+                          ? TextConstants.editCateText
+                          : TextConstants.addFastKeyNameText,
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    InkWell(
+                      onTap: () => Navigator.pop(context),
+                      child: Container(
+                        padding: EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.red[400],
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.close,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+                content: SingleChildScrollView(
+                  child: SizedBox(
+                    width: MediaQuery.of(context).size.width * 0.25,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Align(
+                          alignment: Alignment.center,
+                          child: Column(
+                            children: [
+                              Stack(
+                                children: [
+                                  Container(
+                                      width: 175,
+                                      height: 150,
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey[100],
+                                        borderRadius: BorderRadius.circular(16),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Color(0xFFFFF7F7),
+                                            blurRadius: 3,
+                                            spreadRadius: 3,
+                                            offset: Offset(0,0),
+                                          ),
+                                        ],
+                                      ),
+                                      child: _buildImageWidget(imagePath)),
+                                  Positioned(
+                                    right: 0,
+                                    top: 0,
+                                    child: Container(
+                                      margin: EdgeInsets.all(10.0),
+                                      padding: EdgeInsets.all(4.0),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(4.0),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black12,
+                                            blurRadius: 3,
+                                            spreadRadius: 3,
+                                            offset: Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: GestureDetector(
+                                        onTap: () async {
+                                          final pickedFile = await ImagePicker()
+                                              .pickImage(
+                                              source: ImageSource.gallery);
+                                          if (pickedFile != null) {
+                                            setStateDialog(() =>
+                                            imagePath = pickedFile.path);
+                                          }
+                                        },
+                                        child: Icon(
+                                          Icons.edit,
+                                          size: 18,
+                                          color: Colors.red[400],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                "Upload Image",
+                                style: TextStyle(
+                                  color: Colors.black,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // if (!isEditing && showError && imagePath.isEmpty)
+                        //   const Padding(
+                        //     padding: EdgeInsets.only(top: 8.0),
+                        //     child: Text(
+                        //       TextConstants.imgRequiredText,
+                        //       style: TextStyle(color: Colors.red, fontSize: 12),
+                        //     ),
+                        //   ),
+                        SizedBox(height: 20),
+                        Text(
+                          "Name",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                spreadRadius: 1,
+                                blurRadius: 4,
+                                offset: Offset(0, 1),
+                              ),
+                            ],
+                          ),
+                          child: TextField(
+                            controller: nameController,
+                            decoration: InputDecoration(
+                              hintText: TextConstants.categoryNameText,
+                              hintStyle: TextStyle(color: Colors.grey[400],fontWeight: FontWeight.bold),
+                              errorText: (!isEditing &&
+                                  showError &&
+                                  nameController.text.isEmpty)
+                                  ? TextConstants.categoryNameReqText
+                                  : null,
+                              errorStyle:
+                              const TextStyle(color: Colors.red, fontSize: 12),
+                              // suffixIcon: isEditing
+                              //     ? const Icon(Icons.edit, size: 18, color: Colors.red)
+                              //     : null,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(color: Colors.grey[300]!),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(color: Colors.grey[300]!),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(color: Colors.grey[400]!),
+                              ),
+                              contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 12),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                actions: [
+                  Padding(
+                    padding: EdgeInsets.only(bottom: 16, right: 16),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          height: 50, // Increased button height
+                          width: 120, // Added fixed width
+                          child: TextButton(
+                            onPressed: () {
+                              nameController.clear();
+                              // setStateDialog(() {
+                              //   imagePath = "";
+                              //   showError = false;
+                              // });
+                            },
+                            // => Navigator.pop(context),
+                            style: TextButton.styleFrom(
+                              backgroundColor: Colors.grey[100],
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: 20, vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                      if (!isEditing && showError && imagePath.isEmpty)
-                        const Padding(
-                          padding: EdgeInsets.only(top: 8.0),
-                          child: Text(
-                            TextConstants.imgRequiredText,
-                            style: TextStyle(color: Colors.red, fontSize: 12),
+                            child: Text(
+                              TextConstants.clearText,
+                              style: TextStyle(
+                                  color: Colors.red[400],
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 16
+                              ),
+                            ),
                           ),
                         ),
-                      TextField(
-                        controller: nameController,
-                        decoration: InputDecoration(
-                          labelText: TextConstants.nameText,
-                          errorText: (!isEditing && showError && nameController.text.isEmpty) ? TextConstants.nameReqText : null,
-                          errorStyle: const TextStyle(color: Colors.red, fontSize: 12),
-                          suffixIcon: isEditing ? const Icon(Icons.edit, size: 18, color: Colors.red) : null,
-                        ),
-                      ),
-                      if (isEditing)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8.0),
-                          child: Text(
-                            '${TextConstants.itemCountText} ${fastKeyTabs[index].itemCount}',
-                            style: const TextStyle(color: Colors.grey),
+                        SizedBox(width: 12),
+                        SizedBox(
+                          height: 50, // Increased button height
+                          width: 120, // Added fixed width
+                          child: TextButton(
+                            onPressed: () async {
+                              if (!isEditing && nameController.text.isEmpty) {
+                                setStateDialog(() => showError = true);
+                                return;
+                              }
+
+                              if (isEditing) {
+                                // Update existing tab
+                                await fastKeyDBHelper.updateFastKeyTab(
+                                    fastKeyTabs[index!].fastkeyServerId, {
+                                  AppDBConst.fastKeyTabTitle: nameController.text,
+                                  AppDBConst.fastKeyTabImage: imagePath,
+                                });
+
+                                // Update the local list
+                                setState(() {
+                                  _editingCategoryIndex = null;
+                                  fastKeyTabs[index] = fastKeyTabs[index].copyWith(
+                                    fastkeyTitle: nameController.text,
+                                    fastkeyImage: imagePath,
+                                  );
+                                });
+                              } else {
+                                // Add new FastKey tab to the database
+                                await _addFastKeyTab(nameController.text, imagePath);
+                              }
+
+                              // Close the dialog
+                              Navigator.pop(context);
+                            },
+                            style: TextButton.styleFrom(
+                              backgroundColor: Colors.red[400],
+                              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: Text(
+                              isEditing ? TextConstants.saveText : TextConstants.addText,
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 16
+                              ),
+                            ),
                           ),
                         ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text(TextConstants.cancelText),
-                ),
-                TextButton(
-                  onPressed: () async {
-                    if (!isEditing && nameController.text.isEmpty) {
-                      setStateDialog(() => showError = true);
-                      return;
-                    }
-                    if (isEditing) {
-                      await fastKeyDBHelper.updateFastKeyTab(fastKeyTabs[index!].fastkeyServerId, {
-                        AppDBConst.fastKeyTabTitle: nameController.text,
-                        AppDBConst.fastKeyTabImage: imagePath,
-                      });
-                      setState(() {
-                        _editingCategoryIndex = null;
-                        fastKeyTabs[index] = fastKeyTabs[index].copyWith(
-                          fastkeyTitle: nameController.text,
-                          fastkeyImage: imagePath,
-                        );
-                      });
-                    } else {
-                      await _addFastKeyTab(nameController.text, imagePath);
-                    }
-                    Navigator.pop(context);
-                  },
-                  child: const Text(TextConstants.saveText),
-                ),
-                if (isEditing)
-                  TextButton(
-                    onPressed: () => _showDeleteConfirmationDialog(index!),
-                    child: const Text(TextConstants.deleteText, style: TextStyle(color: Colors.red)),
-                  ),
-              ],
-            );
+                  if (isEditing)
+                    TextButton(
+                      onPressed: () => _showDeleteConfirmationDialog(index!),
+                      child: const Text(TextConstants.deleteText, style: TextStyle(color: Colors.red)),
+                    ),
+                ],
+              );
           },
         );
       },

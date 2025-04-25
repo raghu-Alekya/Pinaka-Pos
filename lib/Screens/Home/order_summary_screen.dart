@@ -8,6 +8,7 @@ import 'package:flutter_svg/svg.dart';
 
 import '../../Constants/text.dart';
 import '../../Database/db_helper.dart';
+import '../../Database/order_panel_db_helper.dart';
 import '../../Widgets/widget_custom_num_pad.dart';
 import 'edit_product_screen.dart';
 
@@ -27,13 +28,13 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     fetchOrderItems();
   }
 
-  void fetchOrderItems() async {
-    // TODO: Implement actual data fetching from database
-    setState(() {
-      // Temporary sample data
-      orderItems = [];
-    });
-  }
+  // void fetchOrderItems() async {
+  //   // TODO: Implement actual data fetching from database
+  //   setState(() {
+  //     // Temporary sample data
+  //     orderItems = [];
+  //   });
+  // }
 
   void deleteItemFromOrder(dynamic itemId) async {
     // TODO: Implement actual deletion logic
@@ -196,26 +197,26 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 // Date
-                Row(
-                  children: [
-                    Icon(Icons.calendar_month_rounded, size: 18),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Sunday, 16 March 2025',
-                      style: TextStyle(color: Colors.grey[700]),
-                    ),
-                  ],
+            Row(
+              children: [
+                Icon(Icons.calendar_month_rounded, size: 18),
+                const SizedBox(width: 8),
+                Text(
+                  'Sunday, 16 March 2025',
+                  style: TextStyle(color: Colors.grey[700]),
                 ),
-                const SizedBox(width: 16),
-                // Time
-                Row(
-                  children: [
-                    Icon(Icons.access_time, size: 18),
-                    const SizedBox(width: 8),
-                    Text(
-                      '11:41 A.M',
-                      style: TextStyle(
-                          color: Colors.grey[700], fontWeight: FontWeight.bold),
+              ],
+            ),
+            const SizedBox(width: 16),
+            // Time
+            Row(
+              children: [
+                Icon(Icons.access_time, size: 18),
+                const SizedBox(width: 8),
+                Text(
+                  '11:41 A.M',
+                  style: TextStyle(
+                      color: Colors.grey[700], fontWeight: FontWeight.bold),
                     ),
                   ],
                 ),
@@ -254,13 +255,13 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Order ID #05235',
+                  Text('${TextConstants.orderId} #05235',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
                         color: Colors.black87,
                       )),
-                  Text('Payment Summary',
+                  Text(TextConstants.paymentSummary,
                       style: TextStyle(
                         color: Colors.grey[600],
                         fontSize: 12,
@@ -280,11 +281,11 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                   ),
                   child: ListView.separated(
                     padding: EdgeInsets.zero,
-                    itemCount: 4,
+                    itemCount: orderItems.length,
                     separatorBuilder: (context, index) =>
                         Divider(height: 1, color: Colors.grey.shade200),
                     itemBuilder: (context, index) {
-                      return _buildOrderItem();
+                      return _buildOrderItem(index);
                     },
                   ),
                 ),
@@ -306,19 +307,19 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                       mainAxisSize: MainAxisSize.min,
                     children: [
                       // Order calculations
-                      _buildOrderCalculation('Sub total', '\$36.0',
+                      _buildOrderCalculation(TextConstants.subTotalText, '\$36.0',
                           isTotal: true),
-                      _buildOrderCalculation('Tax', '\$5.0'),
-                      _buildOrderCalculation('Discount', '-\$3.0',
+                      _buildOrderCalculation(TextConstants.taxText , '\$5.0'),
+                      _buildOrderCalculation(TextConstants.discount, '-\$3.0',
                           isDiscount: true),
                       SizedBox(height: 5,),
                         DottedLine(),
                       SizedBox(height: 5,),
-                      _buildOrderCalculation('Total', '\$38.0', isTotal: true),
-                      _buildOrderCalculation('Pay By cash', '\$0.0'),
-                      _buildOrderCalculation('Pay By Other', '\$0.0'),
-                      _buildOrderCalculation('Tender Amount.', '\$0.0'),
-                      _buildOrderCalculation('Change', '\$0.0'),
+                      _buildOrderCalculation(TextConstants.total, '\$38.0', isTotal: true),
+                      _buildOrderCalculation(TextConstants.payByCash, '\$0.0'),
+                      _buildOrderCalculation(TextConstants.payByOther, '\$0.0'),
+                      _buildOrderCalculation(TextConstants.tenderAmount, '\$0.0'),
+                      _buildOrderCalculation(TextConstants.change, '\$0.0'),
                     ],
                     ),
                   ),
@@ -332,7 +333,29 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     );
   }
 
-  Widget _buildOrderItem() {
+  final OrderHelper orderHelper = OrderHelper(); // Helper instance to manage orders
+
+  // Build #1.0.10: Fetches order items for the active order
+  Future<void> fetchOrderItems() async {
+    if (orderHelper.activeOrderId != null) {
+      List<Map<String, dynamic>> items = await orderHelper.getOrderItems(orderHelper.activeOrderId!);
+
+      if (kDebugMode) {
+        print("##### fetchOrderItems :$items");
+      }
+
+      setState(() {
+        orderItems = items; // Update the order items list
+      });
+    } else {
+      setState(() {
+        orderItems.clear(); // Clear the order items list if no active order
+      });
+    }
+  }
+
+  Widget _buildOrderItem(int index) {
+    var orderItem = orderItems[index];
     return
     //   Expanded(
     //   child: ReorderableListView.builder(
@@ -512,14 +535,45 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
               borderRadius: BorderRadius.circular(8),
               color: Colors.grey.shade200,
             ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.asset(
-                'assets/images/king_fisher.png', // Replace with your actual asset path
+            child: ClipRRect( // Build #1.0.13 : updated images from db not static default images
+              borderRadius: BorderRadius.circular(10),
+              child: orderItem[AppDBConst.itemImage].toString().startsWith('http')
+                  ? Image.network(
+                orderItem[AppDBConst.itemImage],
+                height: 30,
+                width: 30,
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Center(
-                    child: Icon(Icons.image_not_supported, color: Colors.grey),
+                errorBuilder:
+                    (context, error, stackTrace) {
+                  return SvgPicture.asset(
+                    'assets/svg/password_placeholder.svg',
+                    height: 30,
+                    width: 30,
+                    fit: BoxFit.cover,
+                  );
+                },
+              )
+                  : orderItem[AppDBConst.itemImage]
+                  .toString()
+                  .startsWith('assets/')
+                  ? SvgPicture.asset(
+                orderItem[AppDBConst.itemImage],
+                height: 30,
+                width: 30,
+                fit: BoxFit.cover,
+              )
+                  : Image.file(
+                File(orderItem[AppDBConst.itemImage]),
+                height: 30,
+                width: 30,
+                fit: BoxFit.cover,
+                errorBuilder:
+                    (context, error, stackTrace) {
+                  return SvgPicture.asset(
+                    'assets/svg/password_placeholder.svg',
+                    height: 30,
+                    width: 30,
+                    fit: BoxFit.cover,
                   );
                 },
               ),
@@ -533,37 +587,24 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'King fisher',
+                  orderItem[AppDBConst.itemName],
                   style: TextStyle(
                     fontWeight: FontWeight.w500,
                     fontSize: 16,
                   ),
                 ),
-                Text(
-                  '(350ml)',
-                  style: TextStyle(
-                    color: Colors.grey,
-                    fontSize: 14,
-                  ),
-                ),
+                // Text(
+                //   '(350ml)',
+                //   style: TextStyle(
+                //     color: Colors.grey,
+                //     fontSize: 14,
+                //   ),
+                // ),
                 SizedBox(height: 4),
-                Row(
-                  children: [
-                    Text(
-                      '\$3.5 × ',
-                      style: TextStyle(
-                        color: Colors.grey[700],
-                        fontSize: 13,
-                      ),
-                    ),
-                    Text(
-                      '4',
-                      style: TextStyle(
-                        color: Colors.grey[700],
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
+                Text(
+                  "${orderItem[AppDBConst.itemCount]} * \$${orderItem[AppDBConst.itemPrice]}", // Build #1.0.12: now item count will update in order panel
+                  style:
+                  const TextStyle(color: Colors.black54),
                 ),
               ],
             ),
@@ -571,7 +612,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
 
           // Price
           Text(
-            '\$14.0',
+            "\$${(orderItem[AppDBConst.itemCount] * orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}",
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 16,
@@ -644,16 +685,16 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                     spacing: 40.0 ,
                     children: [
                       _buildAmountDisplay(
-                        'Balance Amount.',
+                        TextConstants.balanceAmount,
                         '\$38.00',
                         amountColor: Colors.red,
                       ),
                       _buildAmountDisplay(
-                        'Tender Amount.',
+                        TextConstants.tenderAmount,
                         '\$50.00',
                       ),
                       _buildAmountDisplay(
-                        'Change.',
+                        TextConstants.change,
                         '\$12.00',
                         amountColor: Colors.green,
                       ),
@@ -689,7 +730,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                                       borderRadius: BorderRadius.circular(6),
                                     ),
                                     child: Text(
-                                      'Cash Payment',
+                                      TextConstants.cashPayment,
                                       style: TextStyle(
                                         color: Colors.red,
                                         fontWeight: FontWeight.w500,
@@ -774,7 +815,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Select Payment Mode',
+                      Text(TextConstants.selectPaymentMode,
                         style: TextStyle(fontSize: 16,fontWeight: FontWeight.bold),),
                       SizedBox(height: 10,),
                       Container(
@@ -787,15 +828,15 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                         ),
                         child: Column(
                           children: [
-                            _buildPaymentModeButton('Cash', Icons.money,
+                            _buildPaymentModeButton(TextConstants.cash, Icons.money,
                                 isSelected: true),
                             const SizedBox(height: 50),
-                            _buildPaymentModeButton('Card', Icons.credit_card),
+                            _buildPaymentModeButton(TextConstants.card, Icons.credit_card),
                             const SizedBox(height: 50),
                             _buildPaymentModeButton(
-                                'Wallet', Icons.account_balance_wallet),
+                                TextConstants.wallet, Icons.account_balance_wallet),
                             const SizedBox(height: 50),
-                            _buildPaymentModeButton('EBT', Icons.payment),
+                            _buildPaymentModeButton(TextConstants.ebtText , Icons.payment),
                           ],
                         ),
                       ),
@@ -808,13 +849,13 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                           borderRadius: BorderRadius.circular(5),
                         ),
                         child: Column(
-                          children: [_buildPaymentOptionButton('Redeem Points', Icons.stars),
+                          children: [_buildPaymentOptionButton(TextConstants.redeemPoints, Icons.stars),
                             const SizedBox(height: 20),
                             _buildPaymentOptionButton(
-                                'Manual Discount', Icons.discount),
+                                TextConstants.manualDiscount, Icons.discount),
                             const SizedBox(height: 20),
                             _buildPaymentOptionButton(
-                                'Gift Receipt', Icons.card_giftcard),
+                                TextConstants.giftReceipt, Icons.card_giftcard),
                           ],
                         ),
                       ),

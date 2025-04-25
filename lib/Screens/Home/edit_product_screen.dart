@@ -56,7 +56,7 @@ class _EditProductScreenState extends State<EditProductScreen> with SingleTicker
     });
     _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 1000),
     );
     _slideAnimation = Tween<Offset>(
       begin: const Offset(1.0, 0.0),

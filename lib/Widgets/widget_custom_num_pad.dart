@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pinaka_pos/Widgets/widget_payment_dialog.dart';
 
 import '../Constants/text.dart';
 
@@ -43,7 +44,6 @@ class CustomNumPad extends StatelessWidget {
                   builder: (context, constraints) {
                     double buttonHeight = (constraints.maxHeight - 24) / 4;
                     double buttonWidth = (constraints.maxWidth / 3) - 8;
-                    // Ensure positive aspect ratio
                     double aspectRatio = buttonWidth / buttonHeight;
                     if (aspectRatio <= 0) aspectRatio = 1.0;
                     
@@ -86,7 +86,7 @@ class CustomNumPad extends StatelessWidget {
                   const SizedBox(height: 12),
                   Expanded(
                     flex: 2,
-                    child: _buildPayButton(),
+                    child: _buildPayButton(context),
                   ),
                 ],
               ),
@@ -125,7 +125,7 @@ class CustomNumPad extends StatelessWidget {
     );
   }
 
-  Widget _buildPayButton() {
+  Widget _buildPayButton(BuildContext context) {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -140,7 +140,12 @@ class CustomNumPad extends StatelessWidget {
         ],
       ),
       child: TextButton(
-        onPressed: onPayPressed ?? () {},
+        onPressed: () {
+          if (onPayPressed != null) {
+            onPayPressed!();
+          }
+          _showPaymentDialog(context);
+        },
         style: TextButton.styleFrom(
           padding: EdgeInsets.zero,
           backgroundColor: Colors.transparent,
@@ -156,6 +161,72 @@ class CustomNumPad extends StatelessWidget {
             color: Colors.white,
           ),
         ),
+      ),
+    );
+  }
+
+  void _showPaymentDialog(BuildContext context) {
+    // Show the partial payment dialog initially
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => PaymentDialog(
+        status: PaymentStatus.partial,
+        mode: PaymentMode.cash,
+        amount: 25.00,  // Example partial amount
+        onVoid: () {
+          Navigator.of(context).pop();
+          // Handle void logic
+        },
+        onNextPayment: () {
+          Navigator.of(context).pop();
+          // Show successful payment dialog
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => PaymentDialog(
+              status: PaymentStatus.successful,
+              mode: PaymentMode.cash,
+              amount: 50.00,  // Total amount after all payments
+              onVoid: () {
+                Navigator.of(context).pop();
+                // Handle void logic
+              },
+              onPrint: () {
+                Navigator.of(context).pop();
+                // Show receipt dialog
+                _showReceiptDialog(context);
+              },
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _showReceiptDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => PaymentDialog(
+        status: PaymentStatus.receipt,
+        mode: PaymentMode.cash,
+        amount: 50.00,  // Total amount
+        onPrint: () {
+          // Handle print logic
+        },
+        onEmail: (email) {
+          // Handle email logic
+        },
+        onSMS: (phone) {
+          // Handle SMS logic
+        },
+        onNoReceipt: () {
+          Navigator.of(context).pop();
+        },
+        onDone: () {
+          Navigator.of(context).pop();
+        },
       ),
     );
   }

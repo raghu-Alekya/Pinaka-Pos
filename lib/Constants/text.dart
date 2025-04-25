@@ -63,8 +63,11 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String editCateText          = "Edit Category";
   static const String addCateText           = "Add Category";
   static const String imgRequiredText       = "Image is required";
+  static const String addFastKeyNameText    = "Add Fast key Name";
   static const String nameText              = "Name";
   static const String nameReqText           = "Name is required";
+  static const String categoryNameText      = "Enter the category name";
+  static const String categoryNameReqText   = "Category name is required";
   static const String itemCountText         = "Item Count:";
   static const String cancelText            = "Cancel";
   static const String saveText              = "Save";
@@ -95,10 +98,9 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String addItemText           = "Add Item";
   static const String editProductText       = "Edit Product";
 
-
   static const String ebtText               = "EBT";
   static const String payoutsText           = "Payouts";
-  static const String subTotalText          = "Subtotal";
+  static const String subTotalText          = "Sub total";
   static const String taxText               = "Tax";
   static const String holdOrderText         = "Hold Order";
   static const String payText               = "Pay :";
@@ -107,6 +109,38 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String calculatorText        = "Calculator";
   static const String holdText              = "Hold";
   static const String modeText              = "Mode";
+
+  static const String orderId              = "Order ID";
+  static const String paymentSummary       = "Payment Summary";
+  static const String discount             = "Discount";
+  static const String total                = "Total";
+  static const String payByCash            = "Pay By cash";
+  static const String payByOther           = "Pay By Other";
+  static const String tenderAmount         = "Tender Amount.";
+  static const String change               = "Change";
+  static const String balanceAmount        = "Balance Amount.";
+  static const String cashPayment          = "'Cash Payment'";
+  static const String selectPaymentMode    = "Select Payment Mode";
+  static const String cash                 = "Cash";
+  static const String card                 = "Card";
+  static const String wallet               = "Wallet";
+  static const String redeemPoints         = "Redeem Points";
+  static const String manualDiscount       = "Manual Discount";
+  static const String giftReceipt          = "Gift Receipt";
+  static const String partialPaymentText   = "Please pay the remaining amount in  the next transaction.";
+  static const String successPaymentText   = "Please collect the remaining amount to complete the transaction.";
+  static const String successPaymentTitle   = "Your transaction is successfully Done!";
+  static const String partialPaymentTitle   = "Partial Payment Received!";
+  static const String receiptTitle          = "Partial Payment Received!";
+  static const String print                 = "Print";
+  static const String email                 = "Email";
+  static const String sms                   = "SMS";
+  static const String mode                  = "mode:";
+  static const String enterEmailOrPhone     = "Enter email or phone number";
+  static const String noReceipt             = "No Receipt";
+  static const String done                  = "Done";
+  static const String vOid                  = "VOID";
+  static const String nextPayment           = "Next Payment";
 
   static const String login                 = "LOGIN"; // Build #1.0.8
   static const String loading               = "loading";

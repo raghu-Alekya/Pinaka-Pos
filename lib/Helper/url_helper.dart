@@ -58,6 +58,8 @@ class UrlMethodConstants { // Build #1.0.13
   static const String fastKeys       = "fastkeys";  // Build #1.0.15
   static const String categories           = "categories";
   static const String productByCategories  = "products-by-category"; // Build #1.0.21
+  static const String payments             = "payments";
+  static const String orders               = "orders";
 }
 
 class UrlParameterConstants { // Build #1.0.13
@@ -73,5 +75,8 @@ class EndUrlConstants { // Build #1.0.13
   static const  String getFastKeyProductsEndUrl   = "/get-by-fastkey-id/";
   static const String deleteFastKeyEndUrl         = "/delete-fastkey"; // Build #1.0.19
   static const String allCategoriesEndUrl         = "?page=1&per_page=100&hide_empty=true&parent="; // Build #1.0.21
+  static const String createPaymentEndUrl         = "/create-payment";  // Build #1.0.25
+  static const String paymentByIdEndUrl           = "/get-payment-by-id?payment_id=";
+  static const String paymentByOrderIdEndUrl      = "/get-payments-by-order-id?order_id=";
 }
 

@@ -740,192 +740,49 @@
 //     );
 //   }
 // }
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import '../Constants/text.dart';
+import '../Utilities/shimmer_effect.dart';
 import 'package:reorderable_grid_view/reorderable_grid_view.dart';
 
-class NestedGridWidget extends StatelessWidget { // Build #1.0.21
+class NestedGridWidget extends StatelessWidget {
   final bool isHorizontal;
   final bool isLoading;
-  final VoidCallback? onItemAdded;
-  final ValueNotifier<int?>? fastKeyTabIdNotifier;
-  final List<Map<String, dynamic>> items;
-  final Function(int)? onItemSelected;
   final bool showAddButton;
-  final bool showBackButton;
-  final VoidCallback? onBackPressed;
+  final bool showBackButton; // New property to show "Back to Categories" button
+  final List<Map<String, dynamic>> items;
+  final int? selectedItemIndex;
+  final List<int?> reorderedIndices;
+  final VoidCallback? onAddButtonPressed;
+  final VoidCallback? onBackButtonPressed; // Callback for "Back to Categories"
+  final Function(int) onItemTapped;
+  final Function(int, int) onReorder;
+  final Function(int) onDeleteItem;
+  final Function() onCancelReorder;
 
   const NestedGridWidget({
     super.key,
     required this.isHorizontal,
-    this.isLoading = false,
-    this.onItemAdded,
-    this.fastKeyTabIdNotifier,
-    this.items = const [],
-    this.onItemSelected,
-    this.showAddButton = true,
-    this.showBackButton = false,
-    this.onBackPressed,
+    required this.isLoading,
+    required this.showAddButton,
+    required this.showBackButton,
+    required this.items,
+    this.selectedItemIndex,
+    required this.reorderedIndices,
+    this.onAddButtonPressed,
+    this.onBackButtonPressed,
+    required this.onItemTapped,
+    required this.onReorder,
+    required this.onDeleteItem,
+    required this.onCancelReorder,
   });
 
-  @override
-  Widget build(BuildContext context) {
-    final totalCount = items.length + (showAddButton ? 1 : 0) + (showBackButton ? 1 : 0);
-    final theme = Theme.of(context);
-
-    return Expanded(
-      child: Column(
-        children: [
-          Expanded(
-            child: Container(
-                color: Colors.transparent,
-                child: isLoading
-                    ? _buildLoadingShimmer()
-                    : Material(
-                  color: Colors.transparent,
-                  child: ReorderableGridView.builder(
-                    padding: const EdgeInsets.all(16),
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      mainAxisSpacing: 20,
-                      crossAxisSpacing: 10,
-                      childAspectRatio: isHorizontal ? 2.2 : 1.8,
-                    ),
-                    itemCount: totalCount,
-                    onReorder: (oldIndex, newIndex) {
-                      // Reordering logic should be handled by parent
-                    },
-                    itemBuilder: (context, index) {
-                      // Handle back button
-                      if (showBackButton && index == 0) {
-                        return _buildBackButton(context);
-                      }
-
-                      // Handle add button
-                      if (showAddButton && index == (showBackButton ? 1 : 0)) {
-                        return _buildAddButton(context);
-                      }
-
-                      // Calculate item index accounting for optional buttons
-                      final itemIndex = index - (showBackButton ? 1 : 0) - (showAddButton ? 1 : 0);
-
-                      if (itemIndex >= items.length) return const SizedBox.shrink();
-                      final item = items[itemIndex];
-                      return _buildGridItem(context, item, itemIndex);
-                    },
-                  ),
-                )),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLoadingShimmer() {
-    return Container(
-      height: 200,
-      color: Colors.grey[200],
-    );
-  }
-
-  Widget _buildBackButton(BuildContext context) {
-    return Container(
-      key: const ValueKey('back_button'),
-      child: GestureDetector(
-        onTap: onBackPressed,
-        child: Card(
-          color: Colors.white,
-          elevation: 4,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: const [
-              Icon(Icons.arrow_back, size: 50, color: Colors.blue),
-              SizedBox(height: 8),
-              Text('Back', style: TextStyle(color: Colors.blue)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAddButton(BuildContext context) {
-    return Container(
-      key: const ValueKey('add_button'),
-      child: GestureDetector(
-        onTap: onItemAdded,
-        child: Card(
-          color: Colors.white,
-          elevation: 4,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: const [
-              Icon(Icons.add, size: 50, color: Colors.green),
-              SizedBox(height: 8),
-              Text('Add Item', style: TextStyle(color: Colors.green)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGridItem(BuildContext context, Map<String, dynamic> item, int index) {
-    print("item ${item}");
-    return Container(
-      key: ValueKey('grid_item_$index'),
-      child: GestureDetector(
-        onTap: () {
-          if (onItemSelected != null) {
-            onItemSelected!(index);
-          }
-        },
-        child: Card(
-          color: Colors.white,
-          elevation: 4,
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Row(
-              children: [
-                _buildItemImage(item),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        item['fast_key_item_name'] ?? '',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      if (item['fast_key_item_price'] != null && item['fast_key_item_price'].toString().isNotEmpty)
-                        Text(
-                          '\$${item['fast_key_item_price']}',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.black,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildItemImage(Map<String, dynamic> item) {
-    final image = item['fast_key_item_image'] ?? '';
-    if (image.startsWith("http")) {
+  Widget _buildImage(String imagePath) {
+    if (imagePath.startsWith("http")) {
       return Image.network(
-        image,
+        imagePath,
         width: 50,
         height: 50,
         fit: BoxFit.cover,
@@ -938,9 +795,9 @@ class NestedGridWidget extends StatelessWidget { // Build #1.0.21
           );
         },
       );
-    } else if (image.startsWith('assets/')) {
-      return Image.asset(
-        image,
+    } else {
+      return Image.file(
+        File(imagePath),
         width: 50,
         height: 50,
         fit: BoxFit.cover,
@@ -949,17 +806,162 @@ class NestedGridWidget extends StatelessWidget { // Build #1.0.21
             width: 50,
             height: 50,
             color: Colors.grey.shade300,
-            child: const Icon(Icons.image, color: Colors.grey),
+            child: const Icon(Icons.broken_image, color: Colors.grey),
           );
         },
       );
-    } else {
-      return Container(
-        width: 50,
-        height: 50,
-        color: Colors.grey.shade300,
-        child: const Icon(Icons.image, color: Colors.grey),
-      );
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final totalCount = (showAddButton ? 1 : 0) + (showBackButton ? 1 : 0) + items.length;
+
+    return Expanded(
+      child: Container(
+        color: Colors.transparent,
+        child: isLoading
+            ? ShimmerEffect.rectangular(height: 200)
+            : Material(
+          color: Colors.transparent,
+          child: ReorderableGridView.builder(
+            padding: const EdgeInsets.all(16),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              mainAxisSpacing: 20,
+              crossAxisSpacing: 10,
+              childAspectRatio: 2.2,
+            ),
+            itemCount: totalCount,
+            onReorder: onReorder,
+            itemBuilder: (context, index) {
+              // Handle "Add" button if enabled
+              if (showAddButton && index == 0) {
+                return Container(
+                  key: const ValueKey('add_button'),
+                  child: GestureDetector(
+                    onTap: onAddButtonPressed ?? () {},
+                    child: Card(
+                      color: Colors.white,
+                      elevation: 4,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Icon(Icons.add, size: 50, color: Colors.green),
+                          SizedBox(height: 8),
+                          Text(TextConstants.addItemText, style: TextStyle(color: Colors.green)),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }
+
+              // Handle "Back to Categories" button if enabled
+              if (showBackButton && index == (showAddButton ? 1 : 0)) {
+                return Container(
+                  key: const ValueKey('back_button'),
+                  child: GestureDetector(
+                    onTap: onBackButtonPressed ?? () {},
+                    child: Card(
+                      color: Colors.white,
+                      elevation: 4,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Icon(Icons.arrow_back, size: 50, color: Colors.blue),
+                          SizedBox(height: 8),
+                          Text("Back to Categories", style: TextStyle(color: Colors.blue)),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }
+
+              // Adjust the index based on the presence of "Add" and "Back" buttons
+              final itemIndex = index - (showAddButton ? 1 : 0) - (showBackButton ? 1 : 0);
+              if (itemIndex < 0 || itemIndex >= items.length) {
+                return const SizedBox.shrink();
+              }
+
+              final isReordered = reorderedIndices.isNotEmpty && reorderedIndices[itemIndex] != null;
+              final item = items[itemIndex];
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                decoration: BoxDecoration(
+                  border: isReordered ? Border.all(color: Colors.blue, width: 3) : null,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                key: ValueKey('grid_item_${itemIndex}_${item["fast_key_item_name"]}'),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    GestureDetector(
+                      onTap: () => onItemTapped(index),
+                      child: Card(
+                        color: Colors.white,
+                        elevation: 4,
+                        child: Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Row(
+                            children: [
+                              _buildImage(item["fast_key_item_image"]),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      item["fast_key_item_name"],
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.black,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    Text(
+                                      '\$${item["fast_key_item_price"]}',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.black,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (isReordered)
+                      Positioned(
+                        top: -5,
+                        right: -2,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                              onPressed: () => onDeleteItem(itemIndex),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.close, color: Colors.grey, size: 20),
+                              onPressed: onCancelReorder,
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
   }
 }

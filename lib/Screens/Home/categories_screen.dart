@@ -171,32 +171,29 @@
 //     );
 //   }
 // }
-import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:reorderable_grid_view/reorderable_grid_view.dart';
-import '../../Helper/api_response.dart';
-import '../../Repositories/Category/category_repository.dart';
 import '../../Widgets/widget_category_list.dart';
 import '../../Widgets/widget_nested_grid_layout.dart';
 import '../../Widgets/widget_order_panel.dart';
+import '../../Widgets/widget_sub_category.dart';
 import '../../Widgets/widget_topbar.dart';
 import '../../Widgets/widget_navigation_bar.dart' as custom_widgets;
 import '../../Blocs/Category/category_bloc.dart';
+import '../../Repositories/Category/category_repository.dart';
+import '../../Helper/api_response.dart';
 import '../../Models/Category/category_model.dart';
-import '../../Database/db_helper.dart';
-import '../../Database/user_db_helper.dart';
+import '../../Models/Category/category_product_model.dart';
+import '../../Database/order_panel_db_helper.dart';
+import '../../Constants/text.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-// Enum for sidebar positioning options
 enum SidebarPosition { left, right, bottom }
-
-// Enum for order panel positioning options
 enum OrderPanelPosition { left, right }
 
-/// CategoriesScreen - Main screen for displaying product categories and navigation
-class CategoriesScreen extends StatefulWidget { // Build #1.0.21 - Updated code with complete business logic here
-  final int? lastSelectedIndex; // Last selected sidebar index for persistence
+class CategoriesScreen extends StatefulWidget {
+  final int? lastSelectedIndex;
 
   const CategoriesScreen({super.key, this.lastSelectedIndex});
 
@@ -204,532 +201,272 @@ class CategoriesScreen extends StatefulWidget { // Build #1.0.21 - Updated code 
   State<CategoriesScreen> createState() => _CategoriesScreenState();
 }
 
-class _CategoriesScreenState extends State<CategoriesScreen> {
-  // UI state variables
-  int _selectedSidebarIndex = 1; // Default to Fast Key selection
-  DateTime now = DateTime.now(); // Current time for order panel
-  List<int> quantities = [1, 1, 1, 1]; // Demo quantities
-  SidebarPosition sidebarPosition = SidebarPosition.left; // Default sidebar position
-  OrderPanelPosition orderPanelPosition = OrderPanelPosition.right; // Default panel position
-  bool isLoading = true; // Loading state indicator
+class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBindingObserver {
+  final List<String> items = List.generate(18, (index) => 'Bud Light');
+  int _selectedSidebarIndex = 1;
+  DateTime now = DateTime.now();
+  List<int> quantities = [1, 1, 1, 1];
+  SidebarPosition sidebarPosition = SidebarPosition.left;
+  OrderPanelPosition orderPanelPosition = OrderPanelPosition.right;
+  bool isLoading = true;
+  final ValueNotifier<int?> fastKeyTabIdNotifier = ValueNotifier<int?>(null);
+  final OrderHelper orderHelper = OrderHelper();
 
-  // Category management state
-  late CategoryBloc _categoryBloc; // Business logic controller for categories
-  List<CategoryModel> categories = []; // Top-level categories
-  List<CategoryModel> subCategories = []; // Subcategories of selected category
-  List<CategoryModel> subSubCategories = []; // Sub-subcategories
-  List<Map<String, dynamic>> categoryProducts = []; // Products for selected category
-  int? selectedCategoryId; // Currently selected category ID
-  int? selectedSubCategoryId; // Currently selected subcategory ID
-  final ValueNotifier<int?> categoryIdNotifier = ValueNotifier<int?>(null); // Notifier for category changes
-  final ValueNotifier<int?> subCategoryIdNotifier = ValueNotifier<int?>(null); // Notifier for subcategory changes
-  StreamSubscription<APIResponse<CategoryListResponse>>? _categoriesSubscription;
+  late CategoryBloc _categoryBloc;
+  List<CategoryModel> categories = [];
+  int? _selectedCategoryIndex;
+  int? _editingCategoryIndex;
 
-  // For editing and reordering
-  int? _editingIndex;
-  int? _selectedIndex; // Track selected index in the horizontal list
-  final ScrollController _scrollController = ScrollController();
-  bool _showLeftArrow = false;
-  bool _showRightArrow = true;
-  bool _isCategoryLoading = false;
-  bool _showBackButton = false; // Controls visibility of back button in product grid
+  List<CategoryModel> subCategories = [];
+  bool isShowingSubCategories = false;
+  List<Map<String, dynamic>> categoryProducts = [];
+  int? selectedItemIndex;
+  List<int?> reorderedIndices = [];
+  List<String> navigationPath = [];
+  List<int> categoryHierarchy = [0];
+  int currentCategoryLevel = 0;
 
   @override
   void initState() {
     super.initState();
-    if (kDebugMode) {
-      print("Initializing CategoriesScreen state");
-    }
-
-    // Restore last selected sidebar index or use default
+    WidgetsBinding.instance.addObserver(this);
     _selectedSidebarIndex = widget.lastSelectedIndex ?? 1;
-
-    // Initialize category business logic controller
     _categoryBloc = CategoryBloc(CategoryRepository());
+    reorderedIndices = List.filled(categoryProducts.length, null);
 
-    // Set up the listener once when the widget initializes
-    _categoriesSubscription = _categoryBloc.categoriesStream.listen((response) {
-      if (response.status == Status.COMPLETED && response.data != null && mounted) {
+    _loadLastSelectedCategory();
+    _loadCategories(0);
+
+    Future.delayed(const Duration(seconds: 3), () {
+      setState(() {
+        isLoading = false;
+      });
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _loadLastSelectedCategory();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _loadLastSelectedCategory();
+    }
+  }
+
+  Future<void> _loadLastSelectedCategory() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    int? lastSelectedIndex = prefs.getInt('lastSelectedCategoryIndex');
+    if (lastSelectedIndex != null && lastSelectedIndex < categories.length) {
+      setState(() {
+        _selectedCategoryIndex = lastSelectedIndex;
+        navigationPath = [categories[_selectedCategoryIndex!].name];
+      });
+      _loadCategories(categories[_selectedCategoryIndex!].id);
+      categoryHierarchy.add(categories[_selectedCategoryIndex!].id);
+      currentCategoryLevel++;
+    } else if (categories.isNotEmpty) {
+      setState(() {
+        _selectedCategoryIndex = 0;
+        navigationPath = [categories[0].name];
+      });
+      await prefs.setInt('lastSelectedCategoryIndex', 0);
+      _loadCategories(categories[0].id);
+      categoryHierarchy.add(categories[0].id);
+      currentCategoryLevel++;
+    }
+  }
+
+  Future<void> _saveLastSelectedCategory(int index) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('lastSelectedCategoryIndex', index);
+  }
+
+  Future<void> _loadCategories(int parentId) async {
+    _categoryBloc.fetchCategories(parentId);
+    _categoryBloc.categoriesStream.listen((response) {
+      if (response.status == Status.COMPLETED && response.data != null) {
         setState(() {
-          if (selectedSubCategoryId == null) {
-            // Loading top-level categories
+          if (parentId == 0) {
             categories = response.data!.categories;
-            if (categories.isNotEmpty && selectedCategoryId == null) {
-              selectedCategoryId = categories.first.id;
-              categoryIdNotifier.value = selectedCategoryId;
+            if (_selectedCategoryIndex == null && categories.isNotEmpty) {
+              _selectedCategoryIndex = 0;
+              _saveLastSelectedCategory(0);
+              navigationPath = [categories[0].name];
+              _loadCategories(categories[0].id);
+              categoryHierarchy.add(categories[0].id);
+              currentCategoryLevel++;
             }
           } else {
-            // Loading subcategories or products
-            if (_showBackButton) {
-              // We're at sub-subcategory level
-              subSubCategories = response.data!.categories;
-              if (subSubCategories.isEmpty) {
-                // No more subcategories, load products
-                _loadCategoryProducts(selectedSubCategoryId!);
-              }
-            } else {
-              // We're at subcategory level
-              subCategories = response.data!.categories;
-              if (subCategories.isEmpty) {
-                // No subcategories, load products directly
-                _loadCategoryProducts(selectedCategoryId!);
-              }
-            }
+            subCategories = response.data!.categories;
+            isShowingSubCategories = true;
+            categoryProducts.clear();
           }
         });
-      }
-    });
-
-    _scrollController.addListener(_updateScrollArrows);
-
-    // Load initial category data
-    _loadCategories();
-
-    // Simulate loading delay
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) {
-        setState(() {
-          isLoading = false;
-          if (kDebugMode) {
-            print("Loading completed, updating UI");
-          }
-        });
-      }
-    });
-  }
-
-  void _updateScrollArrows() {
-    setState(() {
-      _showLeftArrow = _scrollController.offset > 0;
-      _showRightArrow = _scrollController.offset < _scrollController.position.maxScrollExtent;
-    });
-  }
-
-  /// Loads top-level categories from API/database
-  Future<void> _loadCategories() async {
-    if (kDebugMode) {
-      print("Loading top-level categories...");
-    }
-
-    setState(() {
-      _isCategoryLoading = false;
-    });
-
-    try {
-      // Fetch top-level categories (parentId = 0)
-      await _categoryBloc.fetchCategories(0);
-    } catch (e) {
-      if (kDebugMode) {
-        print("Exception in _loadCategories: $e");
-      }
-      if (mounted) {
-        setState(() {
-          _isCategoryLoading = false;
-        });
-      }
-    }
-  }
-
-  /// Loads subcategories for a given parent category ID
-  Future<void> _loadSubCategories(int parentId) async {
-    if (kDebugMode) {
-      print("Loading subcategories for parent ID: $parentId");
-    }
-
-    setState(() {
-      _isCategoryLoading = true;
-      _showBackButton = false;
-      subSubCategories = [];
-      categoryProducts = [];
-    });
-
-    try {
-      await _categoryBloc.fetchCategories(parentId);
-    } catch (e) {
-      if (kDebugMode) {
-        print("Exception in _loadSubCategories: $e");
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isCategoryLoading = false;
-        });
-      }
-    }
-  }
-
-  /// Loads products for a given category ID
-  Future<void> _loadCategoryProducts(int categoryId) async {
-    if (kDebugMode) {
-      print("Loading products for category ID: $categoryId");
-    }
-
-    setState(() {
-      _isCategoryLoading = true;
-      categoryProducts = [];
-    });
-
-    // Simulate API call delay
-    await Future.delayed(const Duration(seconds: 1));
-
-    // TODO: Replace with actual API call to get products
-    // For now, we'll use mock data
-    List<Map<String, dynamic>> mockProducts = List.generate(10, (index) {
-      return {
-        'id': index,
-        'title': 'Product ${index + 1}',
-        'image': 'https://via.placeholder.com/150',
-        'price': (index + 1) * 10.0,
-      };
-    });
-
-    if (mounted) {
-      setState(() {
-        categoryProducts = mockProducts;
-        _isCategoryLoading = false;
-      });
-    }
-  }
-
-  /// Handles category selection from the horizontal list
-  void _handleCategorySelection(int categoryId) {
-    if (kDebugMode) {
-      print("User selected category with ID: $categoryId");
-      print("Previous selected category ID: $selectedCategoryId");
-    }
-
-    // Only proceed if this is a new selection
-    //  if (selectedCategoryId != categoryId) {
-    setState(() {
-      selectedCategoryId = categoryId;
-      selectedSubCategoryId = null;
-      categoryIdNotifier.value = categoryId;
-      subCategoryIdNotifier.value = null;
-      _editingIndex = null;
-      _showBackButton = false;
-
-      if (kDebugMode) {
-        print("Updating selected category to ID: $categoryId");
-      }
-    });
-
-    // Load subcategories for the newly selected category
-    _loadSubCategories(categoryId);
-    // } else {
-    //   if (kDebugMode) {
-    //     print("Category already selected, no action needed");
-    //   }
-    // }
-  }
-
-  /// Handles subcategory selection from the grid
-  void _handleSubCategorySelection(int subCategoryId) {
-    if (kDebugMode) {
-      print("User selected subcategory with ID: $subCategoryId");
-      print("Previous selected subcategory ID: $selectedSubCategoryId");
-    }
-
-    // Only proceed if this is a new selection
-    if (selectedSubCategoryId != subCategoryId) {
-      setState(() {
-        selectedSubCategoryId = subCategoryId;
-        subCategoryIdNotifier.value = subCategoryId;
-        _showBackButton = true;
-
+      } else if (response.status == Status.ERROR) {
         if (kDebugMode) {
-          print("Updating selected subcategory to ID: $subCategoryId");
+          print("CategoriesScreen: Error loading categories: ${response.message}");
+        }
+      }
+    });
+  }
+
+  Future<void> _loadProductsByCategory(int categoryId) async {
+    _categoryBloc.fetchProductsByCategory(categoryId);
+    _categoryBloc.productsStream.listen((response) {
+      if (response.status == Status.COMPLETED && response.data != null) {
+        setState(() {
+          categoryProducts = response.data!.products.map((product) {
+            return {
+              'fast_key_item_id': product.id,
+              'fast_key_item_name': product.name,
+              'fast_key_item_image': product.images.isNotEmpty ? product.images.first : '',
+              'fast_key_item_price': product.price,
+            };
+          }).toList();
+          reorderedIndices = List.filled(categoryProducts.length, null);
+          isShowingSubCategories = false;
+        });
+      } else if (response.status == Status.ERROR) {
+        if (kDebugMode) {
+          print("CategoriesScreen: Error loading products: ${response.message}");
+        }
+      }
+    });
+  }
+
+  void _onCategoryTapped(int index) {
+    setState(() {
+      if (_editingCategoryIndex == index) {
+        _editingCategoryIndex = null;
+      } else {
+        _selectedCategoryIndex = index;
+        navigationPath = [categories[index].name];
+        subCategories.clear();
+        categoryProducts.clear();
+        isShowingSubCategories = false;
+        categoryHierarchy = [0, categories[index].id];
+        currentCategoryLevel = 1;
+      }
+    });
+    _saveLastSelectedCategory(index);
+    _loadCategories(categories[index].id);
+  }
+
+  void _onSubCategoryTapped(int index) {
+    final selectedSubCategory = subCategories[index];
+    setState(() {
+      navigationPath.add(selectedSubCategory.name);
+      categoryHierarchy.add(selectedSubCategory.id);
+      currentCategoryLevel++;
+    });
+    _loadCategories(selectedSubCategory.id);
+
+    _categoryBloc.categoriesStream.listen((response) {
+      if (response.status == Status.COMPLETED && response.data != null) {
+        if (response.data!.categories.isEmpty) {
+          _loadProductsByCategory(selectedSubCategory.id);
+        }
+      }
+    });
+  }
+
+  void _onBackToCategories() {
+    if (currentCategoryLevel > 0) {
+      setState(() {
+        currentCategoryLevel--;
+        categoryHierarchy.removeLast();
+        navigationPath.removeLast();
+        isShowingSubCategories = currentCategoryLevel > 0;
+        categoryProducts.clear();
+        if (currentCategoryLevel == 0) {
+          _loadCategories(0);
+        } else {
+          _loadCategories(categoryHierarchy.last);
         }
       });
-
-      // Load sub-subcategories or products
-      _loadSubCategories(subCategoryId);
-    } else {
-      if (kDebugMode) {
-        print("Subcategory already selected, no action needed");
-      }
     }
   }
 
-  /// Handles back button press in product grid
-  void _handleBackPress() {
-    if (kDebugMode) {
-      print("User pressed back button");
+  void _onItemSelected(int index) async {
+    if (index == 0 && categoryProducts.isNotEmpty) {
+      _onBackToCategories();
+      return;
     }
+    final adjustedIndex = index - 1;
+    if (adjustedIndex < 0 || adjustedIndex >= categoryProducts.length) return;
 
     setState(() {
-      _showBackButton = false;
-      selectedSubCategoryId = null;
-      subCategoryIdNotifier.value = null;
-      subSubCategories = [];
-      categoryProducts = [];
+      navigationPath.add(categoryProducts[adjustedIndex]["fast_key_item_name"]);
     });
 
-    // Reload subcategories for the main category
-    if (selectedCategoryId != null) {
-      _loadSubCategories(selectedCategoryId!);
+    final selectedProduct = categoryProducts[adjustedIndex];
+    await orderHelper.addItemToOrder(
+      selectedProduct["fast_key_item_name"],
+      selectedProduct["fast_key_item_image"],
+      double.tryParse(selectedProduct["fast_key_item_price"].toString()) ?? 0.0,
+      1,
+      'SKU${selectedProduct["fast_key_item_name"]}',
+      onItemAdded: _refreshOrderList,
+    );
+  }
+
+  void _onNavigationPathTapped(int index) {
+    if (index < navigationPath.length - 1) {
+      setState(() {
+        navigationPath = navigationPath.sublist(0, index + 1);
+        categoryHierarchy = categoryHierarchy.sublist(0, index + 1);
+        currentCategoryLevel = index;
+        isShowingSubCategories = currentCategoryLevel > 0;
+        categoryProducts.clear();
+        _loadCategories(categoryHierarchy.last);
+      });
     }
   }
 
-  /// Refreshes the order list (callback for order panel)
   void _refreshOrderList() {
-    if (kDebugMode) {
-      print("Refreshing order list...");
-    }
-    setState(() {
-      // This triggers a rebuild which will refresh the order panel
-      if (kDebugMode) {
-        print("Order list refresh triggered");
-      }
-    });
+    setState(() {});
   }
 
-  Widget _buildScrollButton(IconData icon, VoidCallback onPressed) {
-    return Container(
-      height: 110,
-      padding: const EdgeInsets.all(1),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.black12),
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: IconButton(
-        icon: Icon(icon, color: Colors.redAccent),
-        onPressed: onPressed,
-      ),
-    );
-  }
-
-  bool _doesContentOverflow(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final contentWidth = categories.length * 120;
-    return contentWidth > screenWidth;
-  }
-
-  Widget _buildCategoryImage(CategoryModel category) {
-    if (category.image?.startsWith('http') ?? false) {
-      return Image.network(
-        category.image!,
-        width: 40,
-        height: 40,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          return const Icon(Icons.category, size: 40);
-        },
-      );
-    } else {
-      return const Icon(Icons.category, size: 40);
-    }
-  }
-
-  void _showCategoryDialog({required BuildContext context, int? index}) {
-    bool isEditing = index != null;
-    TextEditingController nameController = TextEditingController(
-        text: isEditing ? categories[index!].name : '');
-    String imagePath = isEditing ? categories[index!].image ?? 'assets/default.png' : 'assets/default.png';
-    bool showError = false;
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setStateDialog) {
-            return AlertDialog(
-              title: Text(isEditing ? 'Edit Category' : 'Add Category'),
-              content: SingleChildScrollView(
-                child: SizedBox(
-                  width: MediaQuery.of(context).size.width * 0.2,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Align(
-                        alignment: Alignment.center,
-                        child: Stack(
-                          children: [
-                            _buildImageWidget(imagePath),
-                            Positioned(
-                              right: 0,
-                              bottom: 0,
-                              child: GestureDetector(
-                                onTap: () async {
-                                  // TODO: Implement image picker
-                                  // final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
-                                  // if (pickedFile != null) {
-                                  //   setStateDialog(() => imagePath = pickedFile.path);
-                                  // }
-                                },
-                                child: const Icon(Icons.edit,
-                                    size: 18, color: Colors.red),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      TextField(
-                        controller: nameController,
-                        decoration: InputDecoration(
-                          labelText: 'Name',
-                          errorText: (!isEditing && showError && nameController.text.isEmpty)
-                              ? 'Name is required'
-                              : null,
-                        ),
-                      ),
-                      if (isEditing)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8.0),
-                          child: Text(
-                            'Item Count: ${categories[index].count}',
-                            style: const TextStyle(color: Colors.grey),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel'),
-                ),
-                TextButton(
-                  onPressed: () async {
-                    if (!isEditing && nameController.text.isEmpty) {
-                      setStateDialog(() => showError = true);
-                      return;
-                    }
-                    if (isEditing) {
-                      // TODO: Update category in database
-                      setState(() {
-                        _editingIndex = null;
-                        categories[index] = categories[index].copyWith(
-                          name: nameController.text,
-                          image: imagePath,
-                        );
-                      });
-                    } else {
-                      // TODO: Add new category
-                      // await _addCategory(nameController.text, imagePath);
-                    }
-                    Navigator.pop(context);
-                  },
-                  child: const Text('Save'),
-                ),
-                if (isEditing)
-                  TextButton(
-                    onPressed: () => _showDeleteConfirmationDialog(index!),
-                    child: const Text('Delete', style: TextStyle(color: Colors.red)),
-                  ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildImageWidget(String imagePath) {
-    if (imagePath.isEmpty) return _safeSvgPicture('assets/default.png');
-    if (imagePath.startsWith('assets/') && imagePath.endsWith('.svg')) {
-      return _safeSvgPicture(imagePath);
-    } else if (imagePath.startsWith('assets/')) {
-      return Image.asset(imagePath, height: 80, width: 80, fit: BoxFit.cover);
-    } else {
-      return Image.network(
-        imagePath,
-        height: 80,
-        width: 80,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => _safeSvgPicture('assets/default.png'),
-      );
-    }
-  }
-
-  Widget _safeSvgPicture(String assetPath) {
-    try {
-      return Image.asset(
-        assetPath,
-        height: 80,
-        width: 80,
-        errorBuilder: (context, error, stackTrace) => const Icon(Icons.image, size: 40),
-      );
-    } catch (e) {
-      debugPrint("Image Error: $e");
-      return Image.asset('assets/default.png', height: 80, width: 80);
-    }
-  }
-
-  void _showDeleteConfirmationDialog(int index) {
-    bool isDeleting = false;
-    final category = categories[index];
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setStateDialog) {
-            return AlertDialog(
-              title: const Text('Delete Category'),
-              content: const Text('Are you sure you want to delete this category?'),
-              actions: [
-                TextButton(
-                  onPressed: isDeleting ? null : () => Navigator.pop(context),
-                  child: const Text('No'),
-                ),
-                TextButton(
-                  onPressed: isDeleting ? null : () async {
-                    setStateDialog(() => isDeleting = true);
-                    // TODO: Delete category from database
-                    setState(() {
-                      categories.removeAt(index);
-                      if (_selectedIndex != null) {
-                        if (_selectedIndex! >= categories.length) {
-                          _selectedIndex = categories.isNotEmpty ? categories.length - 1 : null;
-                        }
-                        categoryIdNotifier.value = _selectedIndex != null
-                            ? categories[_selectedIndex!].id
-                            : null;
-                      }
-                    });
-                    if (mounted) {
-                      Navigator.pop(context);
-                      Navigator.pop(context);
-                    }
-                  },
-                  child: isDeleting
-                      ? const CircularProgressIndicator()
-                      : const Text('Yes', style: TextStyle(color: Colors.red)),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _categoryBloc.dispose();
+    fastKeyTabIdNotifier.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (kDebugMode) {
-      print("Building CategoriesScreen UI");
-    }
-
     final screenWidth = MediaQuery.of(context).size.width;
     String formattedDate = DateFormat("EEE, MMM d' ${now.year}'").format(now);
     String formattedTime = DateFormat('hh:mm a').format(now);
 
+    final categoryListItems = categories.map((category) {
+      return {
+        'title': category.name,
+        'image': category.image ?? 'assets/default.png',
+        'itemCount': category.count,
+      };
+    }).toList();
+
+    final subCategoryListItems = subCategories.map((subCategory) {
+      return {
+        'name': subCategory.name,
+        'image': subCategory.image ?? 'assets/default.png',
+        'count': subCategory.count,
+      };
+    }).toList();
+
     return Scaffold(
       body: Column(
         children: [
-          // Top app bar
           TopBar(
             onModeChanged: () {
-              if (kDebugMode) {
-                print("User toggled sidebar position");
-                print("Current position: $sidebarPosition");
-              }
-
               setState(() {
-                // Cycle through sidebar positions
                 if (sidebarPosition == SidebarPosition.left) {
                   sidebarPosition = SidebarPosition.right;
                 } else if (sidebarPosition == SidebarPosition.right) {
@@ -737,147 +474,189 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                 } else {
                   sidebarPosition = SidebarPosition.left;
                 }
-
-                if (kDebugMode) {
-                  print("New sidebar position: $sidebarPosition");
-                }
               });
             },
+            onProductSelected: (product) {
+              double price;
+              try {
+                price = double.tryParse(product.price ?? '0.00') ?? 0.00;
+              } catch (e) {
+                price = 0.00;
+              }
+              orderHelper.addItemToOrder(
+                product.name ?? 'Unknown',
+                product.images?.isNotEmpty == true ? product.images!.first : '',
+                price,
+                1,
+                'SKU${product.name}',
+                onItemAdded: _refreshOrderList,
+              );
+            },
           ),
-
-          // Divider between top bar and main content
-          const Divider(color: Colors.grey, thickness: 0.4, height: 1),
-
-          // Main content area
+          const Divider(
+            color: Colors.grey,
+            thickness: 0.4,
+            height: 1,
+          ),
           Expanded(
             child: Row(
               children: [
-                // Left sidebar (conditional)
                 if (sidebarPosition == SidebarPosition.left)
                   custom_widgets.NavigationBar(
                     selectedSidebarIndex: _selectedSidebarIndex,
                     onSidebarItemSelected: (index) {
-                      if (kDebugMode) {
-                        print("User selected sidebar item at index: $index");
-                      }
                       setState(() {
                         _selectedSidebarIndex = index;
                       });
                     },
                     isVertical: true,
                   ),
-
-                // Left order panel (conditional)
                 if (sidebarPosition == SidebarPosition.right ||
-                    (sidebarPosition == SidebarPosition.bottom &&
-                        orderPanelPosition == OrderPanelPosition.left))
+                    (sidebarPosition == SidebarPosition.bottom && orderPanelPosition == OrderPanelPosition.left))
                   RightOrderPanel(
                     formattedDate: formattedDate,
                     formattedTime: formattedTime,
                     quantities: quantities,
                     refreshOrderList: _refreshOrderList,
                   ),
-
-                // Main content area
                 Expanded(
                   child: Column(
                     children: [
-                      // Horizontal category list
-                      _buildCategoryList(context),
-
-                      // Grid for subcategories or products
-                      ValueListenableBuilder<int?>(
-                        valueListenable: categoryIdNotifier,
-                        builder: (context, categoryId, child) {
-                          if (kDebugMode) {
-                            print("Rebuilding grid for category ID: $categoryId");
-                          }
-
-                          // Show products if we have them
-                          if (categoryProducts.isNotEmpty) {
-                            return NestedGridWidget(
-                              isHorizontal: true,
-                              isLoading: isLoading,
-                              items: categoryProducts,
-                              onItemSelected: (index) {
-                                // Handle product selection
-                                if (kDebugMode) {
-                                  print("Product selected: ${categoryProducts[index]}");
-                                }
-                                // TODO: Add product to order
-                              },
-                              showAddButton: false,
-                              showBackButton: _showBackButton,
-                              onBackPressed: _handleBackPress,
-                            );
-                          }
-
-                          // Show sub-subcategories if we have them
-                          if (subSubCategories.isNotEmpty) {
-                            return NestedGridWidget(
-                              isHorizontal: true,
-                              isLoading: isLoading,
-                              items: subSubCategories.map((cat) => {
-                                'id': cat.id,
-                                'title': cat.name,
-                                'image': cat.image ?? 'assets/default.png',
-                                'price': '',
-                              }).toList(),
-                              onItemSelected: (index) {
-                                // Handle sub-subcategory selection
-                                final subSubCatId = subSubCategories[index].id;
-                                if (kDebugMode) {
-                                  print("Sub-subcategory selected: $subSubCatId");
-                                }
-                                // Load products for this sub-subcategory
-                                _loadCategoryProducts(subSubCatId);
-                              },
-                              showAddButton: false,
-                              showBackButton: _showBackButton,
-                              onBackPressed: _handleBackPress,
-                            );
-                          }
-
-                          // Show subcategories by default
-                          return NestedGridWidget(
-                            isHorizontal: true,
-                            isLoading: isLoading,
-                            items: subCategories.map((cat) => {
-                              'id': cat.id,
-                              'title': cat.name,
-                              'image': cat.image ?? 'assets/default.png',
-                              'price': '',
-                            }).toList(),
-                            onItemSelected: _handleSubCategorySelection,
-                            showAddButton: false,
-                            showBackButton: _showBackButton,
-                            onBackPressed: _handleBackPress,
-                          );
+                      // Always show the CategoryList
+                      CategoryList(
+                        isHorizontal: true,
+                        isLoading: isLoading,
+                        isAddButtonEnabled: false,
+                        categories: categoryListItems,
+                        selectedIndex: _selectedCategoryIndex,
+                        editingIndex: _editingCategoryIndex,
+                        onAddButtonPressed: null,
+                        onCategoryTapped: _onCategoryTapped,
+                        onReorder: (oldIndex, newIndex) {
+                          if (newIndex > oldIndex) newIndex--;
+                          setState(() {
+                            final item = categories.removeAt(oldIndex);
+                            categories.insert(newIndex, item);
+                            if (_selectedCategoryIndex == oldIndex) {
+                              _selectedCategoryIndex = newIndex;
+                            } else if (oldIndex < _selectedCategoryIndex! && newIndex >= _selectedCategoryIndex!) {
+                              _selectedCategoryIndex = _selectedCategoryIndex! - 1;
+                            } else if (oldIndex > _selectedCategoryIndex! && newIndex <= _selectedCategoryIndex!) {
+                              _selectedCategoryIndex = _selectedCategoryIndex! + 1;
+                            }
+                          });
                         },
+                        onEditButtonPressed: (index) {
+                          setState(() {
+                            _editingCategoryIndex = index;
+                          });
+                        },
+                        onDismissEditMode: () {
+                          setState(() {
+                            _editingCategoryIndex = null;
+                          });
+                        },
+                      ),
+                      // Navigation Path (without "Back to Categories" button)
+                      if (currentCategoryLevel > 0)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  child: Row(
+                                    children: List.generate(navigationPath.length, (index) {
+                                      return GestureDetector(
+                                        onTap: () => _onNavigationPathTapped(index),
+                                        child: Row(
+                                          children: [
+                                            Text(
+                                              navigationPath[index],
+                                              style: const TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.blue,
+                                                decoration: TextDecoration.underline,
+                                              ),
+                                            ),
+                                            if (index < navigationPath.length - 1)
+                                              const Padding(
+                                                padding: EdgeInsets.symmetric(horizontal: 8.0),
+                                                child: Icon(Icons.arrow_forward, size: 16, color: Colors.blue),
+                                              ),
+                                          ],
+                                        ),
+                                      );
+                                    }),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      // Subcategories or Products Grid
+                      Expanded(
+                        child: isShowingSubCategories
+                            ? SubCategoryGridWidget(
+                          isLoading: isLoading,
+                          subCategories: subCategoryListItems,
+                          onSubCategoryTapped: _onSubCategoryTapped,
+                        )
+                            : NestedGridWidget(
+                          isHorizontal: true,
+                          isLoading: isLoading,
+                          showAddButton: false,
+                          showBackButton: categoryProducts.isNotEmpty, // Show "Back to Categories" button if products are displayed
+                          items: categoryProducts,
+                          selectedItemIndex: selectedItemIndex,
+                          reorderedIndices: reorderedIndices,
+                          onAddButtonPressed: null,
+                          onBackButtonPressed: _onBackToCategories, // Pass the back functionality
+                          onItemTapped: _onItemSelected,
+                          onReorder: (oldIndex, newIndex) {
+                            if (oldIndex == 0 || newIndex == 0) return;
+                            final adjustedOldIndex = oldIndex - 1;
+                            final adjustedNewIndex = newIndex - 1;
+                            if (adjustedOldIndex < 0 ||
+                                adjustedNewIndex < 0 ||
+                                adjustedOldIndex >= categoryProducts.length ||
+                                adjustedNewIndex >= categoryProducts.length) {
+                              return;
+                            }
+                            setState(() {
+                              categoryProducts = List<Map<String, dynamic>>.from(categoryProducts);
+                              final item = categoryProducts.removeAt(adjustedOldIndex);
+                              categoryProducts.insert(adjustedNewIndex, item);
+                              reorderedIndices = List.filled(categoryProducts.length, null);
+                              reorderedIndices[adjustedNewIndex] = adjustedNewIndex;
+                              selectedItemIndex = adjustedNewIndex;
+                            });
+                          },
+                          onDeleteItem: (index) {},
+                          onCancelReorder: () {
+                            setState(() {
+                              reorderedIndices = List.filled(categoryProducts.length, null);
+                            });
+                          },
+                        ),
                       ),
                     ],
                   ),
                 ),
-
-                // Right order panel (conditional)
                 if (sidebarPosition != SidebarPosition.right &&
-                    !(sidebarPosition == SidebarPosition.bottom &&
-                        orderPanelPosition == OrderPanelPosition.left))
+                    !(sidebarPosition == SidebarPosition.bottom && orderPanelPosition == OrderPanelPosition.left))
                   RightOrderPanel(
                     formattedDate: formattedDate,
                     formattedTime: formattedTime,
                     quantities: quantities,
                     refreshOrderList: _refreshOrderList,
                   ),
-
-                // Right sidebar (conditional)
                 if (sidebarPosition == SidebarPosition.right)
                   custom_widgets.NavigationBar(
                     selectedSidebarIndex: _selectedSidebarIndex,
                     onSidebarItemSelected: (index) {
-                      if (kDebugMode) {
-                        print("User selected sidebar item at index: $index");
-                      }
                       setState(() {
                         _selectedSidebarIndex = index;
                       });
@@ -887,15 +666,10 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
               ],
             ),
           ),
-
-          // Bottom sidebar (conditional)
           if (sidebarPosition == SidebarPosition.bottom)
             custom_widgets.NavigationBar(
               selectedSidebarIndex: _selectedSidebarIndex,
               onSidebarItemSelected: (index) {
-                if (kDebugMode) {
-                  print("User selected sidebar item at index: $index");
-                }
                 setState(() {
                   _selectedSidebarIndex = index;
                 });
@@ -905,210 +679,5 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
         ],
       ),
     );
-  }
-
-  Widget _buildCategoryList(BuildContext context) {
-    if (_isCategoryLoading) {
-      return Container(
-        height: 100,
-        color: Colors.grey[200],
-      );
-    }
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: isLoading
-          ? Container(
-        height: 100,
-        color: Colors.grey[200],
-      )
-          : _buildHorizontalList(context),
-    );
-  }
-
-  Widget _buildHorizontalList(BuildContext context) {
-    var size = MediaQuery.of(context).size;
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _editingIndex = null;
-        });
-      },
-      child: Row(
-        children: [
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            transitionBuilder: (widget, animation) {
-              return FadeTransition(opacity: animation, child: widget);
-            },
-            child: _showLeftArrow && _doesContentOverflow(context)
-                ? _buildScrollButton(Icons.arrow_back_ios, () {
-              _scrollController.animateTo(
-                _scrollController.offset - size.width,
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeInOut,
-              );
-            })
-                : const SizedBox.shrink(),
-          ),
-          Expanded(
-            child: SizedBox(
-              height: 110,
-              child: ReorderableListView(
-                scrollController: _scrollController,
-                scrollDirection: Axis.horizontal,
-                onReorderStart: (index) {
-                  setState(() {
-                    _editingIndex = index;
-                  });
-                },
-                onReorder: (oldIndex, newIndex) async {
-                  if (newIndex > oldIndex) newIndex--;
-                  setState(() {
-                    final item = categories.removeAt(oldIndex);
-                    categories.insert(newIndex, item);
-                    _editingIndex = newIndex;
-                    if (_selectedIndex != null) {
-                      if (_selectedIndex == oldIndex) {
-                        _selectedIndex = newIndex;
-                      } else if (oldIndex < _selectedIndex! && newIndex >= _selectedIndex!) {
-                        _selectedIndex = _selectedIndex! - 1;
-                      } else if (oldIndex > _selectedIndex! && newIndex <= _selectedIndex!) {
-                        _selectedIndex = _selectedIndex! + 1;
-                      }
-                    }
-                  });
-                },
-                proxyDecorator: (Widget child, int index, Animation<double> animation) {
-                  return Material(
-                    elevation: 0,
-                    color: Colors.transparent,
-                    child: child,
-                  );
-                },
-                children: List.generate(categories.length, (index) {
-                  final category = categories[index];
-                  bool isSelected = selectedCategoryId == category.id;
-                  bool showEditButton = _editingIndex == index;
-
-                  return GestureDetector(
-                    key: ValueKey('${category.name}_$index'),
-                    onTap: () async {
-                      setState(() {
-                        if (_editingIndex == index) {
-                          _editingIndex = null;
-                        } else if (selectedCategoryId == category.id) {
-                          return;
-                        } else {
-                          selectedCategoryId = category.id;
-                          _selectedIndex = index;
-                        }
-                      });
-                      if (_editingIndex == null) {
-                        categoryIdNotifier.value = category.id;
-                        _handleCategorySelection(category.id);
-                      }
-                      _editingIndex = null;
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 5.0),
-                      child: AnimatedContainer(
-                        width: 90,
-                        duration: const Duration(milliseconds: 300),
-                        padding: const EdgeInsets.fromLTRB(8, 0, 8, 0),
-                        decoration: BoxDecoration(
-                          color: isSelected ? Colors.red : Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: showEditButton ? Colors.blueAccent : Colors.black12,
-                            width: showEditButton ? 2 : 1,
-                          ),
-                        ),
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            Positioned(
-                              top: 0,
-                              right: -6,
-                              child: AnimatedOpacity(
-                                duration: const Duration(milliseconds: 300),
-                                opacity: showEditButton ? 1.0 : 0.0,
-                                child: GestureDetector(
-                                  onTap: () => _showCategoryDialog(context: context, index: index),
-                                  child: Container(
-                                    padding: const EdgeInsets.all(4),
-                                    decoration: const BoxDecoration(
-                                      color: Colors.transparent,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(Icons.edit, size: 14, color: Colors.blueAccent),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                _buildCategoryImage(category),
-                                const SizedBox(height: 8),
-                                Text(
-                                  category.name,
-                                  maxLines: 1,
-                                  style: TextStyle(
-                                    overflow: TextOverflow.ellipsis,
-                                    fontWeight: FontWeight.bold,
-                                    color: isSelected ? Colors.white : Colors.black,
-                                  ),
-                                ),
-                                Text(
-                                  category.count.toString(),
-                                  style: TextStyle(
-                                    color: isSelected ? Colors.white : Colors.grey,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                }),
-              ),
-            ),
-          ),
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            transitionBuilder: (widget, animation) {
-              return FadeTransition(opacity: animation, child: widget);
-            },
-            child: _showRightArrow && _doesContentOverflow(context)
-                ? _buildScrollButton(Icons.arrow_forward_ios, () {
-              _scrollController.animateTo(
-                _scrollController.offset + size.width,
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeInOut,
-              );
-            })
-                : const SizedBox.shrink(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    if (kDebugMode) {
-      print("Disposing CategoriesScreen resources");
-    }
-
-    // Clean up resources
-    _categoriesSubscription?.cancel();
-    _categoryBloc.dispose();
-    categoryIdNotifier.dispose();
-    subCategoryIdNotifier.dispose();
-    _scrollController.dispose();
-
-    super.dispose();
   }
 }

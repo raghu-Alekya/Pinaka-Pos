@@ -751,12 +751,12 @@ class NestedGridWidget extends StatelessWidget {
   final bool isHorizontal;
   final bool isLoading;
   final bool showAddButton;
-  final bool showBackButton; // New property to show "Back to Categories" button
+  final bool showBackButton;
   final List<Map<String, dynamic>> items;
   final int? selectedItemIndex;
   final List<int?> reorderedIndices;
   final VoidCallback? onAddButtonPressed;
-  final VoidCallback? onBackButtonPressed; // Callback for "Back to Categories"
+  final VoidCallback? onBackButtonPressed;
   final Function(int) onItemTapped;
   final Function(int, int) onReorder;
   final Function(int) onDeleteItem;
@@ -863,16 +863,26 @@ class NestedGridWidget extends StatelessWidget {
                   key: const ValueKey('back_button'),
                   child: GestureDetector(
                     onTap: onBackButtonPressed ?? () {},
-                    child: Card(
-                      color: Colors.white,
-                      elevation: 4,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
-                          Icon(Icons.arrow_back, size: 50, color: Colors.blue),
-                          SizedBox(height: 8),
-                          Text("Back to Categories", style: TextStyle(color: Colors.blue)),
-                        ],
+                    child: Card( // Build #1.0.27 : added Back to Categories from sub categories to profuct items
+                      color: const Color(0xFFEAF2FF),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: SizedBox(
+                        width: 200,
+                        height: 100,
+                        child: Center(
+                          child: Text(
+                            "Back to Categories",
+                            style: TextStyle(
+                              color: Color(0xFF2D3A5A),
+                              fontSize: 18,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
                       ),
                     ),
                   ),

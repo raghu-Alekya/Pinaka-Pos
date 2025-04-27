@@ -7,6 +7,7 @@ import '../Utilities/shimmer_effect.dart';
 class SubCategoryGridWidget extends StatelessWidget {
   final bool isLoading;
   final List<Map<String, dynamic>> subCategories;
+  final int? selectedSubCategoryIndex;
   final Function(int) onSubCategoryTapped;
 
   const SubCategoryGridWidget({
@@ -14,6 +15,7 @@ class SubCategoryGridWidget extends StatelessWidget {
     required this.isLoading,
     required this.subCategories,
     required this.onSubCategoryTapped,
+    this.selectedSubCategoryIndex,
   });
 
   Widget _buildImage(String imagePath) {
@@ -59,11 +61,18 @@ class SubCategoryGridWidget extends StatelessWidget {
         itemCount: subCategories.length,
         itemBuilder: (context, index) {
           final subCategory = subCategories[index];
+          final isSelected = selectedSubCategoryIndex == index;
           return GestureDetector(
             onTap: () => onSubCategoryTapped(index),
             child: Card(
               color: Colors.white,
               elevation: 4,
+              shape: RoundedRectangleBorder( // Build #1.0.27
+                borderRadius: BorderRadius.circular(8),
+                side: isSelected
+                    ? const BorderSide(color: Colors.red, width: 2)
+                    : const BorderSide(color: Colors.black12, width: 1),
+              ),
               child: Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: Column(

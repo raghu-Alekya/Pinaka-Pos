@@ -213,18 +213,20 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
   final OrderHelper orderHelper = OrderHelper();
 
   late CategoryBloc _categoryBloc;
-  List<CategoryModel> categories = [];
+  List<CategoryModel> categories = []; // Build #1.0.27 : Top-level categories only
+  List<CategoryModel> subCategories = []; // Build #1.0.27 : Subcategories for the selected category
   int? _selectedCategoryIndex;
   int? _editingCategoryIndex;
+  int? _selectedSubCategoryIndex;
 
-  List<CategoryModel> subCategories = [];
-  bool isShowingSubCategories = false;
   List<Map<String, dynamic>> categoryProducts = [];
   int? selectedItemIndex;
   List<int?> reorderedIndices = [];
   List<String> navigationPath = [];
   List<int> categoryHierarchy = [0];
   int currentCategoryLevel = 0;
+  String? lastSelectedProduct;
+  bool isShowingSubCategories = false;
 
   @override
   void initState() {
@@ -234,9 +236,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
     _categoryBloc = CategoryBloc(CategoryRepository());
     reorderedIndices = List.filled(categoryProducts.length, null);
 
-    _loadLastSelectedCategory();
-    _loadCategories(0);
-
+    _loadTopLevelCategories(); // Build #1.0.27 : Load top-level categories once
     Future.delayed(const Duration(seconds: 3), () {
       setState(() {
         isLoading = false;
@@ -247,7 +247,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _loadLastSelectedCategory();
+    // _loadLastSelectedCategory will be called after _loadTopLevelCategories
   }
 
   @override
@@ -260,23 +260,25 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
   Future<void> _loadLastSelectedCategory() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     int? lastSelectedIndex = prefs.getInt('lastSelectedCategoryIndex');
-    if (lastSelectedIndex != null && lastSelectedIndex < categories.length) {
+    if (lastSelectedIndex != null && lastSelectedIndex >= 0 && lastSelectedIndex < categories.length) {
       setState(() {
         _selectedCategoryIndex = lastSelectedIndex;
         navigationPath = [categories[_selectedCategoryIndex!].name];
+        categoryHierarchy = [0, categories[_selectedCategoryIndex!].id];
+        currentCategoryLevel = 1;
+        isShowingSubCategories = true;
       });
-      _loadCategories(categories[_selectedCategoryIndex!].id);
-      categoryHierarchy.add(categories[_selectedCategoryIndex!].id);
-      currentCategoryLevel++;
+      _loadSubCategories(categories[_selectedCategoryIndex!].id);
     } else if (categories.isNotEmpty) {
       setState(() {
         _selectedCategoryIndex = 0;
         navigationPath = [categories[0].name];
+        categoryHierarchy = [0, categories[0].id];
+        currentCategoryLevel = 1;
+        isShowingSubCategories = true;
       });
       await prefs.setInt('lastSelectedCategoryIndex', 0);
-      _loadCategories(categories[0].id);
-      categoryHierarchy.add(categories[0].id);
-      currentCategoryLevel++;
+      _loadSubCategories(categories[0].id);
     }
   }
 
@@ -285,38 +287,51 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
     await prefs.setInt('lastSelectedCategoryIndex', index);
   }
 
-  Future<void> _loadCategories(int parentId) async {
-    _categoryBloc.fetchCategories(parentId);
-    _categoryBloc.categoriesStream.listen((response) {
+  // Load top-level categories (parentId = 0) once
+  Future<void> _loadTopLevelCategories() async { // Build #1.0.27
+    _categoryBloc.fetchCategories(0);
+    await for (var response in _categoryBloc.categoriesStream) {
       if (response.status == Status.COMPLETED && response.data != null) {
         setState(() {
-          if (parentId == 0) {
-            categories = response.data!.categories;
-            if (_selectedCategoryIndex == null && categories.isNotEmpty) {
-              _selectedCategoryIndex = 0;
-              _saveLastSelectedCategory(0);
-              navigationPath = [categories[0].name];
-              _loadCategories(categories[0].id);
-              categoryHierarchy.add(categories[0].id);
-              currentCategoryLevel++;
-            }
-          } else {
-            subCategories = response.data!.categories;
-            isShowingSubCategories = true;
-            categoryProducts.clear();
-          }
+          categories = response.data!.categories;
         });
+        // After loading categories, apply the last selected category
+        _loadLastSelectedCategory();
+        break; // Break after loading top-level categories
       } else if (response.status == Status.ERROR) {
         if (kDebugMode) {
-          print("CategoriesScreen: Error loading categories: ${response.message}");
+          print("CategoriesScreen: Error loading top-level categories: ${response.message}");
         }
       }
-    });
+    }
+  }
+
+  // Load subcategories for a specific parent category
+  Future<void> _loadSubCategories(int parentId) async {
+    _categoryBloc.fetchCategories(parentId);
+    await for (var response in _categoryBloc.categoriesStream) {
+      if (response.status == Status.COMPLETED && response.data != null) {
+        setState(() {
+          subCategories = response.data!.categories;
+          isShowingSubCategories = true;
+          categoryProducts.clear();
+          _selectedSubCategoryIndex = null;
+        });
+        if (subCategories.isEmpty) {
+          _loadProductsByCategory(parentId);
+        }
+        break; // Break after loading subcategories
+      } else if (response.status == Status.ERROR) {
+        if (kDebugMode) {
+          print("CategoriesScreen: Error loading subcategories: ${response.message}");
+        }
+      }
+    }
   }
 
   Future<void> _loadProductsByCategory(int categoryId) async {
     _categoryBloc.fetchProductsByCategory(categoryId);
-    _categoryBloc.productsStream.listen((response) {
+    await for (var response in _categoryBloc.productsStream) {
       if (response.status == Status.COMPLETED && response.data != null) {
         setState(() {
           categoryProducts = response.data!.products.map((product) {
@@ -330,86 +345,101 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
           reorderedIndices = List.filled(categoryProducts.length, null);
           isShowingSubCategories = false;
         });
+        break;
       } else if (response.status == Status.ERROR) {
         if (kDebugMode) {
           print("CategoriesScreen: Error loading products: ${response.message}");
         }
       }
-    });
+    }
   }
 
   void _onCategoryTapped(int index) {
+    if (index < 0 || index >= categories.length) return; // Prevent RangeError
     setState(() {
-      if (_editingCategoryIndex == index) {
-        _editingCategoryIndex = null;
-      } else {
-        _selectedCategoryIndex = index;
-        navigationPath = [categories[index].name];
-        subCategories.clear();
-        categoryProducts.clear();
-        isShowingSubCategories = false;
-        categoryHierarchy = [0, categories[index].id];
-        currentCategoryLevel = 1;
-      }
+      _selectedCategoryIndex = index;
+      navigationPath = [categories[index].name];
+      subCategories.clear();
+      categoryProducts.clear();
+      isShowingSubCategories = true;
+      categoryHierarchy = [0, categories[index].id];
+      currentCategoryLevel = 1;
+      _selectedSubCategoryIndex = null;
+      _editingCategoryIndex = null;
     });
     _saveLastSelectedCategory(index);
-    _loadCategories(categories[index].id);
+    _loadSubCategories(categories[index].id);
   }
 
   void _onSubCategoryTapped(int index) {
+    if (index < 0 || index >= subCategories.length) return; // Prevent RangeError
     final selectedSubCategory = subCategories[index];
     setState(() {
-      navigationPath.add(selectedSubCategory.name);
+      _selectedSubCategoryIndex = index;
+      if (!navigationPath.contains(selectedSubCategory.name)) {
+        navigationPath.add(selectedSubCategory.name);
+      }
       categoryHierarchy.add(selectedSubCategory.id);
       currentCategoryLevel++;
     });
-    _loadCategories(selectedSubCategory.id);
-
-    _categoryBloc.categoriesStream.listen((response) {
-      if (response.status == Status.COMPLETED && response.data != null) {
-        if (response.data!.categories.isEmpty) {
-          _loadProductsByCategory(selectedSubCategory.id);
-        }
-      }
-    });
+    _loadSubCategories(selectedSubCategory.id);
   }
 
   void _onBackToCategories() {
     if (currentCategoryLevel > 0) {
       setState(() {
         currentCategoryLevel--;
-        categoryHierarchy.removeLast();
-        navigationPath.removeLast();
-        isShowingSubCategories = currentCategoryLevel > 0;
-        categoryProducts.clear();
         if (currentCategoryLevel == 0) {
-          _loadCategories(0);
+          // Reset to top-level category
+          navigationPath = _selectedCategoryIndex != null ? [categories[_selectedCategoryIndex!].name] : [];
+          categoryHierarchy = _selectedCategoryIndex != null ? [0, categories[_selectedCategoryIndex!].id] : [0];
+          subCategories.clear();
+          categoryProducts.clear();
+          isShowingSubCategories = true;
+          _selectedSubCategoryIndex = null;
+          if (_selectedCategoryIndex != null) {
+            _loadSubCategories(categories[_selectedCategoryIndex!].id);
+          }
         } else {
-          _loadCategories(categoryHierarchy.last);
+          // Go back one level
+          categoryHierarchy.removeLast();
+          navigationPath.removeLast();
+          isShowingSubCategories = true;
+          categoryProducts.clear();
+          _selectedSubCategoryIndex = null;
+          _loadSubCategories(categoryHierarchy.last);
         }
       });
     }
   }
 
   void _onItemSelected(int index) async {
-    if (index == 0 && categoryProducts.isNotEmpty) {
+    if (index == 0 && showBackButton) {
       _onBackToCategories();
       return;
     }
-    final adjustedIndex = index - 1;
+    final adjustedIndex = index - (showBackButton ? 1 : 0);
     if (adjustedIndex < 0 || adjustedIndex >= categoryProducts.length) return;
 
+    final selectedProduct = categoryProducts[adjustedIndex];
+    final productName = selectedProduct["fast_key_item_name"];
+
     setState(() {
-      navigationPath.add(categoryProducts[adjustedIndex]["fast_key_item_name"]);
+      if (lastSelectedProduct != null && navigationPath.contains(lastSelectedProduct)) {
+        navigationPath.removeLast();
+      }
+      if (!navigationPath.contains(productName)) {
+        navigationPath.add(productName);
+      }
+      lastSelectedProduct = productName;
     });
 
-    final selectedProduct = categoryProducts[adjustedIndex];
     await orderHelper.addItemToOrder(
-      selectedProduct["fast_key_item_name"],
+      productName,
       selectedProduct["fast_key_item_image"],
       double.tryParse(selectedProduct["fast_key_item_price"].toString()) ?? 0.0,
       1,
-      'SKU${selectedProduct["fast_key_item_name"]}',
+      'SKU$productName',
       onItemAdded: _refreshOrderList,
     );
   }
@@ -422,7 +452,13 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
         currentCategoryLevel = index;
         isShowingSubCategories = currentCategoryLevel > 0;
         categoryProducts.clear();
-        _loadCategories(categoryHierarchy.last);
+        lastSelectedProduct = null;
+        _selectedSubCategoryIndex = null;
+        if (currentCategoryLevel == 0) {
+          subCategories.clear();
+        } else {
+          _loadSubCategories(categoryHierarchy.last);
+        }
       });
     }
   }
@@ -430,6 +466,8 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
   void _refreshOrderList() {
     setState(() {});
   }
+
+  bool get showBackButton => categoryProducts.isNotEmpty;
 
   @override
   void dispose() {
@@ -557,7 +595,6 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
                           });
                         },
                       ),
-                      // Navigation Path (without "Back to Categories" button)
                       if (currentCategoryLevel > 0)
                         Padding(
                           padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
@@ -584,7 +621,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
                                             if (index < navigationPath.length - 1)
                                               const Padding(
                                                 padding: EdgeInsets.symmetric(horizontal: 8.0),
-                                                child: Icon(Icons.arrow_forward, size: 16, color: Colors.blue),
+                                                child: Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.blue),
                                               ),
                                           ],
                                         ),
@@ -596,29 +633,29 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
                             ],
                           ),
                         ),
-                      // Subcategories or Products Grid
                       Expanded(
-                        child: isShowingSubCategories
+                        child: isShowingSubCategories && subCategories.isNotEmpty
                             ? SubCategoryGridWidget(
                           isLoading: isLoading,
                           subCategories: subCategoryListItems,
+                          selectedSubCategoryIndex: _selectedSubCategoryIndex,
                           onSubCategoryTapped: _onSubCategoryTapped,
                         )
                             : NestedGridWidget(
                           isHorizontal: true,
                           isLoading: isLoading,
                           showAddButton: false,
-                          showBackButton: categoryProducts.isNotEmpty, // Show "Back to Categories" button if products are displayed
+                          showBackButton: showBackButton,
                           items: categoryProducts,
                           selectedItemIndex: selectedItemIndex,
                           reorderedIndices: reorderedIndices,
                           onAddButtonPressed: null,
-                          onBackButtonPressed: _onBackToCategories, // Pass the back functionality
+                          onBackButtonPressed: _onBackToCategories,
                           onItemTapped: _onItemSelected,
                           onReorder: (oldIndex, newIndex) {
                             if (oldIndex == 0 || newIndex == 0) return;
-                            final adjustedOldIndex = oldIndex - 1;
-                            final adjustedNewIndex = newIndex - 1;
+                            final adjustedOldIndex = oldIndex - (showBackButton ? 1 : 0);
+                            final adjustedNewIndex = newIndex - (showBackButton ? 1 : 0);
                             if (adjustedOldIndex < 0 ||
                                 adjustedNewIndex < 0 ||
                                 adjustedOldIndex >= categoryProducts.length ||

@@ -42,9 +42,6 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
 
   @override
   void initState() {
-    if (kDebugMode) {
-      print("##### OrderPanel initState");
-    }
     super.initState();
     _getOrderTabs(); // Load existing orders into tabs
   }
@@ -55,27 +52,24 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
     _getOrderTabs(); // Build #1.0.10 : Reload tabs when the widget updates (e.g., after item selection)
 
     if (kDebugMode) {
-      print("##### OrderPanel didUpdateWidget");
+      print("##### RightOrderPanel didUpdateWidget");
     }
   }
 
   // Build #1.0.10: Fetches the list of order tabs from OrderHelper
   void _getOrderTabs() async {
-    if (kDebugMode) {
-      print("##### OrderPanel _getOrderTabs");
-    }
     await orderHelper.loadData(); // Load order data from DB
 
     if (mounted) {
       setState(() {
         // Convert order IDs into tab format
-        tabs = orderHelper.orders
+        tabs = orderHelper.orderIds
             .asMap()
             .entries
             .map((entry) => {
-                  "title": "#${entry.value[AppDBConst.orderServerId] ?? entry.value[AppDBConst.orderId]}", // Order number
+                  "title": "#${entry.value}", // Order number
                   "subtitle": "Tab ${entry.key + 1}", // Tab position
-                  "orderId": (entry.value[AppDBConst.orderServerId] ?? entry.value[AppDBConst.orderId])  as Object, // Order ID
+                  "orderId": entry.value as Object, // Order ID
                 })
             .toList();
       });
@@ -555,146 +549,260 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
             },
           ),
         ),
-        Container(
-          padding: const EdgeInsets.fromLTRB(18, 0, 18, 0),
-          // decoration: BoxDecoration(
-          //   color: Colors.grey.shade200,
-          //   borderRadius: BorderRadius.circular(16),
-          // ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              // EBT Container
-              Expanded(
-                child: Container(
-                  padding: EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade200,
+        // Container(
+        //   padding: const EdgeInsets.fromLTRB(18, 0, 18, 0),
+        //   // decoration: BoxDecoration(
+        //   //   color: Colors.grey.shade200,
+        //   //   borderRadius: BorderRadius.circular(16),
+        //   // ),
+        //   child: Row(
+        //     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        //     children: [
+        //       // EBT Container
+        //       Expanded(
+        //         child: Container(
+        //           padding: EdgeInsets.all(8),
+        //           decoration: BoxDecoration(
+        //             color: Colors.grey.shade200,
+        //           ),
+        //           child: Column(
+        //             crossAxisAlignment: CrossAxisAlignment.center,
+        //             children: [
+        //               Text(TextConstants.ebtText,
+        //                   style: TextStyle(
+        //                       fontSize: 14,
+        //                       fontWeight: FontWeight.bold,
+        //                       color: Colors.black45)),
+        //               Text("\$0.00",
+        //                   style: TextStyle(
+        //                       fontSize: 14, fontWeight: FontWeight.bold)),
+        //             ],
+        //           ),
+        //         ),
+        //       ),
+        //       // Payouts Container
+        //       Expanded(
+        //         child: Container(
+        //           padding: EdgeInsets.all(8),
+        //           decoration: BoxDecoration(
+        //             color: Colors.grey.shade300,
+        //           ),
+        //           child: Column(
+        //             crossAxisAlignment: CrossAxisAlignment.center,
+        //             children: [
+        //               Text(TextConstants.payoutsText,
+        //                   style: TextStyle(
+        //                       fontSize: 14,
+        //                       fontWeight: FontWeight.bold,
+        //                       color: Colors.black45)),
+        //               Text("\$0.00",
+        //                   style: TextStyle(
+        //                       fontSize: 14, fontWeight: FontWeight.bold)),
+        //             ],
+        //           ),
+        //         ),
+        //       ),
+        //       // Subtotal Container
+        //       Expanded(
+        //         child: Container(
+        //           padding: EdgeInsets.all(8),
+        //           decoration: BoxDecoration(
+        //             color: Colors.grey.shade400,
+        //           ),
+        //           child: Column(
+        //             crossAxisAlignment: CrossAxisAlignment.center,
+        //             children: [
+        //               Text(TextConstants.subTotalText,
+        //                   style: TextStyle(
+        //                       fontSize: 14,
+        //                       fontWeight: FontWeight.bold,
+        //                       color: Colors.black45)),
+        //               Text("\$0.00",
+        //                   style: TextStyle(
+        //                       fontSize: 14, fontWeight: FontWeight.bold)),
+        //             ],
+        //           ),
+        //         ),
+        //       ),
+        //       // Tax Container
+        //       Expanded(
+        //         child: Container(
+        //           padding: EdgeInsets.all(8),
+        //           decoration: BoxDecoration(
+        //             color: Colors.grey.shade500,
+        //           ),
+        //           child: Column(
+        //             crossAxisAlignment: CrossAxisAlignment.center,
+        //             children: [
+        //               Text(TextConstants.taxText,
+        //                   style: TextStyle(
+        //                       fontSize: 14,
+        //                       fontWeight: FontWeight.bold,
+        //                       color: Colors.white)),
+        //               Text("\$0.00",
+        //                   style: TextStyle(
+        //                       fontSize: 14,
+        //                       fontWeight: FontWeight.bold,
+        //                       color: Colors.white)),
+        //             ],
+        //           ),
+        //         ),
+        //       ),
+        //     ],
+        //   ),
+        // ),
+        // Container(
+        //   padding: const EdgeInsets.all(16),
+        //   child: Row(
+        //     children: [
+        //       Expanded(
+        //         child: ElevatedButton(
+        //           onPressed: () {},
+        //           style: ElevatedButton.styleFrom(
+        //             backgroundColor: Colors.white,
+        //             shape: RoundedRectangleBorder(
+        //               borderRadius: BorderRadius.circular(10),
+        //               side: const BorderSide(color: Colors.black),
+        //             ),
+        //           ),
+        //           child: const Text(TextConstants.holdOrderText,
+        //               style: TextStyle(color: Colors.black)),
+        //         ),
+        //       ),
+        //       const SizedBox(width: 10),
+        //       Expanded(
+        //         child: ElevatedButton(
+        //           onPressed: () {
+        //             Navigator.push(context, MaterialPageRoute(builder: (context) => OrderSummaryScreen(),));
+        //           },
+        //           style: ElevatedButton.styleFrom(
+        //             backgroundColor: Colors.green,
+        //             shape: RoundedRectangleBorder(
+        //                 borderRadius: BorderRadius.circular(10)),
+        //           ),
+        //           child: Text(
+        //             "${TextConstants.payText} \$${(widget.quantities.fold(0.0, (double sum, qty) => sum + qty * 0.99)).toStringAsFixed(2)}",
+        //             style: const TextStyle(color: Colors.white),
+        //           ),
+        //         ),
+        //       ),
+        //     ],
+        //   ),
+        // )
+        Column(
+          children: [
+            // Summary container
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 5,
+                    offset: const Offset(0, 2),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
+                ],
+              ),
+              child: Column(
+                children: [
+                  // Order summary section
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(TextConstants.ebtText,
-                          style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black45)),
-                      Text("\$0.00",
-                          style: TextStyle(
-                              fontSize: 14, fontWeight: FontWeight.bold)),
+                      const Text(
+                        "Sub total",
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      Text(
+                        "\$38.00",
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ],
                   ),
-                ),
-              ),
-              // Payouts Container
-              Expanded(
-                child: Container(
-                  padding: EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
+                  const SizedBox(height: 8),
+
+                  // Tax row
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(TextConstants.payoutsText,
-                          style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black45)),
-                      Text("\$0.00",
-                          style: TextStyle(
-                              fontSize: 14, fontWeight: FontWeight.bold)),
+                      const Text(
+                        "Tax",
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      Text(
+                        "\$3.00",
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey,
+                        ),
+                      ),
                     ],
                   ),
-                ),
-              ),
-              // Subtotal Container
-              Expanded(
-                child: Container(
-                  padding: EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade400,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
+                  const SizedBox(height: 4),
+
+                  // Discount row - with green text
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(TextConstants.subTotalText,
-                          style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black45)),
-                      Text("\$0.00",
-                          style: TextStyle(
-                              fontSize: 14, fontWeight: FontWeight.bold)),
+                      const Text(
+                        "Discount",
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Color(0xFF1BA672),
+                        ),
+                      ),
+                      Text(
+                        "-\$3.00",
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Color(0xFF1BA672),
+                        ),
+                      ),
                     ],
                   ),
-                ),
+                ],
               ),
-              // Tax Container
-              Expanded(
-                child: Container(
-                  padding: EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade500,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text(TextConstants.taxText,
-                          style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white)),
-                      Text("\$0.00",
-                          style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white)),
-                    ],
+            ),
+
+            // Payment button - outside the container
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: () {
+                  // Payment action here
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFF6B6B), // Coral red color
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-              ),
-            ],
-          ),
-        ),
-        Container(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () {},
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      side: const BorderSide(color: Colors.black),
-                    ),
-                  ),
-                  child: const Text(TextConstants.holdOrderText,
-                      style: TextStyle(color: Colors.black)),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () {
-                    /// call update order service here
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => OrderSummaryScreen(),));
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
-                  ),
-                  child: Text(
-                    "${TextConstants.payText} \$${(widget.quantities.fold(0.0, (double sum, qty) => sum + qty * 0.99)).toStringAsFixed(2)}",
-                    style: const TextStyle(color: Colors.white),
+                child: const Text(
+                  "Pay \$38.00",
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         )
       ],
     );

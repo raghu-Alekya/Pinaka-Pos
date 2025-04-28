@@ -945,153 +945,216 @@ class CategoryList extends StatelessWidget {
       );
     }
   }
-
-  Widget _buildScrollButton(IconData icon, VoidCallback onPressed) {
-    return Container(
-      height: 110,
-      padding: const EdgeInsets.all(1),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.black12),
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: IconButton(
-        icon: Icon(icon, color: Colors.redAccent),
-        onPressed: onPressed,
-      ),
-    );
-  }
-
   bool _doesContentOverflow(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final contentWidth = categories.length * 120;
     return contentWidth > screenWidth;
   }
 
-  Widget _buildHorizontalList(BuildContext context, ScrollController scrollController, bool showLeftArrow, bool showRightArrow) {
+  Widget _buildHorizontalList(BuildContext context, ScrollController scrollController) {
     var size = MediaQuery.of(context).size;
-    return Row(
-      children: [
-        AnimatedSwitcher(
-          duration: const Duration(milliseconds: 1000),
-          transitionBuilder: (widget, animation) {
-            return FadeTransition(opacity: animation, child: widget);
-          },
-          child: showLeftArrow && _doesContentOverflow(context)
-              ? _buildScrollButton(Icons.arrow_back_ios, () {
-            scrollController.animateTo(
-              scrollController.offset - size.width,
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
-            );
-          })
-              : const SizedBox.shrink(),
-        ),
-        Expanded(
-          child: SizedBox(
-            height: 110,
-            child: ReorderableListView(
-              scrollController: scrollController,
-              scrollDirection: Axis.horizontal,
-              onReorder: onReorder,
-              children: List.generate(categories.length, (index) {
-                final category = categories[index];
-                bool isSelected = selectedIndex == index;
-                bool showEditButton = editingIndex == index;
+    return Container(
+      height: 150,
+      decoration: BoxDecoration(
+        color: Colors.white, // Background color for the whole list view
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 5,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Main scrollable content
+          Row(
+            children: [
+              // Add some padding on the left to make room for the left navigation button
+              const SizedBox(width: 30),
 
-                return GestureDetector(
-                  key: ValueKey('${category['title']}_$index'),
-                  onTap: () => onCategoryTapped(index),
-                  onLongPress: () => onEditButtonPressed(index),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 5.0),
-                    child: AnimatedContainer(
-                      width: 90,
-                      duration: const Duration(milliseconds: 300),
-                      padding: const EdgeInsets.fromLTRB(8, 0, 8, 0),
-                      decoration: BoxDecoration(
-                        color: isSelected ? Colors.red : Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: showEditButton ? Colors.blueAccent : Colors.black12,
-                          width: showEditButton ? 2 : 1,
-                        ),
-                      ),
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Positioned(
-                            top: 0,
-                            right: -6,
-                            child: AnimatedOpacity(
-                              duration: const Duration(milliseconds: 300),
-                              opacity: showEditButton ? 1.0 : 0.0,
-                              child: GestureDetector(
-                                onTap: () => onEditButtonPressed(index),
-                                child: Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: const BoxDecoration(
-                                    color: Colors.transparent,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(Icons.edit, size: 14, color: Colors.blueAccent),
-                                ),
+              Expanded(
+                child: SizedBox(
+                  height: 110,
+                  child: ReorderableListView(
+                    scrollController: scrollController,
+                    scrollDirection: Axis.horizontal,
+                    onReorder: onReorder,
+                    children: List.generate(categories.length, (index) {
+                      final category = categories[index];
+                      bool isSelected = selectedIndex == index;
+                      bool showEditButton = editingIndex == index;
+
+                      return GestureDetector(
+                        key: ValueKey('${category['title']}_$index'),
+                        onTap: () => onCategoryTapped(index),
+                        onLongPress: () => onEditButtonPressed(index),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 10.0),
+                          child: AnimatedContainer(
+                            width: 90,
+                            duration: const Duration(milliseconds: 300),
+                            padding: const EdgeInsets.fromLTRB(8, 0, 8, 0),
+                            decoration: BoxDecoration(
+                              color: isSelected ? Color(0xFFFFE1E1) : Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: showEditButton ? Colors.blueAccent : isSelected ? Colors.red : Colors.black12,
+                                width: showEditButton ? 2 : 1,
                               ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                Positioned(
+                                  top: 0,
+                                  right: -6,
+                                  child: AnimatedOpacity(
+                                    duration: const Duration(milliseconds: 300),
+                                    opacity: showEditButton ? 1.0 : 0.0,
+                                    child: GestureDetector(
+                                      onTap: () => onEditButtonPressed(index),
+                                      child: Container(
+                                        padding: const EdgeInsets.all(4),
+                                        decoration: const BoxDecoration(
+                                          color: Colors.transparent,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(Icons.edit, size: 14, color: Colors.blueAccent),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    _buildImage(category['image']),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      category['title'],
+                                      maxLines: 1,
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        overflow: TextOverflow.ellipsis,
+                                        fontWeight: FontWeight.bold,
+                                        fontVariations: const <FontVariation>[FontVariation('wght', 900.0)],
+                                        color: Colors.black87,
+                                      ),
+                                    ),
+                                    // Text(
+                                    //   category['itemCount'].toString(),
+                                    //   style: TextStyle(
+                                    //     color: isSelected ? Colors.white : Colors.grey,
+                                    //   ),
+                                    // ),
+                                  ],
+                                ),
+                              ],
                             ),
                           ),
-                          Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              _buildImage(category['image']),
-                              const SizedBox(height: 8),
-                              Text(
-                                category['title'],
-                                maxLines: 1,
-                                style: TextStyle(
-                                  overflow: TextOverflow.ellipsis,
-                                  fontWeight: FontWeight.bold,
-                                  fontVariations: const <FontVariation>[FontVariation('wght', 900.0)],
-                                  color: isSelected ? Colors.white : Colors.black,
-                                ),
-                              ),
-                              Text(
-                                category['itemCount'].toString(),
-                                style: TextStyle(
-                                  color: isSelected ? Colors.white : Colors.grey,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
+                        ),
+                      );
+                    }),
                   ),
-                );
-              }),
-            ),
+                ),
+              ),
+
+              // Add some padding on the right to make room for the right navigation button and add button
+              const SizedBox(width: 30),
+
+              if (isAddButtonEnabled)
+                _buildAddButton(onAddButtonPressed ?? () {}),
+            ],
           ),
-        ),
-        AnimatedSwitcher(
-          duration: const Duration(milliseconds: 1000),
-          transitionBuilder: (widget, animation) {
-            return FadeTransition(opacity: animation, child: widget);
-          },
-          child: showRightArrow && _doesContentOverflow(context)
-              ? _buildScrollButton(Icons.arrow_forward_ios, () {
-            scrollController.animateTo(
-              scrollController.offset + size.width,
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
-            );
-          })
-              : const SizedBox.shrink(),
-        ),
-        const SizedBox(width: 8),
-        if (isAddButtonEnabled)
-          _buildScrollButton(Icons.add, onAddButtonPressed ?? () {}),
-      ],
+
+          // Positioned navigation buttons that overlay the list edges
+          Positioned(
+            left: 5,
+            child: _buildCircularNavButton(Icons.arrow_back_ios, () {
+              scrollController
+                  .animateTo(
+                scrollController.offset - size.width * 0.5,
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+              );
+            }),
+          ),
+
+          Positioned(
+            right: isAddButtonEnabled ? 105 : 5, // Position to leave room for add button
+            child: _buildCircularNavButton(Icons.arrow_forward_ios, () {
+              scrollController.animateTo(
+                scrollController.offset + size.width * 0.5,
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+              );
+            }),
+          ),
+        ],
+      ),
     );
   }
+
+// Updated circular navigation button
+  Widget _buildCircularNavButton(IconData icon, VoidCallback onPressed) {
+    return Container(
+      width: 50,
+      height: 50,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 5,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: IconButton(
+        icon: Icon(icon, size: 24),
+        color: Colors.black45,
+        onPressed: onPressed,
+        padding: EdgeInsets.zero,
+      ),
+    );
+  }
+
+// Updated add button to match list item width
+  Widget _buildAddButton(VoidCallback onPressed) {
+    return Container(
+      height: 110,
+      width: 90, // Same width as list items
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.black12),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0xFFFFF7F7),
+            blurRadius: 5,
+            spreadRadius: 5,
+            offset: Offset(0,0),
+          ),
+        ],
+      ),
+      child: IconButton(
+        icon: const Icon(Icons.add, color: Colors.redAccent, size: 28,),
+        onPressed: onPressed,
+      ),
+    );
+  }
+
 
   Widget _buildVerticalList(BuildContext context) {
     return Column(
@@ -1202,13 +1265,13 @@ class CategoryList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ScrollController scrollController = ScrollController();
-    bool showLeftArrow = false;
-    bool showRightArrow = true;
+    // bool showLeftArrow = false;
+    // bool showRightArrow = true;
 
-    scrollController.addListener(() {
-      showLeftArrow = scrollController.offset > 0;
-      showRightArrow = scrollController.offset < scrollController.position.maxScrollExtent;
-    });
+    // scrollController.addListener(() {
+    //   showLeftArrow = scrollController.offset > 0;
+    //   showRightArrow = scrollController.offset < scrollController.position.maxScrollExtent;
+    // });
 
     return GestureDetector(
       onTap: onDismissEditMode,
@@ -1219,7 +1282,7 @@ class CategoryList extends StatelessWidget {
           height: isHorizontal ? 100 : 800,
         )
             : isHorizontal
-            ? _buildHorizontalList(context, scrollController, showLeftArrow, showRightArrow)
+            ? _buildHorizontalList(context, scrollController)
             : _buildVerticalList(context),
       ),
     );

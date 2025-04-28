@@ -743,6 +743,7 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:pinaka_pos/Widgets/widget_variants_dialog.dart';
 import '../Constants/text.dart';
 import '../Utilities/shimmer_effect.dart';
 import 'package:reorderable_grid_view/reorderable_grid_view.dart';
@@ -751,12 +752,12 @@ class NestedGridWidget extends StatelessWidget {
   final bool isHorizontal;
   final bool isLoading;
   final bool showAddButton;
-  final bool showBackButton;
+  final bool showBackButton; // New property to show "Back to Categories" button
   final List<Map<String, dynamic>> items;
   final int? selectedItemIndex;
   final List<int?> reorderedIndices;
   final VoidCallback? onAddButtonPressed;
-  final VoidCallback? onBackButtonPressed;
+  final VoidCallback? onBackButtonPressed; // Callback for "Back to Categories"
   final Function(int) onItemTapped;
   final Function(int, int) onReorder;
   final Function(int) onDeleteItem;
@@ -780,37 +781,39 @@ class NestedGridWidget extends StatelessWidget {
   });
 
   Widget _buildImage(String imagePath) {
-    if (imagePath.startsWith("http")) {
-      return Image.network(
+    final imageWidget = imagePath.startsWith("http")
+      ? Image.network(
         imagePath,
-        width: 50,
-        height: 50,
+        width: 100,
+        height: 100,
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) {
           return Container(
-            width: 50,
-            height: 50,
+            width: 100,
+            height: 100,
             color: Colors.grey.shade300,
             child: const Icon(Icons.broken_image, color: Colors.grey),
           );
         },
-      );
-    } else {
-      return Image.file(
+      )
+      : Image.file(
         File(imagePath),
-        width: 50,
-        height: 50,
+        width: 100,
+        height: 100,
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) {
           return Container(
-            width: 50,
-            height: 50,
+            width: 100,
+            height: 100,
             color: Colors.grey.shade300,
             child: const Icon(Icons.broken_image, color: Colors.grey),
           );
         },
       );
-    }
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: imageWidget,
+    );
   }
 
   @override
@@ -863,26 +866,16 @@ class NestedGridWidget extends StatelessWidget {
                   key: const ValueKey('back_button'),
                   child: GestureDetector(
                     onTap: onBackButtonPressed ?? () {},
-                    child: Card( // Build #1.0.27 : added Back to Categories from sub categories to profuct items
-                      color: const Color(0xFFEAF2FF),
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: SizedBox(
-                        width: 200,
-                        height: 100,
-                        child: Center(
-                          child: Text(
-                            "Back to Categories",
-                            style: TextStyle(
-                              color: Color(0xFF2D3A5A),
-                              fontSize: 18,
-                              fontWeight: FontWeight.w500,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
+                    child: Card(
+                      color: Colors.white,
+                      elevation: 4,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Icon(Icons.arrow_back, size: 50, color: Colors.blue),
+                          SizedBox(height: 8),
+                          Text("Back to Categories", style: TextStyle(color: Colors.blue)),
+                        ],
                       ),
                     ),
                   ),
@@ -908,12 +901,38 @@ class NestedGridWidget extends StatelessWidget {
                   clipBehavior: Clip.none,
                   children: [
                     GestureDetector(
-                      onTap: () => onItemTapped(index),
+                      onTap: () {
+                          // Show variants dialog when item is tapped
+                          showDialog(
+                            context: context,
+                            builder: (context) => VariantsDialog(
+                              title: item["fast_key_item_name"],
+                              variants: [
+                                {
+                                  "name": "${item["fast_key_item_name"]}" ,
+                                  "price": "4.99",
+                                  "image": item["fast_key_item_image"],
+                                },
+                                {
+                                  "name":  "${item["fast_key_item_name"]}",
+                                  "price": "6.99",
+                                  "image": item["fast_key_item_image"],
+                                },
+                                {
+                                  "name":  "${item["fast_key_item_name"]}",
+                                  "price": "8.99",
+                                  "image": item["fast_key_item_image"],
+                                },
+                              ],
+                            ),
+                          );
+                        onItemTapped(index);
+                        },
                       child: Card(
                         color: Colors.white,
                         elevation: 4,
                         child: Padding(
-                          padding: const EdgeInsets.all(8.0),
+                          padding: const EdgeInsets.all(20.0),
                           child: Row(
                             children: [
                               _buildImage(item["fast_key_item_image"]),
@@ -921,13 +940,13 @@ class NestedGridWidget extends StatelessWidget {
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  mainAxisAlignment: MainAxisAlignment.spaceAround,
                                   children: [
                                     Text(
                                       item["fast_key_item_name"],
                                       style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18,
+                                        //fontWeight: FontWeight.bold,
                                         color: Colors.black,
                                       ),
                                       overflow: TextOverflow.ellipsis,
@@ -935,7 +954,8 @@ class NestedGridWidget extends StatelessWidget {
                                     Text(
                                       '\$${item["fast_key_item_price"]}',
                                       style: const TextStyle(
-                                        fontSize: 12,
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
                                         color: Colors.black,
                                       ),
                                     ),

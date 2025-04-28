@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pinaka_pos/Widgets/widget_payment_dialog.dart';
 
@@ -14,6 +15,8 @@ class CustomNumPad extends StatelessWidget {
   final VoidCallback? onPayPressed;
   final ActionButtonType actionButtonType;
   final bool isPayment;
+  final String Function()? getPaidAmount; // Build #1.0.29: Change to a callback
+  final double? balanceAmount; // Build #1.0.29 : Added to compare with paid amount
 
   const CustomNumPad({
     super.key,
@@ -25,6 +28,8 @@ class CustomNumPad extends StatelessWidget {
     this.onPayPressed,
     this.actionButtonType = ActionButtonType.delete,
     this.isPayment = false,
+    this.getPaidAmount,
+    this.balanceAmount,
   });
 
   @override
@@ -46,7 +51,7 @@ class CustomNumPad extends StatelessWidget {
                     double buttonWidth = (constraints.maxWidth / 3) - 8;
                     double aspectRatio = buttonWidth / buttonHeight;
                     if (aspectRatio <= 0) aspectRatio = 1.0;
-                    
+
                     return Container(
                       padding: const EdgeInsets.only(bottom: 1),
                       child: GridView.count(
@@ -125,6 +130,7 @@ class CustomNumPad extends StatelessWidget {
     );
   }
 
+  // Update _buildPayButton
   Widget _buildPayButton(BuildContext context) {
     return Container(
       width: double.infinity,
@@ -141,10 +147,23 @@ class CustomNumPad extends StatelessWidget {
       ),
       child: TextButton(
         onPressed: () {
+          String paidAmount = getPaidAmount!(); // Build #1.0.29 : check the conditions based show popUp dialogs
+          String cleanAmount = paidAmount.replaceAll('\$', '').trim();
+          double amount = double.tryParse(cleanAmount) ?? 0.0;
+          if (amount == 0.0) {
+            if (kDebugMode) {
+              print("#### paidAmount: $paidAmount, cleanAmount: $cleanAmount, amount: $amount");
+            }
+            return;
+          }
           if (onPayPressed != null) {
             onPayPressed!();
           }
-          _showPaymentDialog(context);
+          if (amount < balanceAmount!) {
+            _showPartialPaymentDialog(context, amount);
+          } else {
+            _showPaymentDialog(context, amount);
+          }
         },
         style: TextButton.styleFrom(
           padding: EdgeInsets.zero,
@@ -165,62 +184,56 @@ class CustomNumPad extends StatelessWidget {
     );
   }
 
-  void _showPaymentDialog(BuildContext context) {
-    // Show the partial payment dialog initially
+  // Update dialog methods
+  void _showPartialPaymentDialog(BuildContext context, double amount) {
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => PaymentDialog(
         status: PaymentStatus.partial,
         mode: PaymentMode.cash,
-        amount: 25.00,  // Example partial amount
+        amount: amount,
         onVoid: () {
           Navigator.of(context).pop();
           // Handle void logic
         },
         onNextPayment: () {
           Navigator.of(context).pop();
-          // Show successful payment dialog
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (context) => PaymentDialog(
-              status: PaymentStatus.successful,
-              mode: PaymentMode.cash,
-              amount: 50.00,  // Total amount after all payments
-              onVoid: () {
-                Navigator.of(context).pop();
-                // Handle void logic
-              },
-              onPrint: () {
-                Navigator.of(context).pop();
-                // Show receipt dialog
-                _showReceiptDialog(context);
-              },
-            ),
-          );
         },
       ),
     );
   }
 
-  void _showReceiptDialog(BuildContext context) {
+  void _showPaymentDialog(BuildContext context, double amount) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => PaymentDialog(
+        status: PaymentStatus.successful,
+        mode: PaymentMode.cash,
+        amount: amount,
+        onVoid: () {
+          Navigator.of(context).pop();
+        },
+        onPrint: () {
+          Navigator.of(context).pop();
+          _showReceiptDialog(context, amount);
+        },
+      ),
+    );
+  }
+
+  void _showReceiptDialog(BuildContext context, double amount) {
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => PaymentDialog(
         status: PaymentStatus.receipt,
         mode: PaymentMode.cash,
-        amount: 50.00,  // Total amount
-        onPrint: () {
-          // Handle print logic
-        },
-        onEmail: (email) {
-          // Handle email logic
-        },
-        onSMS: (phone) {
-          // Handle SMS logic
-        },
+        amount: amount,
+        onPrint: () {},
+        onEmail: (email) {},
+        onSMS: (phone) {},
         onNoReceipt: () {
           Navigator.of(context).pop();
         },

@@ -784,6 +784,10 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
               child: ElevatedButton(
                 onPressed: () {
                   // Payment action here
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const OrderSummaryScreen()),
+                  );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFFF6B6B), // Coral red color

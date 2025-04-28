@@ -197,11 +197,14 @@ import 'package:flutter_svg/svg.dart';
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import '../../Blocs/Orders/order_bloc.dart';
 import '../../Blocs/Search/product_search_bloc.dart';
 import '../../Database/order_panel_db_helper.dart';
 import '../../Helper/auto_search.dart';
 import '../../Models/FastKey/fastkey_product_model.dart';
+import '../../Models/Orders/orders_model.dart';
 import '../../Models/Search/product_search_model.dart';
+import '../../Repositories/Orders/order_repository.dart';
 import '../../Repositories/Search/product_search_repository.dart';
 import '../../Utilities/textfield_search.dart';
 import '../../Widgets/widget_category_list.dart';
@@ -546,8 +549,58 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
       selectedProduct["fast_key_item_price"],
       1,
       'SKU${selectedProduct["fast_key_item_name"]}',
-      onItemAdded: _refreshOrderList,
+      onItemAdded: _createOrder,
     );
+  }
+
+  Future<void> _createOrder() async {
+
+    ///check if any active orders before creating new
+    var orders = await orderHelper.getOrderById(orderHelper.activeOrderId ?? 0 );
+    if (kDebugMode) {
+      print("Fast Key screen createOrder - Orders in DB $orders");
+    }
+    if(orders.first[AppDBConst.orderServerId] != null){
+      _refreshOrderList();
+      return;
+    }
+
+    OrderBloc orderBloc = OrderBloc(OrderRepository());
+    ///Create metadata for the order
+    OrderMetaData device = OrderMetaData(key: OrderMetaData.posDeviceId, value: "b31b723b92047f4b"); /// need to add code for device id later
+    OrderMetaData placedBy = OrderMetaData(key: OrderMetaData.posPlacedBy, value: '${userId ?? 1}');
+    List<OrderMetaData> metaData = [device,placedBy];
+    ///call create order API
+    await orderBloc.createOrder(metaData).whenComplete(() async {
+      if (kDebugMode) {
+        print('createOrderStream completed');
+      }
+      _refreshOrderList();
+    });
+
+    // orderBloc.createOrderStream.listen((event) async {
+    //   if (kDebugMode) {
+    //     print('createOrderStream status: ${event.status}');
+    //   }
+    //   if (event.status == Status.ERROR) {
+    //     if (kDebugMode) {
+    //       print(
+    //           'OrderPanelDBHelper createOrder: completed with ERROR');
+    //     }
+    //     orderBloc.createOrderSink.add(APIResponse.error(TextConstants.retryText));
+    //     orderBloc.dispose();
+    //   } else if (event.status == Status.COMPLETED) {
+    //     final order = event.data!;
+    //     // orderServerId = order.id;
+    //     // orderStatus = order.status;
+    //     ///update orderServerId to DB
+    //     orderHelper.updateServerOrderIDInDB(order.id);
+    //     if (kDebugMode) {
+    //       print('>>>>>>>>>>> OrderPanelDBHelper Order updated with server order id: ${order.id}');
+    //     }
+    //     _refreshOrderList();
+    //   }
+    // });
   }
 
   void _refreshOrderList() {
@@ -1117,6 +1170,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                 price,
                 1,
                 'SKU${product.name}',
+                onItemAdded: _createOrder
               );
             },
           ),

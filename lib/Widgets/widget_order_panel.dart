@@ -42,6 +42,9 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
 
   @override
   void initState() {
+    if (kDebugMode) {
+      print("##### OrderPanel initState");
+    }
     super.initState();
     _getOrderTabs(); // Load existing orders into tabs
   }
@@ -52,24 +55,27 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
     _getOrderTabs(); // Build #1.0.10 : Reload tabs when the widget updates (e.g., after item selection)
 
     if (kDebugMode) {
-      print("##### RightOrderPanel didUpdateWidget");
+      print("##### OrderPanel didUpdateWidget");
     }
   }
 
   // Build #1.0.10: Fetches the list of order tabs from OrderHelper
   void _getOrderTabs() async {
+    if (kDebugMode) {
+      print("##### OrderPanel _getOrderTabs");
+    }
     await orderHelper.loadData(); // Load order data from DB
 
     if (mounted) {
       setState(() {
         // Convert order IDs into tab format
-        tabs = orderHelper.orderIds
+        tabs = orderHelper.orders
             .asMap()
             .entries
             .map((entry) => {
-                  "title": "#${entry.value}", // Order number
+                  "title": "#${entry.value[AppDBConst.orderServerId] ?? entry.value[AppDBConst.orderId]}", // Order number
                   "subtitle": "Tab ${entry.key + 1}", // Tab position
-                  "orderId": entry.value as Object, // Order ID
+                  "orderId": (entry.value[AppDBConst.orderServerId] ?? entry.value[AppDBConst.orderId])  as Object, // Order ID
                 })
             .toList();
       });
@@ -673,6 +679,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
               Expanded(
                 child: ElevatedButton(
                   onPressed: () {
+                    /// call update order service here
                     Navigator.push(context, MaterialPageRoute(builder: (context) => OrderSummaryScreen(),));
                   },
                   style: ElevatedButton.styleFrom(

@@ -21,6 +21,7 @@ class AppDBConst { // Build #1.0.10 - Naveen: Updated DB tables constants
   // Orders Table
   static const String orderTable = 'orders_table';
   static const String orderId = 'orders_id';
+  static const String orderServerId = 'orders_server_id';
   static const String orderTotal = 'total';
   static const String orderStatus = 'status'; // e.g., pending, completed, cancelled
   static const String orderType = 'type'; // e.g., online, in-store
@@ -116,6 +117,7 @@ class DBHelper {
     await db.execute('''
     CREATE TABLE ${AppDBConst.orderTable} (
       ${AppDBConst.orderId} INTEGER PRIMARY KEY AUTOINCREMENT,
+      ${AppDBConst.orderServerId} INTEGER, -- Required: Updated by REST API, can be NULL initially
       ${AppDBConst.userId} INTEGER NOT NULL,
       ${AppDBConst.orderTotal} REAL NOT NULL,
       ${AppDBConst.orderStatus} TEXT NOT NULL,

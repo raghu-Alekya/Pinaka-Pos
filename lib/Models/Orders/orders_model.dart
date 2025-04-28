@@ -2,6 +2,8 @@
 class OrderMetaData {  // Build #1.0.25 - added by naveen
   final String key;
   final String value;
+  static const String posDeviceId = "pos_device_id";
+  static const String posPlacedBy = "pos_placed_by";
 
   OrderMetaData({required this.key, required this.value});
 
@@ -17,8 +19,10 @@ class OrderMetaData {  // Build #1.0.25 - added by naveen
 class OrderLineItem {
   final int productId;
   final int quantity;
+  final int id;
 
-  OrderLineItem({required this.productId, required this.quantity});
+
+  OrderLineItem({this.id = 0, this.productId = 0, required this.quantity});
 
   Map<String, dynamic> toJson() {
     return {

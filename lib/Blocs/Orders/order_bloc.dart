@@ -2,6 +2,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../../Constants/text.dart';
+import '../../Database/order_panel_db_helper.dart';
 import '../../Helper/api_response.dart';
 import '../../Models/Orders/orders_model.dart';
 import '../../Repositories/Orders/order_repository.dart';
@@ -10,8 +11,8 @@ class OrderBloc { // Build #1.0.25 - added by naveen
   final OrderRepository _orderRepository;
 
   // Stream Controllers
-  final StreamController<APIResponse<CreateOrderResponseModel>> _createOrderController =
-  StreamController<APIResponse<CreateOrderResponseModel>>.broadcast();
+  late StreamController<APIResponse<CreateOrderResponseModel>> _createOrderController ;
+  // = StreamController<APIResponse<CreateOrderResponseModel>>.broadcast();
 
   final StreamController<APIResponse<UpdateOrderResponseModel>> _updateOrderController =
   StreamController<APIResponse<UpdateOrderResponseModel>>.broadcast();
@@ -43,6 +44,7 @@ class OrderBloc { // Build #1.0.25 - added by naveen
 
   // 1. Create Order
   Future<void> createOrder(List<OrderMetaData> metaData) async {
+    _createOrderController = StreamController<APIResponse<CreateOrderResponseModel>>.broadcast();
     if (_createOrderController.isClosed) return;
 
     createOrderSink.add(APIResponse.loading(TextConstants.loading));
@@ -55,6 +57,9 @@ class OrderBloc { // Build #1.0.25 - added by naveen
         print("OrderBloc - Order Status: ${response.status}");
       }
 
+      ///update orderServerId to DB
+      OrderHelper orderHelper = OrderHelper();
+      orderHelper.updateServerOrderIDInDB(response.id);
       createOrderSink.add(APIResponse.completed(response));
     } catch (e) {
       if (e.toString().contains('SocketException')) {
@@ -72,6 +77,12 @@ class OrderBloc { // Build #1.0.25 - added by naveen
 
     updateOrderSink.add(APIResponse.loading(TextConstants.loading));
     try {
+
+      // final itemsToAdd = lineItems.map((item) => OrderLineItem(
+      //   productId: item.productId,
+      //   quantity: item.quantity, // Setting quantity to 0 removes the item
+      // )).toList();
+
       final request = UpdateOrderRequestModel(lineItems: lineItems);
       final response = await _orderRepository.updateOrderProducts(
         orderId: orderId,
@@ -137,7 +148,7 @@ class OrderBloc { // Build #1.0.25 - added by naveen
     try {
       // For deletion, we set quantity to 0 for the items to be removed
       final itemsToDelete = lineItems.map((item) => OrderLineItem(
-        productId: item.productId,
+        id: item.id,
         quantity: 0, // Setting quantity to 0 removes the item
       )).toList();
 

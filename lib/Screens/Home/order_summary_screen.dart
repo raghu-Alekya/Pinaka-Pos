@@ -34,6 +34,9 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
   int vendorId = 1; // Hardcoded as per requirement
   String serviceType = "default"; // Hardcoded as per requirement
   double balanceAmount = 0.0;
+  double tenderAmount = 0.0; // Build #1.0.33 : added new variables
+  double paidAmount = 0.0;
+  double changeAmount = 0.0;
   // final TextEditingController _paymentController = TextEditingController();
 
   @override
@@ -94,6 +97,17 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
       notes: '',
     );
     paymentBloc.createPayment(paymentRequest);
+    // Build #1.0.33 : updated amounts
+    tenderAmount += amount; // Accumulate tender amount
+    paidAmount = amount; // Set paid amount to current entered amount
+    if (paidAmount > balanceAmount) {
+      changeAmount = paidAmount - balanceAmount; // Calculate change if overpaid
+      balanceAmount = 0.0; // Balance becomes 0 if fully paid or overpaid
+    } else {
+      balanceAmount -= paidAmount; // Reduce balance by paid amount
+      changeAmount = 0.0; // No change if not overpaid
+    }
+    setState(() {}); // Update UI
     if (kDebugMode) {
       print("Creating payment with request: $paymentRequest");
     }
@@ -790,11 +804,11 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                       ),
                       _buildAmountDisplay(
                         TextConstants.tenderAmount,
-                        amountController.text.isEmpty ? '\$0.00' : '\$${amountController.text}',
+                        '\$${tenderAmount.toStringAsFixed(2)}', // Build #1.0.33
                       ),
                       _buildAmountDisplay(
                         TextConstants.change,
-                        '\$${amountController.text.isEmpty ? "0.00" : (double.tryParse(amountController.text.replaceAll('\$', '')) ?? 0.0) >= balanceAmount ? ((double.tryParse(amountController.text.replaceAll('\$', '')) ?? 0.0) - balanceAmount).toStringAsFixed(2) : "0.00"}',
+                        '\$${changeAmount.toStringAsFixed(2)}', // Build #1.0.33 :
                         amountColor: Colors.green,
                       ),
                     ],

@@ -24,18 +24,44 @@ class _TabsScreenState extends State<TabsScreen> {
   // Custom item values
   String _customItemName = "Custom Item";
   String _customItemPrice = "0.00";
+  String _sku = "Generate the SKU";
+
+  // Tax slab options
+  final List<String> _taxSlabOptions = ['No Tax', 'GST 5%', 'GST 12%', 'GST 18%', 'GST 28%'];
+  String _selectedTaxSlab = 'No Tax';
 
   // Payout value
   String _payoutAmount = "0.00";
 
+  // Text editing controllers
+  final TextEditingController _customItemNameController = TextEditingController(text: "Custom Item");
+  final TextEditingController _customItemPriceController = TextEditingController(text: "0.00");
+  final TextEditingController _skuController = TextEditingController(text: "Generate the SKU");
+
+  @override
+  void initState() {
+    super.initState();
+    _customItemNameController.text = _customItemName;
+    _customItemPriceController.text = _customItemPrice;
+    _skuController.text = _sku;
+  }
+
+  @override
+  void dispose() {
+    _customItemNameController.dispose();
+    _customItemPriceController.dispose();
+    _skuController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
+      margin: EdgeInsets.all(10.0),
       height: MediaQuery.of(context).size.height * 0.9,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         color: Colors.grey.shade50,),
-      //backgroundColor: Colors.grey.shade100,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -43,64 +69,10 @@ class _TabsScreenState extends State<TabsScreen> {
             // Top Tabs
             _buildTabs(),
 
-            const SizedBox(height: 40),
+            const SizedBox(height: 20),
 
             // Content based on selected tab
             _buildTabContent(),
-
-            // Title
-            // const Text(
-            //   "Apply discount to sale",
-            //   style: TextStyle(
-            //     fontSize: 20,
-            //     fontWeight: FontWeight.bold,
-            //     color: Color(0xFF1E2745),
-            //   ),
-            // ),
-            //
-            // const SizedBox(height: 20),
-            //
-            // // Discount Input Toggle
-            // _buildDiscountToggle(),
-            //
-            // const SizedBox(height: 20),
-            //
-            // // Discount Value Display
-            // _buildDiscountDisplay(),
-            //
-            // const SizedBox(height: 20),
-            //
-            // // Custom Numpad
-            // Container(
-            //   width: MediaQuery.of(context).size.width / 2.5,
-            //   height: MediaQuery.of(context).size.height / 2.25,
-            //   child: CustomNumPad(
-            //     onDigitPressed: (digit) {
-            //       setState(() {
-            //         if (_discountValue == "0%" || _discountValue == "\$0") {
-            //           _discountValue = digit + (_isPercentageSelected ? "%" : "");
-            //         } else {
-            //           // Remove % if present
-            //           String currentValue = _discountValue.replaceAll('%', '');
-            //           // Add digit
-            //           currentValue += digit;
-            //           // Re-add % if needed
-            //           _discountValue = currentValue + (_isPercentageSelected ? "%" : "");
-            //         }
-            //       });
-            //     },
-            //     onClearPressed: () {
-            //       setState(() {
-            //         _discountValue = _isPercentageSelected ? "0%" : "";
-            //       });
-            //     },
-            //     actionButtonType: ActionButtonType.add,
-            //     onAddPressed: () {
-            //       // Handle adding the discount
-            //       _handleAddDiscount();
-            //     },
-            //   ),
-            // ),
           ],
         ),
       ),
@@ -191,22 +163,22 @@ class _TabsScreenState extends State<TabsScreen> {
           ),
         ),
 
-        const SizedBox(height: 30),
+        const SizedBox(height: 20),
 
         // Discount Input Toggle
         _buildDiscountToggle(),
 
-        const SizedBox(height: 20),
+        const SizedBox(height: 15),
 
         // Discount Value Display
         _buildDiscountDisplay(),
 
-        const SizedBox(height: 20),
+        const SizedBox(height: 15),
 
         // Custom Numpad
         SizedBox(
           width: MediaQuery.of(context).size.width / 2.5,
-          height: MediaQuery.of(context).size.height / 2.0,
+          height: MediaQuery.of(context).size.height / 2.25,
           child: CustomNumPad(
             onDigitPressed: (digit) {
               setState(() {
@@ -215,7 +187,7 @@ class _TabsScreenState extends State<TabsScreen> {
                 } else {
                   // Remove % or $ if present
                   String currentValue =
-                      _discountValue.replaceAll('%', '').replaceAll('\$', '');
+                  _discountValue.replaceAll('%', '').replaceAll('\$', '');
                   // Add digit
                   currentValue += digit;
                   // Re-add % if needed
@@ -291,7 +263,7 @@ class _TabsScreenState extends State<TabsScreen> {
             },
             onClearPressed: () {
               setState(() {
-                _couponCode = " ";
+                _couponCode = "";
               });
             },
             actionButtonType: ActionButtonType.add,
@@ -307,126 +279,225 @@ class _TabsScreenState extends State<TabsScreen> {
 
   // CUSTOM ITEM TAB
   Widget _buildCustomItemTab() {
-    return Column(
-      children: [
-        // Name Field with embedded label
-        Stack(
-          children: [
-            Container(
-              width: MediaQuery.of(context).size.width / 2.75,
-              height: MediaQuery.of(context).size.height / 12,
-              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.grey.shade300),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                _customItemName,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1E2745),
-                ),
-              ),
-            ),
-            Positioned(
-              top: -5,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  color: Colors.white,
-                  child: const Text(
-                    "Name",
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey,
+    return
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // First Row: Name & SKU
+          Row(
+            children: [
+              // Name Field
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Name",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF1E2745),
+                      ),
                     ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 20),
-
-        // Price Field with embedded label
-        Stack(
-          children: [
-            Container(
-              width: MediaQuery.of(context).size.width / 2.75,
-              height: MediaQuery.of(context).size.height / 12,
-              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.grey.shade300),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                "\$${_customItemPrice}",
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1E2745),
-                ),
-              ),
-            ),
-            Positioned(
-              top: -5,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  color: Colors.white,
-                  child: const Text(
-                    "Item Price",
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey,
+                    const SizedBox(height: 8),
+                    Container(
+                      height: MediaQuery.of(context).size.height / 15,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: TextField(
+                        textAlign: TextAlign.left,
+                        controller: _customItemNameController,
+                        decoration: const InputDecoration(
+                          contentPadding: EdgeInsets.zero,
+                          border: InputBorder.none,
+                          hintText: "Custom Item Name",
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ),
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 20),
-
-        // Custom Numpad
-        SizedBox(
-          width: MediaQuery.of(context).size.width / 2.5,
-          height: MediaQuery.of(context).size.height / 2.0,
-          child: CustomNumPad(
-            onDigitPressed: (digit) {
-              setState(() {
-                if (_customItemPrice == "0.00") {
-                  _customItemPrice = digit;
-                } else {
-                  _customItemPrice += digit;
-                }
-              });
-            },
-            onClearPressed: () {
-              setState(() {
-                _customItemPrice = "0.00";
-              });
-            },
-            actionButtonType: ActionButtonType.add,
-            onAddPressed: () {
-              // Handle adding the custom item
-              _handleAddCustomItem();
-            },
+              const SizedBox(width: 20),
+              // SKU Field
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "SKU",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF1E2745),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      height: MediaQuery.of(context).size.height /15,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: TextField(
+                        controller: _skuController,
+                        textAlign: TextAlign.center,
+                        decoration: InputDecoration(
+                          border: InputBorder.none,
+                          hintText: "Generate the SKU",
+                          contentPadding: const EdgeInsets.only(left: 15, right: 15),
+                          suffix: Container(
+                            margin: const EdgeInsets.only(right: 8),
+                            child: ElevatedButton(
+                              onPressed: _generateSku,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red.shade400,
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                minimumSize: const Size(70, 40),
+                              ),
+                              child: const Text(
+                                "Generate",
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ),
-      ],
-    );
+
+          const SizedBox(height: 10),
+
+          // Second Row: Item Price & Tax
+          Row(
+            children: [
+              // Item Price Field
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Item Price",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF1E2745),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      height: MediaQuery.of(context).size.height / 15,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: TextField(
+                        controller: _customItemPriceController,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          border: InputBorder.none,
+                          prefixText: "\$",
+                          contentPadding: EdgeInsets.symmetric(horizontal: 15),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 20),
+              // Tax Dropdown
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Tax",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF1E2745),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      height: MediaQuery.of(context).size.height /15,
+                      padding: const EdgeInsets.symmetric(horizontal: 15),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: DropdownButton<String>(
+                        value: _selectedTaxSlab,
+                        icon: const Icon(Icons.arrow_drop_down),
+                        isExpanded: true,
+                        underline: Container(),
+                        items: _taxSlabOptions.map((String value) {
+                          return DropdownMenuItem<String>(
+                            value: value,
+                            child: Text(value),
+                          );
+                        }).toList(),
+                        onChanged: (newValue) {
+                          setState(() {
+                            _selectedTaxSlab = newValue!;
+                          });
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 20),
+
+          // Custom Numpad
+          Center(
+            child: SizedBox(
+              width: MediaQuery.of(context).size.width / 2.5,
+              height: MediaQuery.of(context).size.height / 2.275,
+              child: CustomNumPad(
+                onDigitPressed: (digit) {
+                  setState(() {
+                    if (_customItemPrice == "0.00") {
+                      _customItemPrice = digit;
+                      _customItemPriceController.text = digit;
+                    } else {
+                      _customItemPrice += digit;
+                      _customItemPriceController.text = _customItemPrice;
+                    }
+                  });
+                },
+                onClearPressed: () {
+                  setState(() {
+                    _customItemPrice = "0.00";
+                    _customItemPriceController.text = "0.00";
+                  });
+                },
+                actionButtonType: ActionButtonType.add,
+                onAddPressed: () {
+                  _handleAddCustomItem();
+                },
+              ),
+            ),
+          ),
+        ],
+      );
+
   }
 
   // PAYOUTS TAB
@@ -434,7 +505,6 @@ class _TabsScreenState extends State<TabsScreen> {
     return Column(
       children: [
         // Title with amount field
-
         Stack(
           children: [
             Container(
@@ -508,11 +578,34 @@ class _TabsScreenState extends State<TabsScreen> {
     );
   }
 
+  // Generate SKU function
+  void _generateSku() {
+    // Simple SKU generation logic - prefix + timestamp
+    String timestamp = DateTime.now().millisecondsSinceEpoch.toString().substring(7);
+    String prefix = _customItemName.isNotEmpty
+        ? _customItemName.substring(0, _customItemName.length > 3 ? 3 : _customItemName.length).toUpperCase()
+        : "ITM";
+
+    setState(() {
+      _sku = "$prefix-$timestamp";
+      _skuController.text = _sku;
+    });
+
+    // Show confirmation snackbar
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("SKU generated successfully"),
+        backgroundColor: Colors.green,
+        duration: Duration(seconds: 1),
+      ),
+    );
+  }
+
   // Build the percentage/amount toggle
   Widget _buildDiscountToggle() {
     return Container(
       width: MediaQuery.of(context).size.width / 2.75,
-      height: MediaQuery.of(context).size.height / 12,
+      height: MediaQuery.of(context).size.height / 14 ,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: Colors.grey.shade300),
@@ -572,7 +665,7 @@ class _TabsScreenState extends State<TabsScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 decoration: BoxDecoration(
                   color:
-                      !_isPercentageSelected ? Colors.redAccent : Colors.white,
+                  !_isPercentageSelected ? Colors.redAccent : Colors.white,
                   borderRadius: const BorderRadius.only(
                     topRight: Radius.circular(9),
                     bottomRight: Radius.circular(9),
@@ -601,7 +694,7 @@ class _TabsScreenState extends State<TabsScreen> {
   Widget _buildDiscountDisplay() {
     return Container(
       width: MediaQuery.of(context).size.width / 2.75,
-      height: MediaQuery.of(context).size.height / 12,
+      height: MediaQuery.of(context).size.height / 14,
       padding: const EdgeInsets.symmetric(vertical: 15),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -653,13 +746,13 @@ class _TabsScreenState extends State<TabsScreen> {
   // Handle adding the custom item
   void _handleAddCustomItem() {
     // Here you would add the logic to add a custom item
-    print("Added custom item: $_customItemName at \$$_customItemPrice");
+    print("Added custom item: $_customItemName at \$$_customItemPrice with tax: $_selectedTaxSlab, SKU: $_sku");
 
     // Show confirmation snackbar
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content:
-            Text("Custom item '$_customItemName' added at \$$_customItemPrice"),
+        Text("Custom item '$_customItemName' added at \$$_customItemPrice with $_selectedTaxSlab"),
         backgroundColor: Colors.green,
       ),
     );

@@ -119,7 +119,7 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String tenderAmount         = "Tender Amount.";
   static const String change               = "Change";
   static const String balanceAmount        = "Balance Amount.";
-  static const String cashPayment          = "'Cash Payment'";
+  static const String cashPayment          = "Cash Payment";
   static const String selectPaymentMode    = "Select Payment Mode";
   static const String cash                 = "Cash";
   static const String card                 = "Card";

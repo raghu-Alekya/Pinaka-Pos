@@ -40,7 +40,7 @@ class CustomNumPad extends StatelessWidget {
     if (isPayment) {
       return Container(
         padding: EdgeInsets.symmetric(horizontal: paddingValue),
-        height: 485,
+        height: MediaQuery.of(context).size.height * 0.4125,
         child: Row(
           children: [
             Expanded(
@@ -199,6 +199,25 @@ class CustomNumPad extends StatelessWidget {
         },
         onNextPayment: () {
           Navigator.of(context).pop();
+          // Show successful payment dialog
+          // showDialog(
+          //   context: context,
+          //   barrierDismissible: false,
+          //   builder: (context) => PaymentDialog(
+          //     status: PaymentStatus.successful,
+          //     mode: PaymentMode.cash,
+          //     amount: 50.00,  // Total amount after all payments
+          //     onVoid: () {
+          //       Navigator.of(context).pop();
+          //       // Handle void logic
+          //     },
+          //     onPrint: () {
+          //       Navigator.of(context).pop();
+          //       // Show receipt dialog
+          //       _showReceiptDialog(context);
+          //     },
+          //   ),
+          // );
         },
       ),
     );
@@ -310,7 +329,7 @@ class CustomNumPad extends StatelessWidget {
         child: Text(
           value,
           style: const TextStyle(
-            fontSize: 24,
+            fontSize: 20,
             fontWeight: FontWeight.w400,
             color: Colors.black,
           ),

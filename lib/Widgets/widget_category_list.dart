@@ -955,6 +955,7 @@ class CategoryList extends StatelessWidget {
     var size = MediaQuery.of(context).size;
     return Container(
       height: 150,
+      margin: const EdgeInsets.only(top: 5),
       decoration: BoxDecoration(
         color: Colors.white, // Background color for the whole list view
         borderRadius: BorderRadius.circular(15),

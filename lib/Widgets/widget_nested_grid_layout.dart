@@ -784,13 +784,13 @@ class NestedGridWidget extends StatelessWidget {
     final imageWidget = imagePath.startsWith("http")
       ? Image.network(
         imagePath,
-        width: 70,
-        height: 70,
-        fit: BoxFit.fitWidth,
+        width: 75,
+        height: 75,
+        fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) {
           return Container(
-            width: 100,
-            height: 100,
+            width: 75,
+            height: 75,
             color: Colors.grey.shade300,
             child: const Icon(Icons.broken_image, color: Colors.grey),
           );
@@ -798,13 +798,13 @@ class NestedGridWidget extends StatelessWidget {
       )
       : Image.file(
         File(imagePath),
-        width: 100,
-        height: 100,
+        width: 75,
+        height: 75,
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) {
           return Container(
-            width: 100,
-            height: 100,
+            width: 75,
+            height: 75,
             color: Colors.grey.shade300,
             child: const Icon(Icons.broken_image, color: Colors.grey),
           );
@@ -945,7 +945,7 @@ class NestedGridWidget extends StatelessWidget {
                                     Text(
                                       item["fast_key_item_name"],
                                       style: const TextStyle(
-                                        fontSize: 12,
+                                        fontSize: 16,
                                         //fontWeight: FontWeight.bold,
                                         color: Colors.black,
                                       ),
@@ -954,7 +954,7 @@ class NestedGridWidget extends StatelessWidget {
                                     Text(
                                       '\$${item["fast_key_item_price"]}',
                                       style: const TextStyle(
-                                        fontSize: 15,
+                                        fontSize: 18,
                                         fontWeight: FontWeight.bold,
                                         color: Colors.black,
                                       ),

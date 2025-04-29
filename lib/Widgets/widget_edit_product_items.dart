@@ -50,7 +50,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
           alignment: Alignment.center,
           width: MediaQuery.of(context).size.width * 0.5,
           height: MediaQuery.of(context).size.height * 0.9,
-          padding: const EdgeInsets.all(20.0),
+          padding: const EdgeInsets.all(8.0),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -77,15 +77,15 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 30),
+              const SizedBox(height: 10),
 
               // Product information
               Center(
                 child: Container(
                   //width: MediaQuery.of(context).size.width * 0.2,
                   width: MediaQuery.of(context).size.width /3,
-                  height: 180,
-                  padding: EdgeInsets.all(20.0),
+                  height: MediaQuery.of(context).size.height * 0.15,
+                  padding: EdgeInsets.all(16.0),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(10),
@@ -103,8 +103,8 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                     children: [
                       // Product Image
                       Container(
-                        width: 120,
-                        height: 120,
+                        width: 75,
+                        height: 75,
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(5),
                           border: Border.all(color: Colors.grey.shade300),
@@ -123,14 +123,14 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                         children: [
                           Text(
                             widget.orderItem[AppDBConst.itemName],
-                            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 5),
                           Text(
                             "Unit Price: \$${widget.orderItem[AppDBConst.itemPrice].toStringAsFixed(2)}",
-                            style: TextStyle(fontSize: 16, color: Colors.grey.shade700),
+                            style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
                           ),
-                          const SizedBox(height: 20),
+                          const SizedBox(height: 10),
                           Text(
                             "Total: \$${(quantity * widget.orderItem[AppDBConst.itemCount] * widget.orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}",
                             style: TextStyle(
@@ -145,7 +145,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 30),
+              const SizedBox(height: 20),
 
               // Quantity controls -- Using our new stateless widget
               QuantityControl(
@@ -154,7 +154,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                 onDecrement: updateQuantity,
                 onIncrement: updateQuantity,
               ),
-              const SizedBox(height: 30,),
+              const SizedBox(height: 20,),
 
               // NumPad
               Container(
@@ -162,7 +162,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                 //margin: EdgeInsets.all(5.0),
                 //padding: EdgeInsets.all(2.0),
                 height: MediaQuery.of(context).size.height * 0.45,
-                width: MediaQuery.of(context).size.width /2.75,
+                width: MediaQuery.of(context).size.width /2.65,
                 child: CustomNumPad(
                   onDigitPressed: (digit) {
                     setState(() {

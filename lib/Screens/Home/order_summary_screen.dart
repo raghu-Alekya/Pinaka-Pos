@@ -34,6 +34,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
   int vendorId = 1; // Hardcoded as per requirement
   String serviceType = "default"; // Hardcoded as per requirement
   double balanceAmount = 0.0;
+  // final TextEditingController _paymentController = TextEditingController();
 
   @override
   void initState() {
@@ -143,8 +144,9 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
 
   Widget _buildHeader() {
     return Container(
+      height: MediaQuery.of(context).size.height * 0.09,
       color: Colors.grey[100],
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -159,10 +161,12 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
           Row(
             children: [
               Container(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                height: MediaQuery.of(context).size.height * 0.5,
+                margin: EdgeInsets.all(10.0),
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 0),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(30),
+                  borderRadius: BorderRadius.circular(15),
                 ),
                 child: Row(
                   children: [
@@ -170,7 +174,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                       radius: 18,
                       backgroundColor: Colors.deepPurple,
                       child: Text(
-                        "A",
+                        "A", /// use initial for the login user
                         style: TextStyle(
                             color: Colors.white, fontWeight: FontWeight.bold),
                       ),
@@ -181,12 +185,12 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          'A Raghav Kumar',
+                          'A Raghav Kumar', /// use login user display name
                           style: TextStyle(
                               fontWeight: FontWeight.w500, fontSize: 14),
                         ),
                         Text(
-                          'I am Cashier',
+                          'I am Cashier', /// use user role
                           style: TextStyle(color: Colors.grey, fontSize: 12),
                         ),
                       ],
@@ -214,19 +218,20 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
-        width: MediaQuery.of(context).size.width * 0.4,
+        height: MediaQuery.of(context).size.height * 0.0725,
+        width: MediaQuery.of(context).size.width * 0.5,
         margin: EdgeInsets.all(20.0),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10.0),
           color: Colors.grey[100],
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+        padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 6.0),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             // Back button
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              padding: const EdgeInsets.all(5),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(8),
@@ -238,14 +243,22 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                 ],
               ),
               child: Row(
+                mainAxisSize: MainAxisSize.min,
+                //mainAxisAlignment: MainAxisAlignment.start,
                 children: [
                   // Icon(Icons.chevron_left, size: 20),
-                  BackButton(),
-                  // const SizedBox(width: 8),
-                  Text('Back', style: TextStyle(fontSize: 16)),
+                  BackButton(
+                    style: ButtonStyle(
+                        alignment: Alignment.centerLeft,
+                        iconSize: WidgetStatePropertyAll(16.0)
+                    ),
+                  ),
+                  //const SizedBox(width: 8),
+                  Text('Back', style: TextStyle(fontSize: 14)),
                 ],
               ),
             ),
+            const SizedBox(width: 16),
 
             // Date and Time Container
             Row(
@@ -254,20 +267,20 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                 // Date
             Row(
               children: [
-                Icon(Icons.calendar_month_rounded, size: 18),
-                const SizedBox(width: 8),
+                Icon(Icons.calendar_month_rounded, size: 14),
+                const SizedBox(width: 4),
                 Text(
                   'Sunday, 16 March 2025',
                   style: TextStyle(color: Colors.grey[700]),
                 ),
               ],
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 10),
             // Time
             Row(
               children: [
-                Icon(Icons.access_time, size: 18),
-                const SizedBox(width: 8),
+                Icon(Icons.access_time, size: 14),
+                const SizedBox(width: 4),
                 Text(
                   '11:41 A.M',
                   style: TextStyle(
@@ -287,8 +300,8 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
-        width: MediaQuery.of(context).size.width * 0.4,
-        margin: EdgeInsets.only(left: 20.0, right: 10.0, bottom: 20.0),
+        //width: MediaQuery.of(context).size.width * 100,
+        margin: EdgeInsets.only(left: 20.0, right: 20.0, bottom: 20.0),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10.0),
           color: Colors.grey[100],
@@ -347,38 +360,34 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
               ),
 
               // Bottom summary container
-              Expanded(
-                flex: 7,
-                child: Container(
-                  margin: EdgeInsets.only(top: 15),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10.0),
-                    color: Colors.white,
-                    border: Border.all(color: Colors.grey.shade200),
-                  ),
-                  padding: EdgeInsets.all(15),
-                  child: SingleChildScrollView(
-                  child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Order calculations
-                      _buildOrderCalculation(TextConstants.subTotalText, '\$${getSubTotal()}',
-                          isTotal: true),
-                      _buildOrderCalculation(TextConstants.taxText , '\$0.0'),
-                      _buildOrderCalculation(TextConstants.discount, '-\$0.0',
-                          isDiscount: true),
-                      SizedBox(height: 5,),
-                        DottedLine(),
-                      SizedBox(height: 5,),
-                      _buildOrderCalculation(TextConstants.total, '\$${getSubTotal()}', isTotal: true),
-                      _buildOrderCalculation(TextConstants.payByCash, '\$0.0'),
-                      _buildOrderCalculation(TextConstants.payByOther, '\$0.0'),
-                      _buildOrderCalculation(TextConstants.tenderAmount, '\$0.0'),
-                      _buildOrderCalculation(TextConstants.change, '\$0.0'),
-                    ],
-                    ),
-                  ),
+              Container(
+                height: MediaQuery.of(context).size.height * 0.34,
+                margin: EdgeInsets.only(top: 5),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10.0),
+                  color: Colors.white,
+                  border: Border.all(color: Colors.grey.shade200),
                 ),
+                padding: EdgeInsets.only(left: 15, right: 15,top: 5),
+                child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Order calculations
+                    _buildOrderCalculation(TextConstants.subTotalText, '\$36.0',
+                        isTotal: true),
+                    _buildOrderCalculation(TextConstants.taxText , '\$5.0'),
+                    _buildOrderCalculation(TextConstants.discount, '-\$3.0',
+                        isDiscount: true),
+                    SizedBox(height: 3,),
+                      DottedLine(),
+                    SizedBox(height: 3,),
+                    _buildOrderCalculation(TextConstants.total, '\$38.0', isTotal: true),
+                    _buildOrderCalculation(TextConstants.payByCash, '\$0.0'),
+                    _buildOrderCalculation(TextConstants.payByOther, '\$0.0'),
+                    _buildOrderCalculation(TextConstants.tenderAmount, '\$0.0'),
+                    _buildOrderCalculation(TextConstants.change, '\$0.0'),
+                  ],
+                  ),
               ),
               Expanded(flex: 0, child: SizedBox()),
             ],
@@ -717,7 +726,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 4.0),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+        padding: const EdgeInsets.symmetric(horizontal: 4.0),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           crossAxisAlignment: CrossAxisAlignment.center,
@@ -726,20 +735,20 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
               label,
               style: TextStyle(
                 fontWeight: isTotal ? FontWeight.w600 : FontWeight.w500,
-                fontSize: isTotal ? 16 : 15,
+                fontSize: isTotal ? 14 : 12,
                 color: isTotal ? Colors.black87 : Colors.grey[700],
-                height: 1,
+                //height: 1,
               ),
             ),
             Text(
               amount,
               style: TextStyle(
                 fontWeight: isTotal ? FontWeight.w600 : FontWeight.w500,
-                fontSize: isTotal ? 16 : 15,
+                fontSize: isTotal ? 14 : 12,
                 color: isDiscount
                     ? Colors.green[600]
                     : (isTotal ? Colors.black87 : Colors.grey[800]),
-                height: 1,
+                //height: 1,
               ),
             ),
           ],
@@ -758,20 +767,21 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
       child: Padding(
         padding: const EdgeInsets.only(left:20,right:20,top: 15, bottom: 0),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Expanded(
-              flex: 2,
+              flex: 3,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,/// if not required remove it
                 children: [
                   // Payment amount display row
                   // Update _buildAmountDisplay in _buildPaymentSection
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     mainAxisSize: MainAxisSize.min,
-                    spacing: 12.0 ,
+                    spacing: 12.0 , ///20.0
                     children: [
                       _buildAmountDisplay(
                         TextConstants.balanceAmount,
@@ -790,10 +800,13 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                     ],
                   ),
 
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
 
                   // Payment methods
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    mainAxisSize: MainAxisSize.max,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Expanded(
                         flex: 3,
@@ -802,6 +815,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                           children: [
                             // Cash payment section
                             Container(
+                             // width: MediaQuery.of(context).size.width * 0.75,
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
                                 color: Colors.white,
@@ -812,8 +826,9 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                                 children: [
                                   // Label container
                                   Container(
+                                    height: MediaQuery.of(context).size.height * 0.05,
                                     width: double.infinity,
-                                    padding: const EdgeInsets.all(16.0),
+                                    padding: const EdgeInsets.only(top: 7.0,left: 7.0),
                                     decoration: BoxDecoration(
                                       color: Colors.red[50],
                                       borderRadius: BorderRadius.circular(6),
@@ -823,30 +838,32 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                                       style: TextStyle(
                                         color: Colors.red,
                                         fontWeight: FontWeight.w500,
-                                        fontSize: 13,
+                                        fontSize: 12,
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(height: 20),
+                                  const SizedBox(height: 8),
 
                                   // Amount TextField
                                   Container(
+                                    height: MediaQuery.of(context).size.height * 0.06,
                                     decoration: BoxDecoration(
                                       color: Colors.white,
                                       borderRadius: BorderRadius.circular(6),
                                       border: Border.all(color: Colors.grey.shade300),
                                     ),
                                     child: TextField(
-                                      controller: amountController,
+                                      controller: amountController,//_paymentController,
+                                      readOnly: true,
+                                      // textAlignVertical: TextAlignVertical.center,
                                       textAlign: TextAlign.right,
                                       enabled: false, // Disables interaction with the TextField
                                       decoration: InputDecoration(
-                                        contentPadding: const EdgeInsets.symmetric(
-                                            horizontal: 16, vertical: 18),
+                                        contentPadding: const EdgeInsets.only(right: 16),
                                         border: InputBorder.none,
                                         hintText: '\$0.00',
                                         hintStyle: TextStyle(
-                                          color: Colors.grey[400], // Light grey placeholder
+                                          color: Colors.grey[400],///800
                                           fontSize: 20,
                                           fontWeight: FontWeight.bold,
                                         ),
@@ -862,22 +879,22 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                                       },
                                     ),
                                   ),
-                                  const SizedBox(height: 16),
+                                  const SizedBox(height: 8),
 
                                   // Quick amount buttons
                                   // Update the Row in _buildPaymentSection to use dynamic quick amounts
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
-                                      _buildQuickAmountButton('\$${balanceAmount.toStringAsFixed(2)}'), // Match balance amount
-                                      _buildQuickAmountButton('\$${(balanceAmount + 2).toStringAsFixed(2)}'), // Slightly above
-                                      _buildQuickAmountButton('\$${(balanceAmount + 12).toStringAsFixed(2)}'), // More above
-                                      _buildQuickAmountButton('\$${((balanceAmount ~/ 10 + 1) * 10).toStringAsFixed(2)}'), // Round up to next 10
-                                      _buildQuickAmountButton('\$${((balanceAmount ~/ 50 + 1) * 50).toStringAsFixed(2)}'), // Round up to next 50
+                                      _buildQuickAmountButton('\$${balanceAmount.toStringAsFixed(0)}'), // Match balance amount
+                                      _buildQuickAmountButton('\$${(balanceAmount + 2).toStringAsFixed(0)}'), // Slightly above
+                                      _buildQuickAmountButton('\$${(balanceAmount + 12).toStringAsFixed(0)}'), // More above
+                                      _buildQuickAmountButton('\$${((balanceAmount ~/ 10 + 1) * 10).toStringAsFixed(0)}'), // Round up to next 10
+                                      _buildQuickAmountButton('\$${((balanceAmount ~/ 50 + 1) * 50).toStringAsFixed(0)}'), // Round up to next 50
                                     ],
                                   ),
 
-                                  const SizedBox(height: 16),
+                                  const SizedBox(height: 12),
 
                                   // Here you would use your custom numpad widget
                                   // CustomNumpad(useCashLayout: true),
@@ -910,7 +927,6 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                           ],
                         ),
                       ),
-
                       const SizedBox(width: 16),
 
                       // Payment mode selection
@@ -922,68 +938,73 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
             ),
             Expanded(
               flex: 1,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(TextConstants.selectPaymentMode,
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),),
-                  SizedBox(height: 10),
-                  Container(
-                    width: 300,
-                    height: 550,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(5),
-                    ),
-                    child: Column(
-                      children: [
-                        _buildPaymentModeButton(TextConstants.cash, Icons.money,
-                            isSelected: selectedPaymentMethod == TextConstants.cash, onTap: () {
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(TextConstants.selectPaymentMode,
+                        style: TextStyle(fontSize: 16,fontWeight: FontWeight.bold),),
+                      SizedBox(height: 10,),
+                      Container(
+                        width: MediaQuery.of(context).size.width * 0.175,
+                        height: MediaQuery.of(context).size.height * 0.425,
+                        padding: const EdgeInsets.all(5),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        child: Column(
+                          children: [
+                            _buildPaymentModeButton(TextConstants.cash, Icons.money,
+                                isSelected:  selectedPaymentMethod == TextConstants.cash, onTap: () {
                               setState(() {
                                 selectedPaymentMethod = TextConstants.cash;
                               });
                             }),
-                        const SizedBox(height: 50),
-                        _buildPaymentModeButton(TextConstants.card, Icons.credit_card, onTap: () {
+                            const SizedBox(height: 20),
+                            _buildPaymentModeButton(TextConstants.card, Icons.credit_card, onTap: () {
                           setState(() {
                             selectedPaymentMethod = TextConstants.card;
                           });
                         }),
-                        const SizedBox(height: 50),
-                        _buildPaymentModeButton(TextConstants.wallet, Icons.account_balance_wallet, onTap: () {
+                            const SizedBox(height: 20),
+                            _buildPaymentModeButton(TextConstants.wallet, Icons.account_balance_wallet, onTap: () {
                           setState(() {
                             selectedPaymentMethod = TextConstants.wallet;
                           });
                         }),
-                        const SizedBox(height: 50),
-                        _buildPaymentModeButton(TextConstants.ebtText, Icons.payment, onTap: () {
+                            const SizedBox(height: 20),
+                            _buildPaymentModeButton(TextConstants.ebtText , Icons.payment, onTap: () {
                           setState(() {
                             selectedPaymentMethod = TextConstants.ebtText;
                           });
                         }),
-                      ],
-                    ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      Container(
+                        width: MediaQuery.of(context).size.width * 0.175,
+                        height: MediaQuery.of(context).size.height * 0.28,
+                        padding: const EdgeInsets.all(5),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        child: Column(
+                          children: [_buildPaymentOptionButton(TextConstants.redeemPoints, Icons.stars),
+                            const SizedBox(height: 20),
+                            _buildPaymentOptionButton(
+                                TextConstants.manualDiscount, Icons.discount),
+                            const SizedBox(height: 20),
+                            _buildPaymentOptionButton(
+                                TextConstants.giftReceipt, Icons.card_giftcard),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 24),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(5),
-                    ),
-                    child: Column(
-                      children: [_buildPaymentOptionButton(TextConstants.redeemPoints, Icons.stars),
-                        const SizedBox(height: 20),
-                        _buildPaymentOptionButton(TextConstants.manualDiscount, Icons.discount),
-                        const SizedBox(height: 20),
-                        _buildPaymentOptionButton(TextConstants.giftReceipt, Icons.card_giftcard),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
+                ),
           ],
         ),
       ),
@@ -996,17 +1017,17 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
        {
         Color amountColor = Colors.black,
       }) {
-    var size = MediaQuery.of(context).size;
+    var size  = MediaQuery.of(context).size;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.start,
-
       children: [
-        Text(label, style: TextStyle(fontSize: 18, color: Colors.black54)),
-        const SizedBox(height: 8),
+        Text(label, style: TextStyle(fontSize: 12, color: Colors.black54)),
+        const SizedBox(height: 4),
         Container(
-          width: size.width * 0.12, //220,
-          padding: const EdgeInsets.all(16),
+          width: size.width * 0.125,
+          height: size.height * 0.06,
+          padding: const EdgeInsets.all(5),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(8),
@@ -1055,19 +1076,19 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
         setState(() {});
       },
       child: Container(
-        height: 60,
-        width: 90,
+        height:  MediaQuery.of(context).size.height * 0.06,
+        width: MediaQuery.of(context).size.width * 0.06,
         alignment: Alignment.center,
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(5.0),
         decoration: BoxDecoration(
           color: Color(0xFFBFF1C0),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(5),
         ),
         child: Text(
           amount,
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            fontSize: 18,
+            fontSize: 14,
           ),
         ),
       ),
@@ -1075,46 +1096,45 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
   }
 
   Widget _buildPaymentModeButton(String label, IconData icon,
-      {bool isSelected = false, VoidCallback? onTap}) { // Build #1.0.29
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 160,
-        height: 90,
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-            color: isSelected ? Colors.red.shade100 : Colors.white,
-            borderRadius: BorderRadius.circular(5),
-            border: isSelected ? Border.all(color: Colors.red.shade300) : Border.all(color: Colors.grey.shade200),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withOpacity(0.1),
-                spreadRadius: 1,
-                blurRadius: 2,
-                offset: Offset(0, 1),
-              ),
-            ]
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: isSelected ? Colors.red : Colors.grey, size: 40),
-            const SizedBox(width: 8),
-            Text(label,
-                style: TextStyle(
-                  color: isSelected ? Colors.red : Colors.grey,
-                  fontWeight: FontWeight.w500,
-                  fontSize: 18,
-                )),
-          ],
-        ),
+      {bool isSelected = false, VoidCallback? onTap}) {
+    return Container(
+      width: MediaQuery.of(context).size.width * 0.1,
+      height: MediaQuery.of(context).size.height * 0.075,
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      decoration: BoxDecoration(
+        color: isSelected ? Colors.red.shade100 : Colors.white,
+        borderRadius: BorderRadius.circular(5),
+        border: isSelected ? Border.all(color: Colors.red.shade300) : Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 2,
+            offset: Offset(0, 1),
+          ),
+        ]
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: isSelected ? Colors.red : Colors.grey,size: 25,),
+          const SizedBox(width: 8),
+          Text(label,
+              style: TextStyle(
+                color: isSelected ? Colors.red : Colors.grey,
+                fontWeight: FontWeight.w500,
+                fontSize: 14,
+
+              )),
+        ],
       ),
     );
   }
 
   Widget _buildPaymentOptionButton(String label, IconData icon) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 16),
+      height: MediaQuery.of(context).size.height * 0.062,
+      padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 5),
       decoration: BoxDecoration(
         color: Colors.grey.shade100,
         borderRadius: BorderRadius.circular(8),
@@ -1123,9 +1143,9 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: Colors.grey),
+          Icon(icon, color: Colors.grey, size: 12,),
           const SizedBox(width: 8),
-          Text(label, style: TextStyle(color: Colors.grey)),
+          Text(label, style: TextStyle(color: Colors.grey, fontSize: 12)),
         ],
       ),
     );

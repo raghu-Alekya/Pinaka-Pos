@@ -720,7 +720,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                         ),
                       ),
                       Text(
-                        "\$38.00",
+                        "\$${getSubTotal()}",
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -742,7 +742,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                         ),
                       ),
                       Text(
-                        "\$3.00",
+                        "\$0.00",
                         style: TextStyle(
                           fontSize: 14,
                           color: Colors.grey,
@@ -764,7 +764,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                         ),
                       ),
                       Text(
-                        "-\$3.00",
+                        "-\$0.00",
                         style: TextStyle(
                           fontSize: 16,
                           color: Color(0xFF1BA672),
@@ -783,7 +783,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
               height: 50,
               child: ElevatedButton(
                 onPressed: () {
-                  // Payment action here
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => OrderSummaryScreen(),));
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFFF6B6B), // Coral red color
@@ -793,8 +793,8 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                child: const Text(
-                  "Pay \$38.00",
+                child:  Text(
+                  "Pay \$${getSubTotal()}",
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.w500,
@@ -806,6 +806,16 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
         )
       ],
     );
+  }
+
+  num getSubTotal(){
+    num total = 0;
+    for (var item in orderItems) {
+      // var orderId = item[AppDBConst.itemId];
+      var subTotal = item[AppDBConst.itemSumPrice];
+      total = (total + subTotal);
+    }
+    return total;
   }
 
   /// //Build #1.0.2 : Added showNumPadDialog if user tap on order layout list item

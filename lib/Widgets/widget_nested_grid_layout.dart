@@ -784,9 +784,9 @@ class NestedGridWidget extends StatelessWidget {
     final imageWidget = imagePath.startsWith("http")
       ? Image.network(
         imagePath,
-        width: 100,
-        height: 100,
-        fit: BoxFit.cover,
+        width: 70,
+        height: 70,
+        fit: BoxFit.fitWidth,
         errorBuilder: (context, error, stackTrace) {
           return Container(
             width: 100,
@@ -945,7 +945,7 @@ class NestedGridWidget extends StatelessWidget {
                                     Text(
                                       item["fast_key_item_name"],
                                       style: const TextStyle(
-                                        fontSize: 18,
+                                        fontSize: 12,
                                         //fontWeight: FontWeight.bold,
                                         color: Colors.black,
                                       ),
@@ -954,7 +954,7 @@ class NestedGridWidget extends StatelessWidget {
                                     Text(
                                       '\$${item["fast_key_item_price"]}',
                                       style: const TextStyle(
-                                        fontSize: 24,
+                                        fontSize: 15,
                                         fontWeight: FontWeight.bold,
                                         color: Colors.black,
                                       ),

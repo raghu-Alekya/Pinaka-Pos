@@ -59,7 +59,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                 children: [
                   // Left Side: Navigation bar + Order Summary stacked vertically
                   Expanded(
-                    flex: 3,
+                    flex: 2,
                     child: Column(
                       children: [
                         _buildNavigationBar(),
@@ -307,15 +307,15 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                       mainAxisSize: MainAxisSize.min,
                     children: [
                       // Order calculations
-                      _buildOrderCalculation(TextConstants.subTotalText, '\$36.0',
+                      _buildOrderCalculation(TextConstants.subTotalText, '\$${getSubTotal()}',
                           isTotal: true),
-                      _buildOrderCalculation(TextConstants.taxText , '\$5.0'),
-                      _buildOrderCalculation(TextConstants.discount, '-\$3.0',
+                      _buildOrderCalculation(TextConstants.taxText , '\$0.0'),
+                      _buildOrderCalculation(TextConstants.discount, '-\$0.0',
                           isDiscount: true),
                       SizedBox(height: 5,),
                         DottedLine(),
                       SizedBox(height: 5,),
-                      _buildOrderCalculation(TextConstants.total, '\$38.0', isTotal: true),
+                      _buildOrderCalculation(TextConstants.total, '\$${getSubTotal()}', isTotal: true),
                       _buildOrderCalculation(TextConstants.payByCash, '\$0.0'),
                       _buildOrderCalculation(TextConstants.payByOther, '\$0.0'),
                       _buildOrderCalculation(TextConstants.tenderAmount, '\$0.0'),
@@ -673,20 +673,20 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
           mainAxisAlignment: MainAxisAlignment.start,
           children: [
             Expanded(
-              flex: 3,
+              flex: 2,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   // Payment amount display row
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     mainAxisSize: MainAxisSize.min,
-                    spacing: 40.0 ,
+                    spacing: 12.0 ,
                     children: [
                       _buildAmountDisplay(
                         TextConstants.balanceAmount,
-                        '\$38.00',
+                        '\$${getSubTotal()}',
                         amountColor: Colors.red,
                       ),
                       _buildAmountDisplay(
@@ -874,6 +874,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
        {
         Color amountColor = Colors.black,
       }) {
+    var size = MediaQuery.of(context).size;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.start,
@@ -882,7 +883,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
         Text(label, style: TextStyle(fontSize: 18, color: Colors.black54)),
         const SizedBox(height: 8),
         Container(
-          width: 220,
+          width: size.width * 0.12, //220,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Colors.white,
@@ -968,5 +969,15 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
         ],
       ),
     );
+  }
+
+  num getSubTotal(){
+    num total = 0;
+    for (var item in orderItems) {
+      // var orderId = item[AppDBConst.itemId];
+      var subTotal = item[AppDBConst.itemSumPrice];
+      total = (total + subTotal);
+    }
+    return total;
   }
 }

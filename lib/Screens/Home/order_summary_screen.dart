@@ -1,14 +1,18 @@
 import 'dart:io';
-
 import 'package:dotted_line/dotted_line.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:intl/intl.dart'; // Added for date formatting
 
+import '../../Blocs/Payment/payment_bloc.dart';
 import '../../Constants/text.dart';
 import '../../Database/db_helper.dart';
 import '../../Database/order_panel_db_helper.dart';
+import '../../Database/user_db_helper.dart';
+import '../../Models/Payment/payment_model.dart';
+import '../../Repositories/Payment/payment_repository.dart';
 import '../../Widgets/widget_custom_num_pad.dart';
 import 'edit_product_screen.dart';
 
@@ -21,11 +25,30 @@ class OrderSummaryScreen extends StatefulWidget {
 
 class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
   List<Map<String, dynamic>> orderItems = [];
+  String selectedPaymentMethod = TextConstants.cash;
+  TextEditingController amountController = TextEditingController();
+  final PaymentBloc paymentBloc = PaymentBloc(PaymentRepository()); // Added PaymentBloc
+  int? userId; // Build #1.0.29: To store user ID
+  int? orderId; // server id from order table
+  int shiftId = 1; // Hardcoded as per requirement
+  int vendorId = 1; // Hardcoded as per requirement
+  String serviceType = "default"; // Hardcoded as per requirement
+  double balanceAmount = 0.0;
 
   @override
   void initState() {
     super.initState();
     fetchOrderItems();
+    _fetchUserId();
+  }
+
+  Future<void> _fetchUserId() async { // Build #1.0.29: get the userId from db
+    final userData = await UserDbHelper().getUserData();
+    if (userData != null && userData[AppDBConst.userId] != null) {
+      setState(() {
+        userId = userData[AppDBConst.userId] as int;
+      });
+    }
   }
 
   // void fetchOrderItems() async {
@@ -41,6 +64,38 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     setState(() {
       orderItems.removeWhere((item) => item[AppDBConst.itemId] == itemId);
     });
+  }
+
+  void _callCreatePaymentAPI() { // Build #1.0.29
+    if (kDebugMode) {
+      print("###### _callCreatePaymentAPI called");
+    }
+    if (amountController.text.isEmpty) return;
+    String cleanAmount = amountController.text.replaceAll('\$', '').trim();
+    final double amount = double.tryParse(cleanAmount) ?? 0.0;
+    if (amount == 0.0) {
+      if (kDebugMode) {
+        print("Invalid amount: $cleanAmount");
+      }
+      return;
+    }
+    final String datetime = DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
+    final paymentRequest = PaymentRequestModel(
+      title: selectedPaymentMethod,
+      orderId: orderId ?? 0,
+      amount: amount,
+      paymentMethod: selectedPaymentMethod,
+      shiftId: shiftId,
+      vendorId: vendorId,
+      userId: userId ?? 0,
+      serviceType: serviceType,
+      datetime: datetime,
+      notes: '',
+    );
+    paymentBloc.createPayment(paymentRequest);
+    if (kDebugMode) {
+      print("Creating payment with request: $paymentRequest");
+    }
   }
 
   @override
@@ -255,7 +310,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('${TextConstants.orderId} #05235',
+                  Text('${TextConstants.orderId} #$orderId', // Build #1.0.29: orderId(serverId) from db
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
@@ -340,16 +395,49 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     if (orderHelper.activeOrderId != null) {
       List<Map<String, dynamic>> items = await orderHelper.getOrderItems(orderHelper.activeOrderId!);
 
+      //Build #1.0.29:  Fetch the orderServerId from the database
+      final db = await DBHelper.instance.database;
+      final List<Map<String, dynamic>> orderData = await db.query(
+        AppDBConst.orderTable,
+        columns: [AppDBConst.orderServerId],
+        where: '${AppDBConst.orderId} = ?',
+        whereArgs: [orderHelper.activeOrderId],
+      );
+
+      if (orderData.isNotEmpty) {
+        setState(() {
+          orderId = orderData.first[AppDBConst.orderServerId] as int? ?? 0;
+          if (kDebugMode) {
+            print("Fetched orderServerId: $orderId for activeOrderId: ${orderHelper.activeOrderId}");
+          }
+        });
+      } else {
+        if (kDebugMode) {
+          print("No orderServerId found for activeOrderId: ${orderHelper.activeOrderId}");
+        }
+      }
+
+     // Build #1.0.29: Calculate balance amount from order items
+      double total = 0.0;
+      for (var item in items) {
+        double price = (item[AppDBConst.itemPrice] as num).toDouble();
+        int count = item[AppDBConst.itemCount] as int;
+        total += price * count;
+      }
+
       if (kDebugMode) {
         print("##### fetchOrderItems :$items");
+        print("Calculated balance amount: $total");
       }
 
       setState(() {
-        orderItems = items; // Update the order items list
+        orderItems = items;
+        balanceAmount = total; // Update balance amount
       });
     } else {
       setState(() {
-        orderItems.clear(); // Clear the order items list if no active order
+        orderItems.clear();
+        balanceAmount = 0.0; // Reset balance if no items
       });
     }
   }
@@ -679,6 +767,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   // Payment amount display row
+                  // Update _buildAmountDisplay in _buildPaymentSection
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     mainAxisSize: MainAxisSize.min,
@@ -686,16 +775,16 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                     children: [
                       _buildAmountDisplay(
                         TextConstants.balanceAmount,
-                        '\$${getSubTotal()}',
+                        '\$${balanceAmount.toStringAsFixed(2)}',//'\$${getSubTotal()}',
                         amountColor: Colors.red,
                       ),
                       _buildAmountDisplay(
                         TextConstants.tenderAmount,
-                        '\$50.00',
+                        amountController.text.isEmpty ? '\$0.00' : '\$${amountController.text}',
                       ),
                       _buildAmountDisplay(
                         TextConstants.change,
-                        '\$12.00',
+                        '\$${amountController.text.isEmpty ? "0.00" : (double.tryParse(amountController.text.replaceAll('\$', '')) ?? 0.0) >= balanceAmount ? ((double.tryParse(amountController.text.replaceAll('\$', '')) ?? 0.0) - balanceAmount).toStringAsFixed(2) : "0.00"}',
                         amountColor: Colors.green,
                       ),
                     ],
@@ -748,14 +837,16 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                                       border: Border.all(color: Colors.grey.shade300),
                                     ),
                                     child: TextField(
+                                      controller: amountController,
                                       textAlign: TextAlign.right,
+                                      enabled: false, // Disables interaction with the TextField
                                       decoration: InputDecoration(
                                         contentPadding: const EdgeInsets.symmetric(
                                             horizontal: 16, vertical: 18),
                                         border: InputBorder.none,
-                                        hintText: '\$50.00',
+                                        hintText: '\$0.00',
                                         hintStyle: TextStyle(
-                                          color: Colors.grey[800],
+                                          color: Colors.grey[400], // Light grey placeholder
                                           fontSize: 20,
                                           fontWeight: FontWeight.bold,
                                         ),
@@ -765,21 +856,24 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                                         fontSize: 20,
                                         fontWeight: FontWeight.bold,
                                       ),
-                                      keyboardType: TextInputType.numberWithOptions(decimal: true),
+                                      keyboardType: TextInputType.none, // Hide default keypad
+                                      onTap: () {
+                                        FocusScope.of(context).unfocus(); // Hide keypad
+                                      },
                                     ),
                                   ),
                                   const SizedBox(height: 16),
 
                                   // Quick amount buttons
+                                  // Update the Row in _buildPaymentSection to use dynamic quick amounts
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
-                                      _buildQuickAmountButton('\$38.00',
-                                          isHighlighted: true),
-                                      _buildQuickAmountButton('\$40'),
-                                      _buildQuickAmountButton('\$50'),
-                                      _buildQuickAmountButton('\$100'),
-                                      _buildQuickAmountButton('\$500'),
+                                      _buildQuickAmountButton('\$${balanceAmount.toStringAsFixed(2)}'), // Match balance amount
+                                      _buildQuickAmountButton('\$${(balanceAmount + 2).toStringAsFixed(2)}'), // Slightly above
+                                      _buildQuickAmountButton('\$${(balanceAmount + 12).toStringAsFixed(2)}'), // More above
+                                      _buildQuickAmountButton('\$${((balanceAmount ~/ 10 + 1) * 10).toStringAsFixed(2)}'), // Round up to next 10
+                                      _buildQuickAmountButton('\$${((balanceAmount ~/ 50 + 1) * 50).toStringAsFixed(2)}'), // Round up to next 50
                                     ],
                                   ),
 
@@ -787,12 +881,28 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
 
                                   // Here you would use your custom numpad widget
                                   // CustomNumpad(useCashLayout: true),
+                                  // Build #1.0.29:  Update CustomNumPad code
                                   CustomNumPad(
                                     isPayment: true,
-                                    onDigitPressed: (value) { /* handle digit */ },
-                                    onClearPressed: () { /* handle clear */ },
-                                    onDeletePressed: () { /* handle delete */ },
-                                    onPayPressed: () { /* handle pay */ },
+                                    getPaidAmount: () => amountController.text,
+                                    balanceAmount: balanceAmount,
+                                    onDigitPressed: (value) {
+                                      amountController.text = (amountController.text + value).replaceAll(r'$', '');
+                                      setState(() {});
+                                    },
+                                    onClearPressed: () {
+                                      amountController.clear();
+                                      setState(() {});
+                                    },
+                                    onDeletePressed: () {
+                                      if (amountController.text.isNotEmpty) {
+                                        amountController.text = amountController.text.substring(0, amountController.text.length - 1);
+                                        setState(() {});
+                                      }
+                                    },
+                                    onPayPressed: () {
+                                      _callCreatePaymentAPI();
+                                    },
                                   )
                                 ],
                               ),
@@ -812,56 +922,68 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
             ),
             Expanded(
               flex: 1,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(TextConstants.selectPaymentMode,
-                        style: TextStyle(fontSize: 16,fontWeight: FontWeight.bold),),
-                      SizedBox(height: 10,),
-                      Container(
-                        width: 300,
-                        height: 550,
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(5),
-                        ),
-                        child: Column(
-                          children: [
-                            _buildPaymentModeButton(TextConstants.cash, Icons.money,
-                                isSelected: true),
-                            const SizedBox(height: 50),
-                            _buildPaymentModeButton(TextConstants.card, Icons.credit_card),
-                            const SizedBox(height: 50),
-                            _buildPaymentModeButton(
-                                TextConstants.wallet, Icons.account_balance_wallet),
-                            const SizedBox(height: 50),
-                            _buildPaymentModeButton(TextConstants.ebtText , Icons.payment),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(5),
-                        ),
-                        child: Column(
-                          children: [_buildPaymentOptionButton(TextConstants.redeemPoints, Icons.stars),
-                            const SizedBox(height: 20),
-                            _buildPaymentOptionButton(
-                                TextConstants.manualDiscount, Icons.discount),
-                            const SizedBox(height: 20),
-                            _buildPaymentOptionButton(
-                                TextConstants.giftReceipt, Icons.card_giftcard),
-                          ],
-                        ),
-                      ),
-                    ],
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(TextConstants.selectPaymentMode,
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),),
+                  SizedBox(height: 10),
+                  Container(
+                    width: 300,
+                    height: 550,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: Column(
+                      children: [
+                        _buildPaymentModeButton(TextConstants.cash, Icons.money,
+                            isSelected: selectedPaymentMethod == TextConstants.cash, onTap: () {
+                              setState(() {
+                                selectedPaymentMethod = TextConstants.cash;
+                              });
+                            }),
+                        const SizedBox(height: 50),
+                        _buildPaymentModeButton(TextConstants.card, Icons.credit_card, onTap: () {
+                          setState(() {
+                            selectedPaymentMethod = TextConstants.card;
+                          });
+                        }),
+                        const SizedBox(height: 50),
+                        _buildPaymentModeButton(TextConstants.wallet, Icons.account_balance_wallet, onTap: () {
+                          setState(() {
+                            selectedPaymentMethod = TextConstants.wallet;
+                          });
+                        }),
+                        const SizedBox(height: 50),
+                        _buildPaymentModeButton(TextConstants.ebtText, Icons.payment, onTap: () {
+                          setState(() {
+                            selectedPaymentMethod = TextConstants.ebtText;
+                          });
+                        }),
+                      ],
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 24),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: Column(
+                      children: [_buildPaymentOptionButton(TextConstants.redeemPoints, Icons.stars),
+                        const SizedBox(height: 20),
+                        _buildPaymentOptionButton(TextConstants.manualDiscount, Icons.discount),
+                        const SizedBox(height: 20),
+                        _buildPaymentOptionButton(TextConstants.giftReceipt, Icons.card_giftcard),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -902,52 +1024,90 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     );
   }
 
-  Widget _buildQuickAmountButton(String amount, {bool isHighlighted = false}) {
-    return Container(
-      height: 60,
-      width: 90 ,
-      alignment: Alignment.center,
-      padding: const EdgeInsets.all(16.0),
-      decoration: BoxDecoration(
-        color: Color(0xFFBFF1C0),
-        borderRadius: BorderRadius.circular(8),
+  // Widget _buildQuickAmountButton(String amount, {bool isHighlighted = false}) {
+  //   return GestureDetector(
+  //     onTap: () {
+  //       amountController.text = amount.replaceAll(r'$', '');
+  //       setState(() {});
+  //     },
+  //     child: Container(
+  //       height: 60,
+  //       width: 90,
+  //       alignment: Alignment.center,
+  //       padding: const EdgeInsets.all(16.0),
+  //       decoration: BoxDecoration(
+  //       //  color: isHighlighted ? Color(0xFFBFF1C0) : Color(0xFFE0E0E0),
+  //         color: Color(0xFFBFF1C0),
+  //         borderRadius: BorderRadius.circular(8),
+  //       ),
+  //       child: Text(amount, style: TextStyle(fontWeight: FontWeight.bold, color: isHighlighted ? Colors.green : Colors.black, fontSize: 18)),
+  //     ),
+  //   );
+  // }
+
+  // Update _buildQuickAmountButton to remove isHighlighted logic for enabling
+  Widget _buildQuickAmountButton(String amount) { // Build #1.0.29: updated
+    return GestureDetector(
+      onTap: () {
+        // Remove '$' and ensure the value is numeric
+        String cleanAmount = amount.replaceAll('\$', '');
+        amountController.text = cleanAmount;
+        setState(() {});
+      },
+      child: Container(
+        height: 60,
+        width: 90,
+        alignment: Alignment.center,
+        padding: const EdgeInsets.all(16.0),
+        decoration: BoxDecoration(
+          color: Color(0xFFBFF1C0),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          amount,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
+        ),
       ),
-      child: Text(amount, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green,fontSize: 18,)),
     );
   }
 
   Widget _buildPaymentModeButton(String label, IconData icon,
-      {bool isSelected = false}) {
-    return Container(
-      width: 160,
-      height: 90,
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      decoration: BoxDecoration(
-        color: isSelected ? Colors.red.shade100 : Colors.white,
-        borderRadius: BorderRadius.circular(5),
-        border: isSelected ? Border.all(color: Colors.red.shade300) : Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 2,
-            offset: Offset(0, 1),
-          ),
-        ]
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: isSelected ? Colors.red : Colors.grey,size: 40,),
-          const SizedBox(width: 8),
-          Text(label,
-              style: TextStyle(
-                color: isSelected ? Colors.red : Colors.grey,
-                fontWeight: FontWeight.w500,
-                fontSize: 18,
-
-              )),
-        ],
+      {bool isSelected = false, VoidCallback? onTap}) { // Build #1.0.29
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 160,
+        height: 90,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(
+            color: isSelected ? Colors.red.shade100 : Colors.white,
+            borderRadius: BorderRadius.circular(5),
+            border: isSelected ? Border.all(color: Colors.red.shade300) : Border.all(color: Colors.grey.shade200),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.1),
+                spreadRadius: 1,
+                blurRadius: 2,
+                offset: Offset(0, 1),
+              ),
+            ]
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: isSelected ? Colors.red : Colors.grey, size: 40),
+            const SizedBox(width: 8),
+            Text(label,
+                style: TextStyle(
+                  color: isSelected ? Colors.red : Colors.grey,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 18,
+                )),
+          ],
+        ),
       ),
     );
   }

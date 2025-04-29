@@ -22,21 +22,21 @@ class _TabsScreenState extends State<TabsScreen> {
   String _couponCode = "123456789";
 
   // Custom item values
-  String _customItemName = "Custom Item";
-  String _customItemPrice = "0.00";
-  String _sku = "Generate the SKU";
+  String _customItemName = "";
+  String _customItemPrice = "";
+  String _sku = "";
 
   // Tax slab options
   final List<String> _taxSlabOptions = ['No Tax', 'GST 5%', 'GST 12%', 'GST 18%', 'GST 28%'];
-  String _selectedTaxSlab = 'No Tax';
+  String _selectedTaxSlab = '';
 
   // Payout value
   String _payoutAmount = "0.00";
 
   // Text editing controllers
-  final TextEditingController _customItemNameController = TextEditingController(text: "Custom Item");
-  final TextEditingController _customItemPriceController = TextEditingController(text: "0.00");
-  final TextEditingController _skuController = TextEditingController(text: "Generate the SKU");
+  final TextEditingController _customItemNameController = TextEditingController();
+  final TextEditingController _customItemPriceController = TextEditingController();
+  final TextEditingController _skuController = TextEditingController();
 
   @override
   void initState() {
@@ -63,7 +63,7 @@ class _TabsScreenState extends State<TabsScreen> {
         borderRadius: BorderRadius.circular(20),
         color: Colors.grey.shade50,),
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(5.0),
         child: Column(
           children: [
             // Top Tabs
@@ -282,6 +282,7 @@ class _TabsScreenState extends State<TabsScreen> {
     return
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           // First Row: Name & SKU
           Row(
@@ -294,12 +295,12 @@ class _TabsScreenState extends State<TabsScreen> {
                     const Text(
                       "Name",
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 14,
                         fontWeight: FontWeight.w500,
                         color: Color(0xFF1E2745),
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 5),
                     Container(
                       height: MediaQuery.of(context).size.height / 15,
                       decoration: BoxDecoration(
@@ -310,17 +311,21 @@ class _TabsScreenState extends State<TabsScreen> {
                       child: TextField(
                         textAlign: TextAlign.left,
                         controller: _customItemNameController,
-                        decoration: const InputDecoration(
-                          contentPadding: EdgeInsets.zero,
+                        decoration: InputDecoration(
+                          contentPadding: EdgeInsets.all(5),
                           border: InputBorder.none,
                           hintText: "Custom Item Name",
+                          hintStyle: TextStyle(
+                            color: Colors.grey,
+                            fontSize: 14
+                          ),
                         ),
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 20),
+              const SizedBox(width: 10),
               // SKU Field
               Expanded(
                 child: Column(
@@ -329,12 +334,12 @@ class _TabsScreenState extends State<TabsScreen> {
                     const Text(
                       "SKU",
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 14,
                         fontWeight: FontWeight.w500,
                         color: Color(0xFF1E2745),
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 5),
                     Container(
                       height: MediaQuery.of(context).size.height /15,
                       decoration: BoxDecoration(
@@ -348,9 +353,13 @@ class _TabsScreenState extends State<TabsScreen> {
                         decoration: InputDecoration(
                           border: InputBorder.none,
                           hintText: "Generate the SKU",
-                          contentPadding: const EdgeInsets.only(left: 15, right: 15),
+                          hintStyle: TextStyle(
+                              color: Colors.grey,
+                              fontSize: 14
+                          ),
+                          contentPadding: const EdgeInsets.only(right: 5),
                           suffix: Container(
-                            margin: const EdgeInsets.only(right: 8),
+                            margin: const EdgeInsets.all(5.0),
                             child: ElevatedButton(
                               onPressed: _generateSku,
                               style: ElevatedButton.styleFrom(
@@ -390,12 +399,12 @@ class _TabsScreenState extends State<TabsScreen> {
                     const Text(
                       "Item Price",
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 14,
                         fontWeight: FontWeight.w500,
                         color: Color(0xFF1E2745),
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 5),
                     Container(
                       height: MediaQuery.of(context).size.height / 15,
                       decoration: BoxDecoration(
@@ -405,18 +414,24 @@ class _TabsScreenState extends State<TabsScreen> {
                       ),
                       child: TextField(
                         controller: _customItemPriceController,
-                        keyboardType: TextInputType.number,
+                        //keyboardType: TextInputType.number,
                         decoration: const InputDecoration(
+                          hintText: "Enter the Price",
+                          hintStyle: TextStyle(
+                              color: Colors.grey,
+                              fontSize: 14
+                          ),
                           border: InputBorder.none,
                           prefixText: "\$",
-                          contentPadding: EdgeInsets.symmetric(horizontal: 15),
+                          prefixStyle: TextStyle(fontSize: 14),
+                          contentPadding: EdgeInsets.all(5),
                         ),
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 20),
+              const SizedBox(width: 10),
               // Tax Dropdown
               Expanded(
                 child: Column(
@@ -425,12 +440,12 @@ class _TabsScreenState extends State<TabsScreen> {
                     const Text(
                       "Tax",
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 14,
                         fontWeight: FontWeight.w500,
                         color: Color(0xFF1E2745),
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 5),
                     Container(
                       height: MediaQuery.of(context).size.height /15,
                       padding: const EdgeInsets.symmetric(horizontal: 15),
@@ -440,7 +455,11 @@ class _TabsScreenState extends State<TabsScreen> {
                         border: Border.all(color: Colors.grey.shade300),
                       ),
                       child: DropdownButton<String>(
-                        value: _selectedTaxSlab,
+                        value: _selectedTaxSlab.isEmpty ? null : _selectedTaxSlab,
+                        hint: const Text(
+                          'Choose a Tax Slab',
+                          style: TextStyle(color: Colors.grey, fontSize: 14),
+                        ),
                         icon: const Icon(Icons.arrow_drop_down),
                         isExpanded: true,
                         underline: Container(),
@@ -484,8 +503,8 @@ class _TabsScreenState extends State<TabsScreen> {
                 },
                 onClearPressed: () {
                   setState(() {
-                    _customItemPrice = "0.00";
-                    _customItemPriceController.text = "0.00";
+                    _customItemPrice = "";
+                    _customItemPriceController.text = "";
                   });
                 },
                 actionButtonType: ActionButtonType.add,

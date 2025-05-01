@@ -209,6 +209,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
   SidebarPosition sidebarPosition = SidebarPosition.left;
   OrderPanelPosition orderPanelPosition = OrderPanelPosition.right;
   bool isLoading = true;
+  bool isLoadingNestedContent = false; //Build #1.0.34: added for shimmer effect issue
   final ValueNotifier<int?> fastKeyTabIdNotifier = ValueNotifier<int?>(null);
   final OrderHelper orderHelper = OrderHelper();
 
@@ -260,9 +261,11 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
   Future<void> _loadLastSelectedCategory() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     int? lastSelectedIndex = prefs.getInt('lastSelectedCategoryIndex');
+
     if (lastSelectedIndex != null && lastSelectedIndex >= 0 && lastSelectedIndex < categories.length) {
       setState(() {
         _selectedCategoryIndex = lastSelectedIndex;
+        // Start with just the category name
         navigationPath = [categories[_selectedCategoryIndex!].name];
         categoryHierarchy = [0, categories[_selectedCategoryIndex!].id];
         currentCategoryLevel = 1;
@@ -272,6 +275,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
     } else if (categories.isNotEmpty) {
       setState(() {
         _selectedCategoryIndex = 0;
+        // Start with just the category name
         navigationPath = [categories[0].name];
         categoryHierarchy = [0, categories[0].id];
         currentCategoryLevel = 1;
@@ -308,6 +312,9 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
 
   // Load subcategories for a specific parent category
   Future<void> _loadSubCategories(int parentId) async {
+    setState(() {
+      isLoadingNestedContent = true; // Add this line to show shimmer
+    });
     _categoryBloc.fetchCategories(parentId);
     await for (var response in _categoryBloc.categoriesStream) {
       if (response.status == Status.COMPLETED && response.data != null) {
@@ -316,12 +323,16 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
           isShowingSubCategories = true;
           categoryProducts.clear();
           _selectedSubCategoryIndex = null;
+          isLoadingNestedContent = false; // Hide shimmer when data is loaded
         });
         if (subCategories.isEmpty) {
           _loadProductsByCategory(parentId);
         }
         break; // Break after loading subcategories
       } else if (response.status == Status.ERROR) {
+        setState(() {
+          isLoadingNestedContent = false; // Hide shimmer on error
+        });
         if (kDebugMode) {
           print("CategoriesScreen: Error loading subcategories: ${response.message}");
         }
@@ -330,6 +341,10 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
   }
 
   Future<void> _loadProductsByCategory(int categoryId) async {
+    setState(() {
+      isLoadingNestedContent = true; // Add this line to show shimmer
+    });
+
     _categoryBloc.fetchProductsByCategory(categoryId);
     await for (var response in _categoryBloc.productsStream) {
       if (response.status == Status.COMPLETED && response.data != null) {
@@ -344,9 +359,13 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
           }).toList();
           reorderedIndices = List.filled(categoryProducts.length, null);
           isShowingSubCategories = false;
+          isLoadingNestedContent = false; // Hide shimmer when data is loaded
         });
         break;
       } else if (response.status == Status.ERROR) {
+        setState(() {
+          isLoadingNestedContent = false; // Hide shimmer on error
+        });
         if (kDebugMode) {
           print("CategoriesScreen: Error loading products: ${response.message}");
         }
@@ -358,30 +377,42 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
     if (index < 0 || index >= categories.length) return; // Prevent RangeError
     setState(() {
       _selectedCategoryIndex = index;
-      navigationPath = [categories[index].name];
+      // Always show the category name first
+      navigationPath = [categories[index].name]; // Reset path with just category name
       subCategories.clear();
       categoryProducts.clear();
       isShowingSubCategories = true;
-      categoryHierarchy = [0, categories[index].id];
+      categoryHierarchy = [0, categories[index].id]; // Reset hierarchy
       currentCategoryLevel = 1;
       _selectedSubCategoryIndex = null;
       _editingCategoryIndex = null;
+      isLoadingNestedContent = true; // Add this line to show shimmer
     });
+
     _saveLastSelectedCategory(index);
     _loadSubCategories(categories[index].id);
   }
 
-  void _onSubCategoryTapped(int index) {
-    if (index < 0 || index >= subCategories.length) return; // Prevent RangeError
+  void _onSubCategoryTapped(int index) { //Build #1.0.34: updated code for navigation path issues
+    if (index < 0 || index >= subCategories.length) return;
+
     final selectedSubCategory = subCategories[index];
+
     setState(() {
       _selectedSubCategoryIndex = index;
-      if (!navigationPath.contains(selectedSubCategory.name)) {
-        navigationPath.add(selectedSubCategory.name);
+      // Only add to navigation path if moving to a new subcategory level
+      if (currentCategoryLevel < categoryHierarchy.length) {
+        navigationPath = navigationPath.sublist(0, currentCategoryLevel);
+        categoryHierarchy = categoryHierarchy.sublist(0, currentCategoryLevel + 1);
       }
+      navigationPath.add(selectedSubCategory.name);
       categoryHierarchy.add(selectedSubCategory.id);
       currentCategoryLevel++;
+      isShowingSubCategories = true;
+      categoryProducts.clear();
+      isLoadingNestedContent = true; // Add this line to show shimmer
     });
+
     _loadSubCategories(selectedSubCategory.id);
   }
 
@@ -389,77 +420,65 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
     if (currentCategoryLevel > 0) {
       setState(() {
         currentCategoryLevel--;
-        if (currentCategoryLevel == 0) {
-          // Reset to top-level category
-          navigationPath = _selectedCategoryIndex != null ? [categories[_selectedCategoryIndex!].name] : [];
-          categoryHierarchy = _selectedCategoryIndex != null ? [0, categories[_selectedCategoryIndex!].id] : [0];
-          subCategories.clear();
-          categoryProducts.clear();
-          isShowingSubCategories = true;
-          _selectedSubCategoryIndex = null;
-          if (_selectedCategoryIndex != null) {
-            _loadSubCategories(categories[_selectedCategoryIndex!].id);
-          }
-        } else {
-          // Go back one level
-          categoryHierarchy.removeLast();
-          navigationPath.removeLast();
-          isShowingSubCategories = true;
-          categoryProducts.clear();
-          _selectedSubCategoryIndex = null;
-          _loadSubCategories(categoryHierarchy.last);
-        }
+        navigationPath.removeLast();
+        categoryHierarchy.removeLast();
+        isShowingSubCategories = true;
+        categoryProducts.clear();
+        _selectedSubCategoryIndex = null;
       });
+
+      if (currentCategoryLevel == 0) {
+        _loadSubCategories(categories[_selectedCategoryIndex!].id);
+      } else {
+        _loadSubCategories(categoryHierarchy.last);
+      }
     }
   }
 
+  // Update the products loading to not add to navigation path
   void _onItemSelected(int index) async {
     if (index == 0 && showBackButton) {
       _onBackToCategories();
       return;
     }
+
     final adjustedIndex = index - (showBackButton ? 1 : 0);
     if (adjustedIndex < 0 || adjustedIndex >= categoryProducts.length) return;
 
     final selectedProduct = categoryProducts[adjustedIndex];
-    final productName = selectedProduct["fast_key_item_name"];
 
-    setState(() {
-      if (lastSelectedProduct != null && navigationPath.contains(lastSelectedProduct)) {
-        navigationPath.removeLast();
-      }
-      if (!navigationPath.contains(productName)) {
-        navigationPath.add(productName);
-      }
-      lastSelectedProduct = productName;
-    });
-
+    // Don't modify navigation path for products
     await orderHelper.addItemToOrder(
-      productName,
+      selectedProduct["fast_key_item_name"],
       selectedProduct["fast_key_item_image"],
       double.tryParse(selectedProduct["fast_key_item_price"].toString()) ?? 0.0,
       1,
-      'SKU$productName',
+      'SKU${selectedProduct["fast_key_item_name"]}',
       onItemAdded: _refreshOrderList,
     );
   }
 
-  void _onNavigationPathTapped(int index) {
-    if (index < navigationPath.length - 1) {
-      setState(() {
-        navigationPath = navigationPath.sublist(0, index + 1);
-        categoryHierarchy = categoryHierarchy.sublist(0, index + 1);
-        currentCategoryLevel = index;
-        isShowingSubCategories = currentCategoryLevel > 0;
-        categoryProducts.clear();
-        lastSelectedProduct = null;
-        _selectedSubCategoryIndex = null;
-        if (currentCategoryLevel == 0) {
-          subCategories.clear();
-        } else {
-          _loadSubCategories(categoryHierarchy.last);
-        }
-      });
+  void _onNavigationPathTapped(int index) { //Build #1.0.34: fixed code for navigation path issues
+    if (index < 0 || index >= navigationPath.length) return;
+
+    // Don't reload if tapping the currently active path item
+    if (index == currentCategoryLevel - 1) return;
+
+    setState(() {
+      // Truncate path and hierarchy to clicked level
+      navigationPath = navigationPath.sublist(0, index + 1);
+      categoryHierarchy = categoryHierarchy.sublist(0, index + 2);
+      currentCategoryLevel = index + 1;
+      isShowingSubCategories = true;
+      categoryProducts.clear();
+      _selectedSubCategoryIndex = null;
+    });
+
+    // Load appropriate subcategories
+    if (index == 0) {
+      _loadSubCategories(categories[_selectedCategoryIndex!].id);
+    } else {
+      _loadSubCategories(categoryHierarchy.last);
     }
   }
 
@@ -636,14 +655,14 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
                       Expanded(
                         child: isShowingSubCategories && subCategories.isNotEmpty
                             ? SubCategoryGridWidget(
-                          isLoading: isLoading,
+                          isLoading: isLoadingNestedContent,
                           subCategories: subCategoryListItems,
                           selectedSubCategoryIndex: _selectedSubCategoryIndex,
                           onSubCategoryTapped: _onSubCategoryTapped,
                         )
                             : NestedGridWidget(
                           isHorizontal: true,
-                          isLoading: isLoading,
+                          isLoading: isLoadingNestedContent,
                           showAddButton: false,
                           showBackButton: showBackButton,
                           items: categoryProducts,

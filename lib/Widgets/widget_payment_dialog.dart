@@ -12,6 +12,7 @@ class PaymentDialog extends StatefulWidget {
   final PaymentStatus status; // Current payment status
   final PaymentMode mode; // Payment method used
   final double amount; // Payment amount
+  final double? changeAmount; //Build #1.0.34: New parameter for change amount
   final VoidCallback? onVoid; // Callback for cancelling payment
   final VoidCallback? onPrint; // Callback for printing receipt
   final VoidCallback? onNextPayment; // Callback for proceeding to next payment
@@ -25,6 +26,7 @@ class PaymentDialog extends StatefulWidget {
     required this.status,
     required this.mode,
     required this.amount,
+    this.changeAmount,
     this.onVoid,
     this.onPrint,
     this.onNextPayment,
@@ -41,6 +43,7 @@ class PaymentDialog extends StatefulWidget {
 class _PaymentDialogState extends State<PaymentDialog> {
   String _selectedOption = 'Print'; // Default selected receipt option
   final TextEditingController _contactController = TextEditingController(); // For email/phone input
+  String capitalize(String s) => s[0].toUpperCase() + s.substring(1); //Build #1.0.34: added for "Cash" in success popup dialog
 
   @override
   Widget build(BuildContext context) {
@@ -61,11 +64,9 @@ class _PaymentDialogState extends State<PaymentDialog> {
             const SizedBox(height: 32), // Vertical spacing
             _buildPaymentInfo(), // Show payment details or receipt options
             const SizedBox(height: 20), // Vertical spacing
-            if (widget.status != PaymentStatus.receipt) // Only show for payment statuses
+            if (widget.status == PaymentStatus.partial) //Build #1.0.34: Show only for partial payment - code updated as per new UI
               Text(
-                widget.status == PaymentStatus.partial
-                    ? TextConstants.partialPaymentText // Message for partial payment
-                    : TextConstants.successPaymentText, // Message for successful payment
+                TextConstants.partialPaymentText,
                 textAlign: TextAlign.center,
                 softWrap: true,
                 style: TextStyle(
@@ -200,41 +201,89 @@ class _PaymentDialogState extends State<PaymentDialog> {
         ],
       );
     }
-    return Container(
-      width: MediaQuery.of(context).size.width * 0.25, // Responsive width
-      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 20), // Inner padding
+    return Container( //Build #1.0.34: UI updated as per new figma ui
+      width: MediaQuery.of(context).size.width * 0.25,
+      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 0),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(8), // Rounded corners
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1), // Subtle shadow
-            blurRadius: 4,
-            spreadRadius: 2,
-            offset: Offset(0, 1),
-          ),
-        ],
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min, // Take minimum width
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly, // Space children evenly
+      child: Column(
         children: [
-          Text(
-            widget.mode.name + TextConstants.mode, // Display payment mode
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w600, // Semi-bold
-              color: Color(0xFF4C5F7D),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFFFFF),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.3),
+                  blurRadius: 6,
+                  offset: Offset(0, 4),
+                ),
+              ],
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.max,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '${capitalize(widget.mode.name)} ${TextConstants.mode}',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF4C5F7D),
+                  ),
+                ),
+                Text(
+                  '\$${widget.amount.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF4C5F7D),
+                  ),
+                ),
+              ],
             ),
           ),
-          Text(
-            '\$${widget.amount.toStringAsFixed(2)}', // Display formatted amount
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w800, // Extra bold
-              color: Color(0xFF4C5F7D),
+          if (widget.changeAmount != null && widget.changeAmount! > 0) ...[
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFDDF1E1),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.3),
+                    blurRadius: 6,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.max,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    TextConstants.change, // Consistent label
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1BA672),
+                    ),
+                  ),
+                  Text(
+                    '\$${widget.changeAmount!.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF1BA672),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );

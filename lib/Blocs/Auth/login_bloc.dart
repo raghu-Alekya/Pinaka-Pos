@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import '../../Constants/text.dart';
 import '../../Database/db_helper.dart';
@@ -8,6 +9,7 @@ import '../../Helper/api_response.dart';
 import '../../Helper/file_helper.dart';
 import '../../Models/Auth/login_model.dart';
 import '../../Repositories/Auth/login_repository.dart';
+import 'package:pinaka_pos/Helper/Extentions/exceptions.dart'; // Import custom exceptions
 
 class LoginBloc { // Build #1.0.8
   final UserDbHelper _userDbHelper = UserDbHelper();
@@ -46,14 +48,55 @@ class LoginBloc { // Build #1.0.8
             loginResponse.message ?? "Invalid PIN or user not found."));
       }
     } catch (e, s) {
-      // Handle specific API error response
-      if (e.toString().contains('invalid_pin')) {
-        loginSink.add(APIResponse.error("Invalid PIN or user not found."));
-      } else if (e.toString().contains('SocketException')) {
-        loginSink.add(APIResponse.error("Network error. Please check your connection."));
-      } else {
-        loginSink.add(APIResponse.error("An error occurred. Please try again."));
+      String errorMessage = "An error occurred. Please try again.";
+      if (kDebugMode) {
+        print("Exception type: ${e.runtimeType}");
+        print("Exception content: $e");
+        print("Stack trace: $s");
       }
+
+      //Build #1.0.34: Handle custom exceptions with message property
+      if (e is UnauthorisedException || e is BadRequestException || e is NotFoundException || e is InternalServerErrorException) {
+        String? message;
+        // Assume message is the JSON response body
+        try {
+          // If message is directly accessible (e.g., UnauthorisedException(response.body))
+          final errorJson = json.decode(e.toString().replaceFirst(RegExp(r'^[a-zA-Z]+Exception: '), ''));
+          message = errorJson['message']?.toString();
+        } catch (_) {
+          // Fallback to parsing toString() for JSON
+          try {
+            final jsonMatch = RegExp(r'\{.*\}').firstMatch(e.toString());
+            if (jsonMatch != null) {
+              final errorJson = json.decode(jsonMatch.group(0)!);
+              message = errorJson['message']?.toString();
+            }
+          } catch (_) {
+            // Use toString() if JSON parsing fails
+            message = e.toString();
+          }
+        }
+        errorMessage = message ?? errorMessage;
+      } else if (e is FetchDataException) {
+        errorMessage = e.toString(); // Handle network errors
+      } else if (e is SocketException) {
+        errorMessage = "Network error. Please check your connection.";
+      } else {
+        //Build #1.0.34: Handle generic Exception (e.g., from APIHelper's catch block)
+        try {
+          // Extract JSON from toString()
+          final jsonMatch = RegExp(r'\{.*\}').firstMatch(e.toString());
+          if (jsonMatch != null) {
+            final errorJson = json.decode(jsonMatch.group(0)!);
+            errorMessage = errorJson['message']?.toString() ?? errorMessage;
+          } else {
+            errorMessage = e.toString();
+          }
+        } catch (_) {
+          errorMessage = e.toString();
+        }
+      }
+      loginSink.add(APIResponse.error(errorMessage));
       if (kDebugMode) print("Exception in LoginBlock.fetchLoginToken: $e; Stack: $s");
     }
   }

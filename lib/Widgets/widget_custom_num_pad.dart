@@ -130,7 +130,8 @@ class CustomNumPad extends StatelessWidget {
     );
   }
 
-  // Update _buildPayButton
+  // Remove _buildPayButton, _showPartialPaymentDialog, _showPaymentDialog, _showReceiptDialog
+ // Build #1.0.34: Update _buildPayButton to only call onPayPressed
   Widget _buildPayButton(BuildContext context) {
     return Container(
       width: double.infinity,
@@ -146,25 +147,7 @@ class CustomNumPad extends StatelessWidget {
         ],
       ),
       child: TextButton(
-        onPressed: () {
-          String paidAmount = getPaidAmount!(); // Build #1.0.29 : check the conditions based show popUp dialogs
-          String cleanAmount = paidAmount.replaceAll('\$', '').trim();
-          double amount = double.tryParse(cleanAmount) ?? 0.0;
-          if (amount == 0.0) {
-            if (kDebugMode) {
-              print("#### paidAmount: $paidAmount, cleanAmount: $cleanAmount, amount: $amount");
-            }
-            return;
-          }
-          if (onPayPressed != null) {
-            onPayPressed!();
-          }
-          if (amount < balanceAmount!) {
-            _showPartialPaymentDialog(context, amount);
-          } else {
-            _showPaymentDialog(context, amount);
-          }
-        },
+        onPressed: onPayPressed, //Build #1.0.34
         style: TextButton.styleFrom(
           padding: EdgeInsets.zero,
           backgroundColor: Colors.transparent,
@@ -180,85 +163,6 @@ class CustomNumPad extends StatelessWidget {
             color: Colors.white,
           ),
         ),
-      ),
-    );
-  }
-
-  // Update dialog methods
-  void _showPartialPaymentDialog(BuildContext context, double amount) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => PaymentDialog(
-        status: PaymentStatus.partial,
-        mode: PaymentMode.cash,
-        amount: amount,
-        onVoid: () {
-          Navigator.of(context).pop();
-          // Handle void logic
-        },
-        onNextPayment: () {
-          Navigator.of(context).pop();
-          // Show successful payment dialog
-          // showDialog(
-          //   context: context,
-          //   barrierDismissible: false,
-          //   builder: (context) => PaymentDialog(
-          //     status: PaymentStatus.successful,
-          //     mode: PaymentMode.cash,
-          //     amount: 50.00,  // Total amount after all payments
-          //     onVoid: () {
-          //       Navigator.of(context).pop();
-          //       // Handle void logic
-          //     },
-          //     onPrint: () {
-          //       Navigator.of(context).pop();
-          //       // Show receipt dialog
-          //       _showReceiptDialog(context);
-          //     },
-          //   ),
-          // );
-        },
-      ),
-    );
-  }
-
-  void _showPaymentDialog(BuildContext context, double amount) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => PaymentDialog(
-        status: PaymentStatus.successful,
-        mode: PaymentMode.cash,
-        amount: amount,
-        onVoid: () {
-          Navigator.of(context).pop();
-        },
-        onPrint: () {
-          Navigator.of(context).pop();
-          _showReceiptDialog(context, amount);
-        },
-      ),
-    );
-  }
-
-  void _showReceiptDialog(BuildContext context, double amount) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => PaymentDialog(
-        status: PaymentStatus.receipt,
-        mode: PaymentMode.cash,
-        amount: amount,
-        onPrint: () {},
-        onEmail: (email) {},
-        onSMS: (phone) {},
-        onNoReceipt: () {
-          Navigator.of(context).pop();
-        },
-        onDone: () {
-          Navigator.of(context).pop();
-        },
       ),
     );
   }

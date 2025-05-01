@@ -108,9 +108,9 @@ class APIHelper { // Build #1.0.8, Naveen added
       final response = await http.post(Uri.parse(finalUrl), body: body, headers: headers);
       responseJson = _returnResponse(response);
     }
-    // on SocketException {
-    //   throw FetchDataException('No Internet connection $');
-    // }
+    on SocketException { //Build #1.0.34: if turn off internet need this exception here
+      throw FetchDataException('No Internet connection');
+    }
     catch (e, s) {
       _logError("POST", finalUrl, token, e, s, body: body);
       if(e is SocketException){

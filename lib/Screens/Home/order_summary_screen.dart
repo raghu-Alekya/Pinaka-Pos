@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:dotted_line/dotted_line.dart';
 import 'package:flutter/foundation.dart';
@@ -11,9 +12,11 @@ import '../../Constants/text.dart';
 import '../../Database/db_helper.dart';
 import '../../Database/order_panel_db_helper.dart';
 import '../../Database/user_db_helper.dart';
+import '../../Helper/api_response.dart';
 import '../../Models/Payment/payment_model.dart';
 import '../../Repositories/Payment/payment_repository.dart';
 import '../../Widgets/widget_custom_num_pad.dart';
+import '../../Widgets/widget_payment_dialog.dart';
 import 'edit_product_screen.dart';
 
 class OrderSummaryScreen extends StatefulWidget {
@@ -74,15 +77,22 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     if (kDebugMode) {
       print("###### _callCreatePaymentAPI called");
     }
-    if (amountController.text.isEmpty) return;
+    if (amountController.text.isEmpty) { //Build #1.0.34: updated code
+      if (kDebugMode) {
+        print("Error: Amount TextField is empty");
+      }
+      return;
+    }
+
     String cleanAmount = amountController.text.replaceAll('\$', '').trim();
     final double amount = double.tryParse(cleanAmount) ?? 0.0;
     if (amount == 0.0) {
       if (kDebugMode) {
-        print("Invalid amount: $cleanAmount");
+        print("Error: Invalid amount: $cleanAmount");
       }
       return;
     }
+    // Prepare payment request
     final String datetime = DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
     final paymentRequest = PaymentRequestModel(
       title: selectedPaymentMethod,
@@ -96,21 +106,93 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
       datetime: datetime,
       notes: '',
     );
-    paymentBloc.createPayment(paymentRequest);
-    // Build #1.0.33 : updated amounts
-    tenderAmount += amount; // Accumulate tender amount
-    paidAmount = amount; // Set paid amount to current entered amount
-    if (paidAmount > balanceAmount) {
-      changeAmount = paidAmount - balanceAmount; // Calculate change if overpaid
-      balanceAmount = 0.0; // Balance becomes 0 if fully paid or overpaid
-    } else {
-      balanceAmount -= paidAmount; // Reduce balance by paid amount
-      changeAmount = 0.0; // No change if not overpaid
-    }
-    setState(() {}); // Update UI
+
     if (kDebugMode) {
       print("Creating payment with request: $paymentRequest");
     }
+
+    //Build #1.0.34: updated code for API response and listen to stream then show popup
+    paymentBloc.createPayment(paymentRequest);
+    StreamSubscription? subscription;
+    subscription = paymentBloc.createPaymentStream.listen((paymentResponse) {
+      if (kDebugMode) {
+        print("Payment stream response: $paymentResponse");
+      }
+      if (paymentResponse.data != null) {
+        if (paymentResponse.status == Status.ERROR) {
+          if (kDebugMode) {
+            print("Payment API Error: ${paymentResponse.message}");
+          }
+          subscription?.cancel();
+        } else if (paymentResponse.status == Status.COMPLETED) {
+          final paymentData = paymentResponse.data!;
+          if (paymentData.message == "Payment Created Successfully") {
+            paidAmount = amount; // Current payment amount
+
+            // Determine payment type
+            final bool isExactPayment = (amount == balanceAmount);
+            final bool isOverPayment = (amount > balanceAmount);
+            final bool isPartialPayment = (amount < balanceAmount);
+
+            if (isOverPayment) {
+              if (kDebugMode) {
+                print("#### isOverPayment");
+              }
+              changeAmount += amount - balanceAmount; // Calculate change
+              balanceAmount = 0.0; // Balance fully paid
+              tenderAmount += balanceAmount + amount;
+            } else if (isExactPayment) {
+              if (kDebugMode) {
+                print("#### isExactPayment");
+              }
+              tenderAmount += amount;
+              changeAmount = 0.0; // No change for exact payment
+              balanceAmount = 0.0; // Balance fully paid
+            } else if (isPartialPayment) {
+              if (kDebugMode) {
+                print("#### isPartialPayment");
+              }
+              tenderAmount += amount;
+              balanceAmount -= amount; // Reduce balance for partial payment
+              changeAmount = 0.0; // No change for partial payment
+            } else if (balanceAmount == 0 && amount > 0) {
+              if (kDebugMode) {
+                print("#### balanceAmount is 0");
+              }
+              // Case where balance is already 0, return the entire amount as change
+              changeAmount += amount; // Change is the current payment
+              tenderAmount += amount; // Reset tender to current payment
+            }
+
+            amountController.clear(); // Clear input textField
+            setState(() {}); // Update UI
+
+            if (kDebugMode) {
+              print("Payment successful - Paid: $paidAmount, Balance: $balanceAmount, Change: $changeAmount, Tender: $tenderAmount");
+            }
+
+            // Show appropriate dialog based on payment amount
+            if (isPartialPayment) {
+              if (kDebugMode) {
+                print("Showing partial payment dialog: Paid=$paidAmount, Remaining Balance=$balanceAmount");
+              }
+              _showPartialPaymentDialog(context, amount);
+            } else if (isExactPayment || isOverPayment || (balanceAmount == 0 && amount > 0)) {
+              if (kDebugMode) {
+                print("Showing payment dialog: Paid=$paidAmount, Change=$changeAmount");
+              }
+              _showPaymentDialog(
+                context,
+                amount,
+                changeAmount: changeAmount,
+                showChange: changeAmount > 0,
+              );
+            }
+          }
+          subscription?.cancel(); // Cancel subscription after handling
+        }
+      }
+    });
   }
 
   @override
@@ -455,12 +537,18 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
 
       setState(() {
         orderItems = items;
-        balanceAmount = total; // Update balance amount
+        balanceAmount = total;
+        tenderAmount = 0.0; // Reset for new order
+        changeAmount = 0.0; // Reset for new order
+        paidAmount = 0.0; // Reset for new order
       });
     } else {
       setState(() {
         orderItems.clear();
-        balanceAmount = 0.0; // Reset balance if no items
+        balanceAmount = 0.0;
+        tenderAmount = 0.0; // Reset
+        changeAmount = 0.0; // Reset
+        paidAmount = 0.0; // Reset
       });
     }
   }
@@ -737,6 +825,15 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
 
   Widget _buildOrderCalculation(String label, String amount,
       {bool isTotal = false, bool isDiscount = false}) {
+    // //Build #1.0.34: Update the amount based on the label
+    if (label == TextConstants.tenderAmount) {
+      amount = '\$${tenderAmount.toStringAsFixed(2)}';
+    } else if (label == TextConstants.change) {
+      amount = '\$${changeAmount.toStringAsFixed(2)}';
+    } else if (label == TextConstants.total) {
+      amount = '\$${getSubTotal().toStringAsFixed(2)}';
+    }
+
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 4.0),
       child: Padding(
@@ -913,6 +1010,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                                   // Here you would use your custom numpad widget
                                   // CustomNumpad(useCashLayout: true),
                                   // Build #1.0.29:  Update CustomNumPad code
+                                  // Update CustomNumPad usage in _buildPaymentSection
                                   CustomNumPad(
                                     isPayment: true,
                                     getPaidAmount: () => amountController.text,
@@ -931,8 +1029,19 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                                         setState(() {});
                                       }
                                     },
-                                    onPayPressed: () {
-                                      _callCreatePaymentAPI();
+                                    onPayPressed: () { //Build #1.0.34: updated code
+                                      String paidAmount = amountController.text;
+                                      String cleanAmount = paidAmount.replaceAll('\$', '').trim();
+                                      double amount = double.tryParse(cleanAmount) ?? 0.0;
+
+                                      if (amount == 0.0) {
+                                        if (kDebugMode) {
+                                          print("Invalid amount entered");
+                                        }
+                                        return;
+                                      }
+
+                                      _callCreatePaymentAPI(); // create payment api call
                                     },
                                   )
                                 ],
@@ -1161,6 +1270,93 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
           const SizedBox(width: 8),
           Text(label, style: TextStyle(color: Colors.grey, fontSize: 12)),
         ],
+      ),
+    );
+  }
+
+  //Build #1.0.34: moved Dialog's code from custom numpad
+  void _showPartialPaymentDialog(BuildContext context, double amount) {
+    if (kDebugMode) {
+      print("Showing Partial Payment Dialog with amount: $amount, Remaining Balance: $balanceAmount");
+    }
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => PaymentDialog(
+        status: PaymentStatus.partial,
+        mode: PaymentMode.cash,
+        amount: amount,
+        onVoid: () {
+          if (kDebugMode) {
+            print("Void partial payment");
+          }
+          Navigator.of(context).pop();
+        },
+        onNextPayment: () {
+          if (kDebugMode) {
+            print("Proceeding to next payment");
+          }
+          Navigator.of(context).pop();
+        },
+      ),
+    );
+  }
+
+  void _showPaymentDialog(
+      BuildContext context,
+      double amount, {
+        double? changeAmount,
+        required bool showChange,
+      }) {
+    if (kDebugMode) {
+      print("Showing Payment Dialog: amount=$amount, showChange=$showChange, changeAmount=$changeAmount");
+    }
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => PaymentDialog(
+        status: PaymentStatus.successful,
+        mode: PaymentMode.cash,
+        amount: amount,
+        changeAmount: showChange ? changeAmount : null,
+        onVoid: () {
+          if (kDebugMode) {
+            print("Void successful payment");
+          }
+          Navigator.of(context).pop();
+        },
+        onPrint: () {
+          if (kDebugMode) {
+            print("Print receipt for amount: $amount");
+          }
+          Navigator.of(context).pop();
+          _showReceiptDialog(context, amount);
+        },
+      ),
+    );
+  }
+
+  void _showReceiptDialog(BuildContext context, double amount) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => PaymentDialog(
+        status: PaymentStatus.receipt,
+        mode: PaymentMode.cash,
+        amount: amount,
+        onPrint: () {},
+        onEmail: (email) {},
+        onSMS: (phone) {},
+        onNoReceipt: () {
+          Navigator.of(context).pop();
+        },
+        onDone: () {
+          setState(() {
+            changeAmount = 0.0; // Reset change after returning
+            if (balanceAmount == 0) tenderAmount = 0.0; // Reset tender if order is fully paid
+          });
+          Navigator.of(context).pop();
+        },
       ),
     );
   }

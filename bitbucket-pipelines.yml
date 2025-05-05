@@ -6,6 +6,6 @@ pipelines:
           clone:
             enabled: false
           script:
-            - git clone --mirror https://x-token-auth:"$BITBUCKET_VARIABLE"@bitbucket.org/pinakapos/repoflutterpinakapos.git 
+            - git clone --mirror https://x-token-auth:"$BITBUCKET_VARIABLE"@https://bitbucket.org/pinakapos/repoflutterpinakapos.git 
             - cd repoflutterpinakapos.git ## cd followed by your Github repository Name
             - git push --mirror https://x-token-auth:"$GITHUB_VARIABLE"@https://github.com/raghu-Alekya/Pinaka-Pos.git

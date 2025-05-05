@@ -32,7 +32,10 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
   TextEditingController amountController = TextEditingController();
   final PaymentBloc paymentBloc = PaymentBloc(PaymentRepository()); // Added PaymentBloc
   int? userId; // Build #1.0.29: To store user ID
+  String? userDisplayName; // Build #1.0.29: To store user ID
+  String? userRole;
   int? orderId; // server id from order table
+  String? orderDateTime = "";
   int shiftId = 1; // Hardcoded as per requirement
   int vendorId = 1; // Hardcoded as per requirement
   String serviceType = "default"; // Hardcoded as per requirement
@@ -54,6 +57,8 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     if (userData != null && userData[AppDBConst.userId] != null) {
       setState(() {
         userId = userData[AppDBConst.userId] as int;
+        userDisplayName = userData[AppDBConst.userDisplayName];
+        userRole = userData[AppDBConst.userRole];
       });
     }
   }
@@ -270,7 +275,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                       radius: 18,
                       backgroundColor: Colors.deepPurple,
                       child: Text(
-                        "A", /// use initial for the login user
+                          (userDisplayName ?? "").substring(0,1),//"A", /// use initial for the login user
                         style: TextStyle(
                             color: Colors.white, fontWeight: FontWeight.bold),
                       ),
@@ -281,12 +286,12 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          'A Raghav Kumar', /// use login user display name
+                           userDisplayName ?? "",//'A Raghav Kumar', /// use login user display name
                           style: TextStyle(
                               fontWeight: FontWeight.w500, fontSize: 14),
                         ),
                         Text(
-                          'I am Cashier', /// use user role
+                          userRole ?? "Unknown" ,//'I am Cashier', /// use user role
                           style: TextStyle(color: Colors.grey, fontSize: 12),
                         ),
                       ],
@@ -366,7 +371,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                 Icon(Icons.calendar_month_rounded, size: 14),
                 const SizedBox(width: 4),
                 Text(
-                  'Sunday, 16 March 2025',
+                    DateFormat("EEE, MMM d' ${DateTime.now().year}'").format(DateTime.now()),//'Sunday, 16 March 2025',
                   style: TextStyle(color: Colors.grey[700]),
                 ),
               ],
@@ -378,7 +383,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                 Icon(Icons.access_time, size: 14),
                 const SizedBox(width: 4),
                 Text(
-                  '11:41 A.M',
+                  DateFormat('hh:mm a').format(DateTime.now()),//'11:41 A.M',
                   style: TextStyle(
                       color: Colors.grey[700], fontWeight: FontWeight.bold),
                     ),
@@ -512,8 +517,9 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
       if (orderData.isNotEmpty) {
         setState(() {
           orderId = orderData.first[AppDBConst.orderServerId] as int? ?? 0;
+          orderDateTime = "${orderData.first[AppDBConst.orderDate]} ${orderData.first[AppDBConst.orderTime]}" ;
           if (kDebugMode) {
-            print("Fetched orderServerId: $orderId for activeOrderId: ${orderHelper.activeOrderId}");
+            print("Fetched orderServerId: $orderId for activeOrderId: ${orderHelper.activeOrderId}, Time: $orderDateTime");
           }
         });
       } else {

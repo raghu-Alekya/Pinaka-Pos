@@ -39,6 +39,7 @@ class OrderLineItemResponse {
   final int productId;
   final int quantity;
   final num price;
+  final String date_created;
 
   OrderLineItemResponse({
     required this.id,
@@ -46,6 +47,7 @@ class OrderLineItemResponse {
     required this.productId,
     required this.quantity,
     required this.price,
+    required this.date_created,
   });
 
   factory OrderLineItemResponse.fromJson(Map<String, dynamic> json) {
@@ -55,6 +57,7 @@ class OrderLineItemResponse {
       productId: json['product_id'] ?? 0,
       quantity: json['quantity'] ?? 0,
       price: json['price'] ?? 0,
+      date_created: json['date_created'] ?? 0,
     );
   }
 }

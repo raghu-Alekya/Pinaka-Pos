@@ -1,7 +1,10 @@
 
+memory: 3072  # 3GB memory assigned to docker service
+
 pipelines:
     default:
       - step:
+         size: 2x
           name: Sync GitHub Mirror
           image: alpine/git:latest
           clone:

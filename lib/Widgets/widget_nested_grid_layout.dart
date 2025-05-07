@@ -744,7 +744,12 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pinaka_pos/Widgets/widget_variants_dialog.dart';
+import '../Blocs/Orders/order_bloc.dart';
+import '../Blocs/Search/product_search_bloc.dart';
 import '../Constants/text.dart';
+import '../Database/order_panel_db_helper.dart';
+import '../Helper/api_response.dart';
+import '../Models/Search/product_variation_model.dart';
 import '../Utilities/shimmer_effect.dart';
 import 'package:reorderable_grid_view/reorderable_grid_view.dart';
 
@@ -758,10 +763,13 @@ class NestedGridWidget extends StatelessWidget {
   final List<int?> reorderedIndices;
   final VoidCallback? onAddButtonPressed;
   final VoidCallback? onBackButtonPressed; // Callback for "Back to Categories"
-  final Function(int) onItemTapped;
+  final Function(int, {bool variantAdded}) onItemTapped; // Update the callback to accept a named parameter
   final Function(int, int) onReorder;
   final Function(int) onDeleteItem;
   final Function() onCancelReorder;
+  final ProductBloc? productBloc; //Build 1.1.36
+  final OrderBloc? orderBloc;
+  final OrderHelper? orderHelper;
 
   const NestedGridWidget({
     super.key,
@@ -778,6 +786,9 @@ class NestedGridWidget extends StatelessWidget {
     required this.onReorder,
     required this.onDeleteItem,
     required this.onCancelReorder,
+    this.productBloc,
+    this.orderBloc,
+    this.orderHelper,
   });
 
   Widget _buildImage(String imagePath) {
@@ -900,34 +911,94 @@ class NestedGridWidget extends StatelessWidget {
                 child: Stack(
                   clipBehavior: Clip.none,
                   children: [
-                    GestureDetector(
-                      onTap: () {
-                          // Show variants dialog when item is tapped
+                    GestureDetector( //Build 1.1.36: updated code for variations dialog conditions
+                      onTap: () async {
+                        if (productBloc == null) {
+                          if (kDebugMode) {
+                            print("NestedGridWidget - productBloc is null, cannot fetch variations");
+                          }
+                          onItemTapped(index);
+                          return;
+                        }
+
+                        final productId = item["fast_key_item_id"];
+                        if (kDebugMode) {
+                          print("NestedGridWidget - Product tapped: ${item['fast_key_item_name']}, ID: $productId");
+                        }
+
+                        // Fetch variations for the product
+                        productBloc!.fetchProductVariations(productId);
+
+                        // Show dialog and listen to the variation stream
+                        if (context.mounted) {
                           showDialog(
                             context: context,
-                            builder: (context) => VariantsDialog(
-                              title: item["fast_key_item_name"],
-                              variants: [
-                                {
-                                  "name": "${item["fast_key_item_name"]}" ,
-                                  "price": "4.99",
-                                  "image": item["fast_key_item_image"],
-                                },
-                                {
-                                  "name":  "${item["fast_key_item_name"]}",
-                                  "price": "6.99",
-                                  "image": item["fast_key_item_image"],
-                                },
-                                {
-                                  "name":  "${item["fast_key_item_name"]}",
-                                  "price": "8.99",
-                                  "image": item["fast_key_item_image"],
-                                },
-                              ],
+                            builder: (context) => StreamBuilder<APIResponse<List<ProductVariation>>>(
+                              stream: productBloc!.variationStream,
+                              builder: (context, snapshot) {
+                                if (!snapshot.hasData) {
+                                  if (kDebugMode) {
+                                    print("NestedGridWidget - No data in stream, waiting...");
+                                  }
+                                  return const Center(child: CircularProgressIndicator());
+                                }
+
+                                final response = snapshot.data!;
+                                if (response.status == Status.LOADING) {
+                                  return const Center(child: CircularProgressIndicator());
+                                } else if (response.status == Status.COMPLETED) {
+                                  final variations = response.data!;
+                                  if (variations.isNotEmpty) {
+                                    if (kDebugMode) {
+                                      print("NestedGridWidget - Variations found: ${variations.length}");
+                                    }
+                                    return VariantsDialog(
+                                      title: item["fast_key_item_name"],
+                                      variations: variations
+                                          .map((v) => {
+                                        "id": v.id,
+                                        "name": v.name,
+                                        "price": v.regularPrice,
+                                        "image": v.image.src,
+                                      }).toList(),
+                                      onAddVariant: (variant, quantity) {
+                                        if (kDebugMode) {
+                                          print("NestedGridWidget - Adding variant to order: ID=${variant['id']}, Name=${variant['name']}, Quantity=$quantity");
+                                        }
+                                        orderHelper?.addItemToOrder(
+                                          variant["name"],
+                                          variant["image"],
+                                          double.tryParse(variant["price"].toString()) ?? 0.0,
+                                          quantity,
+                                          'SKU${variant["name"]}',
+                                          onItemAdded: () {
+                                            Navigator.pop(context);
+                                            onItemTapped(index, variantAdded: true);
+                                          },
+                                        );
+                                      },
+                                    );
+                                  } else {
+                                    if (kDebugMode) {
+                                      print("NestedGridWidget - No variations found, proceeding with product");
+                                    }
+                                    Navigator.pop(context);
+                                    onItemTapped(index);
+                                    return const Center(child: CircularProgressIndicator());
+                                  }
+                                } else {
+                                  if (kDebugMode) {
+                                    print("NestedGridWidget - Error fetching variations: ${response.message}");
+                                  }
+                                  Navigator.pop(context);
+                                  onItemTapped(index);
+                                  return const Center(child: CircularProgressIndicator());
+                                }
+                              },
                             ),
                           );
-                        onItemTapped(index);
-                        },
+                        }
+                      },
                       child: Card(
                         color: Colors.white,
                         elevation: 4,

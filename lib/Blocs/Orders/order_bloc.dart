@@ -72,7 +72,7 @@ class OrderBloc { // Build #1.0.25 - added by naveen
   }
 
   // 2. Update Order Products
-  Future<void> updateOrderProducts({required int orderId, required List<OrderLineItem> lineItems}) async {
+  Future<void> updateOrderProducts({required int orderId, required int dbOrderId, required List<OrderLineItem> lineItems}) async {
     if (_updateOrderController.isClosed) return;
 
     updateOrderSink.add(APIResponse.loading(TextConstants.loading));
@@ -94,6 +94,25 @@ class OrderBloc { // Build #1.0.25 - added by naveen
         print("OrderBloc - New total: ${response.total}");
         print("OrderBloc - Line items count: ${response.lineItems.length}");
       }
+       //Build 1.1.36: working on updating order items in db getting issue.....
+      // OrderHelper orderHelper = OrderHelper();
+      // // Clear existing items for this order
+      // await orderHelper.clearOrderItems(dbOrderId);
+      //
+      // // Add updated items from the API response
+      // for (var lineItem in response.lineItems) {
+      //   if (kDebugMode) {
+      //     print("### Debug 124");
+      //   }
+      //
+      //   await orderHelper.addItemToOrder(
+      //     lineItem.name,
+      //     lineItem.image['src'] ?? '', // Fixed: Access 'src' key from image Map
+      //     double.parse(lineItem.price.toString()), // Ensure price is parsed correctly
+      //     lineItem.quantity,
+      //     lineItem.sku,
+      //   );
+     // }
 
       updateOrderSink.add(APIResponse.completed(response));
     } catch (e) {

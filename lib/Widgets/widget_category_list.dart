@@ -900,9 +900,10 @@ class CategoryList extends StatelessWidget {
   final int? editingIndex;
   final VoidCallback? onAddButtonPressed;
   final Function(int) onCategoryTapped;
-  final Function(int, int) onReorder;
-  final Function(int) onEditButtonPressed;
-  final Function() onDismissEditMode;
+  final Function(int, int)? onReorder;
+  final Function(int)? onEditButtonPressed; //Build 1.1.36
+  final Function(int)? onReorderStarted;
+  final Function()? onDismissEditMode;
 
   const CategoryList({
     super.key,
@@ -914,9 +915,9 @@ class CategoryList extends StatelessWidget {
     this.editingIndex,
     this.onAddButtonPressed,
     required this.onCategoryTapped,
-    required this.onReorder,
-    required this.onEditButtonPressed,
-    required this.onDismissEditMode,
+    this.onReorder,
+    this.onEditButtonPressed,
+    this.onDismissEditMode, this.onReorderStarted,
   });
 
   Widget _buildImage(String imagePath) {
@@ -951,162 +952,357 @@ class CategoryList extends StatelessWidget {
     return contentWidth > screenWidth;
   }
 
+//Build 1.1.36: Updated The horizontal list with reOrder functionality
   Widget _buildHorizontalList(BuildContext context, ScrollController scrollController) {
     var size = MediaQuery.of(context).size;
-    return Container(
-      height: 150,
-      margin: const EdgeInsets.only(top: 5),
-      decoration: BoxDecoration(
-        color: Colors.white, // Background color for the whole list view
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 5,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // Main scrollable content
-          Row(
-            children: [
-              // Add some padding on the left to make room for the left navigation button
-              const SizedBox(width: 30),
+    return GestureDetector(
+      onTap: () {
+        if (kDebugMode) {
+          print("### CategoryList: GestureDetector onTap triggered for dismissing edit mode");
+        }
+        onDismissEditMode!(); // Dismiss edit mode
+      },
+      child: Container(
+        height: 150,
+        margin: const EdgeInsets.only(top: 5),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 5,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Row(
+              children: [
+                const SizedBox(width: 30),
+                Expanded(
+                    child: SizedBox(
+                      height: 110,
+                      child: ReorderableListView(
+                        scrollController: scrollController,
+                        scrollDirection: Axis.horizontal,
+                        onReorderStart: (index) {
+                          if (kDebugMode) {
+                            print("### CategoryList: Reorder started at index: $index");
+                          }
+                          onReorderStarted?.call(index); // Notify reorder start
+                        },
+                        onReorder: (oldIndex, newIndex) async {
+                          if (kDebugMode) {
+                            print("### CategoryList: Reordering from $oldIndex to $newIndex");
+                          }
+                          if (newIndex > oldIndex) newIndex--; // Adjust newIndex for ReorderableListView
+                          onReorder!(oldIndex, newIndex); // Call provided reorder callback
+                          // Update editingIndex to show edit button only on the reordered item
+                        //  onReorderStarted?.call(newIndex);
+                        },
+                        proxyDecorator: (child, index, animation) => Material(
+                          elevation: 0,
+                          color: Colors.transparent,
+                          child: child,
+                        ),
+                        children: List.generate(categories.length, (index) {
+                          final category = categories[index];
+                          bool isSelected = selectedIndex == index;
+                          bool showEditButton = editingIndex == index;
 
-              Expanded(
-                child: SizedBox(
-                  height: 110,
-                  child: ReorderableListView(
-                    scrollController: scrollController,
-                    scrollDirection: Axis.horizontal,
-                    onReorder: onReorder,
-                    children: List.generate(categories.length, (index) {
-                      final category = categories[index];
-                      bool isSelected = selectedIndex == index;
-                      bool showEditButton = editingIndex == index;
-
-                      return GestureDetector(
-                        key: ValueKey('${category['title']}_$index'),
-                        onTap: () => onCategoryTapped(index),
-                        onLongPress: () => onEditButtonPressed(index),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 10.0),
-                          child: AnimatedContainer(
-                            width: 90,
-                            duration: const Duration(milliseconds: 300),
-                            padding: const EdgeInsets.fromLTRB(8, 0, 8, 0),
-                            decoration: BoxDecoration(
-                              color: isSelected ? Color(0xFFFFE1E1) : Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: showEditButton ? Colors.blueAccent : isSelected ? Colors.red : Colors.black12,
-                                width: showEditButton ? 2 : 1,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                Positioned(
-                                  top: 0,
-                                  right: -6,
-                                  child: AnimatedOpacity(
-                                    duration: const Duration(milliseconds: 300),
-                                    opacity: showEditButton ? 1.0 : 0.0,
-                                    child: GestureDetector(
-                                      onTap: () => onEditButtonPressed(index),
-                                      child: Container(
-                                        padding: const EdgeInsets.all(4),
-                                        decoration: const BoxDecoration(
-                                          color: Colors.transparent,
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: const Icon(Icons.edit, size: 14, color: Colors.blueAccent),
-                                      ),
-                                    ),
+                          return GestureDetector(
+                            key: ValueKey('${category['title']}_$index'),
+                            onTap: () {
+                              if (editingIndex != null) {
+                                if (kDebugMode) {
+                                  print("### CategoryList: Tap ignored due to active edit mode at index: $editingIndex");
+                                }
+                                onDismissEditMode!(); // Dismiss edit mode instead of selecting
+                                return;
+                              }
+                              if (kDebugMode) {
+                                print("### CategoryList: Category tapped at index: $index");
+                              }
+                              onCategoryTapped(index); // Trigger category selection
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 10.0),
+                              child: AnimatedContainer(
+                                width: 90,
+                                duration: const Duration(milliseconds: 300),
+                                padding: const EdgeInsets.fromLTRB(8, 0, 8, 0),
+                                decoration: BoxDecoration(
+                                  color: isSelected ? const Color(0xFFFFE1E1) : Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: showEditButton ? Colors.blueAccent : isSelected ? Colors.red : Colors.black12,
+                                    width: showEditButton ? 2 : 1,
                                   ),
-                                ),
-                                Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    _buildImage(category['image']),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      category['title'],
-                                      maxLines: 1,
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        overflow: TextOverflow.ellipsis,
-                                        fontWeight: FontWeight.bold,
-                                        fontVariations: const <FontVariation>[FontVariation('wght', 900.0)],
-                                        color: Colors.black87,
-                                      ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.1),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
                                     ),
-                                    // Text(
-                                    //   category['itemCount'].toString(),
-                                    //   style: TextStyle(
-                                    //     color: isSelected ? Colors.white : Colors.grey,
-                                    //   ),
-                                    // ),
                                   ],
                                 ),
-                              ],
+                                child: Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    Positioned(
+                                      top: 0,
+                                      right: -6,
+                                      child: AnimatedOpacity(
+                                        duration: const Duration(milliseconds: 300),
+                                        opacity: showEditButton ? 1.0 : 0.0,
+                                        child: GestureDetector(
+                                          onTap: () {
+                                            if (kDebugMode) {
+                                              print("### CategoryList: Edit button pressed at index: $index");
+                                            }
+                                            onEditButtonPressed!(index); // Trigger edit dialog
+                                          },
+                                          child: Container(
+                                            padding: const EdgeInsets.all(4),
+                                            decoration: const BoxDecoration(
+                                              color: Colors.transparent,
+                                              shape: BoxShape.circle,
+                                            ),
+                                            child: const Icon(Icons.edit, size: 14, color: Colors.blueAccent),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        _buildImage(category['image']),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          category['title'],
+                                          maxLines: 1,
+                                          style: const TextStyle(
+                                            fontSize: 16,
+                                            overflow: TextOverflow.ellipsis,
+                                            fontWeight: FontWeight.bold,
+                                            fontVariations: [FontVariation('wght', 900.0)],
+                                            color: Colors.black87,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        }),
+                      ),
+                    ),
+                ),
+                    const SizedBox(width: 30),
+                    if (isAddButtonEnabled)
+                _buildAddButton(onAddButtonPressed ?? () {}),
+              ],
+            ),
+            // Left navigation button
+            Positioned(
+              left: 5,
+              child: _buildCircularNavButton(Icons.arrow_back_ios, () {
+                if (kDebugMode) {
+                  print("### CategoryList: Left navigation button pressed");
+                }
+                scrollController.animateTo(
+                  scrollController.offset - size.width * 0.5,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                );
+              }),
+            ),
+            // Right navigation button
+            Positioned(
+              right: isAddButtonEnabled ? 105 : 5,
+              child: _buildCircularNavButton(Icons.arrow_forward_ios, () {
+                if (kDebugMode) {
+                  print("### CategoryList: Right navigation button pressed");
+                }
+                scrollController.animateTo(
+                  scrollController.offset + size.width * 0.5,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                );
+              }),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+
+  Widget _buildVerticalList(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        if (kDebugMode) {
+          print("### CategoryList: Vertical GestureDetector onTap triggered for dismissing edit mode");
+        }
+        onDismissEditMode!(); // Dismiss edit mode
+      },
+      child: Column(
+        children: [
+          SizedBox(
+            height: MediaQuery.of(context).size.height * 0.7,
+            width: MediaQuery.of(context).size.width * 0.35,
+            child: ReorderableListView(
+              scrollDirection: Axis.vertical,
+              onReorderStart: (index) {
+                if (kDebugMode) {
+                  print("### CategoryList: Vertical reorder started at index: $index");
+                }
+                onReorderStarted?.call(index); // Notify reorder start
+              },
+              onReorder: (oldIndex, newIndex) async {
+                if (kDebugMode) {
+                  print("### CategoryList: Vertical reordering from $oldIndex to $newIndex");
+                }
+                if (newIndex > oldIndex) newIndex--; // Adjust newIndex for ReorderableListView
+                onReorder!(oldIndex, newIndex); // Call reorder callback
+                onReorderStarted?.call(newIndex); // Update editingIndex for reordered item
+              },
+              proxyDecorator: (child, index, animation) => Material(
+                elevation: 0,
+                color: Colors.transparent,
+                child: child,
+              ),
+              children: List.generate(categories.length, (index) {
+                final category = categories[index];
+                bool isSelected = selectedIndex == index;
+                bool showEditButton = editingIndex == index;
+
+                return GestureDetector(
+                  key: ValueKey('${category['title']}_$index'),
+                  onTap: () {
+                    if (editingIndex != null) {
+                      if (kDebugMode) {
+                        print("### CategoryList: Vertical tap ignored due to active edit mode at index: $editingIndex");
+                      }
+                      onDismissEditMode!(); // Dismiss edit mode instead of selecting
+                      return;
+                    }
+                    if (kDebugMode) {
+                      print("### CategoryList: Vertical category tapped at index: $index");
+                    }
+                    onCategoryTapped(index); // Trigger category selection
+                  },
+                  onLongPress: () {
+                    if (kDebugMode) {
+                      print("### CategoryList: Vertical long press at index: $index");
+                    }
+                    onEditButtonPressed!(index); // Show edit button on long press
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 5.0),
+                    child: AnimatedContainer(
+                      width: 120,
+                      duration: const Duration(milliseconds: 300),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: isSelected ? Colors.red : Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: showEditButton ? Colors.blueAccent : Colors.black12,
+                          width: showEditButton ? 2 : 1,
+                        ),
+                      ),
+                      child: Stack(
+                        children: [
+                          Positioned(
+                            top: 0,
+                            right: 0,
+                            child: AnimatedOpacity(
+                              duration: const Duration(milliseconds: 300),
+                              opacity: showEditButton ? 1.0 : 0.0,
+                              child: GestureDetector(
+                                onTap: () {
+                                  if (kDebugMode) {
+                                    print("### CategoryList: Vertical edit button pressed at index: $index");
+                                  }
+                                  onEditButtonPressed!(index); // Trigger edit dialog
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.transparent,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.edit, size: 14, color: Colors.blueAccent),
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                      );
-                    }),
+                          Row(
+                            children: [
+                              _buildImage(category['image']),
+                              const SizedBox(width: 8),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    category['title'],
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: isSelected ? Colors.white : Colors.black,
+                                    ),
+                                  ),
+                                  Text(
+                                    category['itemCount'].toString(),
+                                    style: TextStyle(
+                                      color: isSelected ? Colors.white : Colors.grey,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
+                );
+              }),
+            ),
+          ),
+          const SizedBox(height: 50),
+          Container(
+            width: MediaQuery.of(context).size.width * 0.35,
+            padding: const EdgeInsets.all(5),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.black12),
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: SizedBox(
+              width: double.infinity,
+              child: IconButton(
+                icon: const Icon(Icons.add, color: Colors.redAccent),
+                onPressed: () {
+                  if (kDebugMode) {
+                    print("### CategoryList: Vertical add button pressed");
+                  }
+                  onAddButtonPressed?.call();
+                },
               ),
-
-              // Add some padding on the right to make room for the right navigation button and add button
-              const SizedBox(width: 30),
-
-              if (isAddButtonEnabled)
-                _buildAddButton(onAddButtonPressed ?? () {}),
-            ],
-          ),
-
-          // Positioned navigation buttons that overlay the list edges
-          Positioned(
-            left: 5,
-            child: _buildCircularNavButton(Icons.arrow_back_ios, () {
-              scrollController
-                  .animateTo(
-                scrollController.offset - size.width * 0.5,
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeInOut,
-              );
-            }),
-          ),
-
-          Positioned(
-            right: isAddButtonEnabled ? 105 : 5, // Position to leave room for add button
-            child: _buildCircularNavButton(Icons.arrow_forward_ios, () {
-              scrollController.animateTo(
-                scrollController.offset + size.width * 0.5,
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeInOut,
-              );
-            }),
+            ),
           ),
         ],
       ),
     );
   }
 
-// Updated circular navigation button
   Widget _buildCircularNavButton(IconData icon, VoidCallback onPressed) {
     return Container(
       width: 50,
@@ -1131,11 +1327,10 @@ class CategoryList extends StatelessWidget {
     );
   }
 
-// Updated add button to match list item width
   Widget _buildAddButton(VoidCallback onPressed) {
     return Container(
       height: 110,
-      width: 90, // Same width as list items
+      width: 90,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -1150,116 +1345,9 @@ class CategoryList extends StatelessWidget {
         ],
       ),
       child: IconButton(
-        icon: const Icon(Icons.add, color: Colors.redAccent, size: 28,),
+        icon: const Icon(Icons.add, color: Colors.redAccent, size: 28),
         onPressed: onPressed,
       ),
-    );
-  }
-
-
-  Widget _buildVerticalList(BuildContext context) {
-    return Column(
-      children: [
-        SizedBox(
-          height: MediaQuery.of(context).size.height * 0.7,
-          width: MediaQuery.of(context).size.width * 0.35,
-          child: ReorderableListView(
-            scrollDirection: Axis.vertical,
-            onReorder: onReorder,
-            children: List.generate(categories.length, (index) {
-              final category = categories[index];
-              bool isSelected = selectedIndex == index;
-              bool showEditButton = editingIndex == index;
-
-              return GestureDetector(
-                key: ValueKey('${category['title']}_$index'),
-                onTap: () => onCategoryTapped(index),
-                onLongPress: () => onEditButtonPressed(index),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 5.0),
-                  child: AnimatedContainer(
-                    width: 120,
-                    duration: const Duration(milliseconds: 300),
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: isSelected ? Colors.red : Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: showEditButton ? Colors.blueAccent : Colors.black12,
-                        width: showEditButton ? 2 : 1,
-                      ),
-                    ),
-                    child: Stack(
-                      children: [
-                        Positioned(
-                          top: 0,
-                          right: 0,
-                          child: AnimatedOpacity(
-                            duration: const Duration(milliseconds: 300),
-                            opacity: showEditButton ? 1.0 : 0.0,
-                            child: GestureDetector(
-                              onTap: () => onEditButtonPressed(index),
-                              child: Container(
-                                padding: const EdgeInsets.all(4),
-                                decoration: const BoxDecoration(
-                                  color: Colors.transparent,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(Icons.edit, size: 14, color: Colors.blueAccent),
-                              ),
-                            ),
-                          ),
-                        ),
-                        Row(
-                          children: [
-                            _buildImage(category['image']),
-                            const SizedBox(width: 8),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  category['title'],
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: isSelected ? Colors.white : Colors.black,
-                                  ),
-                                ),
-                                Text(
-                                  category['itemCount'].toString(),
-                                  style: TextStyle(
-                                    color: isSelected ? Colors.white : Colors.grey,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            }),
-          ),
-        ),
-        const SizedBox(height: 50),
-        Container(
-          width: MediaQuery.of(context).size.width * 0.35,
-          padding: const EdgeInsets.all(5),
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.black12),
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: SizedBox(
-            width: double.infinity,
-            child: IconButton(
-              icon: const Icon(Icons.add, color: Colors.redAccent),
-              onPressed: onAddButtonPressed,
-            ),
-          ),
-        ),
-      ],
     );
   }
 

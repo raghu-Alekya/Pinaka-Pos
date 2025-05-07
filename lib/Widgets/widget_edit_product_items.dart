@@ -132,7 +132,8 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                           ),
                           const SizedBox(height: 10),
                           Text(
-                            "Total: \$${(quantity * widget.orderItem[AppDBConst.itemCount] * widget.orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}",
+                          //  "Total: \$${(quantity * widget.orderItem[AppDBConst.itemCount] * widget.orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}",
+                            "Total: \$${(quantity * widget.orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}", //Build 1.1.36
                             style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,

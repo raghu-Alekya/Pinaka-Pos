@@ -440,6 +440,10 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
           fastKeyTabIdNotifier.value = _fastKeyTabId;
         }
       }
+      _editingCategoryIndex = null; //Build 1.1.36: Clear edit mode
+      if (kDebugMode) {
+        print("### FastKeyScreen: Updated UI after tab deletion, new tab count: ${fastKeyTabs.length}");
+      }
     });
 
     await _fastKeyBloc.deleteFastKeyStream.firstWhere((response) => response.status == Status.COMPLETED || response.status == Status.ERROR).then((response) async {
@@ -525,7 +529,12 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
     await fastKeyDBHelper.updateFastKeyTabCount(_fastKeyTabId!, fastKeyProductItems.length);
 
     if (mounted) {
-      setState(() {});
+      setState(() {
+        _editingCategoryIndex = null; //Build 1.1.36: Reset editing index to prevent edit button persistence
+        if (kDebugMode) {
+          print("### FastKeyScreen: Cleared _editingCategoryIndex after item deletion");
+        }
+      });
     }
   }
 
@@ -1212,20 +1221,27 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                         editingIndex: _editingCategoryIndex,
                         onAddButtonPressed: () => _showCategoryDialog(context: context),
                         onCategoryTapped: (index) async {
+                          if (kDebugMode) {
+                            print("### FastKeyScreen: onCategoryTapped called for index: $index, ID : ${fastKeyTabs[index].fastkeyServerId}");
+                          }
                           setState(() {
                             if (_editingCategoryIndex == index) {
-                              _editingCategoryIndex = null;
+                              if (kDebugMode) {
+                                print("### FastKeyScreen: Dismissing edit mode for index: $index");
+                              }
+                              _editingCategoryIndex = null; // Dismiss edit mode if tapping the same index
                             } else {
-                              _selectedCategoryIndex = index;
+                              _selectedCategoryIndex = index; // Select new category
+                              _editingCategoryIndex = null; // Ensure edit mode is cleared
                             }
                           });
-                          if (_editingCategoryIndex == null) {
-                            await fastKeyDBHelper.saveActiveFastKeyTab(fastKeyTabs[index].fastkeyServerId);
-                            fastKeyTabIdNotifier.value = fastKeyTabs[index].fastkeyServerId;
-                          }
+                          await fastKeyDBHelper.saveActiveFastKeyTab(fastKeyTabs[index].fastkeyServerId);
+                          fastKeyTabIdNotifier.value = fastKeyTabs[index].fastkeyServerId;
                         },
                         onReorder: (oldIndex, newIndex) async {
-                          if (newIndex > oldIndex) newIndex--;
+                          if (kDebugMode) {
+                            print("### FastKeyScreen: onReorder called from $oldIndex to $newIndex");
+                          }
                           setState(() {
                             final item = fastKeyTabs.removeAt(oldIndex);
                             fastKeyTabs.insert(newIndex, item);
@@ -1236,17 +1252,41 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                             } else if (oldIndex > _selectedCategoryIndex! && newIndex <= _selectedCategoryIndex!) {
                               _selectedCategoryIndex = _selectedCategoryIndex! + 1;
                             }
+                            //Build 1.1.36: Update editingIndex to the new position
+                            if (_editingCategoryIndex == oldIndex) {
+                              _editingCategoryIndex = newIndex;
+                            }
+                          });
+                          // Update indices in the database
+                          for (int i = 0; i < fastKeyTabs.length; i++) {
+                            await fastKeyDBHelper.updateFastKeyTab(fastKeyTabs[i].fastkeyServerId, {
+                              AppDBConst.fastKeyTabIndex: i.toString(),
+                            });
+                          }
+                        },
+                        onReorderStarted: (index) {
+                          if (kDebugMode) {
+                            print("### FastKeyScreen: onReorderStarted called for index: $index");
+                          }
+                          setState(() {
+                            _editingCategoryIndex = index; // Set editing index for the item being reordered
                           });
                         },
                         onEditButtonPressed: (index) {
+                          if (kDebugMode) {
+                            print("### FastKeyScreen: onEditButtonPressed called for index: $index");
+                          }
                           setState(() {
-                            _editingCategoryIndex = index;
+                            _editingCategoryIndex = index; // Set editing index for the item
                           });
                           _showCategoryDialog(context: context, index: index);
                         },
                         onDismissEditMode: () {
+                          if (kDebugMode) {
+                            print("### FastKeyScreen: onDismissEditMode called");
+                          }
                           setState(() {
-                            _editingCategoryIndex = null;
+                            _editingCategoryIndex = null; // Clear editing index
                           });
                         },
                       ),
@@ -1261,8 +1301,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                             selectedItemIndex: selectedItemIndex,
                             reorderedIndices: reorderedIndices,
                             onAddButtonPressed: () => _showAddItemDialog(),
-                            onItemTapped: (index) => _onItemSelected(index, showAddButton),
-                            onReorder: (oldIndex, newIndex) {
+                            onItemTapped: (index, {bool variantAdded = false}) => _onItemSelected(index, showAddButton),                            onReorder: (oldIndex, newIndex) {
                               if (oldIndex == 0 || newIndex == 0) return;
                               final adjustedOldIndex = oldIndex - 1;
                               final adjustedNewIndex = newIndex - 1;

@@ -1,15 +1,15 @@
 
-memory: 3072  # 3GB memory assigned to docker service
+ ##memory: 3072  # 3GB memory assigned to docker service
 
-pipelines:
+ pipelines:
     default:
       - step:
          size: 2x
-          name: Sync GitHub Mirror
-          image: alpine/git:latest
-          clone:
+         name: Sync GitHub Mirror
+         image: alpine/git:latest
+         clone:
             enabled: false
-          script:
+         script:
             - git clone --mirror https://x-token-auth:"$BITBUCKET_VARIABLE"@https://bitbucket.org/pinakapos/repoflutterpinakapos.git 
             - cd ecommerce_app.git ## cd followed by your Github repository Name.
             - git push --mirror https://x-token-auth:"$GITHUB_VARIABLE"@https://github.com/raghu-Alekya/Pinaka-Pos.git

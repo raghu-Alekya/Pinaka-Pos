@@ -17,6 +17,7 @@ class CustomNumPad extends StatelessWidget {
   final bool isPayment;
   final String Function()? getPaidAmount; // Build #1.0.29: Change to a callback
   final double? balanceAmount; // Build #1.0.29 : Added to compare with paid amount
+  final bool? isLoading; // Add isLoading
 
   const CustomNumPad({
     super.key,
@@ -30,6 +31,7 @@ class CustomNumPad extends StatelessWidget {
     this.isPayment = false,
     this.getPaidAmount,
     this.balanceAmount,
+    this.isLoading, // Require isLoading
   });
 
   @override
@@ -155,7 +157,16 @@ class CustomNumPad extends StatelessWidget {
             borderRadius: BorderRadius.circular(8),
           ),
         ),
-        child: const Text(
+        child: isLoading! //Build 1.1.36: loader for PAY button
+            ? const SizedBox(
+          height: 40,
+          width: 40,
+          child: CircularProgressIndicator(
+            color: Colors.white,
+            strokeWidth: 2,
+          ),
+        )
+            : const Text(
           'PAY',
           style: TextStyle(
             fontSize: 20,

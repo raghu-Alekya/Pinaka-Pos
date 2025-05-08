@@ -174,6 +174,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../Blocs/Search/product_search_bloc.dart';
+import '../../Repositories/Search/product_search_repository.dart';
 import '../../Widgets/widget_category_list.dart';
 import '../../Widgets/widget_nested_grid_layout.dart';
 import '../../Widgets/widget_order_panel.dart';
@@ -212,6 +214,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
   bool isLoadingNestedContent = false; //Build #1.0.34: added for shimmer effect issue
   final ValueNotifier<int?> fastKeyTabIdNotifier = ValueNotifier<int?>(null);
   final OrderHelper orderHelper = OrderHelper();
+  final productBloc = ProductBloc(ProductRepository());
 
   late CategoryBloc _categoryBloc;
   List<CategoryModel> categories = []; // Build #1.0.27 : Top-level categories only
@@ -435,8 +438,8 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
     }
   }
 
-  // Update the products loading to not add to navigation path
-  void _onItemSelected(int index) async {
+  //Build 1.1.36: Update the products loading to not add to navigation path
+  void _onItemSelected(int index, {bool variantAdded = false}) {
     if (index == 0 && showBackButton) {
       _onBackToCategories();
       return;
@@ -445,17 +448,24 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
     final adjustedIndex = index - (showBackButton ? 1 : 0);
     if (adjustedIndex < 0 || adjustedIndex >= categoryProducts.length) return;
 
-    final selectedProduct = categoryProducts[adjustedIndex];
-
-    // Don't modify navigation path for products
-    await orderHelper.addItemToOrder(
-      selectedProduct["fast_key_item_name"],
-      selectedProduct["fast_key_item_image"],
-      double.tryParse(selectedProduct["fast_key_item_price"].toString()) ?? 0.0,
-      1,
-      'SKU${selectedProduct["fast_key_item_name"]}',
-      onItemAdded: _refreshOrderList,
-    );
+    if (!variantAdded) { //Build 1.1.36
+      // Only add the base product if no variant was added
+      final selectedProduct = categoryProducts[adjustedIndex];
+      if (kDebugMode) {
+        print("CategoriesScreen - Adding base product to order: ${selectedProduct['fast_key_item_name']}");
+      }
+      orderHelper.addItemToOrder(
+        selectedProduct["fast_key_item_name"],
+        selectedProduct["fast_key_item_image"],
+        double.tryParse(selectedProduct["fast_key_item_price"].toString()) ?? 0.0,
+        1,
+        'SKU${selectedProduct["fast_key_item_name"]}',
+        onItemAdded: _refreshOrderList,
+      );
+    } else {
+      // If a variant was added, just refresh the UI
+      _refreshOrderList();
+    }
   }
 
   void _onNavigationPathTapped(int index) { //Build #1.0.34: fixed code for navigation path issues
@@ -589,11 +599,22 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
                         editingIndex: _editingCategoryIndex,
                         onAddButtonPressed: null,
                         onCategoryTapped: _onCategoryTapped,
-                        onReorder: (oldIndex, newIndex) {
-                          if (newIndex > oldIndex) newIndex--;
+                        // In CategoriesScreen.dart, update the onReorder callback in the CategoryList widget
+                        onReorder: (oldIndex, newIndex) { //Build 1.1.36: code updated
+                          if (kDebugMode) {
+                            print("### CategoriesScreen: Reordering category from index $oldIndex to $newIndex");
+                          }
                           setState(() {
-                            final item = categories.removeAt(oldIndex);
-                            categories.insert(newIndex, item);
+                            // Create a copy of categories to ensure proper reordering
+                            final List<CategoryModel> tempCategories = List.from(categories);
+                            // Remove the item from oldIndex
+                            final item = tempCategories.removeAt(oldIndex);
+                            // Insert the item at newIndex
+                            tempCategories.insert(newIndex, item);
+                            // Update the categories list
+                            categories = tempCategories;
+
+                            // Update selectedCategoryIndex to maintain selection
                             if (_selectedCategoryIndex == oldIndex) {
                               _selectedCategoryIndex = newIndex;
                             } else if (oldIndex < _selectedCategoryIndex! && newIndex >= _selectedCategoryIndex!) {
@@ -601,16 +622,11 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
                             } else if (oldIndex > _selectedCategoryIndex! && newIndex <= _selectedCategoryIndex!) {
                               _selectedCategoryIndex = _selectedCategoryIndex! + 1;
                             }
-                          });
-                        },
-                        onEditButtonPressed: (index) {
-                          setState(() {
-                            _editingCategoryIndex = index;
-                          });
-                        },
-                        onDismissEditMode: () {
-                          setState(() {
-                            _editingCategoryIndex = null;
+
+                            if (kDebugMode) {
+                              print("### CategoriesScreen: Updated categories order: ${categories.map((c) => c.name).toList()}");
+                              print("### CategoriesScreen: Updated selectedCategoryIndex: $_selectedCategoryIndex");
+                            }
                           });
                         },
                       ),
@@ -661,6 +677,8 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
                           onSubCategoryTapped: _onSubCategoryTapped,
                         )
                             : NestedGridWidget(
+                          productBloc: productBloc,
+                          orderHelper: orderHelper,
                           isHorizontal: true,
                           isLoading: isLoadingNestedContent,
                           showAddButton: false,
@@ -670,7 +688,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
                           reorderedIndices: reorderedIndices,
                           onAddButtonPressed: null,
                           onBackButtonPressed: _onBackToCategories,
-                          onItemTapped: _onItemSelected,
+                          onItemTapped: _onItemSelected, // Updated to match the new signature
                           onReorder: (oldIndex, newIndex) {
                             if (oldIndex == 0 || newIndex == 0) return;
                             final adjustedOldIndex = oldIndex - (showBackButton ? 1 : 0);

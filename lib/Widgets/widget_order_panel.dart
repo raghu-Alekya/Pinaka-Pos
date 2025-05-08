@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:buttons_tabbar/buttons_tabbar.dart';
@@ -10,9 +11,13 @@ import 'package:pinaka_pos/Screens/Home/order_summary_screen.dart';
 import 'package:pinaka_pos/Widgets/widget_custom_num_pad.dart';
 import 'package:pinaka_pos/Widgets/widget_nested_grid_layout.dart';
 
+import '../Blocs/Orders/order_bloc.dart';
 import '../Constants/text.dart';
 import '../Database/db_helper.dart';
 import '../Database/order_panel_db_helper.dart';
+import '../Helper/api_response.dart';
+import '../Models/Orders/orders_model.dart';
+import '../Repositories/Orders/order_repository.dart';
 import '../Screens/Home/edit_product_screen.dart';
 
 class RightOrderPanel extends StatefulWidget {
@@ -39,12 +44,16 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
   final ScrollController _scrollController = ScrollController(); // Scroll controller for tab scrolling
   List<Map<String, dynamic>> orderItems = []; // List of items in the selected order
   final OrderHelper orderHelper = OrderHelper(); // Helper instance to manage orders
+  bool _isLoading = false;
+  late OrderBloc orderBloc;
+  StreamSubscription? _updateOrderSubscription;
 
   @override
   void initState() {
     if (kDebugMode) {
       print("##### OrderPanel initState");
     }
+    orderBloc = OrderBloc(OrderRepository());
     super.initState();
     _getOrderTabs(); // Load existing orders into tabs
   }
@@ -105,14 +114,17 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
       if (kDebugMode) {
         print("##### fetchOrderItems :$items");
       }
-
-      setState(() {
-        orderItems = items; // Update the order items list
-      });
+      if (mounted) {
+        setState(() {
+          orderItems = items; // Update the order items list
+        });
+      }
     } else {
-      setState(() {
-        orderItems.clear(); // Clear the order items list if no active order
-      });
+      if (mounted) {
+        setState(() {
+          orderItems.clear(); // Clear the order items list if no active order
+        });
+      }
     }
   }
 
@@ -220,6 +232,8 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
 
   @override
   void dispose() {
+    _updateOrderSubscription?.cancel(); // Cancel the subscription
+    orderBloc.dispose(); // Dispose the bloc if needed
     _tabController?.dispose();
     super.dispose();
   }
@@ -409,49 +423,20 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                           MaterialPageRoute(
                             builder: (context) => EditProductScreen(
                               orderItem: orderItem,
-                              onQuantityUpdated: (newQuantity) {
-                                // Handle the quantity update
-                                setState(() {
-                                  orderItem[AppDBConst.itemCount] = newQuantity;
-                                });
+                              onQuantityUpdated: (newQuantity) async {
+                                //Build 1.1.36: Update the quantity in the database
+                                if (orderHelper.activeOrderId != null) {
+                                  await orderHelper.updateItemQuantity(
+                                    orderItem[AppDBConst.itemId],
+                                    newQuantity,
+                                  );
+                                }
+                                // Refresh the order items to reflect the updated quantity
+                                await fetchOrderItems();
                               },
                             ),
                           ),
                         );
-                        // showGeneralDialog(
-                        //   context: context,
-                        //   pageBuilder: (context, animation, secondaryAnimation) => Container(), // Placeholder, we use transitionBuilder
-                        //   barrierDismissible: true,
-                        //   barrierLabel: "Dismiss",
-                        //   transitionDuration: const Duration(milliseconds: 500), // Animation duration
-                        //   transitionBuilder: (context, animation, secondaryAnimation, child) {
-                        //     // Define the slide animation
-                        //     final Tween<Offset> tween = Tween(
-                        //       begin: const Offset(1.0, 0.0), // Start from the right
-                        //       end: Offset.zero, // End at the center
-                        //     );
-                        //     final Animation<Offset> offsetAnimation = animation.drive(tween);
-                        //
-                        //     return SlideTransition(
-                        //       position: offsetAnimation,
-                        //       child: ProductEditScreen(
-                        //         orderItem: orderItem,
-                        //         onQuantityUpdated: (newQuantity) {
-                        //           setState(() {
-                        //             orderItem[AppDBConst.itemCount] = newQuantity;
-                        //           });
-                        //         },
-                        //       ),
-                        //     );
-                        //   },
-                        // );
-                        //showProductEditScreen(context, orderItem);
-                        //Navigator.push(context, MaterialPageRoute(builder: (context) => OrdersScreen()));
-                        // showNumPadDialog(context, orderItem[AppDBConst.itemName], (selectedQuantity) {
-                        //   setState(() {
-                        //     orderItem[AppDBConst.itemCount] = selectedQuantity;
-                        //   });
-                        // });
                       },
                       child: Container(
                         margin: const EdgeInsets.symmetric(
@@ -787,9 +772,62 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               width: double.infinity,
               height: 50,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => OrderSummaryScreen(),));
+              child: ElevatedButton( //Build 1.1.36: on pay tap calling updateOrderProducts api call
+                onPressed: () async {
+                  if (orderHelper.activeOrderId != null) {
+                    setState(() {
+                      _isLoading = true;
+                    });
+
+                    final order = orderHelper.orders.firstWhere(
+                          (order) => order[AppDBConst.orderId] == orderHelper.activeOrderId,
+                      orElse: () => {},
+                    );
+                    final serverOrderId = order[AppDBConst.orderServerId] as int?;
+
+                    if (serverOrderId == null) {
+                      setState(() => _isLoading = false);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text("Server Order ID not found")),
+                      );
+                      return;
+                    }
+
+                    // Assign the subscription to your class variable
+                    _updateOrderSubscription = orderBloc.updateOrderStream.listen((response) async {
+                      if (!mounted) return; // Safety check
+
+                      if (response.status == Status.COMPLETED) {
+                        if (kDebugMode) {
+                          print("###### updateOrder COMPLETED");
+                        }
+
+                        setState(() => _isLoading = false); // dismiss the loader
+
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => OrderSummaryScreen()),
+                        );
+                      } else if (response.status == Status.ERROR) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(response.message ?? "Failed to update order")),
+                        );
+                      }
+                    });
+
+                    // Prepare line items for API
+                    List<OrderLineItem> lineItems = orderItems.map((item) => OrderLineItem(
+                      productId: item[AppDBConst.itemId],
+                      quantity: item[AppDBConst.itemCount],
+                    )).toList();
+
+                    // Call API
+                    await orderBloc.updateOrderProducts(
+                      dbOrderId: orderHelper.activeOrderId!,
+                      orderId: serverOrderId,
+                      lineItems: lineItems,
+                    );
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFFF6B6B), // Coral red color
@@ -799,7 +837,9 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                child:  Text(
+                child: _isLoading  //Build 1.1.36: added loader for pay button in order panel
+                    ? CircularProgressIndicator(color: Colors.white)
+                    : Text(
                   "Pay \$${getSubTotal()}",
                   style: TextStyle(
                     fontSize: 24,

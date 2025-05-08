@@ -247,6 +247,20 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
     }
   }
 
+  //Build 1.1.36: Clears all items for a specific order before updating order items in order bloc -> updateOrderProducts
+  Future<void> clearOrderItems(int orderId) async {
+    final db = await DBHelper.instance.database;
+    await db.delete(
+      AppDBConst.purchasedItemsTable,
+      where: '${AppDBConst.orderIdForeignKey} = ?',
+      whereArgs: [orderId],
+    );
+
+    if (kDebugMode) {
+      print('#### Cleared all items for order: $orderId');
+    }
+  }
+
   // Adds an item to the currently active order; creates an order if none exists
   Future<void> addItemToOrder(String name, String image, double price, int quantity, String sku, {VoidCallback? onItemAdded}) async {
     // Ensure there is an active order; create one if needed
@@ -294,6 +308,50 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
 
     if (kDebugMode) {
       print('#### Item added to order: $name');
+    }
+  }
+
+  //Build 1.1.36: required this func for issue of Edit item not updating count in order panel
+  Future<void> updateItemQuantity(int itemId, int newQuantity) async {
+    final db = await DBHelper.instance.database;
+
+    // Fetch the item's current price to calculate the new sum price
+    final item = await db.query(
+      AppDBConst.purchasedItemsTable,
+      where: '${AppDBConst.itemId} = ?',
+      whereArgs: [itemId],
+    );
+
+    if (item.isNotEmpty) {
+      double price = (item.first[AppDBConst.itemPrice] as num).toDouble();
+      double newSumPrice = price * newQuantity;
+
+      // Update the quantity and sum price in the database
+      await db.update(
+        AppDBConst.purchasedItemsTable,
+        {
+          AppDBConst.itemCount: newQuantity,
+          AppDBConst.itemSumPrice: newSumPrice,
+        },
+        where: '${AppDBConst.itemId} = ?',
+        whereArgs: [itemId],
+      );
+
+      // Update the order total in the orders table
+      final items = await getOrderItems(item.first[AppDBConst.orderIdForeignKey] as int);
+      double orderTotal = items.fold(0.0, (sum, item) => sum + (item[AppDBConst.itemSumPrice] as num).toDouble());
+
+      await db.update(
+        AppDBConst.orderTable,
+        {AppDBConst.orderTotal: orderTotal},
+        where: '${AppDBConst.orderId} = ?',
+        whereArgs: [item.first[AppDBConst.orderIdForeignKey]],
+      );
+
+      if (kDebugMode) {
+        print('#### Item quantity updated: ID=$itemId, Quantity=$newQuantity, New Sum Price=$newSumPrice');
+        print('#### Order total updated: Order ID=${item.first[AppDBConst.orderIdForeignKey]}, Total=$orderTotal');
+      }
     }
   }
 

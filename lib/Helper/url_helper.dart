@@ -9,7 +9,7 @@ class UrlHelper {
     _AndroidApiKey : "ANDROID"
   };
 //Hosts
-  static const  String _dev = "https://pinakapos.techkumard.com/"; // Build #1.0.13: new base url
+  static const  String _dev = "https://pinakapos.techkumard.com/wp-json/"; //Build 1.1.36: new base url
   static const  String _uat = "http://uatapi.pinaka.com/";
   static const  String _prod = "http://api.pinaka.com/";
 
@@ -17,10 +17,14 @@ class UrlHelper {
   static const  String _AndroidApiKey = "?apikey=987654321";
   static const  String _iOSApiKey = "?apikey=123456789";
 
+  // API path components
+  static const String pinakaPosV1 = "pinaka-pos/v1/"; // New variable for pinaka-pos/v1
+  static const String wooCommerceV3 = "wc/v3/"; // New variable for wc/v3
+
 /////START: make changes here to switch environment
   static const  String host = _dev ;
   static const  String baseUrl = host;
-  static const  String componentVersionUrl = "wp-json/pinaka-pos/v1/"; // Build #1.0.13: new componentVersionUrl
+  static const String componentVersionUrl = pinakaPosV1; // Default to pinaka-pos/v1 for existing APIs
   // static const  String apiKey = _devApiKey ;
   static final String apiKey = Platform.isIOS ? _iOSApiKey : _AndroidApiKey; // Build #1.0.8, Naveen updated this line
 
@@ -39,7 +43,7 @@ class UrlHelper {
   static const  String confirmSuccessUrl = baseUrl;
   static const  String markerUrl =  baseUrl;
 
-  static const  String login = "wp-json/pinaka-pos/v1/token"; // Build #1.0.8
+  static const  String login = "${pinakaPosV1}token"; // Build #1.0.8
   static const  String refresh = "auth/refresh_token";
   static const  String signup = "auth/signup";
   static const  String forgotPassword = "auth/reestpassword";
@@ -60,6 +64,7 @@ class UrlMethodConstants { // Build #1.0.13
   static const String productByCategories  = "products-by-category"; // Build #1.0.21
   static const String payments             = "payments";
   static const String orders               = "orders";
+  static const String variations           = "products"; // Used for variations endpoint
 }
 
 class UrlParameterConstants { // Build #1.0.13
@@ -78,5 +83,6 @@ class EndUrlConstants { // Build #1.0.13
   static const String createPaymentEndUrl         = "/create-payment";  // Build #1.0.25
   static const String paymentByIdEndUrl           = "/get-payment-by-id?payment_id=";
   static const String paymentByOrderIdEndUrl      = "/get-payments-by-order-id?order_id=";
+  static const String variationsEndUrl            = "/variations"; //Build 1.1.36
 }
 

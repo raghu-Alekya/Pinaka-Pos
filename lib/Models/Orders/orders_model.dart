@@ -1,188 +1,550 @@
-// models/order/shared/order_meta_data.dart
-class OrderMetaData {  // Build #1.0.25 - added by naveen
+// models/order/order_models.dart
+class OrderMetaData {  //Build 1.1.36: Updated
   final String key;
   final String value;
+
   static const String posDeviceId = "pos_device_id";
   static const String posPlacedBy = "pos_placed_by";
 
   OrderMetaData({required this.key, required this.value});
 
-  Map<String, dynamic> toJson() {
-    return {
-      'key': key,
-      'value': value,
-    };
-  }
+  Map<String, dynamic> toJson() => {'key': key, 'value': value};
+
+  factory OrderMetaData.fromJson(Map<String, dynamic> json) => OrderMetaData(
+    key: json['key'] ?? '',
+    value: json['value']?.toString() ?? '',
+  );
 }
 
-// models/order/shared/order_line_item.dart
+class Billing {
+  final String? firstName;
+  final String? lastName;
+  final String? company;
+  final String? address1;
+  final String? address2;
+  final String? city;
+  final String? state;
+  final String? postcode;
+  final String? country;
+  final String? email;
+  final String? phone;
+
+  Billing({
+    this.firstName,
+    this.lastName,
+    this.company,
+    this.address1,
+    this.address2,
+    this.city,
+    this.state,
+    this.postcode,
+    this.country,
+    this.email,
+    this.phone,
+  });
+
+  Map<String, dynamic> toJson() => {
+    if (firstName != null) 'first_name': firstName,
+    if (lastName != null) 'last_name': lastName,
+    if (company != null) 'company': company,
+    if (address1 != null) 'address_1': address1,
+    if (address2 != null) 'address_2': address2,
+    if (city != null) 'city': city,
+    if (state != null) 'state': state,
+    if (postcode != null) 'postcode': postcode,
+    if (country != null) 'country': country,
+    if (email != null) 'email': email,
+    if (phone != null) 'phone': phone,
+  };
+
+  factory Billing.fromJson(Map<String, dynamic> json) => Billing(
+    firstName: json['first_name'],
+    lastName: json['last_name'],
+    company: json['company'],
+    address1: json['address_1'],
+    address2: json['address_2'],
+    city: json['city'],
+    state: json['state'],
+    postcode: json['postcode'],
+    country: json['country'],
+    email: json['email'],
+    phone: json['phone'],
+  );
+}
+
+class Shipping {
+  final String? firstName;
+  final String? lastName;
+  final String? company;
+  final String? address1;
+  final String? address2;
+  final String? city;
+  final String? state;
+  final String? postcode;
+  final String? country;
+  final String? phone;
+
+  Shipping({
+    this.firstName,
+    this.lastName,
+    this.company,
+    this.address1,
+    this.address2,
+    this.city,
+    this.state,
+    this.postcode,
+    this.country,
+    this.phone,
+  });
+
+  Map<String, dynamic> toJson() => {
+    if (firstName != null) 'first_name': firstName,
+    if (lastName != null) 'last_name': lastName,
+    if (company != null) 'company': company,
+    if (address1 != null) 'address_1': address1,
+    if (address2 != null) 'address_2': address2,
+    if (city != null) 'city': city,
+    if (state != null) 'state': state,
+    if (postcode != null) 'postcode': postcode,
+    if (country != null) 'country': country,
+    if (phone != null) 'phone': phone,
+  };
+
+  factory Shipping.fromJson(Map<String, dynamic> json) => Shipping(
+    firstName: json['first_name'],
+    lastName: json['last_name'],
+    company: json['company'],
+    address1: json['address_1'],
+    address2: json['address_2'],
+    city: json['city'],
+    state: json['state'],
+    postcode: json['postcode'],
+    country: json['country'],
+    phone: json['phone'],
+  );
+}
+
 class OrderLineItem {
-  final int productId;
+  final int? id;
+  final int? productId;
+  final int? variationId;
   final int quantity;
-  final int id;
+  final List<OrderMetaData>? metaData;
 
+  OrderLineItem({
+    this.id,
+    this.productId,
+    this.variationId,
+    required this.quantity,
+    this.metaData,
+  });
 
-  OrderLineItem({this.id = 0, this.productId = 0, required this.quantity});
-
-  Map<String, dynamic> toJson() {
-    return {
-      'product_id': productId,
-      'quantity': quantity,
-    };
-  }
+  Map<String, dynamic> toJson() => {
+    if (id != null) 'id': id,
+    'product_id': productId,
+    if (variationId != null) 'variation_id': variationId,
+    'quantity': quantity,
+    if (metaData != null)
+      'meta_data': metaData!.map((e) => e.toJson()).toList(),
+  };
 }
 
-// models/order/shared/order_line_item_response.dart
 class OrderLineItemResponse {
   final int id;
   final String name;
   final int productId;
+  final int variationId;
   final int quantity;
-  final num price;
-  final String date_created;
+  final String taxClass;
+  final String subtotal;
+  final String subtotalTax;
+  final String total;
+  final String totalTax;
+  final List<OrderMetaData> metaData;
+  final String sku;
+  final int price;
+  final Map<String, dynamic> image;
 
   OrderLineItemResponse({
     required this.id,
     required this.name,
     required this.productId,
+    required this.variationId,
     required this.quantity,
+    required this.taxClass,
+    required this.subtotal,
+    required this.subtotalTax,
+    required this.total,
+    required this.totalTax,
+    required this.metaData,
+    required this.sku,
     required this.price,
-    required this.date_created,
+    required this.image,
   });
 
-  factory OrderLineItemResponse.fromJson(Map<String, dynamic> json) {
-    return OrderLineItemResponse(
-      id: json['id'] ?? 0,
-      name: json['name'] ?? '',
-      productId: json['product_id'] ?? 0,
-      quantity: json['quantity'] ?? 0,
-      price: json['price'] ?? 0,
-      date_created: json['date_created'] ?? 0,
-    );
-  }
+  factory OrderLineItemResponse.fromJson(Map<String, dynamic> json) =>
+      OrderLineItemResponse(
+        id: json['id'] ?? 0,
+        name: json['name'] ?? '',
+        productId: json['product_id'] ?? 0,
+        variationId: json['variation_id'] ?? 0,
+        quantity: json['quantity'] ?? 0,
+        taxClass: json['tax_class'] ?? '',
+        subtotal: json['subtotal'] ?? '0.00',
+        subtotalTax: json['subtotal_tax'] ?? '0.00',
+        total: json['total'] ?? '0.00',
+        totalTax: json['total_tax'] ?? '0.00',
+        metaData: (json['meta_data'] as List<dynamic>?)
+            ?.map((e) => OrderMetaData.fromJson(e))
+            .toList() ??
+            [],
+        sku: json['sku'] ?? '',
+        price: json['price'] ?? 0,
+        image: json['image'] ?? {'id': '0', 'src': ''},
+      );
 }
 
-// models/order/create_order_request_model.dart
+class ShippingLine {
+  final int? id;
+  final String? methodId;
+  final String? methodTitle;
+  final String? total;
+
+  ShippingLine({
+    this.id,
+    this.methodId,
+    this.methodTitle,
+    this.total,
+  });
+
+  Map<String, dynamic> toJson() => {
+    if (id != null) 'id': id,
+    if (methodId != null) 'method_id': methodId,
+    if (methodTitle != null) 'method_title': methodTitle,
+    if (total != null) 'total': total,
+  };
+
+  factory ShippingLine.fromJson(Map<String, dynamic> json) => ShippingLine(
+    id: json['id'],
+    methodId: json['method_id'],
+    methodTitle: json['method_title'],
+    total: json['total'],
+  );
+}
+
+class FeeLine {
+  final int? id;
+  final String? name;
+  final String? taxClass;
+  final String? taxStatus;
+  final String? total;
+
+  FeeLine({
+    this.id,
+    this.name,
+    this.taxClass,
+    this.taxStatus,
+    this.total,
+  });
+
+  Map<String, dynamic> toJson() => {
+    if (id != null) 'id': id,
+    if (name != null) 'name': name,
+    if (taxClass != null) 'tax_class': taxClass,
+    if (taxStatus != null) 'tax_status': taxStatus,
+    if (total != null) 'total': total,
+  };
+
+  factory FeeLine.fromJson(Map<String, dynamic> json) => FeeLine(
+    id: json['id'],
+    name: json['name'],
+    taxClass: json['tax_class'],
+    taxStatus: json['tax_status'],
+    total: json['total'],
+  );
+}
+
+class TaxLine {
+  final int? id;
+  final String? rateCode;
+  final int? rateId;
+  final String? label;
+  final bool? compound;
+  final String? taxTotal;
+  final String? shippingTaxTotal;
+
+  TaxLine({
+    this.id,
+    this.rateCode,
+    this.rateId,
+    this.label,
+    this.compound,
+    this.taxTotal,
+    this.shippingTaxTotal,
+  });
+
+  Map<String, dynamic> toJson() => {
+    if (id != null) 'id': id,
+    if (rateCode != null) 'rate_code': rateCode,
+    if (rateId != null) 'rate_id': rateId,
+    if (label != null) 'label': label,
+    if (compound != null) 'compound': compound,
+    if (taxTotal != null) 'tax_total': taxTotal,
+    if (shippingTaxTotal != null) 'shipping_tax_total': shippingTaxTotal,
+  };
+
+  factory TaxLine.fromJson(Map<String, dynamic> json) => TaxLine(
+    id: json['id'],
+    rateCode: json['rate_code'],
+    rateId: json['rate_id'],
+    label: json['label'],
+    compound: json['compound'],
+    taxTotal: json['tax_total'],
+    shippingTaxTotal: json['shipping_tax_total'],
+  );
+}
+
+class CouponLine {
+  final int? id;
+  final String code;
+  final String? discount;
+  final String? discountTax;
+  final List<OrderMetaData>? metaData;
+
+  CouponLine({
+    this.id,
+    required this.code,
+    this.discount,
+    this.discountTax,
+    this.metaData,
+  });
+
+  Map<String, dynamic> toJson() => {
+    if (id != null) 'id': id,
+    'code': code,
+    if (discount != null) 'discount': discount,
+    if (discountTax != null) 'discount_tax': discountTax,
+    if (metaData != null)
+      'meta_data': metaData!.map((e) => e.toJson()).toList(),
+  };
+
+  factory CouponLine.fromJson(Map<String, dynamic> json) => CouponLine(
+    id: json['id'],
+    code: json['code'] ?? '',
+    discount: json['discount'],
+    discountTax: json['discount_tax'],
+    metaData: (json['meta_data'] as List<dynamic>?)
+        ?.map((e) => OrderMetaData.fromJson(e))
+        .toList(),
+  );
+}
+
+// Create Order Models
 class CreateOrderRequestModel {
-  final String status;
+  final String? status;
   final String? currency;
-  final List<OrderMetaData> metaData;
-  final List<dynamic> feeLines;
-  final List<OrderLineItem> lineItems;
-  final List<dynamic> taxLines;
+  final Billing? billing;
+  final Shipping? shipping;
+  final List<OrderMetaData>? metaData;
+  final List<FeeLine>? feeLines;
+  final List<OrderLineItem>? lineItems;
+  final List<TaxLine>? taxLines;
+  final List<ShippingLine>? shippingLines;
 
   CreateOrderRequestModel({
     this.status = 'processing',
     this.currency,
-    required this.metaData,
+    this.billing,
+    this.shipping,
+    this.metaData = const [],
     this.feeLines = const [],
     this.lineItems = const [],
     this.taxLines = const [],
+    this.shippingLines = const [],
   });
 
-  Map<String, dynamic> toJson() {
-    return {
-      'status': status,
-      'currency': currency,
-      'meta_data': metaData.map((e) => e.toJson()).toList(),
-      'fee_lines': feeLines,
-      'line_items': lineItems.map((e) => e.toJson()).toList(),
-      'tax_lines': taxLines,
-    };
-  }
+  Map<String, dynamic> toJson() => {
+    if (status != null) 'status': status,
+    if (currency != null) 'currency': currency,
+    if (billing != null) 'billing': billing!.toJson(),
+    if (shipping != null) 'shipping': shipping!.toJson(),
+    if (metaData != null)
+      'meta_data': metaData!.map((e) => e.toJson()).toList(),
+    if (feeLines != null)
+      'fee_lines': feeLines!.map((e) => e.toJson()).toList(),
+    if (lineItems != null)
+      'line_items': lineItems!.map((e) => e.toJson()).toList(),
+    if (taxLines != null)
+      'tax_lines': taxLines!.map((e) => e.toJson()).toList(),
+    if (shippingLines != null)
+      'shipping_lines': shippingLines!.map((e) => e.toJson()).toList(),
+  };
 }
 
-// models/order/create_order_response_model.dart
 class CreateOrderResponseModel {
   final int id;
   final int parentId;
   final String status;
   final String currency;
+  final String discountTotal;
+  final String total;
+  final Billing? billing;
+  final Shipping? shipping;
+  final List<OrderMetaData> metaData;
+  final List<OrderLineItemResponse> lineItems;
+  final List<TaxLine> taxLines;
+  final List<ShippingLine> shippingLines;
+  final List<FeeLine> feeLines;
+  final List<CouponLine> couponLines;
 
   CreateOrderResponseModel({
     required this.id,
     required this.parentId,
     required this.status,
     required this.currency,
-  });
-
-  factory CreateOrderResponseModel.fromJson(Map<String, dynamic> json) {
-    return CreateOrderResponseModel(
-      id: json['id'] ?? 0,
-      parentId: json['parent_id'] ?? 0,
-      status: json['status'] ?? '',
-      currency: json['currency'] ?? '',
-    );
-  }
-}
-
-// models/order/update_order_request_model.dart
-class UpdateOrderRequestModel {
-  final List<OrderLineItem> lineItems;
-
-  UpdateOrderRequestModel({
-    required this.lineItems,
-  });
-
-  Map<String, dynamic> toJson() {
-    return {
-      'line_items': lineItems.map((e) => e.toJson()).toList(),
-    };
-  }
-}
-
-// models/order/update_order_response_model.dart
-class UpdateOrderResponseModel {
-  final int id;
-  final String status;
-  final String total;
-  final List<OrderLineItemResponse> lineItems;
-
-  UpdateOrderResponseModel({
-    required this.id,
-    required this.status,
+    required this.discountTotal,
     required this.total,
+    this.billing,
+    this.shipping,
+    required this.metaData,
     required this.lineItems,
-  });
-
-  factory UpdateOrderResponseModel.fromJson(Map<String, dynamic> json) {
-    return UpdateOrderResponseModel(
-      id: json['id'] ?? 0,
-      status: json['status'] ?? '',
-      total: json['total'] ?? '0.00',
-      lineItems: (json['line_items'] as List<dynamic>?)
-          ?.map((e) => OrderLineItemResponse.fromJson(e))
-          .toList() ??
-          [],
-    );
-  }
-}
-
-// models/order/apply_coupon_request_model.dart
-class ApplyCouponRequestModel {
-  final List<CouponLine> couponLines;
-
-  ApplyCouponRequestModel({
+    required this.taxLines,
+    required this.shippingLines,
+    required this.feeLines,
     required this.couponLines,
   });
 
-  Map<String, dynamic> toJson() {
-    return {
-      'coupon_lines': couponLines.map((e) => e.toJson()).toList(),
-    };
-  }
+  factory CreateOrderResponseModel.fromJson(Map<String, dynamic> json) =>
+      CreateOrderResponseModel(
+        id: json['id'] ?? 0,
+        parentId: json['parent_id'] ?? 0,
+        status: json['status'] ?? '',
+        currency: json['currency'] ?? '',
+        discountTotal: json['discount_total'] ?? '0.00',
+        total: json['total'] ?? '0.00',
+        billing: json['billing'] != null ? Billing.fromJson(json['billing']) : null,
+        shipping: json['shipping'] != null ? Shipping.fromJson(json['shipping']) : null,
+        metaData: (json['meta_data'] as List<dynamic>?)
+            ?.map((e) => OrderMetaData.fromJson(e))
+            .toList() ??
+            [],
+        lineItems: (json['line_items'] as List<dynamic>?)
+            ?.map((e) => OrderLineItemResponse.fromJson(e))
+            .toList() ??
+            [],
+        taxLines: (json['tax_lines'] as List<dynamic>?)
+            ?.map((e) => TaxLine.fromJson(e))
+            .toList() ??
+            [],
+        shippingLines: (json['shipping_lines'] as List<dynamic>?)
+            ?.map((e) => ShippingLine.fromJson(e))
+            .toList() ??
+            [],
+        feeLines: (json['fee_lines'] as List<dynamic>?)
+            ?.map((e) => FeeLine.fromJson(e))
+            .toList() ??
+            [],
+        couponLines: (json['coupon_lines'] as List<dynamic>?)
+            ?.map((e) => CouponLine.fromJson(e))
+            .toList() ??
+            [],
+      );
 }
 
-class CouponLine {
-  final String code;
+// Update Order Models
+class UpdateOrderRequestModel {
+  final List<OrderLineItem> lineItems;
+  final List<CouponLine>? couponLines;
 
-  CouponLine({
-    required this.code,
+  UpdateOrderRequestModel({
+    required this.lineItems,
+    this.couponLines = const [],
   });
 
-  Map<String, dynamic> toJson() {
-    return {
-      'code': code,
-    };
-  }
+  Map<String, dynamic> toJson() => {
+    'line_items': lineItems.map((e) => e.toJson()).toList(),
+    if (couponLines != null)
+      'coupon_lines': couponLines!.map((e) => e.toJson()).toList(),
+  };
+}
+
+class UpdateOrderResponseModel {
+  final int id;
+  final int parentId;
+  final String status;
+  final String currency;
+  final String discountTotal;
+  final String total;
+  final Billing? billing;
+  final Shipping? shipping;
+  final List<OrderMetaData> metaData;
+  final List<OrderLineItemResponse> lineItems;
+  final List<TaxLine> taxLines;
+  final List<ShippingLine> shippingLines;
+  final List<FeeLine> feeLines;
+  final List<CouponLine> couponLines;
+
+  UpdateOrderResponseModel({
+    required this.id,
+    required this.parentId,
+    required this.status,
+    required this.currency,
+    required this.discountTotal,
+    required this.total,
+    this.billing,
+    this.shipping,
+    required this.metaData,
+    required this.lineItems,
+    required this.taxLines,
+    required this.shippingLines,
+    required this.feeLines,
+    required this.couponLines,
+  });
+
+  factory UpdateOrderResponseModel.fromJson(Map<String, dynamic> json) =>
+      UpdateOrderResponseModel(
+        id: json['id'] ?? 0,
+        parentId: json['parent_id'] ?? 0,
+        status: json['status'] ?? '',
+        currency: json['currency'] ?? '',
+        discountTotal: json['discount_total'] ?? '0.00',
+        total: json['total'] ?? '0.00',
+        billing: json['billing'] != null ? Billing.fromJson(json['billing']) : null,
+        shipping: json['shipping'] != null ? Shipping.fromJson(json['shipping']) : null,
+        metaData: (json['meta_data'] as List<dynamic>?)
+            ?.map((e) => OrderMetaData.fromJson(e))
+            .toList() ??
+            [],
+        lineItems: (json['line_items'] as List<dynamic>?)
+            ?.map((e) => OrderLineItemResponse.fromJson(e))
+            .toList() ??
+            [],
+        taxLines: (json['tax_lines'] as List<dynamic>?)
+            ?.map((e) => TaxLine.fromJson(e))
+            .toList() ??
+            [],
+        shippingLines: (json['shipping_lines'] as List<dynamic>?)
+            ?.map((e) => ShippingLine.fromJson(e))
+            .toList() ??
+            [],
+        feeLines: (json['fee_lines'] as List<dynamic>?)
+            ?.map((e) => FeeLine.fromJson(e))
+            .toList() ??
+            [],
+        couponLines: (json['coupon_lines'] as List<dynamic>?)
+            ?.map((e) => CouponLine.fromJson(e))
+            .toList() ??
+            [],
+      );
+}
+
+// Apply Coupon Models
+class ApplyCouponRequestModel {
+  final List<CouponLine> couponLines;
+
+  ApplyCouponRequestModel({required this.couponLines});
+
+  Map<String, dynamic> toJson() => {
+    'coupon_lines': couponLines.map((e) => e.toJson()).toList(),
+  };
 }

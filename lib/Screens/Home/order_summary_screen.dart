@@ -44,6 +44,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
   double tenderAmount = 0.0; // Build #1.0.33 : added new variables
   double paidAmount = 0.0;
   double changeAmount = 0.0;
+  bool isLoading = false; // Add this to track loading state
   // final TextEditingController _paymentController = TextEditingController();
 
   @override
@@ -98,6 +99,11 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
       }
       return;
     }
+
+    setState(() {
+      isLoading = true; //Build 1.1.36: Show loader on PAY tap
+    });
+
     // Prepare payment request
     final String datetime = DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
     final paymentRequest = PaymentRequestModel(
@@ -129,10 +135,16 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
           if (kDebugMode) {
             print("Payment API Error: ${paymentResponse.message}");
           }
+          setState(() {
+            isLoading = false; // Hide loader on error
+          });
           subscription?.cancel();
         } else if (paymentResponse.status == Status.COMPLETED) {
           final paymentData = paymentResponse.data!;
           if (paymentData.message == "Payment Created Successfully") {
+            setState(() {
+              isLoading = false; // Hide loader on success
+            });
             paidAmount = amount; // Current payment amount
 
             // Determine payment type
@@ -878,6 +890,10 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
       amount = '\$${changeAmount.toStringAsFixed(2)}';
     } else if (label == TextConstants.total) {
       amount = '\$${getSubTotal().toStringAsFixed(2)}';
+    } else if (label == TextConstants.payByCash) { //Build 1.1.36: added pay by cash data also
+      amount = selectedPaymentMethod == TextConstants.cash
+          ? '\$${paidAmount.toStringAsFixed(2)}'
+          : '\$0.0';
     }
 
     return Container(
@@ -1101,6 +1117,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
 
                                       _callCreatePaymentAPI(); // create payment api call
                                     },
+                                    isLoading: isLoading, // Pass isLoading
                                   )
                                 ],
                               ),

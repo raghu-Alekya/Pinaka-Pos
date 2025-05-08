@@ -90,7 +90,7 @@ class FastKeyBloc { // Build #1.0.15
         ///if all the data mismatches then delete all db contents and replace with API response
         fastKeyDBHelper.deleteAllFastKeyTab(userId);
         for(var fastkey in response.fastkeys){
-          fastKeyDBHelper.addFastKeyTab(userId, fastkey.fastkeyTitle, "", 0, int.parse(fastkey.fastkeyIndex), fastkey.fastkeyServerId );
+          await fastKeyDBHelper.addFastKeyTab(userId, fastkey.fastkeyTitle, "", 0, int.parse(fastkey.fastkeyIndex), fastkey.fastkeyServerId );
         }
       } else {
         ///else just update the data for each fast key

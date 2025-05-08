@@ -887,8 +887,10 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:pinaka_pos/Helper/Extentions/theme_notifier.dart';
 import '../Constants/text.dart';
 import '../Utilities/shimmer_effect.dart';
+import '../Utilities/responsive_layout.dart';
 
 // Stateless CategoryList widget for reusable horizontal/vertical category list
 class CategoryList extends StatelessWidget {
@@ -953,8 +955,9 @@ class CategoryList extends StatelessWidget {
 
   Widget _buildHorizontalList(BuildContext context, ScrollController scrollController) {
     var size = MediaQuery.of(context).size;
+    ResponsiveLayout.init(context);
     return Container(
-      height: 150,
+      height: ResponsiveLayout.getHeight(100),
       margin: const EdgeInsets.only(top: 5),
       decoration: BoxDecoration(
         color: Colors.white, // Background color for the whole list view
@@ -975,11 +978,11 @@ class CategoryList extends StatelessWidget {
           Row(
             children: [
               // Add some padding on the left to make room for the left navigation button
-              const SizedBox(width: 30),
+              SizedBox(width:ResponsiveLayout.getWidth(30)),
 
               Expanded(
                 child: SizedBox(
-                  height: 110,
+                  height: ResponsiveLayout.getHeight(100),
                   child: ReorderableListView(
                     scrollController: scrollController,
                     scrollDirection: Axis.horizontal,
@@ -994,13 +997,13 @@ class CategoryList extends StatelessWidget {
                         onTap: () => onCategoryTapped(index),
                         onLongPress: () => onEditButtonPressed(index),
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 10.0),
+                          padding: const EdgeInsets.symmetric(horizontal: 5.0),
                           child: AnimatedContainer(
-                            width: 90,
+                            width: 70,
                             duration: const Duration(milliseconds: 300),
-                            padding: const EdgeInsets.fromLTRB(8, 0, 8, 0),
+                            //padding: const EdgeInsets.fromLTRB(8, 5, 8, 5),
                             decoration: BoxDecoration(
-                              color: isSelected ? Color(0xFFFFE1E1) : Colors.white,
+                              color: isSelected ? ThemeNotifier.tabSelection : Colors.white,
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
                                 color: showEditButton ? Colors.blueAccent : isSelected ? Colors.red : Colors.black12,
@@ -1038,16 +1041,16 @@ class CategoryList extends StatelessWidget {
                                 ),
                                 Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.center,
                                   children: [
                                     _buildImage(category['image']),
-                                    const SizedBox(height: 8),
                                     Text(
                                       category['title'],
                                       maxLines: 1,
                                       style: TextStyle(
-                                        fontSize: 16,
+                                        fontSize: 12,
                                         overflow: TextOverflow.ellipsis,
-                                        fontWeight: FontWeight.bold,
+                                        fontWeight: FontWeight.normal,
                                         fontVariations: const <FontVariation>[FontVariation('wght', 900.0)],
                                         color: Colors.black87,
                                       ),

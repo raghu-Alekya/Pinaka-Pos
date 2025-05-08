@@ -459,8 +459,22 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
       setState(() {
         _fastKeyTabId = lastSelectedTabId;
         fastKeyTabIdNotifier.value = lastSelectedTabId;
+        _selectedCategoryIndex = lastSelectedTabId;
       });
       _loadFastKeyTabItems();
+    } else if (fastKeyTabs.isNotEmpty) {
+      setState(() {
+        _fastKeyTabId = fastKeyTabs[0].fastkeyServerId;
+        _selectedCategoryIndex = 0;
+        fastKeyTabIdNotifier.value = _fastKeyTabId;
+        if (kDebugMode) {
+          print("### FastKeyScreen: No active tab found, defaulting to first tab ID: $_fastKeyTabId");
+        }
+      });
+      await fastKeyDBHelper.saveActiveFastKeyTab(_fastKeyTabId);
+      await _loadFastKeyTabItems();
+    } else {
+      _selectedCategoryIndex = 0;
     }
   }
 
@@ -1205,7 +1219,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                     children: [
                       CategoryList(
                         isHorizontal: true,
-                        isLoading: isLoading,
+                        isLoading: isLoading,///Need to handle this from fastKey bloc, add a code to show loading.
                         isAddButtonEnabled: true,
                         categories: categories,
                         selectedIndex: _selectedCategoryIndex,

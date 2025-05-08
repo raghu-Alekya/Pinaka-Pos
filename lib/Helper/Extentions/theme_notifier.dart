@@ -49,6 +49,7 @@ class ThemeNotifier with ChangeNotifier { // Build #1.0.6 - Added Theme code & a
   static const Color cardDark = Color(0xFF111315);
   static const Color textLight = Colors.black;
   static const Color textDark = Colors.white;
+  static const Color tabSelection = Color(0xFFFCDFDC);
 
   // Light
   static final ThemeData lightTheme = ThemeData(

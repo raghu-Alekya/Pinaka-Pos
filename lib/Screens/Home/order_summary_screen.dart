@@ -15,6 +15,7 @@ import '../../Database/user_db_helper.dart';
 import '../../Helper/api_response.dart';
 import '../../Models/Payment/payment_model.dart';
 import '../../Repositories/Payment/payment_repository.dart';
+import '../../Utilities/responsive_layout.dart';
 import '../../Widgets/widget_custom_num_pad.dart';
 import '../../Widgets/widget_payment_dialog.dart';
 import 'edit_product_screen.dart';
@@ -202,6 +203,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ResponsiveLayout.init(context);
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -245,42 +247,50 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
 
   Widget _buildHeader() {
     return Container(
-      height: MediaQuery.of(context).size.height * 0.09,
+      height: ResponsiveLayout.getHeight(60),
       color: Colors.grey[100],
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 0),
+      padding: ResponsiveLayout.getResponsivePadding(
+        horizontal: 16,
+        vertical: 0,
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           // Pinaka logo with triangle above it
           SvgPicture.asset(
             'assets/svg/app_icon.svg',
-            height: 40,
-            width: 40,
+            height: ResponsiveLayout.getHeight(40),
+            width: ResponsiveLayout.getWidth(40),
           ),
 
           // User profile section with container and notification bell
           Row(
             children: [
               Container(
-                height: MediaQuery.of(context).size.height * 0.5,
-                margin: EdgeInsets.all(10.0),
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                height: ResponsiveLayout.getHeight(45),  //45
+                margin:  EdgeInsets.all(ResponsiveLayout.getPadding(10)),
+                padding: EdgeInsets.symmetric(
+                    horizontal: ResponsiveLayout.getPadding(16),
+                    vertical: 0
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(15),
+                  borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(15)),
                 ),
                 child: Row(
                   children: [
                     CircleAvatar(
-                      radius: 18,
+                      radius: ResponsiveLayout.getRadius(18),
                       backgroundColor: Colors.deepPurple,
                       child: Text(
-                          (userDisplayName ?? "").substring(0,1),//"A", /// use initial for the login user
+                          (userDisplayName ?? "Unknown").substring(0,1),//"A", /// use initial for the login user
                         style: TextStyle(
-                            color: Colors.white, fontWeight: FontWeight.bold),
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: ResponsiveLayout.getFontSize(14)),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    SizedBox(width: ResponsiveLayout.getWidth(12)),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
@@ -288,7 +298,8 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                         Text(
                            userDisplayName ?? "",//'A Raghav Kumar', /// use login user display name
                           style: TextStyle(
-                              fontWeight: FontWeight.w500, fontSize: 14),
+                              fontWeight: FontWeight.w500,
+                              fontSize: ResponsiveLayout.getFontSize(14)),
                         ),
                         Text(
                           userRole ?? "Unknown" ,//'I am Cashier', /// use user role
@@ -299,14 +310,17 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                   ],
                 ),
               ),
-              const SizedBox(width: 16),
+              SizedBox(width: ResponsiveLayout.getWidth(16)),
               Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
                   shape: BoxShape.circle,
                 ),
-                padding: EdgeInsets.all(10),
-                child: Icon(Icons.notifications_outlined),
+                padding: EdgeInsets.all(ResponsiveLayout.getPadding(10)),
+                child: Icon(
+                  Icons.notifications_outlined,
+                  size: ResponsiveLayout.getIconSize(24),
+                ),
               ),
             ],
           ),
@@ -319,23 +333,26 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
-        height: MediaQuery.of(context).size.height * 0.0725,
-        width: MediaQuery.of(context).size.width * 0.5,
-        margin: EdgeInsets.all(20.0),
+        height: ResponsiveLayout.getHeight(52),
+        width: ResponsiveLayout.getWidth(640),
+        margin: EdgeInsets.all(ResponsiveLayout.getPadding(20)),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10.0),
+          borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(10)),
           color: Colors.grey[100],
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 6.0, vertical: 6.0),
+        padding: EdgeInsets.symmetric(
+            horizontal: ResponsiveLayout.getPadding(6),
+            vertical: ResponsiveLayout.getPadding(6)
+        ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             // Back button
             Container(
-              padding: const EdgeInsets.all(5),
+              padding: EdgeInsets.all(ResponsiveLayout.getPadding(5)),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(8)),
                 boxShadow: [
                   BoxShadow(
                       color: Colors.black.withOpacity(0.05),
@@ -351,15 +368,18 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                   BackButton(
                     style: ButtonStyle(
                         alignment: Alignment.centerLeft,
-                        iconSize: WidgetStatePropertyAll(16.0)
+                        iconSize: WidgetStatePropertyAll(ResponsiveLayout.getIconSize(16))
                     ),
                   ),
                   //const SizedBox(width: 8),
-                  Text('Back', style: TextStyle(fontSize: 14)),
+                  Text(
+                    'Back',
+                    style: TextStyle(fontSize: ResponsiveLayout.getFontSize(14)),
+                  ),
                 ],
               ),
             ),
-            const SizedBox(width: 16),
+            SizedBox(width: ResponsiveLayout.getWidth(16)),
 
             // Date and Time Container
             Row(
@@ -368,24 +388,27 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                 // Date
             Row(
               children: [
-                Icon(Icons.calendar_month_rounded, size: 14),
-                const SizedBox(width: 4),
+                Icon(Icons.calendar_month_rounded, size: ResponsiveLayout.getIconSize(14),),
+                SizedBox(width: ResponsiveLayout.getWidth(4)),
                 Text(
                     DateFormat("EEE, MMM d' ${DateTime.now().year}'").format(DateTime.now()),//'Sunday, 16 March 2025',
-                  style: TextStyle(color: Colors.grey[700]),
+                  style: TextStyle(color: Colors.grey[700],
+                    fontSize: ResponsiveLayout.getFontSize(12),
+                  ),
+
                 ),
               ],
             ),
-            const SizedBox(width: 10),
+                SizedBox(width: ResponsiveLayout.getWidth(10)),
             // Time
             Row(
               children: [
-                Icon(Icons.access_time, size: 14),
-                const SizedBox(width: 4),
+                Icon(Icons.access_time, size: ResponsiveLayout.getIconSize(14),),
+                SizedBox(width: ResponsiveLayout.getWidth(4)),
                 Text(
                   DateFormat('hh:mm a').format(DateTime.now()),//'11:41 A.M',
                   style: TextStyle(
-                      color: Colors.grey[700], fontWeight: FontWeight.bold),
+                      color: Colors.grey[700], fontWeight: FontWeight.bold, fontSize: ResponsiveLayout.getFontSize(12)),
                     ),
                   ],
                 ),
@@ -402,21 +425,25 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
       alignment: Alignment.centerLeft,
       child: Container(
         //width: MediaQuery.of(context).size.width * 100,
-        margin: EdgeInsets.only(left: 20.0, right: 20.0, bottom: 20.0),
+        margin: EdgeInsets.only(
+            left: ResponsiveLayout.getPadding(20),
+            right: ResponsiveLayout.getPadding(20),
+            bottom: ResponsiveLayout.getPadding(20)
+        ),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10.0),
+          borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(10)),
           color: Colors.grey[100],
           boxShadow: [
             BoxShadow(
               color: Colors.grey.withOpacity(0.1),
               spreadRadius: 1,
               blurRadius: 2,
-              offset: Offset(0, 1),
+              offset: const Offset(0, 1),
             ),
           ],
         ),
         child: Padding(
-          padding: const EdgeInsets.all(15.0),
+          padding: EdgeInsets.all(ResponsiveLayout.getPadding(15)),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -424,27 +451,31 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('${TextConstants.orderId} #$orderId', // Build #1.0.29: orderId(serverId) from db
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.black87,
-                      )),
-                  Text(TextConstants.paymentSummary,
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 12,
-                      )),
+                  Text(
+                    '${TextConstants.orderId} #$orderId', // Build #1.0.29: orderId(serverId) from db
+                    style: TextStyle(
+                      fontSize: ResponsiveLayout.getFontSize(16),
+                      fontWeight: FontWeight.w500,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  Text(
+                    TextConstants.paymentSummary,
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: ResponsiveLayout.getFontSize(12),
+                    ),
+                  ),
                 ],
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: ResponsiveLayout.getHeight(16)),
 
               // Order items list
               Expanded(
                 flex: 6,
                 child: Container(
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10.0),
+                    borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(10)),
                     color: Colors.white,
                     border: Border.all(color: Colors.grey.shade200),
                   ),
@@ -462,14 +493,18 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
 
               // Bottom summary container
               Container(
-                height: MediaQuery.of(context).size.height * 0.34,
-                margin: EdgeInsets.only(top: 5),
+                height: ResponsiveLayout.getHeight(240),
+                margin: EdgeInsets.only(top: ResponsiveLayout.getPadding(5)),  //ResponsiveLayout.getHeight(5)
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10.0),
+                  borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(10)),
                   color: Colors.white,
                   border: Border.all(color: Colors.grey.shade200),
                 ),
-                padding: EdgeInsets.only(left: 15, right: 15,top: 5),
+                padding:  EdgeInsets.only(
+                    left: ResponsiveLayout.getPadding(15),
+                    right: ResponsiveLayout.getPadding(15),
+                    top: ResponsiveLayout.getPadding(5)
+                ),
                 child: Column(
                     mainAxisSize: MainAxisSize.min,
                   children: [
@@ -479,9 +514,9 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                     _buildOrderCalculation(TextConstants.taxText , '\$0.0'),
                     _buildOrderCalculation(TextConstants.discount, '-\$0.0',
                         isDiscount: true),
-                    SizedBox(height: 3,),
-                      DottedLine(),
-                    SizedBox(height: 3,),
+                    SizedBox(height: ResponsiveLayout.getHeight(3)),
+                    DottedLine(),
+                    SizedBox(height: ResponsiveLayout.getHeight(3)),
                     _buildOrderCalculation(TextConstants.total, '\$${getSubTotal()}', isTotal: true),
                     _buildOrderCalculation(TextConstants.payByCash, '\$0.0'),
                     _buildOrderCalculation(TextConstants.payByOther, '\$0.0'),
@@ -729,31 +764,34 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     //   ),
     // );
       Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 12.0),
+      padding: ResponsiveLayout.getResponsivePadding(
+        vertical: 10,
+        horizontal: 12,
+      ),
       child: Row(
         children: [
           // Product image
           Container(
-            width: 50,
-            height: 50,
+            width: ResponsiveLayout.getWidth(50),
+            height: ResponsiveLayout.getHeight(50),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(8)),
               color: Colors.grey.shade200,
             ),
             child: ClipRRect( // Build #1.0.13 : updated images from db not static default images
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(10)),
               child: orderItem[AppDBConst.itemImage].toString().startsWith('http')
                   ? Image.network(
                 orderItem[AppDBConst.itemImage],
-                height: 30,
-                width: 30,
+                height: ResponsiveLayout.getHeight(30),
+                width: ResponsiveLayout.getWidth(30),
                 fit: BoxFit.cover,
                 errorBuilder:
                     (context, error, stackTrace) {
                   return SvgPicture.asset(
                     'assets/svg/password_placeholder.svg',
-                    height: 30,
-                    width: 30,
+                    height: ResponsiveLayout.getHeight(30),
+                    width: ResponsiveLayout.getWidth(30),
                     fit: BoxFit.cover,
                   );
                 },
@@ -763,28 +801,28 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                   .startsWith('assets/')
                   ? SvgPicture.asset(
                 orderItem[AppDBConst.itemImage],
-                height: 30,
-                width: 30,
+                height: ResponsiveLayout.getHeight(30),
+                width: ResponsiveLayout.getWidth(30),
                 fit: BoxFit.cover,
               )
                   : Image.file(
                 File(orderItem[AppDBConst.itemImage]),
-                height: 30,
-                width: 30,
+                height: ResponsiveLayout.getHeight(30),
+                width: ResponsiveLayout.getWidth(30),
                 fit: BoxFit.cover,
                 errorBuilder:
                     (context, error, stackTrace) {
                   return SvgPicture.asset(
                     'assets/svg/password_placeholder.svg',
-                    height: 30,
-                    width: 30,
+                    height: ResponsiveLayout.getHeight(30),
+                    width: ResponsiveLayout.getWidth(30),
                     fit: BoxFit.cover,
                   );
                 },
               ),
             ),
           ),
-          SizedBox(width: 12),
+          SizedBox(width: ResponsiveLayout.getWidth(12)),
 
           // Product details
           Expanded(
@@ -795,7 +833,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                   orderItem[AppDBConst.itemName],
                   style: TextStyle(
                     fontWeight: FontWeight.w500,
-                    fontSize: 16,
+                    fontSize: ResponsiveLayout.getFontSize(16),
                   ),
                 ),
                 // Text(
@@ -805,11 +843,13 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                 //     fontSize: 14,
                 //   ),
                 // ),
-                SizedBox(height: 4),
+                SizedBox(height: ResponsiveLayout.getHeight(4)),
                 Text(
                   "${orderItem[AppDBConst.itemCount]} * \$${orderItem[AppDBConst.itemPrice]}", // Build #1.0.12: now item count will update in order panel
-                  style:
-                  const TextStyle(color: Colors.black54),
+                  style: TextStyle(
+                    color: Colors.black54,
+                    fontSize: ResponsiveLayout.getFontSize(14),
+                  ),
                 ),
               ],
             ),
@@ -820,7 +860,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
             "\$${(orderItem[AppDBConst.itemCount] * orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}",
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              fontSize: 16,
+              fontSize: ResponsiveLayout.getFontSize(16),
             ),
           ),
         ],
@@ -841,9 +881,9 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     }
 
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 4.0),
+      margin: EdgeInsets.symmetric(vertical: ResponsiveLayout.getPadding(4)),  //ResponsiveLayout.getResponsiveMargin(vertical: 4),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4.0),
+        padding: EdgeInsets.symmetric(horizontal: ResponsiveLayout.getPadding(4)), //EdgeInsets.symmetric(horizontal: ResponsiveLayout.getPadding(4)),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           crossAxisAlignment: CrossAxisAlignment.center,
@@ -852,7 +892,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
               label,
               style: TextStyle(
                 fontWeight: isTotal ? FontWeight.w600 : FontWeight.w500,
-                fontSize: isTotal ? 14 : 12,
+                fontSize: ResponsiveLayout.getFontSize(isTotal ? 14 : 12),
                 color: isTotal ? Colors.black87 : Colors.grey[700],
                 //height: 1,
               ),
@@ -861,7 +901,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
               amount,
               style: TextStyle(
                 fontWeight: isTotal ? FontWeight.w600 : FontWeight.w500,
-                fontSize: isTotal ? 14 : 12,
+                fontSize: ResponsiveLayout.getFontSize(isTotal ? 14 : 12),
                 color: isDiscount
                     ? Colors.green[600]
                     : (isTotal ? Colors.black87 : Colors.grey[800]),
@@ -876,13 +916,22 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
 
   Widget _buildPaymentSection() {
     return Container(
-      margin: EdgeInsets.only(bottom: 20.0,right: 20.0, top: 20.0,),
+      margin: EdgeInsets.only(
+        bottom: ResponsiveLayout.getPadding(20),
+        right: ResponsiveLayout.getPadding(20),
+        top: ResponsiveLayout.getPadding(20),
+      ),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10.0),
+        borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(10)),
         color: Colors.grey[100],
       ),
       child: Padding(
-        padding: const EdgeInsets.only(left:20,right:20,top: 15, bottom: 0),
+        padding: EdgeInsets.only(
+            left: ResponsiveLayout.getPadding(20),
+            right: ResponsiveLayout.getPadding(20),
+            top: ResponsiveLayout.getPadding(15),
+            bottom: 0
+        ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           crossAxisAlignment: CrossAxisAlignment.center,
@@ -898,7 +947,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     mainAxisSize: MainAxisSize.min,
-                    spacing: 12.0 , ///20.0
+                    spacing: ResponsiveLayout.getWidth(12), ///20.0
                     children: [
                       _buildAmountDisplay(
                         TextConstants.balanceAmount,
@@ -917,7 +966,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                     ],
                   ),
 
-                  const SizedBox(height: 12),
+                  SizedBox(height: ResponsiveLayout.getHeight(12)),
 
                   // Payment methods
                   Row(
@@ -933,40 +982,43 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                             // Cash payment section
                             Container(
                              // width: MediaQuery.of(context).size.width * 0.75,
-                              padding: const EdgeInsets.all(16),
+                              padding: EdgeInsets.all(ResponsiveLayout.getPadding(16)),
                               decoration: BoxDecoration(
                                 color: Colors.white,
-                                borderRadius: BorderRadius.circular(8),
+                                borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(8)),
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   // Label container
                                   Container(
-                                    height: MediaQuery.of(context).size.height * 0.05,
+                                    height: ResponsiveLayout.getHeight(36),
                                     width: double.infinity,
-                                    padding: const EdgeInsets.only(top: 7.0,left: 7.0),
+                                    padding: EdgeInsets.only(
+                                        top: ResponsiveLayout.getPadding(7),
+                                        left: ResponsiveLayout.getPadding(7)
+                                    ),
                                     decoration: BoxDecoration(
                                       color: Colors.red[50],
-                                      borderRadius: BorderRadius.circular(6),
+                                      borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(6)),
                                     ),
                                     child: Text(
                                       TextConstants.cashPayment,
                                       style: TextStyle(
                                         color: Colors.red,
                                         fontWeight: FontWeight.w500,
-                                        fontSize: 12,
+                                        fontSize: ResponsiveLayout.getFontSize(12),
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(height: 8),
+                                  SizedBox(height: ResponsiveLayout.getHeight(8)),
 
                                   // Amount TextField
                                   Container(
-                                    height: MediaQuery.of(context).size.height * 0.06,
+                                    height: ResponsiveLayout.getHeight(43),
                                     decoration: BoxDecoration(
                                       color: Colors.white,
-                                      borderRadius: BorderRadius.circular(6),
+                                      borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(6)),
                                       border: Border.all(color: Colors.grey.shade300),
                                     ),
                                     child: TextField(
@@ -976,18 +1028,18 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                                       textAlign: TextAlign.right,
                                       enabled: false, // Disables interaction with the TextField
                                       decoration: InputDecoration(
-                                        contentPadding: const EdgeInsets.only(right: 16),
+                                        contentPadding: EdgeInsets.only(right: ResponsiveLayout.getPadding(16)),
                                         border: InputBorder.none,
                                         hintText: '\$0.00',
                                         hintStyle: TextStyle(
                                           color: Colors.grey[400],///800
-                                          fontSize: 20,
+                                          fontSize: ResponsiveLayout.getFontSize(20),
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
                                       style: TextStyle(
                                         color: Colors.grey[800],
-                                        fontSize: 20,
+                                        fontSize: ResponsiveLayout.getFontSize(20),
                                         fontWeight: FontWeight.bold,
                                       ),
                                       keyboardType: TextInputType.none, // Hide default keypad
@@ -996,7 +1048,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                                       },
                                     ),
                                   ),
-                                  const SizedBox(height: 8),
+                                  SizedBox(height: ResponsiveLayout.getHeight(8)),
 
                                   // Quick amount buttons
                                   // Update the Row in _buildPaymentSection to use dynamic quick amounts
@@ -1011,7 +1063,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                                     ],
                                   ),
 
-                                  const SizedBox(height: 12),
+                                  SizedBox(height: ResponsiveLayout.getHeight(12)),
 
                                   // Here you would use your custom numpad widget
                                   // CustomNumpad(useCashLayout: true),
@@ -1056,7 +1108,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                           ],
                         ),
                       ),
-                      const SizedBox(width: 16),
+                      SizedBox(width: ResponsiveLayout.getWidth(16)),
 
                       // Payment mode selection
 
@@ -1070,16 +1122,21 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(TextConstants.selectPaymentMode,
-                        style: TextStyle(fontSize: 16,fontWeight: FontWeight.bold),),
-                      SizedBox(height: 10,),
+                      Text(
+                        TextConstants.selectPaymentMode,
+                        style: TextStyle(
+                          fontSize: ResponsiveLayout.getFontSize(16),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(height: ResponsiveLayout.getHeight(10)),
                       Container(
-                        width: MediaQuery.of(context).size.width * 0.175,
-                        height: MediaQuery.of(context).size.height * 0.425,
-                        padding: const EdgeInsets.all(5),
+                        width: ResponsiveLayout.getWidth(224),
+                        height: ResponsiveLayout.getHeight(306),
+                        padding: EdgeInsets.all(ResponsiveLayout.getPadding(5)),
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(5),
+                          borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(5)),
                         ),
                         child: Column(
                           children: [
@@ -1089,20 +1146,20 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                                 selectedPaymentMethod = TextConstants.cash;
                               });
                             }),
-                            const SizedBox(height: 20),
+                            SizedBox(height: ResponsiveLayout.getHeight(20)),
                             _buildPaymentModeButton(TextConstants.card, Icons.credit_card, onTap: () {
                           setState(() {
                             selectedPaymentMethod = TextConstants.card;
                           });
                         }),
-                            const SizedBox(height: 20),
+                            SizedBox(height: ResponsiveLayout.getHeight(20)),
                             _buildPaymentModeButton(TextConstants.wallet, Icons.account_balance_wallet, onTap: () {
                           setState(() {
                             selectedPaymentMethod = TextConstants.wallet;
                           });
                         }),
-                            const SizedBox(height: 20),
-                            _buildPaymentModeButton(TextConstants.ebtText , Icons.payment, onTap: () {
+                            SizedBox(height: ResponsiveLayout.getHeight(20)),
+                            _buildPaymentModeButton(TextConstants.ebtText, Icons.payment, onTap: () {
                           setState(() {
                             selectedPaymentMethod = TextConstants.ebtText;
                           });
@@ -1110,22 +1167,22 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                           ],
                         ),
                       ),
-                      const SizedBox(height: 20),
+                      SizedBox(height: ResponsiveLayout.getHeight(15)),
 
                       Container(
-                        width: MediaQuery.of(context).size.width * 0.175,
-                        height: MediaQuery.of(context).size.height * 0.28,
-                        padding: const EdgeInsets.all(5),
+                        width: ResponsiveLayout.getWidth(224),
+                        height: ResponsiveLayout.getHeight(202),
+                        padding: EdgeInsets.symmetric(vertical: 5, horizontal: 5),//ResponsiveLayout.getResponsivePadding(all: 5),
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(5),
+                          borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(5)),
                         ),
                         child: Column(
                           children: [_buildPaymentOptionButton(TextConstants.redeemPoints, Icons.stars),
-                            const SizedBox(height: 20),
+                            SizedBox(height: ResponsiveLayout.getHeight(20)),
                             _buildPaymentOptionButton(
                                 TextConstants.manualDiscount, Icons.discount),
-                            const SizedBox(height: 20),
+                            SizedBox(height: ResponsiveLayout.getHeight(20)),
                             _buildPaymentOptionButton(
                                 TextConstants.giftReceipt, Icons.card_giftcard),
                           ],
@@ -1151,20 +1208,26 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(fontSize: 12, color: Colors.black54)),
-        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: ResponsiveLayout.getFontSize(12),
+            color: Colors.black54
+          ),
+        ),
+        SizedBox(height: ResponsiveLayout.getHeight(4)),
         Container(
-          width: size.width * 0.125,
-          height: size.height * 0.06,
-          padding: const EdgeInsets.all(5),
+          width: ResponsiveLayout.getWidth(128),
+          height: ResponsiveLayout.getHeight(43),
+          padding: EdgeInsets.all(ResponsiveLayout.getPadding(5.0)),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(8)),
           ),
           child: Text(
             amount,
             style: TextStyle(
-              fontSize: 18,
+              fontSize: ResponsiveLayout.getFontSize(18),
               fontWeight: FontWeight.w600,
               color: amountColor,
             ),
@@ -1205,19 +1268,19 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
         setState(() {});
       },
       child: Container(
-        height:  MediaQuery.of(context).size.height * 0.06,
-        width: MediaQuery.of(context).size.width * 0.06,
+        height: ResponsiveLayout.getHeight(43),
+        width: ResponsiveLayout.getWidth(64),
         alignment: Alignment.center,
-        padding: const EdgeInsets.all(5.0),
+        padding: EdgeInsets.all(ResponsiveLayout.getPadding(5.0)),
         decoration: BoxDecoration(
           color: Color(0xFFBFF1C0),
-          borderRadius: BorderRadius.circular(5),
+          borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(5)),
         ),
         child: Text(
           amount,
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            fontSize: 14,
+            fontSize: ResponsiveLayout.getFontSize(14),
           ),
         ),
       ),
@@ -1227,34 +1290,39 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
   Widget _buildPaymentModeButton(String label, IconData icon,
       {bool isSelected = false, VoidCallback? onTap}) {
     return Container(
-      width: MediaQuery.of(context).size.width * 0.1,
-      height: MediaQuery.of(context).size.height * 0.075,
-      padding: const EdgeInsets.symmetric(vertical: 10),
+      width: ResponsiveLayout.getWidth(128),
+      height: ResponsiveLayout.getHeight(54),
+      padding: ResponsiveLayout.getResponsivePadding(vertical: 10),
       decoration: BoxDecoration(
         color: isSelected ? Colors.red.shade100 : Colors.white,
-        borderRadius: BorderRadius.circular(5),
+        borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(5)),
         border: isSelected ? Border.all(color: Colors.red.shade300) : Border.all(color: Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withOpacity(0.1),
             spreadRadius: 1,
             blurRadius: 2,
-            offset: Offset(0, 1),
+            offset: const Offset(0, 1),
           ),
         ]
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: isSelected ? Colors.red : Colors.grey,size: 25,),
-          const SizedBox(width: 8),
-          Text(label,
-              style: TextStyle(
-                color: isSelected ? Colors.red : Colors.grey,
-                fontWeight: FontWeight.w500,
-                fontSize: 14,
-
-              )),
+          Icon(
+            icon,
+            color: isSelected ? Colors.red : Colors.grey,
+            size: ResponsiveLayout.getIconSize(25),
+          ),
+          SizedBox(width: ResponsiveLayout.getWidth(8)),
+          Text(
+            label,
+            style: TextStyle(
+              color: isSelected ? Colors.red : Colors.grey,
+              fontWeight: FontWeight.w500,
+              fontSize: ResponsiveLayout.getFontSize(14),
+            ),
+          ),
         ],
       ),
     );
@@ -1262,19 +1330,25 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
 
   Widget _buildPaymentOptionButton(String label, IconData icon) {
     return Container(
-      height: MediaQuery.of(context).size.height * 0.062,
-      padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 5),
+      height: ResponsiveLayout.getHeight(45),
+      padding: ResponsiveLayout.getResponsivePadding(
+        vertical: 5,
+        horizontal: 5,
+      ),
       decoration: BoxDecoration(
         color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(8)),
         border: Border.all(color: Colors.grey.shade300),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: Colors.grey, size: 12,),
-          const SizedBox(width: 8),
-          Text(label, style: TextStyle(color: Colors.grey, fontSize: 12)),
+          Icon(
+            icon,
+            color: Colors.grey,
+            size: ResponsiveLayout.getIconSize(12),),
+          SizedBox(width: ResponsiveLayout.getWidth(8)),
+          Text(label, style: TextStyle(color: Colors.grey, fontSize: ResponsiveLayout.getFontSize(12))),
         ],
       ),
     );

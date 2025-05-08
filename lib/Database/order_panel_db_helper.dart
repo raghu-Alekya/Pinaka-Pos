@@ -124,7 +124,7 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
     );
 
     if (kDebugMode) {
-      print("#### Order created with ID: $activeOrderId, $orderServerId");
+      print("#### Order created with ID: Active DBOrder ID $activeOrderId, serverOrderID $orderServerId, orderDate: ${DateTime.now().toString()}");
     }
   }
 

@@ -3,41 +3,56 @@ import 'package:flutter_svg/flutter_svg.dart'; // For displaying SVG images
 import 'package:pinaka_pos/Constants/text.dart'; // Contains text constants for UI
 
 // Enum for different payment completion states
-enum PaymentStatus { successful, partial, receipt }
+enum PaymentStatus { successful, partial, receipt, exitConfirmation }
 
 // Enum for payment method types
 enum PaymentMode { cash, card, wallet, ebt }
 
 class PaymentDialog extends StatefulWidget {
   final PaymentStatus status; // Current payment status
-  final PaymentMode mode; // Payment method used
-  final double amount; // Payment amount
+  final PaymentMode? mode; // Payment method used
+  final double? amount; // Payment amount
   final double? changeAmount; //Build #1.0.34: New parameter for change amount
   final VoidCallback? onVoid; // Callback for cancelling payment
   final VoidCallback? onPrint; // Callback for printing receipt
   final VoidCallback? onNextPayment; // Callback for proceeding to next payment
   final VoidCallback? onDone; // Callback for completing the payment flow
   final VoidCallback? onNoReceipt; // Callback when user doesn't want receipt
+  final VoidCallback? onExitCancel; // Callback for canceling exit
+  final VoidCallback? onExitConfirm; // Callback for confirming exit
   final Function(String)? onEmail; // Callback for sending receipt via email
   final Function(String)? onSMS; // Callback for sending receipt via SMS
 
   const PaymentDialog({
     Key? key,
     required this.status,
-    required this.mode,
-    required this.amount,
+    this.mode,
+    this.amount,
     this.changeAmount,
     this.onVoid,
     this.onPrint,
     this.onNextPayment,
     this.onDone,
     this.onNoReceipt,
+    this.onExitCancel,
+    this.onExitConfirm,
     this.onEmail,
     this.onSMS,
   }) : super(key: key);
 
   @override
   State<PaymentDialog> createState() => _PaymentDialogState();
+
+  // factory PaymentDialog.exitConfirmation({
+  //   VoidCallback? onExitCancel,
+  //   VoidCallback? onExitConfirm
+  // }) {
+  //   return PaymentDialog(
+  //     status: PaymentStatus.exitConfirmation,
+  //     onExitCancel: onExitCancel,
+  //     onExitConfirm: onExitConfirm,
+  //   );
+  // }
 }
 
 class _PaymentDialogState extends State<PaymentDialog> {
@@ -62,7 +77,18 @@ class _PaymentDialogState extends State<PaymentDialog> {
             const SizedBox(height: 24), // Vertical spacing
             _buildTitle(), // Display appropriate title based on status
             const SizedBox(height: 32), // Vertical spacing
-            _buildPaymentInfo(), // Show payment details or receipt options
+            if (widget.status == PaymentStatus.exitConfirmation)
+              Text(
+                TextConstants.exitConfirmText,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 24,
+                  color: Colors.grey[800],
+                  height: 1.5, // Line height
+                ),
+              )
+            else
+              _buildPaymentInfo(), // Show payment details or receipt options
             const SizedBox(height: 20), // Vertical spacing
             if (widget.status == PaymentStatus.partial) //Build #1.0.34: Show only for partial payment - code updated as per new UI
               Text(
@@ -112,6 +138,8 @@ class _PaymentDialogState extends State<PaymentDialog> {
         break;
     // If you don't have this image, replace with an Icon:
     // return Icon(icon, size: 90, color: iconColor);
+      case PaymentStatus.exitConfirmation:
+        svgPath = 'assets/svg/check_broken_exit.svg';
     }
 
     return Container(
@@ -147,6 +175,9 @@ class _PaymentDialogState extends State<PaymentDialog> {
       case PaymentStatus.receipt:
         title = TextConstants.receiptTitle; // Title for receipt options
         break;
+      case PaymentStatus.exitConfirmation:
+        title = TextConstants.exitConfirmTitle;
+
     }
 
     return Text(
@@ -156,7 +187,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
       style: TextStyle(
         fontSize: 24,
         fontWeight: FontWeight.w700, // Bold title
-        color: Colors.blueGrey[800],
+        color: widget.status == PaymentStatus.exitConfirmation ? Colors.black87 : Colors.blueGrey[800],
       ),
     );
   }
@@ -227,7 +258,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  '${capitalize(widget.mode.name)} ${TextConstants.mode}',
+                  '${capitalize(widget.mode!.name)} ${TextConstants.mode}',
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w600,
@@ -235,7 +266,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
                   ),
                 ),
                 Text(
-                  '\$${widget.amount.toStringAsFixed(2)}',
+                  '\$${widget.amount!.toStringAsFixed(2)}',
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
@@ -290,6 +321,31 @@ class _PaymentDialogState extends State<PaymentDialog> {
   }
 
   Widget _buildActionButtons() {
+    if (widget.status == PaymentStatus.exitConfirmation) {
+      return Row(
+        children: [
+          // Cancel button
+          Expanded(
+            child: _buildButton(
+              TextConstants.cancelText,
+              widget.onExitCancel ?? () {},
+              backgroundColor: Colors.grey[100]!,
+              textColor: Colors.blueGrey[700]!,
+            ),
+          ),
+          const SizedBox(width: 16), // Horizontal spacing
+
+          // Continue button
+          Expanded(
+            child: _buildButton(
+              TextConstants.continueText,
+              widget.onExitConfirm ?? () {},
+              backgroundColor: const Color(0xFFFE6464), // Red button
+            ),
+          ),
+        ],
+      );
+    }
     if (widget.status == PaymentStatus.receipt) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.center, // Center children horizontally

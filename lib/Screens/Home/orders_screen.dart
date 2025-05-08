@@ -1,3 +1,4 @@
+import '../../Widgets/widget_alert_popup_dialogs.dart';
 import '../../Widgets/widget_filter_chip.dart';
 import '../../Widgets/widget_order_panel.dart';
 import '../../Widgets/widget_range_filter.dart';
@@ -626,6 +627,15 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                                   ScaffoldMessenger.of(context).showSnackBar(
                                                     SnackBar(content: Text("Item deleted successfully")),
                                                   );
+                                                  // CustomDialog.showInvalidCoupon(context);
+                                                  // // bool? confirmed = await
+                                                  // //CustomDialog.showRemoveDiscountConfirmation(context);
+                                                  //   // if (confirmed == true) {
+                                                  //   //   // Handle removal // remove discount
+                                                  //   // }
+                                                  //   // else{
+                                                  //   //   // user cancelled.
+                                                  //   // }
                                                 },
                                                 onCancelBtnTap: () {
                                                   Navigator.of(context).pop();

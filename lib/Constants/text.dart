@@ -129,8 +129,10 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String giftReceipt          = "Gift Receipt";
   static const String partialPaymentText   = "Please pay the remaining amount in  the next transaction.";
   static const String successPaymentText   = "Please collect the remaining amount to complete the transaction.";
+  static const String exitConfirmText   = "If you go back now, the current billing session may be lost. Please confirm before exiting.";
   static const String successPaymentTitle   = "Your transaction is successfully Done!";
   static const String partialPaymentTitle   = "Partial Payment Received!";
+  static const String exitConfirmTitle   = "Exit Without Completing Payment?";
   static const String receiptTitle          = "Partial Payment Received!";
   static const String print                 = "Print";
   static const String email                 = "Email";
@@ -139,6 +141,7 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String enterEmailOrPhone     = "Enter email or phone number";
   static const String noReceipt             = "No Receipt";
   static const String done                  = "Done";
+  static const String continueText          = "Continue";
   static const String vOid                  = "VOID";
   static const String nextPayment           = "Next Payment";
 

@@ -3,14 +3,14 @@ import 'package:flutter/material.dart';
 // Import your custom numpad
 import 'widget_custom_num_pad.dart';
 
-class TabsScreen extends StatefulWidget {
-  const TabsScreen({super.key});
+class AppScreenTabWidget extends StatefulWidget {
+  const AppScreenTabWidget({super.key});
 
   @override
-  State<TabsScreen> createState() => _TabsScreenState();
+  State<AppScreenTabWidget> createState() => _AppScreenTabWidgetState();
 }
 
-class _TabsScreenState extends State<TabsScreen> {
+class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
   // Tab selection
   int _selectedTabIndex = 0;
 
@@ -56,26 +56,16 @@ class _TabsScreenState extends State<TabsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: EdgeInsets.all(10.0),
-      height: MediaQuery.of(context).size.height * 0.9,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        color: Colors.grey.shade50,),
-      child: Padding(
-        padding: const EdgeInsets.all(5.0),
-        child: Column(
-          children: [
-            // Top Tabs
-            _buildTabs(),
+    return Column(
+      children: [
+        // Top Tabs
+        _buildTabs(),
 
-            const SizedBox(height: 20),
+        const SizedBox(height: 20),
 
-            // Content based on selected tab
-            _buildTabContent(),
-          ],
-        ),
-      ),
+        // Content based on selected tab
+        _buildTabContent(),
+      ],
     );
   }
 
@@ -104,7 +94,7 @@ class _TabsScreenState extends State<TabsScreen> {
             _selectedTabIndex = index;
           });
         },
-        child: Container(
+        child: Container(height: MediaQuery.of(context).size.height * 0.065,
           padding: const EdgeInsets.symmetric(vertical: 15),
           decoration: BoxDecoration(
             color: isSelected ? const Color(0xFF1E2745) : Colors.white,
@@ -141,7 +131,7 @@ class _TabsScreenState extends State<TabsScreen> {
       case 1:
         return _buildCouponsTab();
       case 2:
-        return _buildCustomItemTab();
+        return _buildCustomItemTab(context);
       case 3:
         return _buildPayoutsTab();
       default:
@@ -278,246 +268,484 @@ class _TabsScreenState extends State<TabsScreen> {
   }
 
   // CUSTOM ITEM TAB
-  Widget _buildCustomItemTab() {
-    return
-      Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
+  // Widget _buildCustomItemTab() {
+  //   return
+  //     Column(
+  //       crossAxisAlignment: CrossAxisAlignment.start,
+  //       mainAxisAlignment: MainAxisAlignment.center,
+  //       children: [
+  //         // First Row: Name & SKU
+  //         Row(
+  //           children: [
+  //             // Name Field
+  //             Expanded(
+  //               child: Column(
+  //                 crossAxisAlignment: CrossAxisAlignment.start,
+  //                 children: [
+  //                   const Text(
+  //                     "Name",
+  //                     style: TextStyle(
+  //                       fontSize: 14,
+  //                       fontWeight: FontWeight.w500,
+  //                       color: Color(0xFF1E2745),
+  //                     ),
+  //                   ),
+  //                   const SizedBox(height: 5),
+  //                   Container(
+  //                     height: MediaQuery.of(context).size.height / 15,
+  //                     decoration: BoxDecoration(
+  //                       color: Colors.white,
+  //                       borderRadius: BorderRadius.circular(10),
+  //                       border: Border.all(color: Colors.grey.shade300),
+  //                     ),
+  //                     child: TextField(
+  //                       textAlign: TextAlign.left,
+  //                       controller: _customItemNameController,
+  //                       decoration: InputDecoration(
+  //                         contentPadding: EdgeInsets.all(5),
+  //                         border: InputBorder.none,
+  //                         hintText: "Custom Item Name",
+  //                         hintStyle: TextStyle(
+  //                           color: Colors.grey,
+  //                           fontSize: 14
+  //                         ),
+  //                       ),
+  //                     ),
+  //                   ),
+  //                 ],
+  //               ),
+  //             ),
+  //             const SizedBox(width: 10),
+  //             // SKU Field
+  //             Expanded(
+  //               child: Column(
+  //                 crossAxisAlignment: CrossAxisAlignment.start,
+  //                 children: [
+  //                   const Text(
+  //                     "SKU",
+  //                     style: TextStyle(
+  //                       fontSize: 14,
+  //                       fontWeight: FontWeight.w500,
+  //                       color: Color(0xFF1E2745),
+  //                     ),
+  //                   ),
+  //                   const SizedBox(height: 5),
+  //                   Container(
+  //                     height: MediaQuery.of(context).size.height /15,
+  //                     decoration: BoxDecoration(
+  //                       color: Colors.white,
+  //                       borderRadius: BorderRadius.circular(10),
+  //                       border: Border.all(color: Colors.grey.shade300),
+  //                     ),
+  //                     child: TextField(
+  //                       controller: _skuController,
+  //                       textAlign: TextAlign.center,
+  //                       decoration: InputDecoration(
+  //                         border: InputBorder.none,
+  //                         hintText: "Generate the SKU",
+  //                         hintStyle: TextStyle(
+  //                             color: Colors.grey,
+  //                             fontSize: 14
+  //                         ),
+  //                         contentPadding: const EdgeInsets.only(right: 5),
+  //                         suffix: Container(
+  //                           margin: const EdgeInsets.all(5.0),
+  //                           child: ElevatedButton(
+  //                             onPressed: _generateSku,
+  //                             style: ElevatedButton.styleFrom(
+  //                               backgroundColor: Colors.red.shade400,
+  //                               foregroundColor: Colors.white,
+  //                               elevation: 0,
+  //                               shape: RoundedRectangleBorder(
+  //                                 borderRadius: BorderRadius.circular(8),
+  //                               ),
+  //                               minimumSize: const Size(70, 40),
+  //                             ),
+  //                             child: const Text(
+  //                               "Generate",
+  //                               style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+  //                             ),
+  //                           ),
+  //                         ),
+  //                       ),
+  //                     ),
+  //                   ),
+  //                 ],
+  //               ),
+  //             ),
+  //           ],
+  //         ),
+  //
+  //         const SizedBox(height: 10),
+  //
+  //         // Second Row: Item Price & Tax
+  //         Row(
+  //           children: [
+  //             // Item Price Field
+  //             Expanded(
+  //               child: Column(
+  //                 crossAxisAlignment: CrossAxisAlignment.start,
+  //                 children: [
+  //                   const Text(
+  //                     "Item Price",
+  //                     style: TextStyle(
+  //                       fontSize: 14,
+  //                       fontWeight: FontWeight.w500,
+  //                       color: Color(0xFF1E2745),
+  //                     ),
+  //                   ),
+  //                   const SizedBox(height: 5),
+  //                   Container(
+  //                     height: MediaQuery.of(context).size.height / 15,
+  //                     decoration: BoxDecoration(
+  //                       color: Colors.white,
+  //                       borderRadius: BorderRadius.circular(10),
+  //                       border: Border.all(color: Colors.grey.shade300),
+  //                     ),
+  //                     child: TextField(
+  //                       controller: _customItemPriceController,
+  //                       //keyboardType: TextInputType.number,
+  //                       decoration: const InputDecoration(
+  //                         hintText: "Enter the Price",
+  //                         hintStyle: TextStyle(
+  //                             color: Colors.grey,
+  //                             fontSize: 14
+  //                         ),
+  //                         border: InputBorder.none,
+  //                         prefixText: "\$",
+  //                         prefixStyle: TextStyle(fontSize: 14),
+  //                         contentPadding: EdgeInsets.all(5),
+  //                       ),
+  //                     ),
+  //                   ),
+  //                 ],
+  //               ),
+  //             ),
+  //             const SizedBox(width: 10),
+  //             // Tax Dropdown
+  //             Expanded(
+  //               child: Column(
+  //                 crossAxisAlignment: CrossAxisAlignment.start,
+  //                 children: [
+  //                   const Text(
+  //                     "Tax",
+  //                     style: TextStyle(
+  //                       fontSize: 14,
+  //                       fontWeight: FontWeight.w500,
+  //                       color: Color(0xFF1E2745),
+  //                     ),
+  //                   ),
+  //                   const SizedBox(height: 5),
+  //                   Container(
+  //                     height: MediaQuery.of(context).size.height /15,
+  //                     padding: const EdgeInsets.symmetric(horizontal: 15),
+  //                     decoration: BoxDecoration(
+  //                       color: Colors.white,
+  //                       borderRadius: BorderRadius.circular(10),
+  //                       border: Border.all(color: Colors.grey.shade300),
+  //                     ),
+  //                     child: DropdownButton<String>(
+  //                       value: _selectedTaxSlab.isEmpty ? null : _selectedTaxSlab,
+  //                       hint: const Text(
+  //                         'Choose a Tax Slab',
+  //                         style: TextStyle(color: Colors.grey, fontSize: 14),
+  //                       ),
+  //                       icon: const Icon(Icons.arrow_drop_down),
+  //                       isExpanded: true,
+  //                       underline: Container(),
+  //                       items: _taxSlabOptions.map((String value) {
+  //                         return DropdownMenuItem<String>(
+  //                           value: value,
+  //                           child: Text(value),
+  //                         );
+  //                       }).toList(),
+  //                       onChanged: (newValue) {
+  //                         setState(() {
+  //                           _selectedTaxSlab = newValue!;
+  //                         });
+  //                       },
+  //                     ),
+  //                   ),
+  //                 ],
+  //               ),
+  //             ),
+  //           ],
+  //         ),
+  //
+  //         const SizedBox(height: 20),
+  //
+  //         // Custom Numpad
+  //         Center(
+  //           child: SizedBox(
+  //             width: MediaQuery.of(context).size.width / 2.5,
+  //             height: MediaQuery.of(context).size.height / 2.275,
+  //             child: CustomNumPad(
+  //               onDigitPressed: (digit) {
+  //                 setState(() {
+  //                   if (_customItemPrice == "0.00") {
+  //                     _customItemPrice = digit;
+  //                     _customItemPriceController.text = digit;
+  //                   } else {
+  //                     _customItemPrice += digit;
+  //                     _customItemPriceController.text = _customItemPrice;
+  //                   }
+  //                 });
+  //               },
+  //               onClearPressed: () {
+  //                 setState(() {
+  //                   _customItemPrice = "";
+  //                   _customItemPriceController.text = "";
+  //                 });
+  //               },
+  //               actionButtonType: ActionButtonType.add,
+  //               onAddPressed: () {
+  //                 _handleAddCustomItem();
+  //               },
+  //             ),
+  //           ),
+  //         ),
+  //       ],
+  //     );
+  //
+  // }
+
+  // CUSTOM ITEM TAB
+  Widget _buildCustomItemTab(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+
+    return Container(
+      width: screenWidth * 0.55,
+      height: screenHeight * 0.8,
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
         children: [
-          // First Row: Name & SKU
           Row(
+            mainAxisSize: MainAxisSize.min,
+           // mainAxisAlignment: MainAxisAlignment.start,
             children: [
-              // Name Field
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "Name",
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF1E2745),
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Container(
-                      height: MediaQuery.of(context).size.height / 15,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.grey.shade300),
-                      ),
-                      child: TextField(
-                        textAlign: TextAlign.left,
-                        controller: _customItemNameController,
-                        decoration: InputDecoration(
-                          contentPadding: EdgeInsets.all(5),
-                          border: InputBorder.none,
-                          hintText: "Custom Item Name",
-                          hintStyle: TextStyle(
-                            color: Colors.grey,
-                            fontSize: 14
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+              _buildLabeledTextField(
+                title: 'Name',
+                hintText: 'Custom item name',
+                controller: _customItemNameController,
               ),
-              const SizedBox(width: 10),
-              // SKU Field
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "SKU",
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF1E2745),
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Container(
-                      height: MediaQuery.of(context).size.height /15,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.grey.shade300),
-                      ),
-                      child: TextField(
-                        controller: _skuController,
-                        textAlign: TextAlign.center,
-                        decoration: InputDecoration(
-                          border: InputBorder.none,
-                          hintText: "Generate the SKU",
-                          hintStyle: TextStyle(
-                              color: Colors.grey,
-                              fontSize: 14
-                          ),
-                          contentPadding: const EdgeInsets.only(right: 5),
-                          suffix: Container(
-                            margin: const EdgeInsets.all(5.0),
-                            child: ElevatedButton(
-                              onPressed: _generateSku,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red.shade400,
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                minimumSize: const Size(70, 40),
-                              ),
-                              child: const Text(
-                                "Generate",
-                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              const SizedBox(width: 20),
+              _buildSkuField(),
             ],
           ),
-
-          const SizedBox(height: 10),
-
-          // Second Row: Item Price & Tax
+          const SizedBox(height: 24),
           Row(
+            //mainAxisAlignment: MainAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              // Item Price Field
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "Item Price",
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF1E2745),
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Container(
-                      height: MediaQuery.of(context).size.height / 15,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.grey.shade300),
-                      ),
-                      child: TextField(
-                        controller: _customItemPriceController,
-                        //keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
-                          hintText: "Enter the Price",
-                          hintStyle: TextStyle(
-                              color: Colors.grey,
-                              fontSize: 14
-                          ),
-                          border: InputBorder.none,
-                          prefixText: "\$",
-                          prefixStyle: TextStyle(fontSize: 14),
-                          contentPadding: EdgeInsets.all(5),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+              _buildLabeledTextField(
+                title: 'Item Price',
+                hintText: 'Enter the Price',
+                controller: _customItemPriceController,
+                readOnly: true,
               ),
-              const SizedBox(width: 10),
-              // Tax Dropdown
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "Tax",
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF1E2745),
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Container(
-                      height: MediaQuery.of(context).size.height /15,
-                      padding: const EdgeInsets.symmetric(horizontal: 15),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.grey.shade300),
-                      ),
-                      child: DropdownButton<String>(
-                        value: _selectedTaxSlab.isEmpty ? null : _selectedTaxSlab,
-                        hint: const Text(
-                          'Choose a Tax Slab',
-                          style: TextStyle(color: Colors.grey, fontSize: 14),
-                        ),
-                        icon: const Icon(Icons.arrow_drop_down),
-                        isExpanded: true,
-                        underline: Container(),
-                        items: _taxSlabOptions.map((String value) {
-                          return DropdownMenuItem<String>(
-                            value: value,
-                            child: Text(value),
-                          );
-                        }).toList(),
-                        onChanged: (newValue) {
-                          setState(() {
-                            _selectedTaxSlab = newValue!;
-                          });
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              const SizedBox(width: 20),
+              _buildTaxDropdown(),
             ],
           ),
+          const SizedBox(height: 24),
+          _buildCustomNumpad(context),
+        ],
+      ),
+    );
+  }
 
-          const SizedBox(height: 20),
+  Widget _buildCustomNumpad(BuildContext context) {
+    return Center(
+      child: SizedBox(
+        width: MediaQuery.of(context).size.width / 2.5,
+        height: MediaQuery.of(context).size.height / 2.0,
+        child: CustomNumPad(
+          onDigitPressed: (digit) {
+            setState(() {
+              if (_customItemPrice == "0.00") {
+                _customItemPrice = digit;
+                _customItemPriceController.text = digit;
+              } else {
+                _customItemPrice += digit;
+                _customItemPriceController.text = _customItemPrice;
+              }
+            });
+          },
+          onClearPressed: () {
+            setState(() {
+              _customItemPrice = "";
+              _customItemPriceController.text = "";
+            });
+          },
+          actionButtonType: ActionButtonType.add,
+          onAddPressed: () {
+            _handleAddCustomItem();
+          },
+        ),
+      ),
+    );
+  }
 
-          // Custom Numpad
-          Center(
-            child: SizedBox(
-              width: MediaQuery.of(context).size.width / 2.5,
-              height: MediaQuery.of(context).size.height / 2.275,
-              child: CustomNumPad(
-                onDigitPressed: (digit) {
-                  setState(() {
-                    if (_customItemPrice == "0.00") {
-                      _customItemPrice = digit;
-                      _customItemPriceController.text = digit;
-                    } else {
-                      _customItemPrice += digit;
-                      _customItemPriceController.text = _customItemPrice;
-                    }
-                  });
-                },
-                onClearPressed: () {
-                  setState(() {
-                    _customItemPrice = "";
-                    _customItemPriceController.text = "";
-                  });
-                },
-                actionButtonType: ActionButtonType.add,
-                onAddPressed: () {
-                  _handleAddCustomItem();
-                },
-              ),
+  Widget _buildLabeledTextField({
+    required String title,
+    required String hintText,
+    required TextEditingController controller,
+    bool readOnly = false,
+  }) {
+    return Column(
+     crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+            color: Color(0xFF1E2745),
+          ),
+        ),
+        const SizedBox(height: 5),
+        Container(
+          height: MediaQuery.of(context).size.height / 15,
+          width: MediaQuery.of(context).size.width * 0.2,
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey.shade300),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: TextField(
+            controller: controller,
+            readOnly: readOnly,
+            textAlign: TextAlign.start,
+            decoration: InputDecoration(
+              border: InputBorder.none,
+              hintText: hintText,
+              hintStyle: const TextStyle(color: Colors.grey),
             ),
           ),
-        ],
-      );
-
+        ),
+      ],
+    );
   }
+
+  Widget _buildSkuField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'SKU',
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+            color: Color(0xFF1E2745),
+          ),
+        ),
+        const SizedBox(height: 5),
+        Container(
+          height: MediaQuery.of(context).size.height / 15,
+          width: MediaQuery.of(context).size.width * 0.2,
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey.shade300),
+            color: Color(0xFFECE9E9), // Custom background color,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _skuController,
+                  readOnly: true,
+                  textAlign: TextAlign.start,
+                  decoration: const InputDecoration(
+                    border: InputBorder.none,
+                    hintText: "Generate the SKU",
+                    hintStyle: TextStyle(color: Colors.grey),
+                  ),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: _generateSku,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.redAccent,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  minimumSize: const Size(60, 36),
+                ),
+                child: const Text(
+                  'Generate',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold,),
+                ),
+              )
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTaxDropdown() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Tax',
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+            color: Color(0xFF1E2745),
+          ),
+        ),
+        const SizedBox(height: 5),
+        Container(
+          height: MediaQuery.of(context).size.height / 15,
+          width: MediaQuery.of(context).size.width * 0.2,
+          // padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey.shade300),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: DropdownButtonFormField<String>(
+            value: _selectedTaxSlab.isEmpty ? null : _selectedTaxSlab,
+            isExpanded: true,
+            //underline: const SizedBox(),
+            icon: const Icon(Icons.keyboard_arrow_down),
+            items: _taxSlabOptions.map((String value) {
+              return DropdownMenuItem<String>(
+                value: value,
+                child: Text(
+                  value,
+                  textAlign: TextAlign.start,
+                ),
+              );
+            }).toList(),
+            onChanged: (newValue) {
+              setState(() {
+                _selectedTaxSlab = newValue!;
+              });
+            },
+            decoration: InputDecoration(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 18), // left + vertical center
+              border: InputBorder.none, // No border at all
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+            ),
+            hint: Text('Choose TAX Slab',style: TextStyle(color: Colors.grey)),
+          ),
+        ),
+      ],
+    );
+  }
+
+
+
 
   // PAYOUTS TAB
   Widget _buildPayoutsTab() {

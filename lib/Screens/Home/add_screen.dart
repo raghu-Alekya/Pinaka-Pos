@@ -110,7 +110,7 @@ class _AddScreenState extends State<AddScreen> {
                     refreshOrderList: _refreshOrderList, // Pass the callback
                   ),
 
-                Expanded(child: TabsScreen()),
+                Expanded(child: AppScreenTabWidget()),
 
                 // Order Panel on the Right (Conditional: Only when sidebar is left or bottom with right order panel)
                 if (sidebarPosition != SidebarPosition.right &&

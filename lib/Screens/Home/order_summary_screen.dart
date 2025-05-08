@@ -382,6 +382,9 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                         alignment: Alignment.centerLeft,
                         iconSize: WidgetStatePropertyAll(ResponsiveLayout.getIconSize(16))
                     ),
+                    onPressed: () {
+                      _showExitPaymentConfirmation(context);
+                      },
                   ),
                   //const SizedBox(width: 8),
                   Text(
@@ -1455,6 +1458,27 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
           Navigator.of(context).pop();
         },
       ),
+    );
+  }
+
+
+  void _showExitPaymentConfirmation(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false, // User must choose an option
+      builder: (context) => PaymentDialog(
+           status: PaymentStatus.exitConfirmation,
+
+          onExitCancel: () {
+            Navigator.of(context).pop(); // Close the dialog
+          },
+          onExitConfirm: () {
+            // Delay navigation to avoid calling during build
+              Navigator.of(context).pop(); // Close the dialog
+              // Navigator.of(context).pop(); // Go back to previous screen
+              // Additional cleanup logic can be added here
+          },
+        ),
     );
   }
 

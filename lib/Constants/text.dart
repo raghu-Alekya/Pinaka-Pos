@@ -150,6 +150,10 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
 
 }
 
+class TextFontSize {
+  static const double size_28 = 28;
+}
+
 class SharedPreferenceTextConstants {
 
   static const String themeModeKey = "theme_mode";

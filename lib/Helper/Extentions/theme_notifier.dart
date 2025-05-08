@@ -51,6 +51,9 @@ class ThemeNotifier with ChangeNotifier { // Build #1.0.6 - Added Theme code & a
   static const Color textDark = Colors.white;
   static const Color tabSelection = Color(0xFFFCDFDC);
 
+  ///grey scale for shadow
+  static const Color shadow_F7 = Color(0xFFFFF7F7);
+
   // Light
   static final ThemeData lightTheme = ThemeData(
     secondaryHeaderColor: textLight,

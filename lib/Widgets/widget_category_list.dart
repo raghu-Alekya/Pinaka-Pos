@@ -887,6 +887,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:pinaka_pos/Constants/layout_values.dart';
 import 'package:pinaka_pos/Helper/Extentions/theme_notifier.dart';
 import '../Constants/text.dart';
 import '../Utilities/shimmer_effect.dart';
@@ -1333,23 +1334,23 @@ class CategoryList extends StatelessWidget {
 
   Widget _buildAddButton(VoidCallback onPressed) {
     return Container(
-      height: 110,
-      width: 90,
+      height: LayoutValues.size_110,
+      width: LayoutValues.size_70,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(LayoutValues.radius_12),
         border: Border.all(color: Colors.black12),
         boxShadow: [
           BoxShadow(
-            color: Color(0xFFFFF7F7),
-            blurRadius: 5,
-            spreadRadius: 5,
-            offset: Offset(0,0),
+            color: ThemeNotifier.shadow_F7,
+            blurRadius: LayoutValues.radius_5,
+            spreadRadius: LayoutValues.radius_5,
+            offset: Offset(LayoutValues.zero,LayoutValues.zero),
           ),
         ],
       ),
       child: IconButton(
-        icon: const Icon(Icons.add, color: Colors.redAccent, size: 28),
+        icon: const Icon(Icons.add, color: Colors.redAccent, size: TextFontSize.size_28),
         onPressed: onPressed,
       ),
     );

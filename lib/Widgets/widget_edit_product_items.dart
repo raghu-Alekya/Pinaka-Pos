@@ -50,7 +50,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
           alignment: Alignment.center,
           width: MediaQuery.of(context).size.width * 0.5,
           height: MediaQuery.of(context).size.height * 0.9,
-          padding: const EdgeInsets.all(8.0),
+          padding: const EdgeInsets.all(5.0),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -130,12 +130,12 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                             "Unit Price: \$${widget.orderItem[AppDBConst.itemPrice].toStringAsFixed(2)}",
                             style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
                           ),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 5),
                           Text(
                           //  "Total: \$${(quantity * widget.orderItem[AppDBConst.itemCount] * widget.orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}",
                             "Total: \$${(quantity * widget.orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}", //Build 1.1.36
                             style: TextStyle(
-                                fontSize: 18,
+                                fontSize: 12,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.green.shade700
                             ),
@@ -146,7 +146,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 10),
 
               // Quantity controls -- Using our new stateless widget
               QuantityControl(
@@ -162,7 +162,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                 //color: Colors.red,
                 //margin: EdgeInsets.all(5.0),
                 //padding: EdgeInsets.all(2.0),
-                height: MediaQuery.of(context).size.height * 0.45,
+                height: MediaQuery.of(context).size.height * 0.5,
                 width: MediaQuery.of(context).size.width /2.65,
                 child: CustomNumPad(
                   onDigitPressed: (digit) {
@@ -180,7 +180,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                 ),
               ),
 
-              const SizedBox(height: 30,),
+              const SizedBox(height: 5,),
 
               // Action buttons
               // Container(

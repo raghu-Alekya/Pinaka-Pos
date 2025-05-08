@@ -87,7 +87,7 @@ class _VariantsDialogState extends State<VariantsDialog> with SingleTickerProvid
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 800, minHeight: 500),
                 child: Padding(
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.all(10),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -130,12 +130,12 @@ class _VariantsDialogState extends State<VariantsDialog> with SingleTickerProvid
                         ],
                       ),
 
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 10),
 
                       // Variant List - Using GridView for 3 items per row
                       Container(
-                        margin: const EdgeInsets.all(16),
-                        padding: const EdgeInsets.all(12),
+                        margin: const EdgeInsets.all(8),
+                        padding: const EdgeInsets.all(5),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(12),

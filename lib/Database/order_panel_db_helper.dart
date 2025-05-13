@@ -6,6 +6,7 @@ import 'package:pinaka_pos/Repositories/Orders/order_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../Constants/text.dart';
 import '../Helper/api_response.dart';
+import '../Models/Orders/get_orders_model.dart';
 import 'db_helper.dart';
 
 class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Order data
@@ -114,17 +115,202 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
 
     ///check if 'orderServerId' is 0 or not, if yes show alert
     final db = await DBHelper.instance.database;
-    activeOrderId = await db.update(AppDBConst.orderTable, {
-          AppDBConst.orderServerId: orderServerId, /// server created order id
-          AppDBConst.orderDate: DateTime.now().toString(), /// update these from order created on server
-          AppDBConst.orderTime: DateTime.now().toString(),
-        },
-        where: '${AppDBConst.orderId} = ?',
-        whereArgs: [activeOrderId],
+    await db.update(
+      AppDBConst.orderTable,
+      {
+        AppDBConst.orderId: orderServerId, // Update order_id to API id
+        AppDBConst.orderServerId: orderServerId,
+        AppDBConst.orderDate: DateTime.now().toString(),
+        AppDBConst.orderTime: DateTime.now().toString(),
+      },
+      where: '${AppDBConst.orderId} = ?',
+      whereArgs: [activeOrderId],
     );
 
+    // Update activeOrderId to the new server ID
+    activeOrderId = orderServerId;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('activeOrderId', activeOrderId!);
+
     if (kDebugMode) {
-      print("#### Order created with ID: Active DBOrder ID $activeOrderId, serverOrderID $orderServerId, orderDate: ${DateTime.now().toString()}");
+      print("#### Order updated with ID: Active DBOrder ID $activeOrderId, serverOrderID $orderServerId, orderDate: ${DateTime.now().toString()}");
+    }
+  }
+
+  //Build #1.0.40: syncOrdersFromApi
+  Future<void> syncOrdersFromApi(List<OrderModel> apiOrders) async {
+    final db = await DBHelper.instance.database;
+    if (kDebugMode) {
+      print("#### DEBUG: syncOrdersFromApi - Processing ${apiOrders.length} orders");
+    }
+
+    for (var apiOrder in apiOrders) {
+      if (kDebugMode) {
+        print("#### DEBUG: syncOrdersFromApi - Processing order serverId: ${apiOrder.id}");
+      }
+      // Check if order exists in DB by API id
+      final existingOrders = await db.query(
+        AppDBConst.orderTable,
+        where: '${AppDBConst.orderId} = ?',
+        whereArgs: [apiOrder.id],
+      );
+
+      if (existingOrders.isNotEmpty) {
+        await db.update(
+          AppDBConst.orderTable,
+          {
+            AppDBConst.orderServerId: apiOrder.id,
+            AppDBConst.orderTotal: double.tryParse(apiOrder.total) ?? 0.0,
+            AppDBConst.orderStatus: apiOrder.status,
+            AppDBConst.orderDate: apiOrder.dateCreated,
+            AppDBConst.orderTime: apiOrder.dateCreated,
+            AppDBConst.orderPaymentMethod: apiOrder.paymentMethod,
+            AppDBConst.orderDiscount: double.tryParse(apiOrder.discountTotal) ?? 0.0, // Store discount
+            AppDBConst.orderTax: double.tryParse(apiOrder.totalTax) ?? 0.0, // Store tax
+          },
+          where: '${AppDBConst.orderId} = ?',
+          whereArgs: [apiOrder.id],
+        );
+        if (kDebugMode) {
+          print("#### DEBUG: Updated order with serverId: ${apiOrder.id}, dbOrderId: ${apiOrder.id}");
+        }
+      } else {
+        await db.insert(AppDBConst.orderTable, {
+          AppDBConst.orderId: apiOrder.id,
+          AppDBConst.userId: activeUserId ?? 1,
+          AppDBConst.orderServerId: apiOrder.id,
+          AppDBConst.orderTotal: double.tryParse(apiOrder.total) ?? 0.0,
+          AppDBConst.orderStatus: apiOrder.status,
+          AppDBConst.orderType: 'in-store',
+          AppDBConst.orderDate: apiOrder.dateCreated,
+          AppDBConst.orderTime: apiOrder.dateCreated,
+          AppDBConst.orderPaymentMethod: apiOrder.paymentMethod,
+          AppDBConst.orderDiscount: double.tryParse(apiOrder.discountTotal) ?? 0.0, // Store discount
+          AppDBConst.orderTax: double.tryParse(apiOrder.totalTax) ?? 0.0, // Store tax
+          AppDBConst.orderShipping: double.tryParse(apiOrder.shippingTotal) ?? 0.0, // Store shipping
+        });
+        if (kDebugMode) {
+          print("#### DEBUG: Inserted new order with serverId: ${apiOrder.id}, dbOrderId: ${apiOrder.id}");
+        }
+      }
+
+      // Sync line items using API order id
+      await updateOrderItems(apiOrder.id, apiOrder.lineItems);
+    }
+
+    if (kDebugMode) {
+      print("#### DEBUG: syncOrdersFromApi - Refreshing local data");
+    }
+    await loadData();
+  }
+
+  //Build #1.0.40: update order items using item id
+  Future<void> updateOrderItems(int orderId, List<LineItem> apiItems) async {
+    if (kDebugMode) {
+      print("#### DEBUG: updateOrderItems orderId: $orderId");
+    }
+    final db = await DBHelper.instance.database;
+    final existingItems = await db.query(
+      AppDBConst.purchasedItemsTable,
+      where: '${AppDBConst.orderIdForeignKey} = ?',
+      whereArgs: [orderId],
+    );
+
+    final existingItemsMap = {
+      for (var item in existingItems) item[AppDBConst.itemId].toString(): item,
+    };
+
+    if (kDebugMode) {
+      print("#### DEBUG: updateOrderItems - Processing ${apiItems.length} items for order $orderId, existing items: ${existingItems.length}");
+    }
+
+    for (var apiItem in apiItems) {
+      final itemId = apiItem.id.toString();
+      final double itemPrice = apiItem.price ?? 0.0;
+      final int itemQuantity = apiItem.quantity ?? 0;
+      final double itemSumPrice = itemPrice * itemQuantity;
+
+      if (kDebugMode) {
+        print("#### DEBUG: updateOrderItems - Processing API item ID: $itemId, name: ${apiItem.name}, price: $itemPrice, quantity: $itemQuantity, sumPrice: $itemSumPrice");
+      }
+
+      if (existingItemsMap.containsKey(itemId)) {
+        final existingItem = existingItemsMap[itemId]!;
+        await db.update(
+          AppDBConst.purchasedItemsTable,
+          {
+            AppDBConst.itemName: apiItem.name ?? 'Unknown Item',
+            AppDBConst.itemPrice: itemPrice,
+            AppDBConst.itemCount: itemQuantity,
+            AppDBConst.itemSumPrice: itemSumPrice,
+            AppDBConst.itemImage: apiItem.image.src ?? '',
+            AppDBConst.itemSKU: apiItem.sku ?? '',
+          },
+          where: '${AppDBConst.itemId} = ?',
+          whereArgs: [existingItem[AppDBConst.itemId]],
+        );
+        if (kDebugMode) {
+          print("#### DEBUG: Updated item ID: $itemId for order $orderId");
+        }
+        existingItemsMap.remove(itemId);
+      } else {
+        await db.insert(AppDBConst.purchasedItemsTable, {
+          AppDBConst.itemId: apiItem.id,
+          AppDBConst.itemName: apiItem.name ?? 'Unknown Item',
+          AppDBConst.itemSKU: apiItem.sku ?? '',
+          AppDBConst.itemPrice: itemPrice,
+          AppDBConst.itemImage: apiItem.image.src ?? '',
+          AppDBConst.itemCount: itemQuantity,
+          AppDBConst.itemSumPrice: itemSumPrice,
+          AppDBConst.orderIdForeignKey: orderId,
+        });
+        if (kDebugMode) {
+          print("#### DEBUG: Inserted new item ID: $itemId for order $orderId");
+        }
+      }
+    }
+
+    for (var item in existingItemsMap.values) {
+      await db.delete(
+        AppDBConst.purchasedItemsTable,
+        where: '${AppDBConst.itemId} = ?',
+        whereArgs: [item[AppDBConst.itemId]],
+      );
+      if (kDebugMode) {
+        print("#### DEBUG: Deleted obsolete item ID: ${item[AppDBConst.itemId]} for order $orderId");
+      }
+    }
+
+    // Calculate order total from items
+    final items = await getOrderItems(orderId);
+    final orderTotal = items.fold(0.0, (sum, item) => sum + (item[AppDBConst.itemSumPrice] as num).toDouble());
+
+    // Fetch discount and tax from the database (set by syncOrdersFromApi)
+    final order = await db.query(
+      AppDBConst.orderTable,
+      where: '${AppDBConst.orderId} = ?',
+      whereArgs: [orderId],
+    );
+    double orderDiscount = 0.0;
+    double orderTax = 0.0;
+    if (order.isNotEmpty) {
+      orderDiscount = order.first[AppDBConst.orderDiscount] as double? ?? 0.0;
+      orderTax = order.first[AppDBConst.orderTax] as double? ?? 0.0;
+    }
+
+    // Update order with total, discount, and tax
+    await db.update(
+      AppDBConst.orderTable,
+      {
+        AppDBConst.orderTotal: orderTotal,
+        AppDBConst.orderDiscount: orderDiscount,
+        AppDBConst.orderTax: orderTax,
+      },
+      where: '${AppDBConst.orderId} = ?',
+      whereArgs: [orderId],
+    );
+    if (kDebugMode) {
+      print("#### DEBUG: Updated order total: $orderTotal, discount: $orderDiscount, tax: $orderTax for order $orderId, items: $items");
     }
   }
 

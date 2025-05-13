@@ -1,12 +1,14 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import '../../Blocs/Assets/asset_bloc.dart';
 import '../../Blocs/Auth/login_bloc.dart';
 import '../../Constants/text.dart';
 import '../../Database/db_helper.dart';
 import '../../Database/user_db_helper.dart';
 import '../../Helper/api_response.dart';
 import '../../Models/Auth/login_model.dart';
+import '../../Repositories/Assets/asset_repository.dart';
 import '../../Repositories/Auth/login_repository.dart';
 import '../../Widgets/widget_custom_num_pad.dart';
 import '../../Widgets/widget_loading.dart';
@@ -23,6 +25,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final List<String> _password = List.filled(6, "");
   late LoginBloc _bloc;
+  late AssetBloc _assetBloc;
   final UserDbHelper _userDbHelper = UserDbHelper();
   bool _hasErrorShown = false; // 👈 // Build #1.0.16 : Track if error is already shown
 
@@ -30,6 +33,7 @@ class _LoginScreenState extends State<LoginScreen> {
   void initState() {
     super.initState();
     _bloc = LoginBloc(LoginRepository());
+    _assetBloc = AssetBloc(AssetRepository());
   //  _checkExistingUser(); // Un comment this line if auto login needed
   }
 
@@ -105,6 +109,8 @@ class _LoginScreenState extends State<LoginScreen> {
     _hasErrorShown = false; // Build #1.0.16: Reset error flag before login
     final pin = _password.join();
     _bloc.fetchLoginToken(LoginRequest(pin));
+    // Call Assets API
+   // _assetBloc.fetchAssets(); Testing Purpose Added Here
   }
 
   @override

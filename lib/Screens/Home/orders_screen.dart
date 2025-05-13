@@ -372,9 +372,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
             height: 1, // Minimal height
           ),
 
-          SizedBox(
-            height: 10,
-          ),
+          // SizedBox(
+          //   height: 10,
+          // ),
 
           // Main Content
           Expanded(

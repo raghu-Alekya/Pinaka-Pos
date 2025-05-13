@@ -144,6 +144,8 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String continueText          = "Continue";
   static const String vOid                  = "VOID";
   static const String nextPayment           = "Next Payment";
+  static const String cashier               = "Cashier";
+  static const String safeDrop              = "Safe Drop";
 
   static const String login                 = "LOGIN"; // Build #1.0.8
   static const String loading               = "loading";

@@ -822,7 +822,7 @@ class NestedGridWidget extends StatelessWidget {
         },
       );
     return ClipRRect(
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(5),
       child: imageWidget,
     );
   }
@@ -833,234 +833,240 @@ class NestedGridWidget extends StatelessWidget {
 
     return Expanded(
       child: Container(
-        color: Colors.transparent,
+        margin: EdgeInsets.symmetric(vertical: 10, horizontal: 0),
+        height: MediaQuery.of(context).size.height /2,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          color: Colors.white,
+        ),
         child: isLoading
             ? ShimmerEffect.rectangular(height: 200)
             : Material(
           color: Colors.transparent,
-          child: ReorderableGridView.builder(
-            padding: const EdgeInsets.all(16),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              mainAxisSpacing: 20,
-              crossAxisSpacing: 10,
-              childAspectRatio: 2.2,
-            ),
-            itemCount: totalCount,
-            onReorder: onReorder,
-            itemBuilder: (context, index) {
-              // Handle "Add" button if enabled
-              if (showAddButton && index == 0) {
-                return Container(
-                  key: const ValueKey('add_button'),
-                  child: GestureDetector(
-                    onTap: onAddButtonPressed ?? () {},
-                    child: Card(
-                      color: Colors.white,
-                      elevation: 4,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
-                          Icon(Icons.add, size: 50, color: Colors.green),
-                          SizedBox(height: 8),
-                          Text(TextConstants.addItemText, style: TextStyle(color: Colors.green)),
-                        ],
+            child: ReorderableGridView.builder(
+              padding: const EdgeInsets.all(8),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 4,
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
+                childAspectRatio: 2.2,
+              ),
+              itemCount: totalCount,
+              onReorder: onReorder,
+              itemBuilder: (context, index) {
+                // Handle "Add" button if enabled
+                if (showAddButton && index == 0) {
+                  return Container(
+                    key: const ValueKey('add_button'),
+                    child: GestureDetector(
+                      onTap: onAddButtonPressed ?? () {},
+                      child: Card(
+                        color: Colors.white,
+                        elevation: 4,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const [
+                            Icon(Icons.add, size: 40, color: Colors.green),
+                            //SizedBox(height: 2),
+                            Text(TextConstants.addItemText, style: TextStyle(color: Colors.green)),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                );
-              }
-
-              // Handle "Back to Categories" button if enabled
-              if (showBackButton && index == (showAddButton ? 1 : 0)) {
-                return Container(
-                  key: const ValueKey('back_button'),
-                  child: GestureDetector(
-                    onTap: onBackButtonPressed ?? () {},
-                    child: Card(
-                      color: Colors.white,
-                      elevation: 4,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
-                          Icon(Icons.arrow_back, size: 50, color: Colors.blue),
-                          SizedBox(height: 8),
-                          Text("Back to Categories", style: TextStyle(color: Colors.blue)),
-                        ],
+                  );
+                }
+            
+                // Handle "Back to Categories" button if enabled
+                if (showBackButton && index == (showAddButton ? 1 : 0)) {
+                  return Container(
+                    key: const ValueKey('back_button'),
+                    child: GestureDetector(
+                      onTap: onBackButtonPressed ?? () {},
+                      child: Card(
+                        color: Colors.white,
+                        elevation: 4,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const [
+                            Icon(Icons.arrow_back, size: 50, color: Colors.blue),
+                            SizedBox(height: 8),
+                            Text("Back to Categories", style: TextStyle(color: Colors.blue)),
+                          ],
+                        ),
                       ),
                     ),
+                  );
+                }
+            
+                // Adjust the index based on the presence of "Add" and "Back" buttons
+                final itemIndex = index - (showAddButton ? 1 : 0) - (showBackButton ? 1 : 0);
+                if (itemIndex < 0 || itemIndex >= items.length) {
+                  return const SizedBox.shrink();
+                }
+            
+                final isReordered = reorderedIndices.isNotEmpty && reorderedIndices[itemIndex] != null;
+                final item = items[itemIndex];
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  decoration: BoxDecoration(
+                    border: isReordered ? Border.all(color: Colors.blue, width: 3) : null,
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                );
-              }
-
-              // Adjust the index based on the presence of "Add" and "Back" buttons
-              final itemIndex = index - (showAddButton ? 1 : 0) - (showBackButton ? 1 : 0);
-              if (itemIndex < 0 || itemIndex >= items.length) {
-                return const SizedBox.shrink();
-              }
-
-              final isReordered = reorderedIndices.isNotEmpty && reorderedIndices[itemIndex] != null;
-              final item = items[itemIndex];
-              return AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                decoration: BoxDecoration(
-                  border: isReordered ? Border.all(color: Colors.blue, width: 3) : null,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                key: ValueKey('grid_item_${itemIndex}_${item["fast_key_item_name"]}'),
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    GestureDetector( //Build 1.1.36: updated code for variations dialog conditions
-                      onTap: () async {
-                        if (productBloc == null) {
-                          if (kDebugMode) {
-                            print("NestedGridWidget - productBloc is null, cannot fetch variations");
+                  key: ValueKey('grid_item_${itemIndex}_${item["fast_key_item_name"]}'),
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      GestureDetector( //Build 1.1.36: updated code for variations dialog conditions
+                        onTap: () async {
+                          if (productBloc == null) {
+                            if (kDebugMode) {
+                              print("NestedGridWidget - productBloc is null, cannot fetch variations");
+                            }
+                            onItemTapped(index);
+                            return;
                           }
-                          onItemTapped(index);
-                          return;
-                        }
-
-                        final productId = item["fast_key_item_id"];
-                        if (kDebugMode) {
-                          print("NestedGridWidget - Product tapped: ${item['fast_key_item_name']}, ID: $productId");
-                        }
-
-                        // Fetch variations for the product
-                        productBloc!.fetchProductVariations(productId);
-
-                        // Show dialog and listen to the variation stream
-                        if (context.mounted) {
-                          showDialog(
-                            context: context,
-                            builder: (context) => StreamBuilder<APIResponse<List<ProductVariation>>>(
-                              stream: productBloc!.variationStream,
-                              builder: (context, snapshot) {
-                                if (!snapshot.hasData) {
-                                  if (kDebugMode) {
-                                    print("NestedGridWidget - No data in stream, waiting...");
-                                  }
-                                  return const Center(child: CircularProgressIndicator());
-                                }
-
-                                final response = snapshot.data!;
-                                if (response.status == Status.LOADING) {
-                                  return const Center(child: CircularProgressIndicator());
-                                } else if (response.status == Status.COMPLETED) {
-                                  final variations = response.data!;
-                                  if (variations.isNotEmpty) {
+            
+                          final productId = item["fast_key_item_id"];
+                          if (kDebugMode) {
+                            print("NestedGridWidget - Product tapped: ${item['fast_key_item_name']}, ID: $productId");
+                          }
+            
+                          // Fetch variations for the product
+                          productBloc!.fetchProductVariations(productId);
+            
+                          // Show dialog and listen to the variation stream
+                          if (context.mounted) {
+                            showDialog(
+                              context: context,
+                              builder: (context) => StreamBuilder<APIResponse<List<ProductVariation>>>(
+                                stream: productBloc!.variationStream,
+                                builder: (context, snapshot) {
+                                  if (!snapshot.hasData) {
                                     if (kDebugMode) {
-                                      print("NestedGridWidget - Variations found: ${variations.length}");
+                                      print("NestedGridWidget - No data in stream, waiting...");
                                     }
-                                    return VariantsDialog(
-                                      title: item["fast_key_item_name"],
-                                      variations: variations
-                                          .map((v) => {
-                                        "id": v.id,
-                                        "name": v.name,
-                                        "price": v.regularPrice,
-                                        "image": v.image.src,
-                                      }).toList(),
-                                      onAddVariant: (variant, quantity) {
-                                        if (kDebugMode) {
-                                          print("NestedGridWidget - Adding variant to order: ID=${variant['id']}, Name=${variant['name']}, Quantity=$quantity");
-                                        }
-                                        orderHelper?.addItemToOrder(
-                                          variant["name"],
-                                          variant["image"],
-                                          double.tryParse(variant["price"].toString()) ?? 0.0,
-                                          quantity,
-                                          'SKU${variant["name"]}',
-                                          onItemAdded: () {
-                                            Navigator.pop(context);
-                                            onItemTapped(index, variantAdded: true);
-                                          },
-                                        );
-                                      },
-                                    );
+                                    return const Center(child: CircularProgressIndicator());
+                                  }
+            
+                                  final response = snapshot.data!;
+                                  if (response.status == Status.LOADING) {
+                                    return const Center(child: CircularProgressIndicator());
+                                  } else if (response.status == Status.COMPLETED) {
+                                    final variations = response.data!;
+                                    if (variations.isNotEmpty) {
+                                      if (kDebugMode) {
+                                        print("NestedGridWidget - Variations found: ${variations.length}");
+                                      }
+                                      return VariantsDialog(
+                                        title: item["fast_key_item_name"],
+                                        variations: variations
+                                            .map((v) => {
+                                          "id": v.id,
+                                          "name": v.name,
+                                          "price": v.regularPrice,
+                                          "image": v.image.src,
+                                        }).toList(),
+                                        onAddVariant: (variant, quantity) {
+                                          if (kDebugMode) {
+                                            print("NestedGridWidget - Adding variant to order: ID=${variant['id']}, Name=${variant['name']}, Quantity=$quantity");
+                                          }
+                                          orderHelper?.addItemToOrder(
+                                            variant["name"],
+                                            variant["image"],
+                                            double.tryParse(variant["price"].toString()) ?? 0.0,
+                                            quantity,
+                                            'SKU${variant["name"]}',
+                                            onItemAdded: () {
+                                              Navigator.pop(context);
+                                              onItemTapped(index, variantAdded: true);
+                                            },
+                                          );
+                                        },
+                                      );
+                                    } else {
+                                      if (kDebugMode) {
+                                        print("NestedGridWidget - No variations found, proceeding with product");
+                                      }
+                                      Navigator.pop(context);
+                                      onItemTapped(index);
+                                      return const Center(child: CircularProgressIndicator());
+                                    }
                                   } else {
                                     if (kDebugMode) {
-                                      print("NestedGridWidget - No variations found, proceeding with product");
+                                      print("NestedGridWidget - Error fetching variations: ${response.message}");
                                     }
                                     Navigator.pop(context);
                                     onItemTapped(index);
                                     return const Center(child: CircularProgressIndicator());
                                   }
-                                } else {
-                                  if (kDebugMode) {
-                                    print("NestedGridWidget - Error fetching variations: ${response.message}");
-                                  }
-                                  Navigator.pop(context);
-                                  onItemTapped(index);
-                                  return const Center(child: CircularProgressIndicator());
-                                }
-                              },
-                            ),
-                          );
-                        }
-                      },
-                      child: Card(
-                        color: Colors.white,
-                        elevation: 4,
-                        child: Padding(
-                          padding: const EdgeInsets.all(20.0),
-                          child: Row(
-                            children: [
-                              _buildImage(item["fast_key_item_image"]),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                                  children: [
-                                    Text(
-                                      item["fast_key_item_name"],
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        //fontWeight: FontWeight.bold,
-                                        color: Colors.black,
+                                },
+                              ),
+                            );
+                          }
+                        },
+                        child: Card(
+                          color: Colors.white,
+                          elevation: 4,
+                          child: Padding(
+                            padding: const EdgeInsets.all(10.0),
+                            child: Row(
+                              children: [
+                                _buildImage(item["fast_key_item_image"]),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                    children: [
+                                      Text(
+                                        item["fast_key_item_name"],
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          //fontWeight: FontWeight.bold,
+                                          color: Colors.black,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
                                       ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    Text(
-                                      '\$${item["fast_key_item_price"]}',
-                                      style: const TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.black,
+                                      Text(
+                                        '\$${item["fast_key_item_price"]}',
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.black,
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (isReordered)
+                        Positioned(
+                          top: -5,
+                          right: -2,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                                onPressed: () => onDeleteItem(itemIndex),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.close, color: Colors.grey, size: 20),
+                                onPressed: onCancelReorder,
                               ),
                             ],
                           ),
                         ),
-                      ),
-                    ),
-                    if (isReordered)
-                      Positioned(
-                        top: -5,
-                        right: -2,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.delete, color: Colors.red, size: 20),
-                              onPressed: () => onDeleteItem(itemIndex),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.close, color: Colors.grey, size: 20),
-                              onPressed: onCancelReorder,
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-              );
-            },
-          ),
+                    ],
+                  ),
+                );
+              },
+            ),
+
         ),
       ),
     );

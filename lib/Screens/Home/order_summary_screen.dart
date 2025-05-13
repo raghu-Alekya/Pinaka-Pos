@@ -1475,7 +1475,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
           onExitConfirm: () {
             // Delay navigation to avoid calling during build
               Navigator.of(context).pop(); // Close the dialog
-              // Navigator.of(context).pop(); // Go back to previous screen
+              Navigator.of(context).pop(); // Go back to previous screen
               // Additional cleanup logic can be added here
           },
         ),

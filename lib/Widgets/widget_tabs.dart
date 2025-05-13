@@ -57,11 +57,13 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
   @override
   Widget build(BuildContext context) {
     return Column(
+      mainAxisAlignment: MainAxisAlignment.start,
       children: [
+        SizedBox(height: 10,),
         // Top Tabs
         _buildTabs(),
 
-        const SizedBox(height: 20),
+        const SizedBox(height: 10),
 
         // Content based on selected tab
         _buildTabContent(),
@@ -95,7 +97,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
           });
         },
         child: Container(height: MediaQuery.of(context).size.height * 0.065,
-          padding: const EdgeInsets.symmetric(vertical: 15),
+          padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
             color: isSelected ? const Color(0xFF1E2745) : Colors.white,
             borderRadius: BorderRadius.circular(10),
@@ -515,18 +517,18 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
     final screenHeight = MediaQuery.of(context).size.height;
 
     return Container(
-      width: screenWidth * 0.55,
-      height: screenHeight * 0.8,
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+      width: screenWidth * 0.75,
+      height: screenHeight * 0.75,
+      padding: const EdgeInsets.fromLTRB(20, 5, 20, 5),
       decoration: BoxDecoration(
-        color: Colors.white,
+          color: Colors.white,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         children: [
           Row(
             mainAxisSize: MainAxisSize.min,
-           // mainAxisAlignment: MainAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _buildLabeledTextField(
                 title: 'Name',
@@ -537,7 +539,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
               _buildSkuField(),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 5),
           Row(
             //mainAxisAlignment: MainAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -552,7 +554,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
               _buildTaxDropdown(),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 10),
           _buildCustomNumpad(context),
         ],
       ),
@@ -599,7 +601,9 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
   }) {
     return Column(
      crossAxisAlignment: CrossAxisAlignment.start,
+      // mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [
+        SizedBox(height: 5,),
         Text(
           title,
           style: const TextStyle(
@@ -610,9 +614,9 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
         ),
         const SizedBox(height: 5),
         Container(
-          height: MediaQuery.of(context).size.height / 15,
+          height: MediaQuery.of(context).size.height / 17,
           width: MediaQuery.of(context).size.width * 0.2,
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+          padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 10),
           decoration: BoxDecoration(
             border: Border.all(color: Colors.grey.shade300),
             borderRadius: BorderRadius.circular(10),
@@ -636,6 +640,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        SizedBox(height: 5,),
         const Text(
           'SKU',
           style: TextStyle(
@@ -646,7 +651,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
         ),
         const SizedBox(height: 5),
         Container(
-          height: MediaQuery.of(context).size.height / 15,
+          height: MediaQuery.of(context).size.height / 17,
           width: MediaQuery.of(context).size.width * 0.2,
           decoration: BoxDecoration(
             border: Border.all(color: Colors.grey.shade300),
@@ -695,6 +700,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        SizedBox(height: 5,),
         const Text(
           'Tax',
           style: TextStyle(
@@ -705,16 +711,19 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
         ),
         const SizedBox(height: 5),
         Container(
-          height: MediaQuery.of(context).size.height / 15,
+          alignment: Alignment.centerLeft,
+          height: MediaQuery.of(context).size.height / 17,
           width: MediaQuery.of(context).size.width * 0.2,
-          // padding: const EdgeInsets.symmetric(horizontal: 10),
+          // padding: const EdgeInsets.symmetric(horizontal: 10,vertical: 2),
           decoration: BoxDecoration(
+            color: Colors.red,
             border: Border.all(color: Colors.grey.shade300),
             borderRadius: BorderRadius.circular(10),
           ),
           child: DropdownButtonFormField<String>(
             value: _selectedTaxSlab.isEmpty ? null : _selectedTaxSlab,
             isExpanded: true,
+            alignment: Alignment.centerLeft,
             //underline: const SizedBox(),
             icon: const Icon(Icons.keyboard_arrow_down),
             items: _taxSlabOptions.map((String value) {
@@ -731,13 +740,14 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
                 _selectedTaxSlab = newValue!;
               });
             },
-            decoration: InputDecoration(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 18), // left + vertical center
+            decoration: InputDecoration(,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical:0), // left + vertical center
               border: InputBorder.none, // No border at all
               enabledBorder: InputBorder.none,
               focusedBorder: InputBorder.none,
             ),
-            hint: Text('Choose TAX Slab',style: TextStyle(color: Colors.grey)),
+
+            hint: Container( color: Colors.blue, padding: EdgeInsets.only(bottom: 0), child: Text('Choose TAX Slab',style: TextStyle(color: Colors.grey,fontSize: 14), textAlign: TextAlign.center,)),
           ),
         ),
       ],
@@ -942,7 +952,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
     return Container(
       width: MediaQuery.of(context).size.width / 2.75,
       height: MediaQuery.of(context).size.height / 14,
-      padding: const EdgeInsets.symmetric(vertical: 15),
+      padding: const EdgeInsets.symmetric(vertical: 2), /// use this value for all inset paddings
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),

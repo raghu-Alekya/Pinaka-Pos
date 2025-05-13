@@ -242,7 +242,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      width: MediaQuery.of(context).size.width * 0.32,
+      width: MediaQuery.of(context).size.width * 0.30,
       padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
       child: Card(
         elevation: 4,
@@ -335,7 +335,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
     return Column(
       children: [
         Container(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+          padding: const EdgeInsets.fromLTRB(16, 5, 16, 5),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -386,7 +386,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                 key: ValueKey(index),
                 borderRadius: BorderRadius.circular(20),
                 child: SizedBox( // Ensuring Slidable matches the item height
-                  height: 90, // Adjust to match your item height
+                  height: MediaQuery.of(context).size.height * 0.1, // Adjust to match your item height
                   child: Slidable( //Build #1.0.2 : added code for delete the items in list
                     key: ValueKey(index),
                     closeOnScroll: true,
@@ -440,8 +440,8 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                       },
                       child: Container(
                         margin: const EdgeInsets.symmetric(
-                            vertical: 8, horizontal: 8),
-                        padding: const EdgeInsets.all(12),
+                            vertical: 5, horizontal: 8),
+                        padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(20),
@@ -503,18 +503,19 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Text(
                                     orderItem[AppDBConst.itemName],
                                     style: const TextStyle(
-                                        fontSize: 16,
+                                        fontSize: 13,
                                         fontWeight: FontWeight.bold,
                                         color: Colors.black),
                                   ),
                                   Text(
                                     "${orderItem[AppDBConst.itemCount]} * \$${orderItem[AppDBConst.itemPrice]}", // Build #1.0.12: now item count will update in order panel
                                     style:
-                                        const TextStyle(color: Colors.black54),
+                                        const TextStyle(color: Colors.black54, fontSize: 10),
                                   ),
                                 ],
                               ),
@@ -525,7 +526,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                                 Text(
                                   "\$${(orderItem[AppDBConst.itemCount] * orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}",
                                   style: const TextStyle(
-                                      fontSize: 18,
+                                      fontSize: 14,
                                       fontWeight: FontWeight.bold),
                                 ),
                               ],
@@ -684,8 +685,9 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
           children: [
             // Summary container
             Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              padding: const EdgeInsets.all(16),
+              height: MediaQuery.of(context).size.height * 0.125,
+              margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
@@ -706,20 +708,20 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                       const Text(
                         "Sub total",
                         style: TextStyle(
-                          fontSize: 20,
+                          fontSize: 16,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
                       Text(
                         "\$${getSubTotal()}",
                         style: TextStyle(
-                          fontSize: 20,
+                          fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  //const SizedBox(height: 8),
 
                   // Tax row
                   Row(
@@ -728,7 +730,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                       const Text(
                         "Tax",
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: 12,
                           color: Colors.grey,
                         ),
                       ),
@@ -741,7 +743,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                       ),
                     ],
                   ),
-                  const SizedBox(height: 4),
+                  //const SizedBox(height: 4),
 
                   // Discount row - with green text
                   Row(
@@ -750,14 +752,14 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                       const Text(
                         "Discount",
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: 12,
                           color: Color(0xFF1BA672),
                         ),
                       ),
                       Text(
                         "-\$0.00",
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: 14,
                           color: Color(0xFF1BA672),
                         ),
                       ),
@@ -769,9 +771,9 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
 
             // Payment button - outside the container
             Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               width: double.infinity,
-              height: 50,
+              height: MediaQuery.of(context).size.height * 0.0575,
               child: ElevatedButton( //Build 1.1.36: on pay tap calling updateOrderProducts api call
                 onPressed: () async {
                   if (orderHelper.activeOrderId != null) {
@@ -842,7 +844,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                     : Text(
                   "Pay \$${getSubTotal()}",
                   style: TextStyle(
-                    fontSize: 24,
+                    fontSize: 16,
                     fontWeight: FontWeight.w500,
                   ),
                 ),

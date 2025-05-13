@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:pinaka_pos/Screens/Home/apps_screen.dart';
 import 'package:pinaka_pos/Screens/Home/categories_screen.dart';
 import 'package:pinaka_pos/Screens/Home/fast_key_screen.dart';
 import 'package:pinaka_pos/Screens/Home/orders_screen.dart';
@@ -28,15 +29,15 @@ class NavigationBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context); // Build #1.0.6 - Added theme for navigation bar
     return Container(
-      width: isVertical ? MediaQuery.of(context).size.width * 0.12 : null,
+      width: isVertical ? MediaQuery.of(context).size.width * 0.07 : null,
       height: isVertical ? null : 100,
       color: theme.scaffoldBackgroundColor,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+        padding: const EdgeInsets.fromLTRB(5, 10, 5, 10),
         child: Container(
           decoration: BoxDecoration(
             color: theme.primaryColor,
-            borderRadius: BorderRadius.all(Radius.circular(20)),
+            borderRadius: BorderRadius.all(Radius.circular(10)),
           ),
           child: isVertical ? _buildVerticalLayout() : _buildHorizontalLayout(),
         ),
@@ -130,7 +131,19 @@ class NavigationBar extends StatelessWidget {
             icon: Icons.apps,
             label: TextConstants.appsText,
             isSelected: selectedSidebarIndex == 4,
-            onTap: () => onSidebarItemSelected(4),
+            onTap: () {
+              if (kDebugMode) {
+                print("##### AppsScreen button tapped");
+              }
+              lastSelectedIndex = 4;
+              onSidebarItemSelected(4);
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                    builder: (context) =>
+                        AppsScreen()),
+              );
+            },
             isVertical: isVertical,
           ),
           // You can add more dynamic items here in the future.
@@ -231,13 +244,13 @@ class NavigationBar extends StatelessWidget {
         );
 
         return Padding(
-          padding: const EdgeInsets.all(16.0), // Adjust padding as needed
+          padding: const EdgeInsets.only(top: 10.0), // Adjust padding as needed
           child: Column(
             children: [
               // Dynamic part: scrollable on small screens, fixed layout on larger screens.
               Expanded(
                 child: ListView(
-                  padding: EdgeInsets.zero,
+                  padding: EdgeInsets.only(top: 0),
                   children: dynamicItems,
                 )
               ),
@@ -300,7 +313,7 @@ class NavigationBar extends StatelessWidget {
             isVertical: isVertical,
           ),
           SidebarButton(
-            icon: Icons.add,
+            icon: Icons.add_box_outlined,
             label: TextConstants.addText,
             isSelected: selectedSidebarIndex == 2,
             onTap: () {
@@ -339,7 +352,19 @@ class NavigationBar extends StatelessWidget {
             icon: Icons.apps,
             label: TextConstants.appsText,
             isSelected: selectedSidebarIndex == 4,
-            onTap: () => onSidebarItemSelected(4),
+            onTap: () {
+              if (kDebugMode) {
+                print("##### AppsScreen button tapped");
+              }
+              lastSelectedIndex = 4;
+              onSidebarItemSelected(4);
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                    builder: (context) =>
+                        AppsScreen()),
+              );
+            },
             isVertical: isVertical,
           ),
           // Additional dynamic items can be added here.
@@ -427,37 +452,45 @@ class SidebarButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8.0),
+      padding: const EdgeInsets.symmetric(vertical: 0.0, horizontal: 0.0),
       child: GestureDetector(
         onTap: onTap,
-        child: isVertical ? _buildVerticalLayout() : _buildHorizontalLayout(),
+        child: isVertical ? _buildVerticalLayout(context) : _buildHorizontalLayout(),
       ),
     );
   }
 
-  Widget _buildVerticalLayout() {
+  Widget _buildVerticalLayout(BuildContext context) {
     return Column(
       children: [
         Container(
-          padding: const EdgeInsets.all(8.0),
+          width: MediaQuery.of(context).size.width * 0.05,
+          padding: const EdgeInsets.all(10.0),
           decoration: BoxDecoration(
             shape: BoxShape.rectangle,
             color: isSelected ? Colors.red : Colors.transparent,
-            borderRadius: const BorderRadius.all(Radius.circular(8)),
+            borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(
-            icon,
-            color: isSelected ? Colors.white : Colors.white,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                color: isSelected ? Colors.white : Colors.white70,
+              ),
+              const SizedBox(height: 3),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : Colors.white70,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 8
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
           ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? Colors.red : Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+        )
       ],
     );
   }

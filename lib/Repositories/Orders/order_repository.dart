@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import '../../Helper/api_helper.dart';
 import '../../Helper/url_helper.dart';
+import '../../Models/Orders/get_orders_model.dart';
 import '../../Models/Orders/orders_model.dart';
 
 class OrderRepository {  // Build #1.0.25 - added by naveen
@@ -65,6 +66,48 @@ class OrderRepository {  // Build #1.0.25 - added by naveen
       return UpdateOrderResponseModel.fromJson(response);
     } else {
       throw Exception("Unexpected response type in update order PUT");
+    }
+  }
+  //Build #1.0.40: getOrders
+  Future<OrdersListModel> getOrders() async {
+    final setStatus = "processing";
+    final url = "${UrlHelper.componentVersionUrl}${UrlMethodConstants.orders}"
+        "${UrlParameterConstants.getOrdersParameter}$setStatus${UrlParameterConstants.getOrdersEndParameter}";
+
+    if (kDebugMode) {
+      print("OrderRepository - GET URL: $url");
+    }
+
+    try {
+      final response = await _helper.get(url, true);
+
+      if (kDebugMode) {
+        print("OrderRepository - Raw Response Type: ${response.runtimeType}");
+        print("OrderRepository - Raw Response: ${response.toString()}");
+      }
+
+      // Handle case where response is already a List<dynamic>
+      if (response is List<dynamic>) {
+        return OrdersListModel.fromJson(response);
+      }
+      // Handle case where response might be a String that needs parsing
+      else if (response is String) {
+        final parsed = jsonDecode(response);
+        if (parsed is List<dynamic>) {
+          return OrdersListModel.fromJson(parsed);
+        }
+        throw Exception("Unexpected parsed response type: ${parsed.runtimeType}");
+      }
+      // Handle any other unexpected type
+      else {
+        throw Exception("Unexpected response type: ${response.runtimeType}");
+      }
+    } catch (e,s) {
+      if (kDebugMode) {
+        print("OrderRepository - Error in getOrders: $e");
+        print("Stack trace: $e");
+      }
+      throw Exception("Failed to fetch orders: $e");
     }
   }
 

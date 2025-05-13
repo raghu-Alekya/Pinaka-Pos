@@ -65,10 +65,13 @@ class UrlMethodConstants { // Build #1.0.13
   static const String payments             = "payments";
   static const String orders               = "orders";
   static const String variations           = "products"; // Used for variations endpoint
+  static const String assets               = "assets"; //Build #1.0.40
 }
 
 class UrlParameterConstants { // Build #1.0.13
   static const  String productSearchParameter = "?search=";
+  static const  String getOrdersParameter     = "?page=1&per_page=10&search=&status="; //Build #1.0.40
+  static const  String getOrdersEndParameter  = "&show_un_paid_only=false";
 
 }
 

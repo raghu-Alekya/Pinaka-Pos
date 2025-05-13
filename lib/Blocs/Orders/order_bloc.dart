@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import '../../Constants/text.dart';
 import '../../Database/order_panel_db_helper.dart';
 import '../../Helper/api_response.dart';
+import '../../Models/Orders/get_orders_model.dart';
 import '../../Models/Orders/orders_model.dart';
 import '../../Repositories/Orders/order_repository.dart';
 
@@ -23,6 +24,11 @@ class OrderBloc { // Build #1.0.25 - added by naveen
   final StreamController<APIResponse<UpdateOrderResponseModel>> _deleteOrderItemController =
   StreamController<APIResponse<UpdateOrderResponseModel>>.broadcast();
 
+  // fetch orders
+  late StreamController<APIResponse<OrdersListModel>> _fetchOrdersController;
+  StreamSink<APIResponse<OrdersListModel>> get fetchOrdersSink => _fetchOrdersController.sink;
+  Stream<APIResponse<OrdersListModel>> get fetchOrdersStream => _fetchOrdersController.stream;
+
   // Getters for Streams
   StreamSink<APIResponse<CreateOrderResponseModel>> get createOrderSink => _createOrderController.sink;
   Stream<APIResponse<CreateOrderResponseModel>> get createOrderStream => _createOrderController.stream;
@@ -37,6 +43,8 @@ class OrderBloc { // Build #1.0.25 - added by naveen
   Stream<APIResponse<UpdateOrderResponseModel>> get deleteOrderItemStream => _deleteOrderItemController.stream;
 
   OrderBloc(this._orderRepository) {
+    _createOrderController = StreamController<APIResponse<CreateOrderResponseModel>>.broadcast();
+    _fetchOrdersController = StreamController<APIResponse<OrdersListModel>>.broadcast();
     if (kDebugMode) {
       print("OrderBloc Initialized with all 4 order APIs");
     }
@@ -125,6 +133,35 @@ class OrderBloc { // Build #1.0.25 - added by naveen
     }
   }
 
+  //Build #1.0.40: fetchOrders
+  Future<void> fetchOrders() async {
+    if (_fetchOrdersController.isClosed) return;
+
+    fetchOrdersSink.add(APIResponse.loading(TextConstants.loading));
+    try {
+      final response = await _orderRepository.getOrders();
+
+      if (kDebugMode) {
+        print("OrderBloc - Fetched ${response.orders.length} orders");
+        for (var order in response.orders) {
+          print("OrderBloc - Order ID: ${order.id}, Status: ${order.status}, Items: ${order.lineItems.length}");
+          for (var item in order.lineItems) {
+            print("OrderBloc - Item ID: ${item.id}, Name: ${item.name}, Price: ${item.price}, Quantity: ${item.quantity}");
+          }
+        }
+      }
+
+      fetchOrdersSink.add(APIResponse.completed(response));
+    } catch (e) {
+      if (e.toString().contains('SocketException')) {
+        fetchOrdersSink.add(APIResponse.error("Network error. Please check your connection."));
+      } else {
+        fetchOrdersSink.add(APIResponse.error("Failed to fetch orders: ${e.toString()}"));
+      }
+      if (kDebugMode) print("Exception in fetchOrders: $e");
+    }
+  }
+
   // 3. Apply Coupon to Order
   Future<void> applyCouponToOrder({required int orderId, required String couponCode}) async {
     if (_applyCouponController.isClosed) return;
@@ -196,6 +233,7 @@ class OrderBloc { // Build #1.0.25 - added by naveen
 
   void dispose() {
     if (!_createOrderController.isClosed) _createOrderController.close();
+    if (!_fetchOrdersController.isClosed) _fetchOrdersController.close();
     if (!_updateOrderController.isClosed) _updateOrderController.close();
     if (!_applyCouponController.isClosed) _applyCouponController.close();
     if (!_deleteOrderItemController.isClosed) _deleteOrderItemController.close();

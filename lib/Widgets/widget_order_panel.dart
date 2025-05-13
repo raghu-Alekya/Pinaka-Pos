@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:core';
 import 'dart:io';
 
 import 'package:buttons_tabbar/buttons_tabbar.dart';
@@ -47,6 +48,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
   bool _isLoading = false;
   late OrderBloc orderBloc;
   StreamSubscription? _updateOrderSubscription;
+  StreamSubscription? _fetchOrdersSubscription;
 
   @override
   void initState() {
@@ -55,7 +57,8 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
     }
     orderBloc = OrderBloc(OrderRepository());
     super.initState();
-    _getOrderTabs(); // Load existing orders into tabs
+    _getOrderTabs(); //Build #1.0.40: Load existing orders into tabs
+    _fetchOrders(); //Build #1.0.40: Fetch orders on initialization
   }
 
   @override
@@ -71,7 +74,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
   // Build #1.0.10: Fetches the list of order tabs from OrderHelper
   void _getOrderTabs() async {
     if (kDebugMode) {
-      print("##### OrderPanel _getOrderTabs");
+      print("##### DEBUG: _getOrderTabs - Loading order tabs");
     }
     await orderHelper.loadData(); // Load order data from DB
 
@@ -82,47 +85,112 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
             .asMap()
             .entries
             .map((entry) => {
-                  "title": "#${entry.value[AppDBConst.orderServerId] ?? entry.value[AppDBConst.orderId]}", // Order number
-                  "subtitle": "Tab ${entry.key + 1}", // Tab position
-                  "orderId": (entry.value[AppDBConst.orderServerId] ?? entry.value[AppDBConst.orderId])  as Object, // Order ID
-                })
-            .toList();
+          "title": "#${entry.value[AppDBConst.orderServerId] ?? entry.value[AppDBConst.orderId]}",
+          "subtitle": "Tab ${entry.key + 1}",
+          "orderId": entry.value[AppDBConst.orderId] as Object, // Use db orderId, not serverId
+        }).toList();
+        if (kDebugMode) {
+          print("##### DEBUG: _getOrderTabs - Loaded ${tabs.length} tabs: $tabs");
+        }
       });
     }
 
     _initializeTabController(); // Initialize tab controller
 
     if (tabs.isNotEmpty) {
-      // Set the current tab index to match the active order
+      int index = 0;
       if (orderHelper.activeOrderId != null) {
-        int index = orderHelper.orderIds.indexOf(orderHelper.activeOrderId!);
-        _tabController?.index = index;
+        index = orderHelper.orderIds.indexOf(orderHelper.activeOrderId!);
+        if (index == -1) {
+          if (kDebugMode) {
+            print("##### DEBUG: _getOrderTabs - Active order ID ${orderHelper.activeOrderId} not found, defaulting to last tab");
+          }
+          index = tabs.length - 1;
+          await orderHelper.setActiveOrder(tabs[index]["orderId"] as int);
+        }
       } else {
-        _tabController?.index = tabs.length - 1; // Default to last tab if no active order
+        if (kDebugMode) {
+          print("##### DEBUG: _getOrderTabs - No active order, setting to last tab");
+        }
+        index = tabs.length - 1;
+        await orderHelper.setActiveOrder(tabs[index]["orderId"] as int);
       }
 
-      await orderHelper.setActiveOrder(orderHelper.activeOrderId!); // Save active order
-      fetchOrderItems(); // Load items for active order
+      _tabController?.index = index;
+      if (kDebugMode) {
+        print("##### DEBUG: _getOrderTabs - Set tab index to $index, activeOrderId: ${orderHelper.activeOrderId}");
+      }
+
+      await fetchOrderItems(); // Load items for active order
+    } else {
+      if (kDebugMode) {
+        print("##### DEBUG: _getOrderTabs - No tabs available");
+      }
+      setState(() {
+        orderItems.clear(); // Clear items if no tabs
+      });
     }
+  }
+
+  void _fetchOrders() { //Build #1.0.40: fetch orders items from API sync & updating to UI
+    _fetchOrdersSubscription = orderBloc.fetchOrdersStream.listen((response) async {
+      if (!mounted) return;
+
+      if (response.status == Status.COMPLETED) {
+        if (kDebugMode) {
+          print("##### DEBUG: Fetched orders successfully");
+        }
+
+        await orderHelper.syncOrdersFromApi(response.data!.orders);
+        _getOrderTabs();
+      } else if (response.status == Status.ERROR) {
+        if (kDebugMode) {
+          print("##### ERROR: Fetch orders failed - ${response.message}");
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(response.message ?? "Failed to fetch orders")),
+        );
+      }
+    });
+
+    orderBloc.fetchOrders();
   }
 
   // Build #1.0.10: Fetches order items for the active order
   Future<void> fetchOrderItems() async {
     if (orderHelper.activeOrderId != null) {
-      List<Map<String, dynamic>> items = await orderHelper.getOrderItems(orderHelper.activeOrderId!);
-
       if (kDebugMode) {
-        print("##### fetchOrderItems :$items");
+        print("##### DEBUG: fetchOrderItems - Fetching items for activeOrderId: ${orderHelper.activeOrderId}");
       }
-      if (mounted) {
-        setState(() {
-          orderItems = items; // Update the order items list
-        });
+      try {
+        List<Map<String, dynamic>> items = await orderHelper.getOrderItems(orderHelper.activeOrderId!);
+
+        if (kDebugMode) {
+          print("##### DEBUG: fetchOrderItems - Retrieved ${items.length} items: $items");
+        }
+
+        if (mounted) {
+          setState(() {
+            orderItems = items; // Update the order items list
+          });
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print("##### ERROR: fetchOrderItems failed - $e");
+        }
+        if (mounted) {
+          setState(() {
+            orderItems.clear(); // Clear items on error
+          });
+        }
       }
     } else {
+      if (kDebugMode) {
+        print("##### DEBUG: fetchOrderItems - No active order, clearing items");
+      }
       if (mounted) {
         setState(() {
-          orderItems.clear(); // Clear the order items list if no active order
+          orderItems.clear(); // Clear items if no active order
         });
       }
     }
@@ -130,16 +198,20 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
 
   // Build #1.0.10: Initializes the tab controller and handles tab switching
   void _initializeTabController() {
-    _tabController?.dispose(); // Dispose the existing controller
+    _tabController?.dispose(); // Dispose existing controller
     _tabController = TabController(length: tabs.length, vsync: this);
 
     _tabController!.addListener(() async {
-      if (mounted) {
+      if (!_tabController!.indexIsChanging && mounted) {
         int selectedIndex = _tabController!.index; // Get selected tab index
         int selectedOrderId = tabs[selectedIndex]["orderId"] as int;
 
+        if (kDebugMode) {
+          print("##### DEBUG: Tab changed to index: $selectedIndex, orderId: $selectedOrderId");
+        }
+
         await orderHelper.setActiveOrder(selectedOrderId); // Set new active order
-        fetchOrderItems(); // Load items for the selected order
+        await fetchOrderItems(); // Load items for the selected order
         setState(() {}); // Refresh UI
       }
     });
@@ -234,6 +306,8 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
   void dispose() {
     _updateOrderSubscription?.cancel(); // Cancel the subscription
     orderBloc.dispose(); // Dispose the bloc if needed
+    _fetchOrdersSubscription?.cancel();
+    orderBloc.dispose();
     _tabController?.dispose();
     super.dispose();
   }
@@ -332,6 +406,18 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
     if (kDebugMode) {
       print("Building Current Order Widget");
     } // Debug print
+    // Fetch discount and tax for the active order
+    double orderDiscount = 0.0;
+    double orderTax = 0.0;
+
+    if (orderHelper.activeOrderId != null) {
+      final order = orderHelper.orders.firstWhere(
+            (order) => order[AppDBConst.orderId] == orderHelper.activeOrderId,
+        orElse: () => {},
+      );
+      orderDiscount = order[AppDBConst.orderDiscount] as double? ?? 0.0;
+      orderTax = order[AppDBConst.orderTax] as double? ?? 0.0;
+    }
     return Column(
       children: [
         Container(
@@ -733,7 +819,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                         ),
                       ),
                       Text(
-                        "\$0.00",
+                        "\$${orderTax.toStringAsFixed(2)}",
                         style: TextStyle(
                           fontSize: 14,
                           color: Colors.grey,
@@ -755,7 +841,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                         ),
                       ),
                       Text(
-                        "-\$0.00",
+                        "-\$${orderDiscount.toStringAsFixed(2)}",
                         style: TextStyle(
                           fontSize: 16,
                           color: Color(0xFF1BA672),
@@ -854,13 +940,29 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
     );
   }
 
-  num getSubTotal(){
+  num getSubTotal() {
     num total = 0;
+    double orderDiscount = 0.0;
+    double orderTax = 0.0;
+
+    if (orderHelper.activeOrderId != null) {
+      final order = orderHelper.orders.firstWhere(
+            (order) => order[AppDBConst.orderId] == orderHelper.activeOrderId,
+        orElse: () => {},
+      );
+      orderDiscount = order[AppDBConst.orderDiscount] as double? ?? 0.0;
+      orderTax = order[AppDBConst.orderTax] as double? ?? 0.0;
+    }
+
     for (var item in orderItems) {
       // var orderId = item[AppDBConst.itemId];
       var subTotal = item[AppDBConst.itemSumPrice];
-      total = (total + subTotal);
+      total = total + subTotal;
     }
+
+    // Adjust total with tax and discount
+    total = total + orderTax - orderDiscount;
+
     return total;
   }
 

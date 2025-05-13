@@ -113,24 +113,24 @@ class DBHelper {
     )
     ''');
 
-    // Orders Table
+   //Build #1.0.40:  Updated Orders Table
     await db.execute('''
-    CREATE TABLE ${AppDBConst.orderTable} (
-      ${AppDBConst.orderId} INTEGER PRIMARY KEY AUTOINCREMENT,
-      ${AppDBConst.orderServerId} INTEGER, -- Required: Updated by REST API, can be NULL initially
-      ${AppDBConst.userId} INTEGER NOT NULL,
-      ${AppDBConst.orderTotal} REAL NOT NULL,
-      ${AppDBConst.orderStatus} TEXT NOT NULL,
-      ${AppDBConst.orderType} TEXT NOT NULL,
-      ${AppDBConst.orderDate} TEXT NOT NULL,
-      ${AppDBConst.orderTime} TEXT NOT NULL,
-      ${AppDBConst.orderPaymentMethod} TEXT, -- Optional: Payment method (e.g., cash, card)
-      ${AppDBConst.orderDiscount} REAL DEFAULT 0, -- Optional: Discount applied to the order
-      ${AppDBConst.orderTax} REAL DEFAULT 0, -- Optional: Tax applied to the order
-      ${AppDBConst.orderShipping} REAL DEFAULT 0, -- Optional: Shipping charges
-      FOREIGN KEY(${AppDBConst.userId}) REFERENCES ${AppDBConst.userTable}(${AppDBConst.userId}) ON DELETE CASCADE
-    )
-    ''');
+CREATE TABLE ${AppDBConst.orderTable} (
+  ${AppDBConst.orderId} INTEGER PRIMARY KEY, -- Changed: Use API id, no AUTOINCREMENT
+  ${AppDBConst.orderServerId} INTEGER, -- Required: Updated by REST API, can be NULL initially
+  ${AppDBConst.userId} INTEGER NOT NULL,
+  ${AppDBConst.orderTotal} REAL NOT NULL,
+  ${AppDBConst.orderStatus} TEXT NOT NULL,
+  ${AppDBConst.orderType} TEXT NOT NULL,
+  ${AppDBConst.orderDate} TEXT NOT NULL,
+  ${AppDBConst.orderTime} TEXT NOT NULL,
+  ${AppDBConst.orderPaymentMethod} TEXT, -- Optional: Payment method (e.g., cash, card)
+  ${AppDBConst.orderDiscount} REAL DEFAULT 0, -- Optional: Discount applied to the order
+  ${AppDBConst.orderTax} REAL DEFAULT 0, -- Optional: Tax applied to the order
+  ${AppDBConst.orderShipping} REAL DEFAULT 0, -- Optional: Shipping charges
+  FOREIGN KEY(${AppDBConst.userId}) REFERENCES ${AppDBConst.userTable}(${AppDBConst.userId}) ON DELETE CASCADE
+)
+''');
 
     // Purchased Items Table
     await db.execute('''

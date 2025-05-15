@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import '../../Helper/api_helper.dart';
 import '../../Helper/url_helper.dart';
+import '../../Models/Search/product_by_sku_model.dart';
 import '../../Models/Search/product_search_model.dart';
 import '../../Models/Search/product_variation_model.dart';
 
@@ -71,6 +72,37 @@ class ProductRepository { // Build #1.0.13 : added product search repository
       }
     } else if (response is List) {
       return response.map((variationJson) => ProductVariation.fromJson(variationJson)).toList();
+    } else {
+      throw Exception("Unexpected response type");
+    }
+  }
+
+  // Build #1.0.43: added by naveen
+  Future<List<ProductBySkuResponse>> fetchProductBySku(String sku) async {
+    String url = "${UrlHelper.wooCommerceV3}${UrlMethodConstants.products}${UrlParameterConstants.productBySku}$sku";
+
+    if (kDebugMode) {
+      print("ProductRepository - FetchProductBySku URL: $url");
+    }
+
+    final response = await _helper.get(url, true);
+
+    if (kDebugMode) {
+      print("ProductRepository - FetchProductBySku Raw Response: $response");
+    }
+
+    if (response is String) {
+      try {
+        final List<dynamic> responseData = json.decode(response);
+        return responseData.map((productJson) => ProductBySkuResponse.fromJson(productJson)).toList();
+      } catch (e) {
+        if (kDebugMode) {
+          print("ProductRepository - Error parsing product by SKU response: $e");
+        }
+        throw Exception("Failed to parse product by SKU");
+      }
+    } else if (response is List) {
+      return response.map((productJson) => ProductBySkuResponse.fromJson(productJson)).toList();
     } else {
       throw Exception("Unexpected response type");
     }

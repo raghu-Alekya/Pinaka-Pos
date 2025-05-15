@@ -73,7 +73,7 @@ class UrlParameterConstants { // Build #1.0.13
   static const  String productSearchParameter = "?search=";
   static const  String getOrdersParameter     = "?page=1&per_page=10&search=&status="; //Build #1.0.40
   static const  String getOrdersEndParameter  = "&show_un_paid_only=false";
-
+  static const  String productBySku           = "?sku=";
 }
 
 class EndUrlConstants { // Build #1.0.13

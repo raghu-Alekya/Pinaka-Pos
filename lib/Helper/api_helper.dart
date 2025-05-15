@@ -76,14 +76,14 @@ class APIHelper { // Build #1.0.8, Naveen added
   }
 
   // Base method for handling POST requests
-  Future<dynamic> post(String url, Map<String, dynamic> params, bool useToken) async {
+  Future<dynamic> post(String url, Map<String, dynamic> params, bool useToken, {bool? validateMarchentUrl}) async {
     var responseJson;
     String finalUrl = "";
     String? token = "";
     var body = "";
 
     try {
-      finalUrl = UrlHelper.baseUrl + url;
+      finalUrl = (validateMarchentUrl ?? false) ? url : UrlHelper.baseUrl + url;  //Build #1.0.42: Updated url condition
       final userData = await UserDbHelper().getUserData();
       token =  userData?[AppDBConst.userToken] ?? "";
       body = json.encode(params);

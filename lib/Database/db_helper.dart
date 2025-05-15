@@ -65,6 +65,20 @@ class AppDBConst { // Build #1.0.10 - Naveen: Updated DB tables constants
   static const String fastKeyItemPrice = 'fast_key_item_price';
   static const String fastKeyItemSKU = 'fast_key_item_sku';
   static const String fastKeyItemVariantId = 'fast_key_item_variant_id';
+
+  //Build #1.0.42: Added Store Validation Table
+  static const String storeValidationTable = 'store_validation_table';
+  static const String storeValidationId = 'id';
+  static const String storeId = 'store_id';
+  static const String storeUserId = 'user_id';
+  static const String username = 'username';
+  static const String email = 'email';
+  static const String subscriptionType = 'subscription_type';
+  static const String storeName = 'store_name';
+  static const String expirationDate = 'expiration_date';
+  static const String storeBaseUrl = 'store_base_url';
+  static const String licenseKey = 'license_key';
+  static const String licenseStatus = 'license_status';
 }
 
 class DBHelper {
@@ -177,6 +191,23 @@ CREATE TABLE ${AppDBConst.orderTable} (
       FOREIGN KEY(${AppDBConst.fastKeyIdForeignKey}) REFERENCES ${AppDBConst.fastKeyTable}(${AppDBConst.fastKeyId}) ON DELETE CASCADE
     )
     ''');
+
+    //Build #1.0.42: Store Validation Table
+    await db.execute('''
+    CREATE TABLE ${AppDBConst.storeValidationTable} (
+      ${AppDBConst.storeValidationId} INTEGER PRIMARY KEY AUTOINCREMENT,
+      ${AppDBConst.storeId} TEXT NOT NULL,
+      ${AppDBConst.storeUserId} INTEGER NOT NULL,
+      ${AppDBConst.username} TEXT NOT NULL,
+      ${AppDBConst.email} TEXT NOT NULL,
+      ${AppDBConst.subscriptionType} TEXT NOT NULL,
+      ${AppDBConst.storeName} TEXT NOT NULL,
+      ${AppDBConst.expirationDate} TEXT NOT NULL,
+      ${AppDBConst.storeBaseUrl} TEXT NOT NULL,
+      ${AppDBConst.licenseKey} TEXT NOT NULL,
+      ${AppDBConst.licenseStatus} TEXT NOT NULL
+    )
+  ''');
 
     if (kDebugMode) {
       print("#### All tables created successfully!");

@@ -53,6 +53,7 @@ class UrlHelper {
   static const  String deleteProfile = "auth/logout";
 
   static const  String assets = "assets/public";
+  static const String validateMerchant = "https://mg.techkumard.com/wp-json/custom/v1/validate-marchent";  //Build #1.0.42
 
 }
 

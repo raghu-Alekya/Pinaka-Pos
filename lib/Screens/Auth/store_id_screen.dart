@@ -3,12 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:pinaka_pos/Screens/Auth/login_screen.dart';
 import '../../Blocs/Auth/login_bloc.dart';
+import '../../Blocs/Auth/store_validation_bloc.dart';
 import '../../Constants/text.dart';
 import '../../Database/db_helper.dart';
 import '../../Database/user_db_helper.dart';
 import '../../Helper/api_response.dart';
 import '../../Models/Auth/login_model.dart';
+import '../../Models/Auth/store_validation_model.dart';
 import '../../Repositories/Auth/login_repository.dart';
+import '../../Repositories/Auth/store_validation_repository.dart';
 import '../../Widgets/widget_custom_num_pad.dart';
 import '../../Widgets/widget_loading.dart';
 import '../Home/fast_key_screen.dart';
@@ -22,21 +25,44 @@ class StoreIdScreen extends StatefulWidget { // Build #1.0.16
 }
 
 class _StoreIdScreenState extends State<StoreIdScreen> {
-  final List<String> _password = List.filled(6, "");
-  late LoginBloc _bloc;
+  late StoreValidationBloc _bloc;
   final UserDbHelper _userDbHelper = UserDbHelper();
   final TextEditingController _storeIdController = TextEditingController();
-  bool _isStoreIdEmpty = true;
-
+  final TextEditingController _usernameController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  bool _isLoading = false;
+  String? _lastErrorMessage;
 
-  String? _snackBarMessage;
 
   @override
   void initState() {
     super.initState();
-    _bloc = LoginBloc(LoginRepository());
+    _bloc = StoreValidationBloc(StoreValidationRepository());
     //  _checkExistingUser(); // Un comment this line if auto login needed
+  }
+
+  @override
+  void dispose() {
+    _bloc.dispose();
+    _storeIdController.dispose();
+    _usernameController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  void _handleValidation() {  //Build #1.0.42: Updated code
+    if (_formKey.currentState!.validate()) {
+      setState(() {
+        _isLoading = true;
+        _lastErrorMessage = null; // Reset last error message
+      });
+      _bloc.validateStore(
+        username: _usernameController.text,
+        password: _passwordController.text,
+        storeId: _storeIdController.text,
+      );
+    }
   }
 
   Future<void> _checkExistingUser() async {
@@ -122,7 +148,7 @@ class _StoreIdScreenState extends State<StoreIdScreen> {
     return Scaffold(
       body: Row(
         children: [
-          // Left Side - Logo Section
+          // Left Side - Logo Section (unchanged)
           Expanded(
             flex: 1,
             child: Container(
@@ -136,92 +162,196 @@ class _StoreIdScreenState extends State<StoreIdScreen> {
             ),
           ),
 
-          // Right Side - Login Interface
+          // Right Side - Validation Interface
           Expanded(
             flex: 1,
-            child: Padding(
+            child: Padding(  //Build #1.0.42: Updated UI
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    const Text(
-                      'Please Enter Your Store ID',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      width: isPortrait
-                          ? MediaQuery.of(context).size.width / 2.5
-                          : MediaQuery.of(context).size.width / 3,
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade300),
-                      ),
-                      child: TextFormField(
-                        keyboardType: TextInputType.number,
-                        controller: _storeIdController,
-                        decoration: InputDecoration(
-                          hintText: 'Store ID',
-                          enabledBorder: UnderlineInputBorder(
-                            borderSide: BorderSide(
-                                color: Colors.white, width: 1.0, style: BorderStyle.none),
-                          ),
-                          // errorBorder: OutlineInputBorder(
-                          //   borderRadius: BorderRadius.all(Radius.circular(5)),
-                          //   borderSide: BorderSide(color: Colors.red),
-                          // ),
-                          // focusedBorder: UnderlineInputBorder(
-                          //   borderSide: BorderSide(color: Colors.white),
-                          // ),
-                        ),
-                        textAlign: TextAlign.center,
-                        textInputAction: TextInputAction.done,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Enter a Store ID';
-                          }
-                          // Add custom validation logic here
-                          return null; // Return null when input is valid
-                        }, // This implementation will show error messages below the TextField when validation fails,
-                           // and only allow navigation to the LoginScreen when validation passes.
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: isPortrait
-                          ? MediaQuery.of(context).size.width / 4
-                          : MediaQuery.of(context).size.width / 3,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          if (_formKey.currentState!.validate() && _storeIdController.text.isNotEmpty) {
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) => LoginScreen()),
+              child: StreamBuilder<APIResponse<StoreValidationResponse>>(
+                stream: _bloc.validationStream,
+                builder: (context, snapshot) {
+                  // In _StoreIdScreenState.build, inside StreamBuilder
+                  if (snapshot.hasData) {
+                    final response = snapshot.data!;
+                    if (response.status == Status.COMPLETED) {
+                      if (response.data!.success) {
+                        // Save validation data and navigate
+                        _userDbHelper.saveStoreValidationData(response.data!).then((_) {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(builder: (context) => const LoginScreen()),
+                          );
+                        });
+                      } else {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          setState(() {
+                            _isLoading = false; // Stop loader
+                          });
+                          if (_lastErrorMessage != response.data!.message) {
+                            _lastErrorMessage = response.data!.message;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(response.data!.message ?? 'Validation failed',  style: TextStyle(color: Colors.red))),
                             );
                           }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF1E2745),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                        });
+                      }
+                    } else if (response.status == Status.ERROR) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        setState(() {
+                          _isLoading = false; // Stop loader
+                        });
+                        if (_lastErrorMessage != response.message) {
+                          _lastErrorMessage = response.message;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(response.message ?? 'Validation failed', style: TextStyle(color: Colors.red),)),
+                          );
+                        }
+                      });
+                    }
+                  }
+
+                  return Form(
+                    key: _formKey,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        // Inside the Form widget's Column children in StoreIdScreen
+                        const Text(
+                          'Enter Details',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                        child: const Text('Submit'),
-                      ),
+                        const SizedBox(height: 12),
+                        Container(
+                          width: isPortrait
+                              ? MediaQuery.of(context).size.width / 2.5
+                              : MediaQuery.of(context).size.width / 3,
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey.shade300),
+                          ),
+                          child: TextFormField(
+                            keyboardType: TextInputType.emailAddress,
+                            controller: _usernameController,
+                            decoration: const InputDecoration(
+                              hintText: 'Username',
+                              enabledBorder: UnderlineInputBorder(
+                                borderSide: BorderSide(
+                                  color: Colors.white,
+                                  width: 1.0,
+                                  style: BorderStyle.none,
+                                ),
+                              ),
+                            ),
+                            textAlign: TextAlign.center,
+                            textInputAction: TextInputAction.next,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Enter a Username';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          width: isPortrait
+                              ? MediaQuery.of(context).size.width / 2.5
+                              : MediaQuery.of(context).size.width / 3,
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey.shade300),
+                          ),
+                          child: TextFormField(
+                            controller: _passwordController,
+                            decoration: const InputDecoration(
+                              hintText: 'Password',
+                              enabledBorder: UnderlineInputBorder(
+                                borderSide: BorderSide(
+                                  color: Colors.white,
+                                  width: 1.0,
+                                  style: BorderStyle.none,
+                                ),
+                              ),
+                            ),
+                            textAlign: TextAlign.center,
+                            obscureText: true,
+                            textInputAction: TextInputAction.next,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Enter a Password';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          width: isPortrait
+                              ? MediaQuery.of(context).size.width / 2.5
+                              : MediaQuery.of(context).size.width / 3,
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.grey.shade300),
+                          ),
+                          child: TextFormField(
+                            keyboardType: TextInputType.text,
+                            controller: _storeIdController,
+                            decoration: const InputDecoration(
+                              hintText: 'Store ID',
+                              enabledBorder: UnderlineInputBorder(
+                                borderSide: BorderSide(
+                                  color: Colors.white,
+                                  width: 1.0,
+                                  style: BorderStyle.none,
+                                ),
+                              ),
+                            ),
+                            textAlign: TextAlign.center,
+                            textInputAction: TextInputAction.done,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Enter a Store ID';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        // Update ElevatedButton
+                        SizedBox(
+                          width: isPortrait
+                              ? MediaQuery.of(context).size.width / 4
+                              : MediaQuery.of(context).size.width / 3,
+                          child: ElevatedButton(
+                            onPressed: _isLoading ? null : _handleValidation,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF1E2745),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              disabledBackgroundColor: const Color(0xFF1E2745), // Maintain color when disabled
+                            ),
+                            child: _isLoading
+                                ? const CircularProgressIndicator(color: Colors.white)
+                                : const Text('Submit'),
+                          ),
+                        )
+                      ],
                     ),
-                  ],
-                ),
+                  );
+                },
               ),
             ),
           ),

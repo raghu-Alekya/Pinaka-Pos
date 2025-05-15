@@ -740,7 +740,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
                 _selectedTaxSlab = newValue!;
               });
             },
-            decoration: InputDecoration(,
+            decoration: InputDecoration(  //Build #1.0.42: getting "," issue fixed
               contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical:0), // left + vertical center
               border: InputBorder.none, // No border at all
               enabledBorder: InputBorder.none,

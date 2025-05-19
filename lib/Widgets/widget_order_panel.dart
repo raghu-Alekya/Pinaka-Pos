@@ -6,19 +6,24 @@ import 'package:buttons_tabbar/buttons_tabbar.dart';
 import 'package:dotted_line/dotted_line.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_barcode_listener/flutter_barcode_listener.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:pinaka_pos/Screens/Home/order_summary_screen.dart';
 import 'package:pinaka_pos/Widgets/widget_custom_num_pad.dart';
 import 'package:pinaka_pos/Widgets/widget_nested_grid_layout.dart';
+import 'package:pinaka_pos/Widgets/widget_variants_dialog.dart';
 
 import '../Blocs/Orders/order_bloc.dart';
+import '../Blocs/Search/product_search_bloc.dart';
 import '../Constants/text.dart';
 import '../Database/db_helper.dart';
 import '../Database/order_panel_db_helper.dart';
 import '../Helper/api_response.dart';
 import '../Models/Orders/orders_model.dart';
+import '../Repositories/Auth/store_validation_repository.dart';
 import '../Repositories/Orders/order_repository.dart';
+import '../Repositories/Search/product_search_repository.dart';
 import '../Screens/Home/edit_product_screen.dart';
 
 class RightOrderPanel extends StatefulWidget {
@@ -49,6 +54,8 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
   late OrderBloc orderBloc;
   StreamSubscription? _updateOrderSubscription;
   StreamSubscription? _fetchOrdersSubscription;
+  final ProductBloc productBloc = ProductBloc(ProductRepository()); // Build #1.0.44 : Added for barcode scanning
+  StreamSubscription? _productBySkuSubscription; // Build #1.0.44 : Added for product stream
 
   @override
   void initState() {
@@ -236,6 +243,34 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
     fetchOrderItems(); // Load items for the new order
   }
 
+  // void addNewTab() async { // Build #1.0.44 : Un-Comment if this func needed and test
+  //   if (kDebugMode) {
+  //     print("##### DEBUG: addNewTab - Creating new order via OrderBloc");
+  //   }
+  //   String deviceId = await getDeviceId();
+  //   OrderMetaData device = OrderMetaData(key: OrderMetaData.posDeviceId, value: deviceId);
+  //   OrderMetaData placedBy = OrderMetaData(key: OrderMetaData.posPlacedBy, value: '${orderHelper.activeUserId ?? 1}');
+  //   List<OrderMetaData> metaData = [device,placedBy];
+  //   // Create new order via API
+  //   await orderBloc.createOrder(metaData);
+  //   // Refresh tabs to include new order
+  //   _getOrderTabs();
+  //   // Set the new order as active
+  //   await orderHelper.setActiveOrder(tabs.last["orderId"] as int); // Set the new order as active
+  //   // Update tab controller and UI
+  //   _initializeTabController();
+  //   if (tabs.isNotEmpty) {
+  //     _tabController?.index = tabs.length - 1;
+  //     // Scroll to new tab
+  //     _scrollToSelectedTab();
+  //     // Fetch items for new order
+  //     await fetchOrderItems();
+  //     if (kDebugMode) {
+  //       print("##### DEBUG: addNewTab - Added tab for orderId: ${orderHelper.activeOrderId}");
+  //     }
+  //   }
+  // }
+
   // Scrolls to the last tab to ensure visibility
   void _scrollToSelectedTab() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -309,93 +344,206 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
     _fetchOrdersSubscription?.cancel();
     orderBloc.dispose();
     _tabController?.dispose();
+    _productBySkuSubscription?.cancel(); // Build #1.0.44 : Added Cancel product subscription
+    productBloc.dispose(); // Added: Dispose ProductBloc
     super.dispose();
   }
+
+  Future<String> getDeviceId() async { // Build #1.0.44 : Get Device Id
+    final storeValidationRepository = StoreValidationRepository();
+    try {
+      final deviceDetails = await storeValidationRepository.getDeviceDetails();
+      return deviceDetails['device_id'] ?? 'unknown';
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error fetching device ID: $e');
+      }
+      return 'unknown';
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Container(
-      width: MediaQuery.of(context).size.width * 0.30,
-      padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
-      child: Card(
-        elevation: 4,
-        margin: const EdgeInsets.only(top: 10),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      controller: _scrollController,
-                      child: Row(
-                        children: List.generate(tabs.length, (index) {
-                          final bool isSelected = _tabController!.index == index;
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
-                            child: GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  _tabController!.index = index;
-                                });
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                                decoration: BoxDecoration(
-                                  color: isSelected ? Colors.white : Colors.grey.shade400,
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          tabs[index]["title"] as String,
-                                          style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-                                        ),
-                                        Text(
-                                          tabs[index]["subtitle"] as String,
-                                          style: const TextStyle(color: Colors.black54, fontSize: 12),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(width: 40),
-                                    // Always show the close button
-                                    GestureDetector(
-                                      onTap: () => removeTab(index),
-                                      child: const Icon(Icons.close, size: 18, color: Colors.red),
-                                    ),
-                                  ],
+    return BarcodeKeyboardListener( // Build #1.0.44 : Added - Wrap with BarcodeKeyboardListener for barcode scanning
+      onBarcodeScanned: (barcode) async {
+        if (barcode.isNotEmpty) {
+          if (kDebugMode) {
+            print("##### DEBUG: onBarcodeScanned - Scanned barcode: $barcode");
+          }
+          // Create new order if none exists
+          if (tabs.isEmpty) {
+            if (kDebugMode) {
+              print("##### DEBUG: onBarcodeScanned - No tabs, creating new order");
+            }
+            String deviceId = await getDeviceId();
+            OrderMetaData device = OrderMetaData(key: OrderMetaData.posDeviceId, value: deviceId);
+            OrderMetaData placedBy = OrderMetaData(key: OrderMetaData.posPlacedBy, value: '${orderHelper.activeUserId ?? 1}');
+            List<OrderMetaData> metaData = [device,placedBy];
+
+            await orderBloc.createOrder(metaData);
+            _getOrderTabs();
+          }
+          // Show loading indicator
+          setState(() => _isLoading = true);
+          // Fetch product by SKU
+          productBloc.fetchProductBySku(barcode);
+          // Cancel previous subscription to avoid overlap
+          _productBySkuSubscription?.cancel();
+          _productBySkuSubscription = productBloc.productBySkuStream.listen((response) async {
+            setState(() => _isLoading = false);
+            if (kDebugMode) {
+              print("##### DEBUG: onBarcodeScanned - Product response status: ${response.status}");
+            }
+            if (response.status == Status.COMPLETED && response.data!.isNotEmpty) {
+              final product = response.data!.first;
+              if (kDebugMode) {
+                print("##### DEBUG: onBarcodeScanned - Product found: ${product.name}, variations: ${product.variations.length}");
+              }
+              if (product.variations.isNotEmpty) {
+                // Show variants dialog for products with variations
+                if (kDebugMode) {
+                  print("##### DEBUG: onBarcodeScanned - Showing variants dialog");
+                }
+                // Assume variations contain objects with id, price, image, and attributes
+                List<Map<String, dynamic>> variantMaps = product.variations.map((v) {
+                  return {
+                    'id': v['id'] ?? v, // Handle both object and ID cases
+                    'name': (v['attributes'] as List<dynamic>?)?.join(', ') ?? 'Variant',
+                    'price': v['price'] ?? product.price,
+                    'image': v['image']?['src'] ?? product.images.isNotEmpty ? product.images.first.src : '',
+                  };
+                }).toList();
+
+                showDialog(
+                  context: context,
+                  builder: (context) => VariantsDialog(
+                    title: product.name,
+                    variations: variantMaps,
+                    onAddVariant: (variant, quantity) async {
+                      if (kDebugMode) {
+                        print("##### DEBUG: onBarcodeScanned - Adding variant: ${variant['name']}, quantity: $quantity");
+                      }
+                      await orderHelper.addItemToOrder(
+                        variant['name'],
+                        variant['image'],
+                        double.parse(variant['price'].toString()),
+                        quantity,
+                        barcode,
+                      );
+                      await fetchOrderItems();
+                    },
+                  ),
+                );
+              } else {
+                // Add product directly to order
+                if (kDebugMode) {
+                  print("##### DEBUG: onBarcodeScanned - Adding product: ${product.name}");
+                }
+                await orderHelper.addItemToOrder(
+                  product.name,
+                  product.images.isNotEmpty ? product.images.first.src : '',
+                  double.parse(product.price.isNotEmpty ? product.price : '0.0'),
+                  1,
+                  barcode,
+                );
+                await fetchOrderItems();
+              }
+            } else {
+              // Show error if product not found
+              if (kDebugMode) {
+                print("##### DEBUG: onBarcodeScanned - Product not found for SKU: $barcode");
+              }
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text("Product not found for SKU: $barcode")),
+              );
+            }
+          });
+        }
+      },
+      child: Container(
+        width: MediaQuery.of(context).size.width * 0.30,
+        padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+        child: Card(
+          elevation: 4,
+          margin: const EdgeInsets.only(top: 10),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        controller: _scrollController,
+                        child: Row(
+                          children: List.generate(tabs.length, (index) {
+                            final bool isSelected = _tabController!.index == index;
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
+                              child: GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    _tabController!.index = index;
+                                  });
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: isSelected ? Colors.white : Colors.grey.shade400,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            tabs[index]["title"] as String,
+                                            style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                                          ),
+                                          Text(
+                                            tabs[index]["subtitle"] as String,
+                                            style: const TextStyle(color: Colors.black54, fontSize: 12),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(width: 40),
+                                      // Always show the close button
+                                      GestureDetector(
+                                        onTap: () => removeTab(index),
+                                        child: const Icon(Icons.close, size: 18, color: Colors.red),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
-                            ),
-                          );
-                        }),
+                            );
+                          }),
+                        ),
                       ),
                     ),
-                  ),
-                  ElevatedButton(
-                    onPressed: addNewTab,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                      minimumSize: const Size(50, 56),
+                    ElevatedButton(
+                      onPressed: addNewTab,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                        minimumSize: const Size(50, 56),
+                      ),
+                      child: const Text("+", style: TextStyle(color: Colors.black87, fontSize: 16)),
                     ),
-                    child: const Text("+", style: TextStyle(color: Colors.black87, fontSize: 16)),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            Expanded(child: buildCurrentOrder()),
-          ],
+              Expanded(child: buildCurrentOrder()),
+            ],
+          ),
         ),
       ),
     );

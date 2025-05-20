@@ -1,13 +1,14 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:pinaka_pos/Screens/Home/Settings/printer_setup_screen.dart';
 import 'package:provider/provider.dart';
 
-import '../../Constants/text.dart';
-import '../../Database/db_helper.dart';
-import '../../Database/user_db_helper.dart';
-import '../../Helper/Extentions/theme_notifier.dart';
-import '../../Preferences/pinaka_preferences.dart';
+import '../../../Constants/text.dart';
+import '../../../Database/db_helper.dart';
+import '../../../Database/user_db_helper.dart';
+import '../../../Helper/Extentions/theme_notifier.dart';
+import '../../../Preferences/pinaka_preferences.dart';
 
 class SettingsScreen extends StatefulWidget { // Build #1.0.6 - Added Settings Screen
   const SettingsScreen({super.key});
@@ -440,7 +441,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               SizedBox(height: 20),
               ElevatedButton(
-                onPressed: () {},
+                onPressed: () {
+                  /// call printer setup screen
+                  Navigator.push(context, MaterialPageRoute(
+                    builder: (context) => PrinterSetup(),
+                  ));
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Color(0xFF00FFAA),
                   shape: RoundedRectangleBorder(

@@ -206,6 +206,7 @@ class FastKeyDBHelper { // Build #1.0.11 : FastKeyHelper for all fast key relate
     }
   }
 
+  ///@Naveen: why do we have these function here in db helper instead of pref file, and they have hard coded values as well
   Future<void> saveActiveFastKeyTab(int? tabId) async {
     final prefs = await SharedPreferences.getInstance();
     if (tabId != null) {

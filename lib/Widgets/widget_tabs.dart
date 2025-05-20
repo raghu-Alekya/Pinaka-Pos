@@ -740,13 +740,12 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
                 _selectedTaxSlab = newValue!;
               });
             },
-            decoration: InputDecoration(,
+            decoration: InputDecoration(
               contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical:0), // left + vertical center
               border: InputBorder.none, // No border at all
               enabledBorder: InputBorder.none,
               focusedBorder: InputBorder.none,
             ),
-
             hint: Container( color: Colors.blue, padding: EdgeInsets.only(bottom: 0), child: Text('Choose TAX Slab',style: TextStyle(color: Colors.grey,fontSize: 14), textAlign: TextAlign.center,)),
           ),
         ),

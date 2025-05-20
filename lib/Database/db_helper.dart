@@ -65,6 +65,14 @@ class AppDBConst { // Build #1.0.10 - Naveen: Updated DB tables constants
   static const String fastKeyItemPrice = 'fast_key_item_price';
   static const String fastKeyItemSKU = 'fast_key_item_sku';
   static const String fastKeyItemVariantId = 'fast_key_item_variant_id';
+
+  /// Printer Table Added
+  static const String printerTable = 'printer_table';
+  static const String printerId = 'printer_id';
+  static const String printerDeviceName = 'device_name';
+  static const String printerProductId = 'product_id';
+  static const String printerVendorId = 'vendor_id';
+  static const String printerType = 'type_printer';
 }
 
 class DBHelper {
@@ -89,9 +97,9 @@ class DBHelper {
       print("#### DB Path: $path");
     }
     // Uncomment the line below to delete the database during development/testing
-    await deleteDatabase(path);
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.clear(); // This removes all stored preferences
+    // await deleteDatabase(path);
+    // final SharedPreferences prefs = await SharedPreferences.getInstance();
+    // await prefs.clear(); // This removes all stored preferences
 
     return await openDatabase(path, version: 1, onCreate: _createTables);
   }
@@ -175,6 +183,17 @@ CREATE TABLE ${AppDBConst.orderTable} (
       ${AppDBConst.fastKeyItemSKU} TEXT NOT NULL,
       ${AppDBConst.fastKeyItemVariantId} TEXT NOT NULL,
       FOREIGN KEY(${AppDBConst.fastKeyIdForeignKey}) REFERENCES ${AppDBConst.fastKeyTable}(${AppDBConst.fastKeyId}) ON DELETE CASCADE
+    )
+    ''');
+
+    /// Printer Table
+    await db.execute('''
+    CREATE TABLE ${AppDBConst.printerTable} (
+      ${AppDBConst.printerId} INTEGER PRIMARY KEY AUTOINCREMENT,
+      ${AppDBConst.printerDeviceName} TEXT NOT NULL,
+      ${AppDBConst.printerProductId} TEXT NOT NULL,
+      ${AppDBConst.printerVendorId} TEXT NOT NULL,
+      ${AppDBConst.printerType} TEXT NOT NULL
     )
     ''');
 

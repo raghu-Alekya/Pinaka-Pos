@@ -6,6 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:intl/intl.dart'; // Added for date formatting
+import 'package:pinaka_pos/Helper/Extentions/extensions.dart';
+import 'package:pinaka_pos/Utilities/printer_settings.dart';
+import 'package:thermal_printer/esc_pos_utils_platform/src/pos_column.dart';
 
 import '../../Blocs/Payment/payment_bloc.dart';
 import '../../Constants/text.dart';
@@ -16,9 +19,13 @@ import '../../Helper/api_response.dart';
 import '../../Models/Payment/payment_model.dart';
 import '../../Repositories/Payment/payment_repository.dart';
 import '../../Utilities/responsive_layout.dart';
+import '../../Utilities/result_utility.dart';
 import '../../Widgets/widget_custom_num_pad.dart';
 import '../../Widgets/widget_payment_dialog.dart';
+import 'Settings/printer_setup_screen.dart';
 import 'edit_product_screen.dart';
+
+import 'package:thermal_printer/thermal_printer.dart';
 
 class OrderSummaryScreen extends StatefulWidget {
   const OrderSummaryScreen({super.key});
@@ -46,6 +53,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
   double changeAmount = 0.0;
   bool isLoading = false; // Add this to track loading state
   // final TextEditingController _paymentController = TextEditingController();
+  var _printerSettings =  PrinterSettings();
 
   @override
   void initState() {
@@ -1436,6 +1444,57 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     );
   }
 
+  Future _printCustomTest() async {
+    if (kDebugMode) {
+      print("OrderSummaryScreen _printCustomTest call print reciept");
+    }
+    List<int> bytes = [];
+
+    final ticket =  await _printerSettings.getTicket();
+    bytes += ticket.row([
+      PosColumn(text: "#", width: 1),
+      PosColumn(text: "Description", width:5),
+      PosColumn(text: "Qty", width: 1),
+      PosColumn(text: "Rate", width: 2),
+      PosColumn(text: "Dis", width: 1),
+      PosColumn(text: "Amt", width: 2),
+    ]);
+    bytes += ticket.feed(1);
+    bytes += ticket.row([
+      PosColumn(text: "1", width: 1),
+      PosColumn(text: "Shan Haleem Masala Mix", width:5),
+      PosColumn(text: "1.0", width: 1),
+      PosColumn(text: "420.0", width:2),
+      PosColumn(text: "0.0", width: 1),
+      PosColumn(text: "420.0", width: 2),
+    ]);
+    bytes += ticket.row([PosColumn(text: "sfgasa sdfasdfasdf asdfasdfasdfsdfasdfasdf adfasdfasdfasdf", width: 12),]);
+    final result = await _printerSettings.printTicket(bytes, ticket);
+
+    if (kDebugMode) {
+      print(">>>> PrintTicket result $result");
+    }
+    switch (result) {
+      case Ok<BluetoothPrinter>():
+        // BluetoothPrinter printer = result.value;
+        break;
+      case Error<BluetoothPrinter>():
+        WidgetsBinding.instance.addPostFrameCallback((_) { // Build #1.0.16
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                result.error.getMessage,
+                style: const TextStyle(color: Colors.red),
+              ),
+              backgroundColor: Colors.black, // ✅ Black background
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        });
+        break;
+    }
+  }
+
   void _showReceiptDialog(BuildContext context, double amount) {
     showDialog(
       context: context,
@@ -1444,7 +1503,9 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
         status: PaymentStatus.receipt,
         mode: PaymentMode.cash,
         amount: amount,
-        onPrint: () {},
+        onPrint: () {
+         /// radio button
+        },
         onEmail: (email) {},
         onSMS: (phone) {},
         onNoReceipt: () {
@@ -1455,7 +1516,11 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
             changeAmount = 0.0; // Reset change after returning
             if (balanceAmount == 0) tenderAmount = 0.0; // Reset tender if order is fully paid
           });
-          Navigator.of(context).pop();
+          // Navigator.of(context).pop();
+          if (kDebugMode) {
+            print("OrderSummaryScreen _showReceiptDialog Done call print reciept");
+          }
+          _printCustomTest();
         },
       ),
     );

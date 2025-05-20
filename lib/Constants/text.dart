@@ -152,6 +152,7 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String jsonfileExtension     = ".json";
   static const String searchHint            = "Search category or menu"; // Build #1.0.13: updated to here
 
+  static const String noPrinter             = "No printer selected";
 
 }
 
@@ -162,5 +163,6 @@ class TextFontSize {
 class SharedPreferenceTextConstants {
 
   static const String themeModeKey = "theme_mode";
+  static const String selectedPrinter = "selected_printer";
 
 }

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../../Constants/text.dart';
 import '../../Helper/api_response.dart';
+import '../../Models/Search/product_by_sku_model.dart';
 import '../../Models/Search/product_search_model.dart';
 import '../../Models/Search/product_variation_model.dart';
 import '../../Repositories/Search/product_search_repository.dart';
@@ -10,6 +11,7 @@ class ProductBloc { // Build #1.0.13: Added Product Search Bloc
   final ProductRepository _productRepository;
   late StreamController<APIResponse<List<ProductResponse>>> _productController;
   late StreamController<APIResponse<List<ProductVariation>>> _variationController;
+  late StreamController<APIResponse<List<ProductBySkuResponse>>> _productBySkuController;
 
   // Streams and sinks for products
   StreamController<APIResponse<List<ProductResponse>>> get productController => _productController;
@@ -22,12 +24,17 @@ class ProductBloc { // Build #1.0.13: Added Product Search Bloc
   StreamSink<APIResponse<List<ProductVariation>>> get variationSink => _variationController.sink;
   Stream<APIResponse<List<ProductVariation>>> get variationStream => _variationController.stream;
 
+  StreamController<APIResponse<List<ProductBySkuResponse>>> get productBySkuController => _productBySkuController;
+  StreamSink<APIResponse<List<ProductBySkuResponse>>> get productBySkuSink => _productBySkuController.sink;
+  Stream<APIResponse<List<ProductBySkuResponse>>> get productBySkuStream => _productBySkuController.stream;
+
   ProductBloc(this._productRepository) {
     if (kDebugMode) {
       print("ProductBloc Initialized");
     }
     _productController = StreamController<APIResponse<List<ProductResponse>>>.broadcast();
     _variationController = StreamController<APIResponse<List<ProductVariation>>>.broadcast();
+    _productBySkuController = StreamController<APIResponse<List<ProductBySkuResponse>>>.broadcast();
   }
 
   Future<void> fetchProducts({String? searchQuery}) async {
@@ -92,6 +99,33 @@ class ProductBloc { // Build #1.0.13: Added Product Search Bloc
     }
   }
 
+  // Build #1.0.43: added this function for ProductBySku api call
+  Future<void> fetchProductBySku(String sku) async {
+    if (_productBySkuController.isClosed) return;
+
+    productBySkuSink.add(APIResponse.loading(TextConstants.loading));
+    try {
+      List<ProductBySkuResponse> products = await _productRepository.fetchProductBySku(sku);
+
+      if (products.isNotEmpty) {
+        if (kDebugMode) {
+          print("ProductBloc - Fetched ${products.length} products by SKU: $sku");
+          print("First product: ${products.first.toJson()}");
+        }
+        productBySkuSink.add(APIResponse.completed(products));
+      } else {
+        productBySkuSink.add(APIResponse.error("No products found for SKU: $sku"));
+      }
+    } catch (e) {
+      if (e.toString().contains('SocketException')) {
+        productBySkuSink.add(APIResponse.error("Network error. Please check your connection."));
+      } else {
+        productBySkuSink.add(APIResponse.error("Failed to fetch product by SKU"));
+      }
+      if (kDebugMode) print("ProductBloc - Exception in fetchProductBySku: $e");
+    }
+  }
+
   void dispose() {
     if (!_productController.isClosed) {
       _productController.close();
@@ -100,6 +134,10 @@ class ProductBloc { // Build #1.0.13: Added Product Search Bloc
     if (!_variationController.isClosed) { //Build 1.1.36
       _variationController.close();
       if (kDebugMode) print("ProductBloc - VariationController disposed");
+    }
+    if (!_productBySkuController.isClosed) {
+      _productBySkuController.close();
+      if (kDebugMode) print("ProductBloc - ProductBySkuController disposed");
     }
   }
 }

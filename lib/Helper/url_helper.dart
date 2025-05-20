@@ -54,6 +54,8 @@ class UrlHelper {
 
   static const  String assets = "assets/public";
 
+  static const String validateMerchant = "https://mg.techkumard.com/wp-json/custom/v1/validate-marchent";  //Build #1.0.42
+
 }
 
 class UrlMethodConstants { // Build #1.0.13
@@ -73,6 +75,7 @@ class UrlParameterConstants { // Build #1.0.13
   static const  String getOrdersParameter     = "?page=1&per_page=10&search=&status="; //Build #1.0.40
   static const  String getOrdersEndParameter  = "&show_un_paid_only=false";
 
+  static const  String productBySku           = "?sku=";
 }
 
 class EndUrlConstants { // Build #1.0.13

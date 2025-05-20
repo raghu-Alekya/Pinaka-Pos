@@ -29,7 +29,7 @@ class StoreValidationRepository {  //Build #1.0.42: Added by Naveen
       print("StoreValidationRepository - Body: $body");
     }
 
-    final response = await _helper.post(url, body, true, validateMarchentUrl: true);
+    final response = await _helper.post(url, body, false, validateMarchentUrl: true);
 
     if (kDebugMode) {
       print("StoreValidationRepository - POST Response: $response");

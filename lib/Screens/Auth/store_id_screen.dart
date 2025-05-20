@@ -224,7 +224,7 @@ class _StoreIdScreenState extends State<StoreIdScreen> {
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 10),
                         Container(
                           width: isPortrait
                               ? MediaQuery.of(context).size.width / 2.5
@@ -258,7 +258,7 @@ class _StoreIdScreenState extends State<StoreIdScreen> {
                             },
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 10),
                         Container(
                           width: isPortrait
                               ? MediaQuery.of(context).size.width / 2.5
@@ -292,7 +292,7 @@ class _StoreIdScreenState extends State<StoreIdScreen> {
                             },
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 10),
                         Container(
                           width: isPortrait
                               ? MediaQuery.of(context).size.width / 2.5
@@ -326,7 +326,7 @@ class _StoreIdScreenState extends State<StoreIdScreen> {
                             },
                           ),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 15),
                         // Update ElevatedButton
                         SizedBox(
                           width: isPortrait

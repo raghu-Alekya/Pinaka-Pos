@@ -11,7 +11,7 @@ import 'package:flutter_swipe_button/flutter_swipe_button.dart';
 
 import '../Constants/text.dart';
 import '../Screens/Home/add_screen.dart';
-import '../Screens/Home/settings_screen.dart';
+import '../Screens/Home/Settings/settings_screen.dart';
 
 class NavigationBar extends StatelessWidget {
   final int selectedSidebarIndex;

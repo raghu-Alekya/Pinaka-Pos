@@ -54,12 +54,14 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
   bool isLoading = false; // Add this to track loading state
   // final TextEditingController _paymentController = TextEditingController();
   var _printerSettings =  PrinterSettings();
+  List<int> bytes = [];
 
   @override
   void initState() {
     super.initState();
     fetchOrderItems();
     _fetchUserId();
+
   }
 
   Future<void> _fetchUserId() async { // Build #1.0.29: get the userId from db
@@ -1439,9 +1441,79 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
           }
           Navigator.of(context).pop();
           _showReceiptDialog(context, amount);
+          _preparePrintTicket();
         },
       ),
     );
+  }
+
+  Future _preparePrintTicket() async{
+    if (kDebugMode) {
+      print("OrderSummaryScreen _preparePrintTicket call print receipt");
+    }
+    bytes = [];
+
+    final ticket =  await _printerSettings.getTicket();
+    bytes += ticket.row([
+      PosColumn(text: "#", width: 1),
+      PosColumn(text: "Description", width:5),
+      PosColumn(text: "Qty", width: 1),
+      PosColumn(text: "Rate", width: 2),
+      PosColumn(text: "Dis", width: 1),
+      PosColumn(text: "Amt", width: 2),
+    ]);
+    bytes += ticket.feed(1);
+
+    if (kDebugMode) {
+      print(" >>>>> Order items count ${orderItems.length} ");
+
+    }
+
+    for(int i = 0; i< orderItems.length; i++) {
+
+      var orderItem = orderItems[i];
+      if (kDebugMode) {
+        print(" >>>>> Adding item ${orderItem[AppDBConst.itemName]} to print");
+      }
+
+      bytes += ticket.row([
+        PosColumn(text: "${i+1}", width: 1),
+        PosColumn(text: "${orderItem[AppDBConst.itemName]}", width:5),
+        PosColumn(text: "${orderItem[AppDBConst.itemCount]}", width: 1),
+        PosColumn(text: "${orderItem[AppDBConst.itemPrice]}", width:2),
+        PosColumn(text: "0.0", width: 1),
+        PosColumn(text: "${orderItem[AppDBConst.itemSumPrice]}", width: 2),
+      ]);
+      // bytes += ticket.feed(1);
+    }
+  }
+
+  Future _printTicket() async{
+    final ticket =  await _printerSettings.getTicket();
+    final result = await _printerSettings.printTicket(bytes, ticket);
+
+    if (kDebugMode) {
+      print(">>>> PrintTicket result $result");
+    }
+    switch (result) {
+      case Ok<BluetoothPrinter>():
+      // BluetoothPrinter printer = result.value;
+        break;
+      case Error<BluetoothPrinter>():
+        WidgetsBinding.instance.addPostFrameCallback((_) { // Build #1.0.16
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                result.error.getMessage,
+                style: const TextStyle(color: Colors.red),
+              ),
+              backgroundColor: Colors.black, // ✅ Black background
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        });
+        break;
+    }
   }
 
   Future _printCustomTest() async {
@@ -1520,7 +1592,8 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
           if (kDebugMode) {
             print("OrderSummaryScreen _showReceiptDialog Done call print reciept");
           }
-          _printCustomTest();
+          // _printCustomTest();
+          _printTicket();
         },
       ),
     );

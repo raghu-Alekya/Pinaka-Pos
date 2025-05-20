@@ -443,6 +443,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ElevatedButton(
                 onPressed: () {
                   /// call printer setup screen
+                  if (kDebugMode) {
+                    print("call printer setup screen");
+                  }
                   Navigator.push(context, MaterialPageRoute(
                     builder: (context) => PrinterSetup(),
                   ));

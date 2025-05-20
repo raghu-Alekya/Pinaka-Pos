@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import '../Constants/text.dart';
 import 'widget_quantity_input_control.dart';
 
 class VariantsDialog extends StatefulWidget {
@@ -102,7 +103,7 @@ class _VariantsDialogState extends State<VariantsDialog> with SingleTickerProvid
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Text(
-                                "Choose Variants",
+                                TextConstants.chooseVariants,
                                 style: TextStyle(
                                   fontSize: 24,
                                   fontWeight: FontWeight.bold,
@@ -247,7 +248,7 @@ class _VariantsDialogState extends State<VariantsDialog> with SingleTickerProvid
                                         ),
                                       ),
                                       child: const Text(
-                                        "Add",
+                                        TextConstants.addText,
                                         style: TextStyle(
                                           fontSize: 16,
                                           fontWeight: FontWeight.bold,
@@ -290,7 +291,7 @@ class _VariantsDialogState extends State<VariantsDialog> with SingleTickerProvid
                             ),
                           ),
                           child: const Text(
-                            "Done",
+                            TextConstants.done,
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,

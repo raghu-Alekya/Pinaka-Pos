@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 // Import your custom numpad
+import '../Constants/text.dart';
 import 'widget_custom_num_pad.dart';
 
 class AppScreenTabWidget extends StatefulWidget {
@@ -75,13 +76,13 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
   Widget _buildTabs() {
     return Row(
       children: [
-        _buildTab(0, Icons.percent, "Discounts"),
+        _buildTab(0, Icons.percent, TextConstants.discounts),
         const SizedBox(width: 10),
-        _buildTab(1, Icons.confirmation_num_outlined, "Coupons"),
+        _buildTab(1, Icons.confirmation_num_outlined, TextConstants.coupons),
         const SizedBox(width: 10),
-        _buildTab(2, Icons.shopping_bag_outlined, "Custom Item"),
+        _buildTab(2, Icons.shopping_bag_outlined, TextConstants.customItem),
         const SizedBox(width: 10),
-        _buildTab(3, Icons.receipt_outlined, "Payouts"),
+        _buildTab(3, Icons.receipt_outlined, TextConstants.payoutsText),
       ],
     );
   }
@@ -147,7 +148,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
       children: [
         // Title
         const Text(
-          "Apply discount to sale",
+          TextConstants.applyDiscountToSale,
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
@@ -210,7 +211,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
       children: [
         // Title
         const Text(
-          "Enter coupon code",
+          TextConstants.enterCouponCode,
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
@@ -531,8 +532,8 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _buildLabeledTextField(
-                title: 'Name',
-                hintText: 'Custom item name',
+                title: TextConstants.nameText ,
+                hintText: TextConstants.customItemName ,
                 controller: _customItemNameController,
               ),
               const SizedBox(width: 20),
@@ -545,8 +546,8 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
             mainAxisSize: MainAxisSize.min,
             children: [
               _buildLabeledTextField(
-                title: 'Item Price',
-                hintText: 'Enter the Price',
+                title: TextConstants.itemPrice,
+                hintText: TextConstants.enterThePrice,
                 controller: _customItemPriceController,
                 readOnly: true,
               ),
@@ -642,7 +643,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
       children: [
         SizedBox(height: 5,),
         const Text(
-          'SKU',
+          TextConstants.sku,
           style: TextStyle(
             fontWeight: FontWeight.w600,
             fontSize: 14,
@@ -668,7 +669,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
                   textAlign: TextAlign.start,
                   decoration: const InputDecoration(
                     border: InputBorder.none,
-                    hintText: "Generate the SKU",
+                    hintText: TextConstants.generateTheSku,
                     hintStyle: TextStyle(color: Colors.grey),
                   ),
                 ),
@@ -702,7 +703,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
       children: [
         SizedBox(height: 5,),
         const Text(
-          'Tax',
+          TextConstants.taxText,
           style: TextStyle(
             fontWeight: FontWeight.w600,
             fontSize: 14,
@@ -740,13 +741,14 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
                 _selectedTaxSlab = newValue!;
               });
             },
-            decoration: InputDecoration(  //Build #1.0.42: getting "," issue fixed
+            decoration: InputDecoration(
               contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical:0), // left + vertical center
               border: InputBorder.none, // No border at all
               enabledBorder: InputBorder.none,
               focusedBorder: InputBorder.none,
             ),
-            hint: Container( color: Colors.blue, padding: EdgeInsets.only(bottom: 0), child: Text('Choose TAX Slab',style: TextStyle(color: Colors.grey,fontSize: 14), textAlign: TextAlign.center,)),
+
+            hint: Container( color: Colors.blue, padding: EdgeInsets.only(bottom: 0), child: Text(TextConstants.chooseTaxSlab,style: TextStyle(color: Colors.grey,fontSize: 14), textAlign: TextAlign.center,)),
           ),
         ),
       ],
@@ -791,7 +793,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   color: Colors.white,
                   child: const Text(
-                    "Add Payout Amount",
+                    TextConstants.addPaymentAmount,
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey,
@@ -850,7 +852,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
     // Show confirmation snackbar
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text("SKU generated successfully"),
+        content: Text(TextConstants.skuGeneratedSuccessfully),
         backgroundColor: Colors.green,
         duration: Duration(seconds: 1),
       ),
@@ -974,7 +976,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
     // Here you would add the logic to apply the discount
     // This is where you'd connect to your state management solution
     String discountAmount = _discountValue;
-    print("Applied discount: $discountAmount");
+    debugPrint("Applied discount: $discountAmount");
 
     // Show confirmation snackbar
     ScaffoldMessenger.of(context).showSnackBar(
@@ -1002,7 +1004,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
   // Handle adding the custom item
   void _handleAddCustomItem() {
     // Here you would add the logic to add a custom item
-    print("Added custom item: $_customItemName at \$$_customItemPrice with tax: $_selectedTaxSlab, SKU: $_sku");
+    debugPrint("Added custom item: $_customItemName at \$$_customItemPrice with tax: $_selectedTaxSlab, SKU: $_sku");
 
     // Show confirmation snackbar
     ScaffoldMessenger.of(context).showSnackBar(
@@ -1017,7 +1019,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
   // Handle adding the payout
   void _handleAddPayout() {
     // Here you would add the logic to add a payout
-    print("Added payout amount: \$$_payoutAmount");
+    debugPrint("Added payout amount: \$$_payoutAmount");
 
     // Show confirmation snackbar
     ScaffoldMessenger.of(context).showSnackBar(

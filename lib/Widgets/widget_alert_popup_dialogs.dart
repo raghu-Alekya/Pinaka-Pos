@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:pinaka_pos/Constants/text.dart';
 
 class CustomDialog {
   static Future<void> showInvalidCoupon(BuildContext context) {
     return _showSimpleDialog(
       context,
-      title: 'Invalid Coupon',
-      description: 'The coupon code you entered is not valid. Please check the code and try again.', /// i will add them into Text constants file later
-      buttonText: 'Let\'s, Try Again',
+      title: TextConstants.invalidCoupon,
+      description: TextConstants.invalidCouponDescription, /// i will add them into Text constants file later
+      buttonText: TextConstants.letsTryAgain,
       iconPath: 'assets/svg/check_broken_info.svg',
       showCloseIcon: true,
     );
@@ -16,9 +17,9 @@ class CustomDialog {
   static Future<void> showDiscountNotApplied(BuildContext context) {
     return _showSimpleDialog(
       context,
-      title: 'Discount Not Applied',
-      description: 'The discount couldn’t be applied. Please double-check the eligibility criteria.',
-      buttonText: 'Let\'s, Try Again',
+      title: TextConstants.discountNotApplied,
+      description: TextConstants.discountNotAppliedDescription,
+      buttonText: TextConstants.letsTryAgain,
       iconPath: 'assets/svg/check_broken_info.svg',
       showCloseIcon: true,
     );
@@ -27,10 +28,10 @@ class CustomDialog {
   static Future<bool?> showRemoveDiscountConfirmation(BuildContext context) {
     return _showConfirmDialog(
       context,
-      title: 'Remove applied discount\nOr coupon?',
-      description: 'This action cannot be undone. The item will return to its original price.',
-      confirmText: 'Remove',
-      cancelText: 'Close',
+      title: TextConstants.removeDiscountOrCoupon,
+      description: TextConstants.removeDiscountOrCouponDescription,
+      confirmText: TextConstants.remove,
+      cancelText: TextConstants.close,
       iconPath: 'assets/svg/check_broken_alert.svg',
     );
   }
@@ -38,10 +39,10 @@ class CustomDialog {
   static Future<bool?> showAreYouSure(BuildContext context) {
     return _showConfirmDialog(
       context,
-      title: 'Are you sure ?',
-      description: 'Do you want to really delete the records? This process cannot be undone.',
-      confirmText: 'Yes, Delete!',
-      cancelText: 'No, Keep it.',
+      title: TextConstants.areYouSure,
+      description: TextConstants.deleteTheRecordsDescription,
+      confirmText: TextConstants.yesDelete,
+      cancelText: TextConstants.noKeepIt,
       iconPath: 'assets/svg/check_broken_alert.svg',
     );
   }
@@ -49,9 +50,9 @@ class CustomDialog {
   static Future<void> showCustomItemAlert(BuildContext context) {
     return _showSimpleDialog(
       context,
-      title: 'Custom Item Alert',
-      description: 'You\'re about to add a custom item. Make sure the item details are accurate before proceeding.',
-      buttonText: 'Add Custom Item',
+      title: TextConstants.customItemAlert,
+      description: TextConstants.customItemAlertDescription,
+      buttonText: TextConstants.addCustomItem,
       iconPath: 'assets/svg/check_broken_info.svg',
       showCloseIcon: true,
     );
@@ -60,9 +61,9 @@ class CustomDialog {
   static Future<void> showCouponNotApplied(BuildContext context) {
     return _showSimpleDialog(
       context,
-      title: 'Coupon Not Applied',
-      description: 'The coupon couldn’t be applied. Please double-check the eligibility criteria or try a different code.',
-      buttonText: 'Let\'s, Try Again',
+      title: TextConstants.couponNotApplied,
+      description: TextConstants.couponNotAppliedDescription,
+      buttonText: TextConstants.letsTryAgain,
       iconPath: 'assets/svg/check_broken_info.svg',
       showCloseIcon: true,
     );
@@ -71,9 +72,9 @@ class CustomDialog {
   static Future<void> showInvalidDiscount(BuildContext context) {
     return _showSimpleDialog(
       context,
-      title: 'Invalid Discount',
-      description: 'The discount entered is not valid. Please review the discount details.',
-      buttonText: 'Let\'s, Try Again',
+      title: TextConstants.invalidDiscount,
+      description: TextConstants.invalidDiscountDescription,
+      buttonText: TextConstants.letsTryAgain,
       iconPath: 'assets/svg/check_broken_info.svg',
       showCloseIcon: true,
     );
@@ -82,9 +83,9 @@ class CustomDialog {
   static Future<void> showCustomItemNotAdded(BuildContext context) {
     return _showSimpleDialog(
       context,
-      title: 'Custom item could not be added',
-      description: 'Please check the items and try again. Contact your manager if the issue continues.',
-      buttonText: 'Let\'s, Try Again',
+      title: TextConstants.customItemCouldNotBeAdded,
+      description: TextConstants.customItemCouldNotBeAddedDescription,
+      buttonText: TextConstants.letsTryAgain,
       iconPath: 'assets/svg/check_broken_info.svg',
       showCloseIcon: true,
     );

@@ -11,7 +11,7 @@ import 'package:flutter_swipe_button/flutter_swipe_button.dart';
 
 import '../Constants/text.dart';
 import '../Screens/Home/add_screen.dart';
-import '../Screens/Home/Settings/settings_screen.dart';
+import '../Screens/Home/settings_screen.dart';
 
 class NavigationBar extends StatelessWidget {
   final int selectedSidebarIndex;
@@ -191,11 +191,11 @@ class NavigationBar extends StatelessWidget {
                   type: QuickAlertType.custom,
                   showCancelBtn: true,
                   showConfirmBtn: true,
-                  title: 'Logout',
+                  title: TextConstants.logoutText,
                   width: 450,
-                  text: 'Do you want to?',
-                  confirmBtnText: 'Logout',
-                  cancelBtnText: 'Cancel',
+                  text: TextConstants.doYouWantTo,
+                  confirmBtnText: TextConstants.logoutText,
+                  cancelBtnText: TextConstants.cancelText,
                   headerBackgroundColor: const Color(0xFF2CD9C5),
                   confirmBtnColor: Colors.blue,
                   confirmBtnTextStyle: const TextStyle(color: Colors.white, fontSize: 16),
@@ -212,8 +212,8 @@ class NavigationBar extends StatelessWidget {
                         Icons.double_arrow_rounded,
                         color: Colors.white,
                       ),
-                      child: const Text(
-                        'Swipe to Close Shift',
+                      child: Text(
+                        TextConstants.swipeToCloseShift,
                         style: TextStyle(color: Colors.white, fontSize: 16),
                       ),
                       borderRadius: BorderRadius.circular(25),
@@ -221,7 +221,9 @@ class NavigationBar extends StatelessWidget {
                       activeTrackColor: Colors.orange,
                       onSwipe: () {
                         // Close shift functionality
-                        print("Shift closed");
+                        if (kDebugMode) {
+                          print("Shift closed");
+                        }
                         Navigator.of(context).pop();
                         // Add your close shift logic here
                       },

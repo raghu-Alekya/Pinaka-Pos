@@ -43,8 +43,8 @@ class _NotesManagerScreenState extends State<NotesManagerScreen> {
   TextEditingController? _activeController;
 
   // To track totals
-  int totalNotes = 0;
-  double totalCash = 0.0;
+  late int totalNotes ;
+  late double totalCash ;
 
   @override
   void initState() {
@@ -102,7 +102,7 @@ class _NotesManagerScreenState extends State<NotesManagerScreen> {
 
     setState(() {
       _totalNotesController.text = totalNotes.toString();
-      _totalCashController.text = "\${totalCash.toStringAsFixed(2)}";
+      _totalCashController.text = totalCash.toStringAsFixed(2);
     });
   }
 
@@ -172,9 +172,6 @@ class _NotesManagerScreenState extends State<NotesManagerScreen> {
             thickness: 0.4, // Very thin line
             height: 1, // Minimal height
           ),
-          SizedBox(
-            height: 10,
-          ),
           Expanded(
               child: Row(
             children: [
@@ -192,61 +189,69 @@ class _NotesManagerScreenState extends State<NotesManagerScreen> {
 
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.all(16.0),
+                  padding: const EdgeInsets.all(10.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        flex: 3,
-                        child: Column(
-                          children: [
-                            Row(
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.arrow_back),
-                                  onPressed: () => Navigator.of(context).pop(),
-                                ),
-                                const Text("back", style: TextStyle(fontSize: 16)),
-                              ],
-                            ),
-                            Row(
-                              children: [
-                                _buildDenominationField(50, _fiftyCountController),
-                                _buildDenominationField(5, _fiveCountController),
-                              ],
-                            ),
-                            Row(
-                              children: [
-                                _buildDenominationField(20, _twentyCountController),
-                                _buildDenominationField(2, _twoCountController),
-                              ],
-                            ),
-                            Row(
-                              children: [
-                                _buildDenominationField(10, _tenCountController),
-                                _buildDenominationField(1, _oneCountController),
-                              ],
-                            ),
-                          ],
-                        ),
+                      Column(
+                        children: [
+                          Row(
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.arrow_back),
+                                onPressed: () => Navigator.of(context).pop(),
+                              ),
+                              const Text("back", style: TextStyle(fontSize: 16)),
+                            ],
+                          ),
+                          Row(
+                            children: [
+                              _buildDenominationField('assets/svg/50_note.svg','50',  _fiftyCountController),
+                              _buildDenominationField('assets/svg/5_note.svg', '5', _fiveCountController),
+                            ],
+                          ),
+                          Row(
+                            children: [
+                              _buildDenominationField('assets/svg/20_note.svg', '20', _twentyCountController),
+                              _buildDenominationField('assets/svg/2_note.svg', '2', _twoCountController),
+                            ],
+                          ),
+                          Row(
+                            children: [
+                              _buildDenominationField('assets/svg/10_note.svg', '10', _tenCountController),
+                              _buildDenominationField('assets/svg/1_note.svg', '1', _oneCountController),
+                            ],
+                          ),
+                        ],
+                      ),
+                      Divider(
+                        color: Colors.grey, // Light grey color
+                        thickness: 0.4, // Very thin line
+                        height: 1, // Minimal height
+                        endIndent: 150,
                       ),
                       const SizedBox(height: 20),
                       Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          Expanded(
-                            child: Container(
-                              width: MediaQuery.of(context).size.width * 0.5,
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFE8F5ED),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Text("Total Notes", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                                  const SizedBox(height: 10),
-                                  TextField(
+                          Container(
+                            width: MediaQuery.of(context).size.width * 0.325,
+                            height: MediaQuery.of(context).size.height * 0.4,
+                            //padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE8F5ED),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Text("Total Notes", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 10),
+                                SizedBox(
+                                  width: MediaQuery.of(context).size.width * 0.25,
+                                  child: TextField(
                                     controller: _totalNotesController,
                                     readOnly: true,
                                     textAlign: TextAlign.center,
@@ -260,10 +265,13 @@ class _NotesManagerScreenState extends State<NotesManagerScreen> {
                                       contentPadding: const EdgeInsets.symmetric(vertical: 12),
                                     ),
                                   ),
-                                  //const SizedBox(height: 20),
-                                  const Text("Total Cash", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                                  const SizedBox(height: 10),
-                                  TextField(
+                                ),
+                                const SizedBox(height: 10),
+                                const Text("Total Cash", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 10),
+                                SizedBox(
+                                  width: MediaQuery.of(context).size.width * 0.25,
+                                  child: TextField(
                                     controller: _totalCashController,
                                     readOnly: true,
                                     textAlign: TextAlign.center,
@@ -277,13 +285,14 @@ class _NotesManagerScreenState extends State<NotesManagerScreen> {
                                       contentPadding: const EdgeInsets.symmetric(vertical: 12),
                                     ),
                                   ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            flex: 1,
+                          const SizedBox(width: 20),
+                          SizedBox(
+                            height: MediaQuery.of(context).size.height * 0.4,
+                            width: MediaQuery.of(context).size.width * 0.325,
                             child: CustomNumPad(
                               onDigitPressed: _handleNumberPress,
                               onClearPressed: _handleClear,
@@ -333,9 +342,14 @@ class _NotesManagerScreenState extends State<NotesManagerScreen> {
     );
   }
 
+  String _calculateTotalForNote(String denomination, TextEditingController controller) {
+    final count = int.tryParse(controller.text) ?? 0;
+    final total = count * int.parse(denomination);
+    return '\$${total.toString()}';
+  }
 
-  Widget _buildDenominationField(int denominationValue, TextEditingController controller, {bool isResult = false}) {
-    // int denominationValue = int.tryParse(denomination.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+
+  Widget _buildDenominationField(String assetPath,String denomination, TextEditingController controller, {bool isResult = false}) {
 
     return Expanded(
       child: Container(
@@ -346,28 +360,29 @@ class _NotesManagerScreenState extends State<NotesManagerScreen> {
         ),
         child: Row(
           children: [
-            //Container(
-              // padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              // decoration: BoxDecoration(
-              //   color: const Color(0xFFD8E8DE),
-              //   borderRadius: const BorderRadius.only(
-              //     topLeft: Radius.circular(7),
-              //     bottomLeft: Radius.circular(7),
-              //   ),
-              // ),
-              //child:
               SvgPicture.asset(
-                'assets/icons/$denominationValue.svg',
-                width: 24,
-                height: 24,
+                assetPath,
+                width: 40,
+                height: 32,
                 // color: const Color(0xFF64A67C), // Optional: applies tint
               ),
             //),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 12),
-              child: Text('×', style: TextStyle(fontSize: 18)),
+            SizedBox(
+              width: 20,
             ),
-            Expanded(
+            Text('×', style: TextStyle(fontSize: 24)),
+            SizedBox(
+              width: 20,
+            ),
+            Container(
+              width: MediaQuery.of(context).size.width * 0.1,
+              height: MediaQuery.of(context).size.height * 0.075,
+              decoration: BoxDecoration(
+                shape: BoxShape.rectangle,
+                  border: Border.all(color: Colors.grey.shade300),
+                borderRadius: BorderRadius.circular(5),
+                color: Colors.white
+              ),
               child: TextField(
                 controller: controller,
                 textAlign: TextAlign.center,
@@ -390,23 +405,31 @@ class _NotesManagerScreenState extends State<NotesManagerScreen> {
                 ),
               ),
             ),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 12),
-              child: Text('=', style: TextStyle(fontSize: 18)),
+            SizedBox(
+              width: 20,
+            ),
+            Text('=', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey)),
+            SizedBox(
+              width: 20,
             ),
             Container(
-              width: 80,
+              width: MediaQuery.of(context).size.width * 0.1,
+              height: MediaQuery.of(context).size.height * 0.075,
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 border: Border.all(color: Colors.grey.shade300),
-                borderRadius: BorderRadius.circular(4),
+                shape: BoxShape.rectangle,
+                borderRadius: BorderRadius.circular(5),
+                color: Colors.white,
               ),
               child: Text(
-                isResult
-                    ? controller.text
-                    : '\$${((double.tryParse(controller.text) ?? 0) * denominationValue).toStringAsFixed(2)}',
-                style: const TextStyle(fontWeight: FontWeight.w500),
+                _calculateTotalForNote(denomination, controller),
+                textAlign: TextAlign.center,
+                // isResult
+                //     ? controller.text
+                //     : '\$${((double.tryParse(controller.text) ?? 0) * denominationValue).toStringAsFixed(2)}',
+                // style: const TextStyle(fontWeight: FontWeight.w500),
               ),
             ),
           ],

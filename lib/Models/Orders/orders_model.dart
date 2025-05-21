@@ -451,6 +451,18 @@ class CreateOrderResponseModel {
       );
 }
 
+class OrderStatusRequest {  // Build #1.0.49: Added Update order status request code
+  final String status;
+
+  OrderStatusRequest({required this.status});
+
+  Map<String, dynamic> toJson() {
+    return {
+      'status': status,
+    };
+  }
+}
+
 // Update Order Models
 class UpdateOrderRequestModel {
   final List<OrderLineItem> lineItems;

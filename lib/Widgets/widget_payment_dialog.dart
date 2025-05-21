@@ -1,9 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart'; // For displaying SVG images
 import 'package:pinaka_pos/Constants/text.dart'; // Contains text constants for UI
 
 // Enum for different payment completion states
-enum PaymentStatus { successful, partial, receipt, exitConfirmation }
+enum PaymentStatus { successful, partial, receipt, exitConfirmation, voidConfirmation }
 
 // Enum for payment method types
 enum PaymentMode { cash, card, wallet, ebt }
@@ -43,6 +44,16 @@ class PaymentDialog extends StatefulWidget {
   @override
   State<PaymentDialog> createState() => _PaymentDialogState();
 
+  factory PaymentDialog.voidConfirmation({  // Build #1.0.49
+    VoidCallback? onVoidCancel,
+    VoidCallback? onVoidConfirm,
+  }) {
+    return PaymentDialog(
+      status: PaymentStatus.voidConfirmation,
+      onExitCancel: onVoidCancel,
+      onExitConfirm: onVoidConfirm,
+    );
+  }
   // factory PaymentDialog.exitConfirmation({
   //   VoidCallback? onExitCancel,
   //   VoidCallback? onExitConfirm
@@ -59,6 +70,10 @@ class _PaymentDialogState extends State<PaymentDialog> {
   String _selectedOption = 'Print'; // Default selected receipt option
   final TextEditingController _contactController = TextEditingController(); // For email/phone input
   String capitalize(String s) => s[0].toUpperCase() + s.substring(1); //Build #1.0.34: added for "Cash" in success popup dialog
+  bool _isVoidCancelLoading = false; // Build #1.0.49: Track loading for void cancel
+  bool _isVoidConfirmLoading = false; // Track loading for void confirm
+  bool _isDoneLoading = false; // Track loading for done action
+  bool _isNoReceiptLoading = false; // Track loading for no receipt action
 
   @override
   Widget build(BuildContext context) {
@@ -76,8 +91,18 @@ class _PaymentDialogState extends State<PaymentDialog> {
             _buildStatusIcon(), // Display appropriate status icon
             const SizedBox(height: 24), // Vertical spacing
             _buildTitle(), // Display appropriate title based on status
-            const SizedBox(height: 32), // Vertical spacing
-            if (widget.status == PaymentStatus.exitConfirmation)
+            const SizedBox(height: 32),
+            if (widget.status == PaymentStatus.voidConfirmation)  // Build #1.0.49: added void confirm dialog code
+              Text(
+                TextConstants.voidConfirmText,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 24,
+                  color: Colors.grey[800],
+                  height: 1.5,
+                ),
+              )// Vertical spacing
+            else if (widget.status == PaymentStatus.exitConfirmation)
               Text(
                 TextConstants.exitConfirmText,
                 textAlign: TextAlign.center,
@@ -140,6 +165,10 @@ class _PaymentDialogState extends State<PaymentDialog> {
     // return Icon(icon, size: 90, color: iconColor);
       case PaymentStatus.exitConfirmation:
         svgPath = 'assets/svg/check_broken_exit.svg';
+
+      case PaymentStatus.voidConfirmation:  // Build #1.0.49
+        svgPath = 'assets/svg/check_broken_alert.svg';
+        break;
     }
 
     return Container(
@@ -177,6 +206,10 @@ class _PaymentDialogState extends State<PaymentDialog> {
         break;
       case PaymentStatus.exitConfirmation:
         title = TextConstants.exitConfirmTitle;
+
+      case PaymentStatus.voidConfirmation:
+        title = TextConstants.voidConfirmTitle;
+        break;
 
     }
 
@@ -320,7 +353,54 @@ class _PaymentDialogState extends State<PaymentDialog> {
     );
   }
 
-  Widget _buildActionButtons() {
+  Widget _buildActionButtons() {  // Build #1.0.49: Updated code with void confirm dialog code and loader adder
+    if (widget.status == PaymentStatus.voidConfirmation) {
+      return Row(
+        children: [
+          Expanded(
+            child: _buildButton(
+              TextConstants.noKeepIt,
+                  () {
+                if (kDebugMode) {
+                  print("DEBUG: Void cancel button pressed");
+                }
+                setState(() {
+                  _isVoidCancelLoading = true; // Show loader on button
+                });
+                widget.onExitCancel?.call();
+                Future.delayed(const Duration(milliseconds: 500), () {
+                  setState(() {
+                    _isVoidCancelLoading = false; // Hide loader after action
+                  });
+                });
+              },
+              backgroundColor: Colors.grey[100]!,
+              textColor: Colors.blueGrey[700]!,
+              isLoading: _isVoidCancelLoading, // Pass loading state
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: _buildButton(
+              TextConstants.yesVoid,
+                  () {
+                if (kDebugMode) {
+                  print("DEBUG: Void confirm button pressed");
+                }
+                setState(() {
+                  _isVoidConfirmLoading = true; // Show loader on button
+                });
+                widget.onExitConfirm?.call();
+                // Loader persists until _handleVoidPayment updates widget.isVoidLoading
+              },
+              backgroundColor: const Color(0xFFFE6464),
+              isLoading: _isVoidConfirmLoading, // Combine states
+            ),
+          ),
+        ],
+      );
+    }
+
     if (widget.status == PaymentStatus.exitConfirmation) {
       return Row(
         children: [
@@ -392,10 +472,24 @@ class _PaymentDialogState extends State<PaymentDialog> {
                 children: [
                   Expanded(
                     child: _buildButton(
-                      TextConstants.noReceipt, // "No Receipt" button
-                      widget.onNoReceipt ?? () {}, // Use callback or empty function
+                      TextConstants.noReceipt,
+                          () {
+                        if (kDebugMode) {
+                          print("DEBUG: No receipt button pressed");
+                        }
+                        setState(() {
+                          _isNoReceiptLoading = true; // Show loader on button
+                        });
+                        widget.onNoReceipt?.call();
+                        Future.delayed(const Duration(milliseconds: 500), () {
+                          setState(() {
+                            _isNoReceiptLoading = false; // Hide loader after action
+                          });
+                        });
+                      },
                       backgroundColor: Colors.grey[200]!,
                       textColor: Colors.blueGrey[700]!,
+                      isLoading: _isNoReceiptLoading, // Pass loading state
                     ),
                   ),
                   const SizedBox(width: 16), // Horizontal spacing
@@ -403,6 +497,12 @@ class _PaymentDialogState extends State<PaymentDialog> {
                     child: _buildButton(
                       TextConstants.done, // "Done" button
                           () {
+                        if (kDebugMode) {
+                          print("DEBUG: Done button pressed, selectedOption: $_selectedOption");
+                        }
+                        setState(() {
+                          _isDoneLoading = true; // Show loader on button
+                        });
                         if (_selectedOption == TextConstants.print) {
                           widget.onPrint?.call(); // Call print callback if selected
                         } else if (_selectedOption == TextConstants.email) {
@@ -412,7 +512,8 @@ class _PaymentDialogState extends State<PaymentDialog> {
                         }
                         widget.onDone?.call(); // Call done callback
                       },
-                      backgroundColor: const Color(0xFF1BA672), // Green button
+                      backgroundColor: const Color(0xFF1BA672),
+                      isLoading: _isDoneLoading, // Pass loading state
                     ),
                   ),
                 ],
@@ -431,9 +532,9 @@ class _PaymentDialogState extends State<PaymentDialog> {
           children: [
             Expanded(
               child: _buildButton(
-                TextConstants.vOid, // "Void" button
-                widget.onVoid ?? () {}, // Use callback or empty function
-                backgroundColor: const Color(0xFFFE6464), // Red button
+                TextConstants.vOid,
+                widget.onVoid ?? () {},
+                backgroundColor: const Color(0xFFFE6464),
               ),
             ),
             const SizedBox(width: 16), // Horizontal spacing
@@ -454,24 +555,38 @@ class _PaymentDialogState extends State<PaymentDialog> {
     );
   }
 
+  // Build #1.0.49: updated code
   Widget _buildButton(String text, VoidCallback onPressed,
-      {Color backgroundColor = Colors.blue, Color textColor = Colors.white}) {
+      {Color backgroundColor = Colors.blue, Color textColor = Colors.white, bool isLoading = false}) {
+    if (kDebugMode) {
+      print("DEBUG: Building button '$text', isLoading: $isLoading");
+    }
     return ElevatedButton(
-      onPressed: onPressed, // Button click handler
+      onPressed: isLoading ? null : onPressed, // Disable button when loading
       style: ElevatedButton.styleFrom(
-        backgroundColor: backgroundColor, // Button color
-        foregroundColor: textColor, // Text color
-        padding: const EdgeInsets.symmetric(vertical: 18), // Vertical padding
-        elevation: 1, // Subtle shadow
+        backgroundColor: backgroundColor, // Maintain original background color
+        foregroundColor: textColor,
+        padding: const EdgeInsets.symmetric(vertical: 18),
+        elevation: 1,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8), // Rounded corners
+          borderRadius: BorderRadius.circular(8),
         ),
+        disabledBackgroundColor: backgroundColor, // Keep same color when disabled
       ),
-      child: Text(
-        text, // Button text
+      child: isLoading
+          ? const SizedBox(
+        width: 28, // Increased loader size
+        height: 28,
+        child: CircularProgressIndicator(
+          strokeWidth: 3, // Slightly thicker stroke for visibility
+          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+        ),
+      )
+          : Text(
+        text,
         style: const TextStyle(
           fontSize: 20,
-          fontWeight: FontWeight.w700, // Bold text
+          fontWeight: FontWeight.w700,
         ),
       ),
     );

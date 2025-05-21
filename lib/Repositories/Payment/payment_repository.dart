@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import '../../Helper/api_helper.dart';
 import '../../Helper/url_helper.dart';
 import '../../Models/Payment/payment_model.dart';
+import '../../Models/Payment/void_payment_model.dart';
 
 class PaymentRepository {  // Build #1.0.25 - added by naveen
   final APIHelper _helper = APIHelper();
@@ -96,4 +97,33 @@ class PaymentRepository {  // Build #1.0.25 - added by naveen
     }
   }
 
+  // Build #1.0.49: Added voidPayment api call code
+  Future<VoidPaymentResponseModel> voidPayment(VoidPaymentRequestModel request) async {
+    final url = "${UrlHelper.componentVersionUrl}${UrlMethodConstants.payments}${EndUrlConstants.voidPaymentEndUrl}";
+
+    if (kDebugMode) {
+      print("PaymentRepository - POST URL: $url");
+      print("PaymentRepository - Request Body: ${request.toJson()}");
+    }
+
+    final response = await _helper.post(url, request.toJson(), true);
+
+    if (kDebugMode) {
+      print("PaymentRepository - Raw Response: $response");
+    }
+
+    if (response is String) {
+      try {
+        final responseData = json.decode(response);
+        return VoidPaymentResponseModel.fromJson(responseData);
+      } catch (e) {
+        if (kDebugMode) print("Error parsing void payment response: $e");
+        throw Exception("Failed to parse void payment response");
+      }
+    } else if (response is Map<String, dynamic>) {
+      return VoidPaymentResponseModel.fromJson(response);
+    } else {
+      throw Exception("Unexpected response type in void payment POST");
+    }
+  }
 }

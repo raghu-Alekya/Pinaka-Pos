@@ -194,6 +194,13 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String swipeToCloseShift     = "Swipe to Close Shift"; // Build #1.0.13: updated to here
 
   static const String noPrinter             = "No printer selected";
+  static const String voidConfirmTitle      = "Transaction Void Confirmation ?";  // Build #1.0.49
+  static const String voidConfirmText       = "This will cancel all items and payments in the current sale. The transaction will be recorded as voided in your sales history.";
+  static const String yesVoid               = "Yes, Void !";
+  static const String cancelled             = "cancelled";
+  static const String completed             = "completed";
+  static const String orderCancelled        = "Order successfully cancelled";
+  static const String orderCompleted        = "Order successfully completed";
 
 }
 

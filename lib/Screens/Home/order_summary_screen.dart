@@ -1594,6 +1594,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
           }
           // _printCustomTest();
           _printTicket();
+          ///ToDO: Change the status of order to 'completed' here
         },
       ),
     );
@@ -1613,6 +1614,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
           onExitConfirm: () {
             // Delay navigation to avoid calling during build
               Navigator.of(context).pop(); // Close the dialog
+              Future.delayed(Duration(milliseconds: 100));
               Navigator.of(context).pop(); // Go back to previous screen
               // Additional cleanup logic can be added here
           },

@@ -5,7 +5,9 @@ import '../Constants/text.dart';
 import 'widget_custom_num_pad.dart';
 
 class AppScreenTabWidget extends StatefulWidget {
-  const AppScreenTabWidget({super.key});
+  AppScreenTabWidget({this.selectedTabIndex = 0, this.barcode = "", super.key});
+  int selectedTabIndex = 0;
+  String barcode = "";
 
   @override
   State<AppScreenTabWidget> createState() => _AppScreenTabWidgetState();
@@ -13,7 +15,7 @@ class AppScreenTabWidget extends StatefulWidget {
 
 class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
   // Tab selection
-  int _selectedTabIndex = 0;
+
 
   // Discount values
   String _discountValue = "0%";
@@ -44,6 +46,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
     super.initState();
     _customItemNameController.text = _customItemName;
     _customItemPriceController.text = _customItemPrice;
+    _sku = widget.barcode ?? "";
     _skuController.text = _sku;
   }
 
@@ -89,12 +92,12 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
 
   // Build individual tab
   Widget _buildTab(int index, IconData icon, String text) {
-    bool isSelected = _selectedTabIndex == index;
+    bool isSelected = widget.selectedTabIndex == index;
     return Expanded(
       child: GestureDetector(
         onTap: () {
           setState(() {
-            _selectedTabIndex = index;
+            widget.selectedTabIndex = index;
           });
         },
         child: Container(height: MediaQuery.of(context).size.height * 0.065,
@@ -128,7 +131,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
 
   // Build content based on selected tab
   Widget _buildTabContent() {
-    switch (_selectedTabIndex) {
+    switch (widget.selectedTabIndex) {
       case 0:
         return _buildDiscountsTab();
       case 1:
@@ -839,11 +842,12 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
   // Generate SKU function
   void _generateSku() {
     // Simple SKU generation logic - prefix + timestamp
-    String timestamp = DateTime.now().millisecondsSinceEpoch.toString().substring(7);
-    String prefix = _customItemName.isNotEmpty
-        ? _customItemName.substring(0, _customItemName.length > 3 ? 3 : _customItemName.length).toUpperCase()
-        : "ITM";
+    String timestamp = DateTime.now().millisecondsSinceEpoch.toString().substring(0,12);
+    // String prefix = _customItemName.isNotEmpty
+    //     ? _customItemName.substring(0, _customItemName.length > 3 ? 3 : _customItemName.length).toUpperCase()
+    //     : "C";
 
+    String prefix = 'C';
     setState(() {
       _sku = "$prefix-$timestamp";
       _skuController.text = _sku;

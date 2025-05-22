@@ -17,8 +17,9 @@ enum OrderPanelPosition { left, right }
 
 class AddScreen extends StatefulWidget { // Build #1.0.6 - Updated Horizontal & Vertical Scrolling
   final int? lastSelectedIndex; // Make it nullable
-
-  const AddScreen({super.key, this.lastSelectedIndex}); // Optional, no default value
+  int selectedTabIndex = 0;
+  String barcode = "";
+  AddScreen({super.key, this.lastSelectedIndex, this.selectedTabIndex = 0, this.barcode = "",}); // Optional, no default value
 
 
   @override
@@ -110,7 +111,7 @@ class _AddScreenState extends State<AddScreen> {
                     refreshOrderList: _refreshOrderList, // Pass the callback
                   ),
 
-                Expanded(child: AppScreenTabWidget()),
+                Expanded(child: AppScreenTabWidget(selectedTabIndex: widget.selectedTabIndex,barcode: widget.barcode,)),
 
                 // Order Panel on the Right (Conditional: Only when sidebar is left or bottom with right order panel)
                 if (sidebarPosition != SidebarPosition.right &&

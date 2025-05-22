@@ -13,7 +13,9 @@ enum SidebarPosition { left, right, bottom }
 
 // Enum for order panel position
 enum OrderPanelPosition { left, right }
-
+///Todo:
+/// call this screen from first time login when shift is getting started
+/// and when shift is getting closed
 class ShiftOpenCloseBalanceScreen extends StatefulWidget {
   final int? lastSelectedIndex;
   const ShiftOpenCloseBalanceScreen(

@@ -12,16 +12,16 @@ enum SidebarPosition { left, right, bottom }
 // Enum for order panel position
 enum OrderPanelPosition { left, right }
 
-class NotesManagerScreen extends StatefulWidget {
+class SafeDropScreen extends StatefulWidget {
   final int? lastSelectedIndex;
-  const NotesManagerScreen(
+  const SafeDropScreen(
       {super.key, this.lastSelectedIndex});
 
   @override
-  State<NotesManagerScreen> createState() => _NotesManagerScreenState();
+  State<SafeDropScreen> createState() => _SafeDropScreenState();
 }
 
-class _NotesManagerScreenState extends State<NotesManagerScreen> {
+class _SafeDropScreenState extends State<SafeDropScreen> {
 
   SidebarPosition sidebarPosition =
       SidebarPosition.left; // Default to bottom sidebar

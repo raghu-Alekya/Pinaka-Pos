@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:pinaka_pos/Screens/Home/apps_screen.dart';
+import 'package:pinaka_pos/Screens/Home/apps_dashboard_screen.dart';
 import 'package:pinaka_pos/Screens/Home/categories_screen.dart';
 import 'package:pinaka_pos/Screens/Home/fast_key_screen.dart';
 import 'package:pinaka_pos/Screens/Home/orders_screen.dart';
@@ -141,7 +141,7 @@ class NavigationBar extends StatelessWidget {
                 context,
                 MaterialPageRoute(
                     builder: (context) =>
-                        AppsScreen()),
+                        AppsDashboardScreen()),
               );
             },
             isVertical: isVertical,
@@ -224,6 +224,8 @@ class NavigationBar extends StatelessWidget {
                         if (kDebugMode) {
                           print("Shift closed");
                         }
+                        ///Todo: call shift-open-close-balance screen and set the title to "Shift close balanse"
+                        ///
                         Navigator.of(context).pop();
                         // Add your close shift logic here
                       },
@@ -364,7 +366,7 @@ class NavigationBar extends StatelessWidget {
                 context,
                 MaterialPageRoute(
                     builder: (context) =>
-                        AppsScreen()),
+                        AppsDashboardScreen()),
               );
             },
             isVertical: isVertical,

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:pinaka_pos/Screens/Home/notes_manager_screen.dart';
+import 'package:pinaka_pos/Screens/Home/safe_drop_screen.dart';
+import 'package:pinaka_pos/Screens/Home/shift_open_close_balance.dart';
 import '../../Constants/text.dart';
 import '../../Widgets/widget_topbar.dart';
 import 'package:flutter/material.dart';
@@ -13,18 +14,18 @@ enum SidebarPosition { left, right, bottom }
 // Enum for order panel position
 enum OrderPanelPosition { left, right }
 
-class AppsScreen extends StatefulWidget {
+class AppsDashboardScreen extends StatefulWidget {
   // Build #1.0.6 - Updated Horizontal & Vertical Scrolling
   final int? lastSelectedIndex; // Make it nullable
 
-  const AppsScreen(
+  const AppsDashboardScreen(
       {super.key, this.lastSelectedIndex}); // Optional, no default value
 
   @override
-  State<AppsScreen> createState() => _AppsScreenState();
+  State<AppsDashboardScreen> createState() => _AppsDashboardScreenState();
 }
 
-class _AppsScreenState extends State<AppsScreen> {
+class _AppsDashboardScreenState extends State<AppsDashboardScreen> {
   final List<String> items = List.generate(18, (index) => 'Bud Light');
   int _selectedSidebarIndex =
       4; //Build #1.0.2 : By default fast key should be selected after login
@@ -111,7 +112,7 @@ class _AppsScreenState extends State<AppsScreen> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => NotesManagerScreen(),
+                                builder: (context) => ShiftOpenCloseBalanceScreen(),
                               ),
                             );
                           },
@@ -120,6 +121,13 @@ class _AppsScreenState extends State<AppsScreen> {
                           title: TextConstants.safeDrop,
                           icon: 'assets/svg/safe_drop.svg',
                           onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => SafeDropScreen(),
+                              ),
+                            );
+
                             // Handle Safe Drop tap
                           },
                         ),

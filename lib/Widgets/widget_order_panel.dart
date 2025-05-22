@@ -12,6 +12,7 @@ import 'package:flutter_svg/svg.dart';
 import 'package:pinaka_pos/Screens/Home/order_summary_screen.dart';
 import 'package:pinaka_pos/Widgets/widget_custom_num_pad.dart';
 import 'package:pinaka_pos/Widgets/widget_nested_grid_layout.dart';
+import 'package:pinaka_pos/Widgets/widget_tabs.dart';
 import 'package:pinaka_pos/Widgets/widget_variants_dialog.dart';
 
 import '../Blocs/Orders/order_bloc.dart';
@@ -24,6 +25,7 @@ import '../Models/Orders/orders_model.dart';
 import '../Repositories/Auth/store_validation_repository.dart';
 import '../Repositories/Orders/order_repository.dart';
 import '../Repositories/Search/product_search_repository.dart';
+import '../Screens/Home/add_screen.dart';
 import '../Screens/Home/edit_product_screen.dart';
 
 class RightOrderPanel extends StatefulWidget {
@@ -458,6 +460,12 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text("Product not found for SKU: $barcode")),
               );
+              ///Todo: Call custom items screen and pass the barcode to it
+              /// call widget_tabs -> AppScreenTabWidget
+              /// pass _selectedTabIndex = 2 ( custom items )
+              Navigator.push(context, MaterialPageRoute(
+                builder: (context) => AddScreen(barcode: barcode,selectedTabIndex: 2,),
+              ));
             }
           });
         }
@@ -516,6 +524,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                                       const SizedBox(width: 40),
                                       // Always show the close button
                                       GestureDetector(
+                                        ///ToDo: Change the status of order to 'cancelled' here
                                         onTap: () => removeTab(index),
                                         child: const Icon(Icons.close, size: 18, color: Colors.red),
                                       ),

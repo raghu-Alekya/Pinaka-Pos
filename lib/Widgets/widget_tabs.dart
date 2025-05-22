@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 // Import your custom numpad
@@ -92,10 +93,16 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
 
   // Build individual tab
   Widget _buildTab(int index, IconData icon, String text) {
+    if (kDebugMode) {
+      print("Widget_tabs _buildTab index : $index");
+    }
     bool isSelected = widget.selectedTabIndex == index;
     return Expanded(
       child: GestureDetector(
         onTap: () {
+          if (kDebugMode) {
+            print("Widget_tabs _buildTab onTap index : $index");
+          }
           setState(() {
             widget.selectedTabIndex = index;
           });

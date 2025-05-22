@@ -1656,6 +1656,9 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
           if (kDebugMode) {
             print("OrderSummaryScreen _showReceiptDialog Done call print reciept");
           }
+          // _printCustomTest();
+          _printTicket();
+          ///ToDO: Change the status of order to 'completed' here
           // Build #1.0.49: Added Call Order Status Update API code
           orderBloc.changeOrderStatus(orderId: orderId!, status: TextConstants.completed);
           StreamSubscription? subscription;
@@ -1696,9 +1699,6 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
             }
             subscription?.cancel();
           });
-          // _printCustomTest();
-          _printTicket();
-          ///ToDO: Change the status of order to 'completed' here
         },
       ),
     );

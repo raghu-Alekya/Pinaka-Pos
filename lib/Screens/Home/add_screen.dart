@@ -33,7 +33,6 @@ class _AddScreenState extends State<AddScreen> {
   List<int> quantities = [1, 1, 1, 1];
   SidebarPosition sidebarPosition = SidebarPosition.left; // Default to bottom sidebar
   OrderPanelPosition orderPanelPosition = OrderPanelPosition.right; // Default to right
-  bool isLoading = true; // Add a loading state
   final ValueNotifier<int?> fastKeyTabIdNotifier = ValueNotifier<int?>(null); // Add this
 
 
@@ -41,12 +40,6 @@ class _AddScreenState extends State<AddScreen> {
   void initState() {
     super.initState();
     _selectedSidebarIndex = widget.lastSelectedIndex ?? 2; // Build #1.0.7: Restore previous selection
-    // Simulate a loading delay
-    Future.delayed(const Duration(seconds: 3), () {
-      setState(() {
-        isLoading = false; // Set loading to false after 3 seconds
-      });
-    });
   }
 
   void _refreshOrderList() { // Build #1.0.10 - Naveen: This will trigger a rebuild of the RightOrderPanel (Callback)

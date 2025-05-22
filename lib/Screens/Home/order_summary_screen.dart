@@ -10,6 +10,7 @@ import 'package:pinaka_pos/Helper/Extentions/extensions.dart';
 import 'package:pinaka_pos/Utilities/printer_settings.dart';
 import 'package:thermal_printer/esc_pos_utils_platform/src/pos_column.dart';
 
+import '../../Blocs/Orders/order_bloc.dart';
 import '../../Blocs/Payment/payment_bloc.dart';
 import '../../Constants/text.dart';
 import '../../Database/db_helper.dart';
@@ -17,6 +18,8 @@ import '../../Database/order_panel_db_helper.dart';
 import '../../Database/user_db_helper.dart';
 import '../../Helper/api_response.dart';
 import '../../Models/Payment/payment_model.dart';
+import '../../Models/Payment/void_payment_model.dart';
+import '../../Repositories/Orders/order_repository.dart';
 import '../../Repositories/Payment/payment_repository.dart';
 import '../../Utilities/responsive_layout.dart';
 import '../../Utilities/result_utility.dart';
@@ -55,10 +58,13 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
   // final TextEditingController _paymentController = TextEditingController();
   var _printerSettings =  PrinterSettings();
   List<int> bytes = [];
+  String? paymentId; // To store the transaction ID after wallet payment
+  late OrderBloc orderBloc;
 
   @override
   void initState() {
     super.initState();
+    orderBloc = OrderBloc(OrderRepository()); // Build #1.0.49
     fetchOrderItems();
     _fetchUserId();
 
@@ -156,6 +162,15 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
               isLoading = false; // Hide loader on success
             });
             paidAmount = amount; // Current payment amount
+
+            // Capture paymentId for wallet payments
+            if (selectedPaymentMethod == TextConstants.wallet) {
+            //  paymentId = paymentData.paymentId; // Assuming the API response includes paymentId
+              paymentId = "TXT_123456789"; // For testing purpose added here
+              if (kDebugMode) {
+                print("Wallet payment successful. Transaction ID: $paymentId");
+              }
+            }
 
             // Determine payment type
             final bool isExactPayment = (amount == balanceAmount);
@@ -1384,6 +1399,65 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     );
   }
 
+  // Build #1.0.49: Added _handleVoidPayment for void payment api call code
+  void _handleVoidPayment(BuildContext context) {
+    if (orderId == null || orderId == 0) {
+      if (kDebugMode) {
+        print("Invalid order ID: $orderId. Cannot void transaction.");
+      }
+      Navigator.of(context).pop(); // Close the dialog
+      return;
+    }
+
+    if (kDebugMode) {
+      print("Void payment for order ID: $orderId");
+    }
+
+    final request = VoidPaymentRequestModel(
+      orderId: orderId!,
+      paymentId: selectedPaymentMethod == TextConstants.wallet ? paymentId ?? "" : "",
+    );
+
+    paymentBloc.voidPayment(request);
+    StreamSubscription? subscription;
+    subscription = paymentBloc.voidPaymentStream.listen((response) {
+      if (response.status == Status.COMPLETED) {
+        if (kDebugMode) {
+          print("Void successful: ${response.data!.message}");
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              response.data!.message ?? "",
+              style: const TextStyle(color: Colors.white),
+            ),
+            backgroundColor: Colors.black,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+        Navigator.of(context).popUntil((route) => route.isFirst || route.settings.name == '/previousScreen');
+      } else if (response.status == Status.ERROR) {
+
+        if (kDebugMode) {
+          print("Void failed: ${response.data!.message}");
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              response.data!.message ?? "",
+              style: const TextStyle(color: Colors.red),
+            ),
+            backgroundColor: Colors.black,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+        Navigator.of(context).pop(); // Close the dialog
+      }
+      subscription?.cancel();
+    });
+  }
+
   //Build #1.0.34: moved Dialog's code from custom numpad
   void _showPartialPaymentDialog(BuildContext context, double amount) {
     if (kDebugMode) {
@@ -1396,12 +1470,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
         status: PaymentStatus.partial,
         mode: PaymentMode.cash,
         amount: amount,
-        onVoid: () {
-          if (kDebugMode) {
-            print("Void partial payment");
-          }
-          Navigator.of(context).pop();
-        },
+        onVoid: () => _showVoidExitConfirmation(context),
         onNextPayment: () {
           if (kDebugMode) {
             print("Proceeding to next payment");
@@ -1429,12 +1498,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
         mode: PaymentMode.cash,
         amount: amount,
         changeAmount: showChange ? changeAmount : null,
-        onVoid: () {
-          if (kDebugMode) {
-            print("Void successful payment");
-          }
-          Navigator.of(context).pop();
-        },
+        onVoid: () => _showVoidExitConfirmation(context),
         onPrint: () {
           if (kDebugMode) {
             print("Print receipt for amount: $amount");
@@ -1592,6 +1656,46 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
           if (kDebugMode) {
             print("OrderSummaryScreen _showReceiptDialog Done call print reciept");
           }
+          // Build #1.0.49: Added Call Order Status Update API code
+          orderBloc.changeOrderStatus(orderId: orderId!, status: TextConstants.completed);
+          StreamSubscription? subscription;
+          subscription = orderBloc.changeOrderStatusStream.listen((response) {
+            if (response.status == Status.COMPLETED) {
+              if (kDebugMode) {
+                print("OrderPanel - Order #@# $orderId, successfully completed");
+              }
+
+              Navigator.of(context).pop(); // dismiss dialog
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    TextConstants.orderCompleted,
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  backgroundColor: Colors.black,
+                  duration: const Duration(seconds: 3),
+                ),
+              );
+              // Optionally refresh UI or remove tab
+             // fetchOrderItems();
+            } else if (response.status == Status.ERROR) {
+              if (kDebugMode) {
+                print("OrderPanel - completed failed: ${response.message}");
+              }
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    response.message ?? "Failed to complete order",
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                  backgroundColor: Colors.black,
+                  duration: const Duration(seconds: 3),
+                ),
+              );
+            }
+            subscription?.cancel();
+          });
           // _printCustomTest();
           _printTicket();
           ///ToDO: Change the status of order to 'completed' here
@@ -1600,6 +1704,22 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     );
   }
 
+  // Build #1.0.49: _showVoidExitConfirmation
+  void _showVoidExitConfirmation(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => PaymentDialog.voidConfirmation(
+        onVoidCancel: () {
+          Navigator.of(context).pop(); // Dismiss the confirm dialog
+          Navigator.of(context).pop(); // Dismiss the main dialog
+        },
+        onVoidConfirm: () {
+          _handleVoidPayment(context); // Call void payment logic
+        },
+      ),
+    );
+  }
 
   void _showExitPaymentConfirmation(BuildContext context) {
     showDialog(
@@ -1613,9 +1733,16 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
           },
           onExitConfirm: () {
             // Delay navigation to avoid calling during build
-              Navigator.of(context).pop(); // Close the dialog
-              Future.delayed(Duration(milliseconds: 100));
-              Navigator.of(context).pop(); // Go back to previous screen
+/// below code is not required use it for testing only
+              // Navigator.of(context).pop(); // Close the dialog
+              // Future.delayed(Duration(milliseconds: 100));
+              // Navigatorgator.of(context).pop(); // Go back to previous screen
+/// issue with navigation is fixed using below
+            // Build #1.0.49: issue fixed -> Use popUntil to dismiss both dialogs and go back
+            Navigator.of(context).popUntil((route) => route.isFirst || route.settings.name == '/previousScreen'); // Adjust route condition as needed
+            //   Navigator.of(context).pop(); // Close the dialog
+            //   Navigator.of(context).pop(); // Go back to previous screen
+
               // Additional cleanup logic can be added here
           },
         ),

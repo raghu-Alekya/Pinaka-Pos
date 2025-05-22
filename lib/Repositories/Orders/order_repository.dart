@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import '../../Helper/api_helper.dart';
 import '../../Helper/url_helper.dart';
+import '../../Models/Orders/apply_discount_model.dart';
 import '../../Models/Orders/get_orders_model.dart';
 import '../../Models/Orders/orders_model.dart';
 
@@ -168,6 +169,71 @@ class OrderRepository {  // Build #1.0.25 - added by naveen
       return UpdateOrderResponseModel.fromJson(response);
     } else {
       throw Exception("Unexpected response type in delete order item PUT");
+    }
+  }
+
+  // Build #1.0.49: Added changeOrderStatus api call code
+  Future<UpdateOrderResponseModel> changeOrderStatus({required int orderId, required OrderStatusRequest request}) async {
+    final url = "${UrlHelper.componentVersionUrl}${UrlMethodConstants.orders}/$orderId";
+
+    if (kDebugMode) {
+      print("OrderRepository - POST URL for status change: $url");
+      print("OrderRepository - Request Body: ${request.toJson()}");
+    }
+
+    final response = await _helper.post(url, request.toJson(), true);
+
+    if (kDebugMode) {
+      print("OrderRepository - Change status Raw Response: $response");
+    }
+
+    if (response is String) {
+      try {
+        final responseData = json.decode(response);
+        return UpdateOrderResponseModel.fromJson(responseData);
+      } catch (e) {
+        if (kDebugMode) print("Error parsing change order status response: $e");
+        throw Exception("Failed to parse change order status response");
+      }
+    } else if (response is Map<String, dynamic>) {
+      return UpdateOrderResponseModel.fromJson(response);
+    } else {
+      throw Exception("Unexpected response type in change order status POST");
+    }
+  }
+
+  // Build #1.0.49: Added applyDiscount api call code
+  Future<ApplyDiscountResponse> applyDiscount(int orderId, String discountCode) async {
+    String url = "${UrlHelper.baseUrl}${UrlParameterConstants.applyDiscount}$orderId";
+
+    if (kDebugMode) {
+      print("ProductRepository - ApplyDiscount URL: $url");
+    }
+
+    final body = {
+      'discount_code': discountCode,
+    };
+
+    final response = await _helper.post(url, body, true);
+
+    if (kDebugMode) {
+      print("ProductRepository - ApplyDiscount Raw Response: $response");
+    }
+
+    if (response is String) {
+      try {
+        final Map<String, dynamic> responseData = json.decode(response);
+        return ApplyDiscountResponse.fromJson(responseData);
+      } catch (e) {
+        if (kDebugMode) {
+          print("ProductRepository - Error parsing apply discount response: $e");
+        }
+        throw Exception("Failed to parse apply discount response");
+      }
+    } else if (response is Map<String, dynamic>) {
+      return ApplyDiscountResponse.fromJson(response);
+    } else {
+      throw Exception("Unexpected response type");
     }
   }
 }

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import '../../Constants/text.dart';
 import '../../Helper/api_response.dart';
 import '../../Models/Payment/payment_model.dart';
+import '../../Models/Payment/void_payment_model.dart';
 import '../../Repositories/Payment/payment_repository.dart';
 
 class PaymentBloc {  // Build #1.0.25 - added by naveen
@@ -19,6 +20,11 @@ class PaymentBloc {  // Build #1.0.25 - added by naveen
   final StreamController<APIResponse<List<PaymentListModel>>> _paymentsListController =
   StreamController<APIResponse<List<PaymentListModel>>>.broadcast();
 
+  final StreamController<APIResponse<VoidPaymentResponseModel>> _voidPaymentController =
+  StreamController<APIResponse<VoidPaymentResponseModel>>.broadcast();
+
+  StreamSink<APIResponse<VoidPaymentResponseModel>> get voidPaymentSink => _voidPaymentController.sink;
+  Stream<APIResponse<VoidPaymentResponseModel>> get voidPaymentStream => _voidPaymentController.stream;
 
   // Getters for Streams
   StreamSink<APIResponse<PaymentResponseModel>> get createPaymentSink => _createPaymentController.sink;
@@ -114,10 +120,35 @@ class PaymentBloc {  // Build #1.0.25 - added by naveen
     }
   }
 
+  // 4.  Build #1.0.49: Added Void Payment api func
+  Future<void> voidPayment(VoidPaymentRequestModel request) async {
+    if (_voidPaymentController.isClosed) return;
+
+    voidPaymentSink.add(APIResponse.loading(TextConstants.loading));
+    try {
+      final response = await _paymentRepository.voidPayment(request);
+
+      if (kDebugMode) {
+        print("PaymentBloc - Voided payment for order ID: ${request.orderId}");
+        print("PaymentBloc - Void Payment Message: ${response.message}");
+      }
+
+      voidPaymentSink.add(APIResponse.completed(response));
+    } catch (e) {
+      if (e.toString().contains('SocketException')) {
+        voidPaymentSink.add(APIResponse.error("Network error. Please check your connection."));
+      } else {
+        voidPaymentSink.add(APIResponse.error("Failed to void payment: ${e.toString()}"));
+      }
+      if (kDebugMode) print("Exception in voidPayment: $e");
+    }
+  }
+
   void dispose() {
     if (!_createPaymentController.isClosed) _createPaymentController.close();
     if (!_paymentDetailController.isClosed) _paymentDetailController.close();
     if (!_paymentsListController.isClosed) _paymentsListController.close();
+    if (!_voidPaymentController.isClosed) _voidPaymentController.close();
     if (kDebugMode) print("PaymentBloc disposed with all controllers");
   }
 }

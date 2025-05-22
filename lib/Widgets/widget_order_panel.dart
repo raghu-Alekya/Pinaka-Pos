@@ -525,7 +525,55 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                                       // Always show the close button
                                       GestureDetector(
                                         ///ToDo: Change the status of order to 'cancelled' here
-                                        onTap: () => removeTab(index),
+                                        onTap: () {
+                                          if (kDebugMode) {
+                                            print("Tab $index, close button tapped");
+                                          }
+                                          // Build #1.0.49: Call Order Status Update API
+                                          orderBloc.changeOrderStatus(
+                                              orderId: orderHelper.activeOrderId!,
+                                              status: TextConstants.cancelled
+                                          );
+
+                                          StreamSubscription? subscription;
+                                          subscription = orderBloc.changeOrderStatusStream.listen((response) {
+                                            if (response.status == Status.COMPLETED) {
+                                              if (kDebugMode) {
+                                                print("OrderPanel - Order ${orderHelper.activeOrderId}, successfully cancelled");
+                                              }
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                  SnackBar(
+                                                    content: Text(
+                                                      TextConstants.orderCancelled,
+                                                      style: const TextStyle(color: Colors.white)),
+                                                      backgroundColor: Colors.black,
+                                                      duration: const Duration(seconds: 3),
+                                                    ),
+                                                  );
+
+                                                  // Moved inside the stream listener
+                                                  if (mounted) {
+                                                removeTab(index);
+                                              }
+                                            } else if (response.status == Status.ERROR) {
+                                              if (kDebugMode) {
+                                                print("OrderPanel - Cancel failed: ${response.message}");
+                                              }
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                  SnackBar(
+                                                    content: Text(
+                                                      response.message ?? "Failed to cancel order",
+                                                      style: const TextStyle(color: Colors.red)),
+                                                      backgroundColor: Colors.black,
+                                                      duration: const Duration(seconds: 3),
+                                                    ),
+                                                  );
+                                              }
+                                                  subscription?.cancel();
+                                            });
+
+                                          // Removed removeTab(index) from here
+                                        },
                                         child: const Icon(Icons.close, size: 18, color: Colors.red),
                                       ),
                                     ],

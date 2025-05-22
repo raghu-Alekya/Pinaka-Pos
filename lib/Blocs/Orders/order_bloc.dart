@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import '../../Constants/text.dart';
 import '../../Database/order_panel_db_helper.dart';
 import '../../Helper/api_response.dart';
+import '../../Models/Orders/apply_discount_model.dart';
 import '../../Models/Orders/get_orders_model.dart';
 import '../../Models/Orders/orders_model.dart';
 import '../../Repositories/Orders/order_repository.dart';
@@ -23,6 +24,19 @@ class OrderBloc { // Build #1.0.25 - added by naveen
 
   final StreamController<APIResponse<UpdateOrderResponseModel>> _deleteOrderItemController =
   StreamController<APIResponse<UpdateOrderResponseModel>>.broadcast();
+
+  // Build #1.0.49: Added apply discount code
+  late StreamController<APIResponse<ApplyDiscountResponse>> _applyDiscountController;
+  StreamController<APIResponse<ApplyDiscountResponse>> get applyDiscountController => _applyDiscountController;
+  StreamSink<APIResponse<ApplyDiscountResponse>> get applyDiscountSink => _applyDiscountController.sink;
+  Stream<APIResponse<ApplyDiscountResponse>> get applyDiscountStream => _applyDiscountController.stream;
+
+  // Build #1.0.49: Added change order status code
+  // Stream Controller for change order status
+  final StreamController<APIResponse<UpdateOrderResponseModel>> _changeOrderStatusController =
+  StreamController<APIResponse<UpdateOrderResponseModel>>.broadcast();
+  StreamSink<APIResponse<UpdateOrderResponseModel>> get changeOrderStatusSink => _changeOrderStatusController.sink;
+  Stream<APIResponse<UpdateOrderResponseModel>> get changeOrderStatusStream => _changeOrderStatusController.stream;
 
   // fetch orders
   late StreamController<APIResponse<OrdersListModel>> _fetchOrdersController;
@@ -45,6 +59,7 @@ class OrderBloc { // Build #1.0.25 - added by naveen
   OrderBloc(this._orderRepository) {
     _createOrderController = StreamController<APIResponse<CreateOrderResponseModel>>.broadcast();
     _fetchOrdersController = StreamController<APIResponse<OrdersListModel>>.broadcast();
+    _applyDiscountController = StreamController<APIResponse<ApplyDiscountResponse>>.broadcast();
     if (kDebugMode) {
       print("OrderBloc Initialized with all 4 order APIs");
     }
@@ -193,7 +208,31 @@ class OrderBloc { // Build #1.0.25 - added by naveen
     }
   }
 
-  // 4. Delete Order Item
+  // 4. Build #1.0.49: Added changeOrderStatus func
+  Future<void> changeOrderStatus({required int orderId, required String status}) async {
+    if (_changeOrderStatusController.isClosed) return;
+
+    changeOrderStatusSink.add(APIResponse.loading(TextConstants.loading));
+    try {
+      final request = OrderStatusRequest(status: status);
+      final response = await _orderRepository.changeOrderStatus(orderId: orderId, request: request);
+
+      if (kDebugMode) {
+        print("OrderBloc - Order $orderId status changed to: $status");
+        print("OrderBloc - Response ID: ${response.id}, Status: ${response.status}");
+      }
+
+      changeOrderStatusSink.add(APIResponse.completed(response));
+    } catch (e) {
+      if (e.toString().contains('SocketException')) {
+        changeOrderStatusSink.add(APIResponse.error("Network error. Please check your connection."));
+      } else {
+        changeOrderStatusSink.add(APIResponse.error("Failed to change order status: ${e.toString()}"));
+      }
+      if (kDebugMode) print("Exception in changeOrderStatus: $e");
+    }
+  }
+  // 5. Delete Order Item
   Future<void> deleteOrderItem({
     required int orderId,
     required List<OrderLineItem> lineItems,
@@ -231,12 +270,41 @@ class OrderBloc { // Build #1.0.25 - added by naveen
     }
   }
 
+  // Build #1.0.49: added this function for discount api call
+  Future<void> applyDiscount(int orderId, String discountCode) async {
+    if (_applyDiscountController.isClosed) return;
+
+    applyDiscountSink.add(APIResponse.loading(TextConstants.loading));
+    try {
+      ApplyDiscountResponse discountResponse = await _orderRepository.applyDiscount(orderId, discountCode);
+
+      if (discountResponse.success) {
+        if (kDebugMode) {
+          print("ProductBloc - Discount applied for order $orderId with code: $discountCode");
+          print("Discount response: ${discountResponse.toJson()}");
+        }
+        applyDiscountSink.add(APIResponse.completed(discountResponse));
+      } else {
+        applyDiscountSink.add(APIResponse.error(discountResponse.message.isNotEmpty ? discountResponse.message : "Failed to apply discount"));
+      }
+    } catch (e) {
+      if (e.toString().contains('SocketException')) {
+        applyDiscountSink.add(APIResponse.error("Network error. Please check your connection."));
+      } else {
+        applyDiscountSink.add(APIResponse.error("Failed to apply discount"));
+      }
+      if (kDebugMode) print("ProductBloc - Exception in applyDiscount: $e");
+    }
+  }
+
   void dispose() {
     if (!_createOrderController.isClosed) _createOrderController.close();
     if (!_fetchOrdersController.isClosed) _fetchOrdersController.close();
     if (!_updateOrderController.isClosed) _updateOrderController.close();
     if (!_applyCouponController.isClosed) _applyCouponController.close();
     if (!_deleteOrderItemController.isClosed) _deleteOrderItemController.close();
+    if (!_applyDiscountController.isClosed) _applyDiscountController.close();
+    if (!_changeOrderStatusController.isClosed) _changeOrderStatusController.close();
     if (kDebugMode) print("OrderBloc disposed with all controllers");
   }
 }

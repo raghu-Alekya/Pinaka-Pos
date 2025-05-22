@@ -76,6 +76,7 @@ class UrlParameterConstants { // Build #1.0.13
   static const  String getOrdersEndParameter  = "&show_un_paid_only=false";
 
   static const  String productBySku           = "?sku=";
+  static const  String applyDiscount          = "custom-discount/apply/";  // Build #1.0.49
 }
 
 class EndUrlConstants { // Build #1.0.13
@@ -90,5 +91,6 @@ class EndUrlConstants { // Build #1.0.13
   static const String paymentByIdEndUrl           = "/get-payment-by-id?payment_id=";
   static const String paymentByOrderIdEndUrl      = "/get-payments-by-order-id?order_id=";
   static const String variationsEndUrl            = "/variations"; //Build 1.1.36
+  static const String voidPaymentEndUrl           = "/void-payment";  // Build #1.0.49
 }
 

@@ -1130,7 +1130,7 @@ class CategoryList extends StatelessWidget {
             ),
             // Right navigation button
             Positioned(
-              right: isAddButtonEnabled ? 105 : 5,
+              right: isAddButtonEnabled ? 75 : 5,
               child: _buildCircularNavButton(Icons.arrow_forward_ios, () {
                 if (kDebugMode) {
                   print("### CategoryList: Right navigation button pressed");

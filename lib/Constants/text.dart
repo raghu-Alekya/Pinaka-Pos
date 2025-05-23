@@ -201,6 +201,8 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String completed             = "completed";
   static const String orderCancelled        = "Order successfully cancelled";
   static const String orderCompleted        = "Order successfully completed";
+  static const String payout                = "Payout"; // Build #1.0.53
+  static const String none                  = "none";
 
 }
 

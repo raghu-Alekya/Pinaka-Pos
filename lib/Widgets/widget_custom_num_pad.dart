@@ -120,6 +120,7 @@ class CustomNumPad extends StatelessWidget {
           onPressed: onClearPressed,
           color: Colors.white,
           textColor: Colors.black,
+          isAddButton: false, // Build #1.0.53 : Explicitly mark as not Add button
         ),
         _buildKey("0"),
         _buildActionKey(
@@ -127,6 +128,7 @@ class CustomNumPad extends StatelessWidget {
           onPressed: _getActionButtonCallback(),
           color: _getActionButtonColor(),
           textColor: _getActionButtonTextColor(),
+          isAddButton: true, // Build #1.0.53 : Mark as Add button
         ),
       ],
     );
@@ -260,6 +262,7 @@ class CustomNumPad extends StatelessWidget {
     required Color color,
     required Color textColor,
     Widget? child,
+    bool isAddButton = false, // Add flag to identify Add button
   }) {
     return ElevatedButton(
       onPressed: onPressed,
@@ -270,10 +273,20 @@ class CustomNumPad extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
         ),
       ),
-      child: child ?? Text(
-        text,
-        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w400),
-      ),
+      child: (isLoading ?? false) && isAddButton && actionButtonType == ActionButtonType.add
+          ? const SizedBox( // Build #1.0.53 : updated condition
+        height: 20,
+        width: 20,
+        child: CircularProgressIndicator(
+          color: Colors.white,
+          strokeWidth: 2,
+        ),
+      )
+          : child ??
+          Text(
+            text,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w400),
+          ),
     );
   }
 

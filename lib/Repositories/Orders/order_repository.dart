@@ -236,4 +236,64 @@ class OrderRepository {  // Build #1.0.25 - added by naveen
       throw Exception("Unexpected response type");
     }
   }
+
+  // Build #1.0.53 : Add Payout to Order
+  Future<UpdateOrderResponseModel> addPayout({required int orderId, required AddPayoutRequestModel request}) async {
+    final url = "${UrlHelper.componentVersionUrl}${UrlMethodConstants.orders}/$orderId";
+
+    if (kDebugMode) {
+      print("OrderRepository - POST URL for add payout: $url");
+      print("OrderRepository - Request Body: ${request.toJson()}");
+    }
+
+    final response = await _helper.post(url, request.toJson(), true);
+
+    if (kDebugMode) {
+      print("OrderRepository - Add Payout Raw Response: $response");
+    }
+
+    if (response is String) {
+      try {
+        final responseData = json.decode(response);
+        return UpdateOrderResponseModel.fromJson(responseData);
+      } catch (e) {
+        if (kDebugMode) print("Error parsing add payout response: $e");
+        throw Exception("Failed to parse add payout response");
+      }
+    } else if (response is Map<String, dynamic>) {
+      return UpdateOrderResponseModel.fromJson(response);
+    } else {
+      throw Exception("Unexpected response type in add payout POST");
+    }
+  }
+
+  // Build #1.0.53 : Remove Payout from Order
+  Future<UpdateOrderResponseModel> removePayout({required int orderId, required RemovePayoutRequestModel request}) async {
+    final url = "${UrlHelper.componentVersionUrl}${UrlMethodConstants.orders}/$orderId";
+
+    if (kDebugMode) {
+      print("OrderRepository - PUT URL for remove payout: $url");
+      print("OrderRepository - Request Body: ${request.toJson()}");
+    }
+
+    final response = await _helper.put(url, request.toJson(), true);
+
+    if (kDebugMode) {
+      print("OrderRepository - Remove Payout Raw Response: $response");
+    }
+
+    if (response is String) {
+      try {
+        final responseData = json.decode(response);
+        return UpdateOrderResponseModel.fromJson(responseData);
+      } catch (e) {
+        if (kDebugMode) print("Error parsing remove payout response: $e");
+        throw Exception("Failed to parse remove payout response");
+      }
+    } else if (response is Map<String, dynamic>) {
+      return UpdateOrderResponseModel.fromJson(response);
+    } else {
+      throw Exception("Unexpected response type in remove payout PUT");
+    }
+  }
 }

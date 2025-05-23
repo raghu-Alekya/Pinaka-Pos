@@ -686,12 +686,53 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                       motion: const DrawerMotion(),
                       children: [
                         CustomSlidableAction(
-                          onPressed: (context) async {
+                          onPressed: (context) async { // Build #1.0.53 : when delte tap call delte order item api
                             if (kDebugMode) {
-                              print("Deleting item at index $index");
-                            } // Debug print
-                            deleteItemFromOrder(orderItem[AppDBConst.itemId]);
-                            fetchOrderItems();
+                              print("Deleting item at index $index with itemId: ${orderItem[AppDBConst.itemId]}");
+                            }
+                            if (orderHelper.activeOrderId != null) {
+                              final order = orderHelper.orders.firstWhere(
+                                    (order) => order[AppDBConst.orderId] == orderHelper.activeOrderId,
+                                orElse: () => {},
+                              );
+                              final serverOrderId = order[AppDBConst.orderServerId] as int?;
+
+                              if (serverOrderId != null) {
+                                setState(() => _isLoading = true);
+
+                                _updateOrderSubscription?.cancel();
+                                _updateOrderSubscription = orderBloc.deleteOrderItemStream.listen((response) async {
+                                  setState(() => _isLoading = false);
+
+                                  if (response.status == Status.COMPLETED) {
+                                    if (kDebugMode) {
+                                      print("OrderPanel - Item deleted successfully for order $serverOrderId");
+                                    }
+                                    await orderHelper.deleteItem(orderItem[AppDBConst.itemId]);
+                                    await fetchOrderItems();
+                                    widget.refreshOrderList?.call();
+                                  } else if (response.status == Status.ERROR) {
+                                    if (kDebugMode) {
+                                      print("OrderPanel - Delete failed: ${response.message}");
+                                    }
+
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text(response.message ?? "Failed to delete item")),
+                                    );
+                                  }
+                                });
+
+                                await orderBloc.deleteOrderItem(
+                                  orderId: serverOrderId,
+                                  lineItems: [OrderLineItem(id: orderItem[AppDBConst.itemId], quantity: 0)],
+                                );
+                              } else {
+                                // Fallback to local delete if no server ID
+                                await orderHelper.deleteItem(orderItem[AppDBConst.itemId]);
+                                await fetchOrderItems();
+                                widget.refreshOrderList?.call();
+                              }
+                            }
                           },
                           backgroundColor: Colors.transparent, // No background color
                           child: Column(

@@ -10,6 +10,17 @@ import 'file_helper.dart';
 import 'package:pinaka_pos/Helper/Extentions/exceptions.dart';
 
 class APIHelper { // Build #1.0.8, Naveen added
+  //Build #1.0.54: added insure UrlHelper base URL is initialized
+  Future<void> _initializeBaseUrl() async {
+    if (kDebugMode) {
+      print("#### APIHelper: Initializing UrlHelper base URL");
+    }
+    await UrlHelper.initializeBaseUrl();
+    if (kDebugMode) {
+      print("#### APIHelper: UrlHelper base URL initialized: ${UrlHelper.baseUrl}");
+    }
+  }
+
   // Base method for handling GET requests
   Future<dynamic> get(String url, bool useToken) async {
     var responseJson;
@@ -17,6 +28,7 @@ class APIHelper { // Build #1.0.8, Naveen added
     String? token = "";
 
     try {
+      await _initializeBaseUrl(); // Ensure base URL is initialized
       finalUrl = UrlHelper.baseUrl + url;
       final userData = await UserDbHelper().getUserData();
       token =  userData?[AppDBConst.userToken] ?? ""; // Build #1.0.13: token get from the user table from db
@@ -51,6 +63,7 @@ class APIHelper { // Build #1.0.8, Naveen added
     String? token = "";
 
     try {
+      await _initializeBaseUrl(); // Ensure base URL is initialized
       finalUrl = UrlHelper.baseUrl + url;
       final userData = await UserDbHelper().getUserData();
       token =  userData?[AppDBConst.userToken] ?? "";
@@ -83,6 +96,7 @@ class APIHelper { // Build #1.0.8, Naveen added
     var body = "";
 
     try {
+      await _initializeBaseUrl(); // Ensure base URL is initialized
       finalUrl = (validateMarchentUrl ?? false) ? url : UrlHelper.baseUrl + url;  //Build #1.0.42: Updated url condition
       final userData = await UserDbHelper().getUserData();
       token =  userData?[AppDBConst.userToken] ?? "";
@@ -141,6 +155,7 @@ class APIHelper { // Build #1.0.8, Naveen added
     String? token = "";
 
     try {
+      await _initializeBaseUrl(); // Ensure base URL is initialized
       finalUrl = UrlHelper.baseUrl + url;
       final userData = await UserDbHelper().getUserData();
       token =  userData?[AppDBConst.userToken] ?? "";
@@ -181,6 +196,7 @@ class APIHelper { // Build #1.0.8, Naveen added
     String? token = "";
 
     try {
+      await _initializeBaseUrl(); // Ensure base URL is initialized
       finalUrl = UrlHelper.baseUrl + url;
       final userData = await UserDbHelper().getUserData();
       token =  userData?[AppDBConst.userToken] ?? "";
@@ -207,6 +223,7 @@ class APIHelper { // Build #1.0.8, Naveen added
     var body = "";
 
     try {
+      await _initializeBaseUrl(); // Ensure base URL is initialized
       finalUrl = UrlHelper.baseUrl + url;
       final userData = await UserDbHelper().getUserData();
       token =  userData?[AppDBConst.userToken] ?? "";

@@ -1,6 +1,8 @@
 // repositories/order_repository.dart
 import 'dart:convert';
+import 'dart:ffi';
 import 'package:flutter/foundation.dart';
+import '../../Constants/text.dart';
 import '../../Helper/api_helper.dart';
 import '../../Helper/url_helper.dart';
 import '../../Models/Orders/apply_discount_model.dart';
@@ -70,10 +72,15 @@ class OrderRepository {  // Build #1.0.25 - added by naveen
     }
   }
   //Build #1.0.40: getOrders
-  Future<OrdersListModel> getOrders() async {
-    final setStatus = "processing";
+  Future<OrdersListModel> getOrders({bool allStatuses = false}) async {
+    //Build #1.0.54: added if allStatuses is true, include all statuses; otherwise, just "processing"
+    final statusString = allStatuses
+        ? TextConstants.allStatus
+        : TextConstants.processing;
+    // Encode for URL (spaces become '+', commas become '%2C')
+    final encodedStatus = Uri.encodeQueryComponent(statusString);
     final url = "${UrlHelper.componentVersionUrl}${UrlMethodConstants.orders}"
-        "${UrlParameterConstants.getOrdersParameter}$setStatus${UrlParameterConstants.getOrdersEndParameter}";
+        "${UrlParameterConstants.getOrdersParameter}$encodedStatus${UrlParameterConstants.getOrdersEndParameter}";
 
     if (kDebugMode) {
       print("OrderRepository - GET URL: $url");

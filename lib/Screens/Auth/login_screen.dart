@@ -4,6 +4,7 @@ import 'package:flutter_svg/svg.dart';
 import '../../Blocs/Assets/asset_bloc.dart';
 import '../../Blocs/Auth/login_bloc.dart';
 import '../../Constants/text.dart';
+import '../../Database/assets_db_helper.dart';
 import '../../Database/db_helper.dart';
 import '../../Database/user_db_helper.dart';
 import '../../Helper/api_response.dart';
@@ -104,13 +105,24 @@ class _LoginScreenState extends State<LoginScreen> {
     return true;
   }
 
-  void _handleLogin() {
+  void _handleLogin() async {
     if (!_validatePin()) return;
     _hasErrorShown = false; // Build #1.0.16: Reset error flag before login
     final pin = _password.join();
     _bloc.fetchLoginToken(LoginRequest(pin));
-    // Call Assets API
-   // _assetBloc.fetchAssets(); Testing Purpose Added Here
+
+    //Build #1.0.54: added, check if assets are already saved in the database
+    String? baseUrl = await AssetDBHelper.instance.getAppBaseUrl();
+    if (baseUrl == null) {
+      if (kDebugMode) {
+        print("#### LoginScreen: No assets found in database, fetching assets");
+      }
+      _assetBloc.fetchAssets(); // Fetch and save assets only if not already saved
+    } else {
+      if (kDebugMode) {
+        print("#### LoginScreen: Assets already saved in database, skipping fetch");
+      }
+    }
   }
 
   @override

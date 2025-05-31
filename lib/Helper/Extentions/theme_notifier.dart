@@ -24,6 +24,7 @@ class ThemeNotifier with ChangeNotifier { // Build #1.0.6 - Added Theme code & a
   }
 
   void setThemeMode(ThemeMode mode) async {
+    if (mode == ThemeMode.system) return; //Build #1.0.54: added prevent system theme
     _themeMode = mode;
     notifyListeners();
     await _preferences.saveAppThemeMode(mode); // Build #1.0.7
@@ -33,11 +34,8 @@ class ThemeNotifier with ChangeNotifier { // Build #1.0.6 - Added Theme code & a
   ThemeMode _mapStringToThemeMode(String? themeString) {
     if (themeString == ThemeMode.dark.toString()) {
       return ThemeMode.dark;
-    } else if (themeString == ThemeMode.light.toString()) {
-      return ThemeMode.light;
-    } else {
-      return ThemeMode.system; // Default
     }
+      return ThemeMode.light; //Build #1.0.54: added default to light
   }
 
   static const Color lightBackground = Color(0xFFE0E0E0);

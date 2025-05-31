@@ -163,12 +163,12 @@ class OrderBloc { // Build #1.0.25 - added by naveen
   }
 
   //Build #1.0.40: fetchOrders
-  Future<void> fetchOrders() async {
+  Future<void> fetchOrders({bool allStatuses = false}) async { //Build #1.0.54: updated
     if (_fetchOrdersController.isClosed) return;
 
     fetchOrdersSink.add(APIResponse.loading(TextConstants.loading));
     try {
-      final response = await _orderRepository.getOrders();
+      final response = await _orderRepository.getOrders(allStatuses: allStatuses); //Build #1.0.54: updated
 
       if (kDebugMode) {
         print("OrderBloc - Fetched ${response.orders.length} orders");
@@ -329,7 +329,7 @@ class OrderBloc { // Build #1.0.25 - added by naveen
         request = AddPayoutRequestModel(
           feeLines: [
             FeeLine(
-              name: TextConstants.discount,
+              name: TextConstants.discountText,
               taxStatus: TextConstants.none,
               total: "-${amount.toStringAsFixed(2)}",
               originalValue: amount.toStringAsFixed(2),

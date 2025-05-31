@@ -162,7 +162,7 @@ class OrderLineItemResponse {
   final String totalTax;
   final List<OrderMetaData> metaData;
   final String sku;
-  final int price;
+  final double price; // Use double to handle both int and double
   final Map<String, dynamic> image;
 
   OrderLineItemResponse({
@@ -199,7 +199,9 @@ class OrderLineItemResponse {
             .toList() ??
             [],
         sku: json['sku'] ?? '',
-        price: json['price'] ?? 0,
+        price: (json['price'] is int
+            ? (json['price'] as int).toDouble() // Convert int to double
+            : json['price'] ?? 0.0), // Use double directly or default to 0.0
         image: json['image'] ?? {'id': '0', 'src': ''},
       );
 }

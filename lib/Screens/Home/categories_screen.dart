@@ -175,6 +175,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../Blocs/Search/product_search_bloc.dart';
+import '../../Helper/Extentions/nav_layout_manager.dart';
+import '../../Preferences/pinaka_preferences.dart';
 import '../../Repositories/Search/product_search_repository.dart';
 import '../../Widgets/widget_category_list.dart';
 import '../../Widgets/widget_nested_grid_layout.dart';
@@ -191,9 +193,6 @@ import '../../Database/order_panel_db_helper.dart';
 import '../../Constants/text.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-enum SidebarPosition { left, right, bottom }
-enum OrderPanelPosition { left, right }
-
 class CategoriesScreen extends StatefulWidget {
   final int? lastSelectedIndex;
 
@@ -203,18 +202,19 @@ class CategoriesScreen extends StatefulWidget {
   State<CategoriesScreen> createState() => _CategoriesScreenState();
 }
 
-class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBindingObserver {
+class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBindingObserver, LayoutSelectionMixin{
   final List<String> items = List.generate(18, (index) => 'Bud Light');
   int _selectedSidebarIndex = 1;
   DateTime now = DateTime.now();
   List<int> quantities = [1, 1, 1, 1];
-  SidebarPosition sidebarPosition = SidebarPosition.left;
-  OrderPanelPosition orderPanelPosition = OrderPanelPosition.right;
+  // SidebarPosition sidebarPosition = SidebarPosition.left;
+  // OrderPanelPosition orderPanelPosition = OrderPanelPosition.right;
   bool isLoading = true;
   bool isLoadingNestedContent = false; //Build #1.0.34: added for shimmer effect issue
   final ValueNotifier<int?> fastKeyTabIdNotifier = ValueNotifier<int?>(null);
   final OrderHelper orderHelper = OrderHelper();
   final productBloc = ProductBloc(ProductRepository());
+  final PinakaPreferences _preferences = PinakaPreferences(); // Add this
 
   late CategoryBloc _categoryBloc;
   List<CategoryModel> categories = []; // Build #1.0.27 : Top-level categories only
@@ -533,14 +533,20 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
         children: [
           TopBar(
             onModeChanged: () {
+              String newLayout;
               setState(() {
                 if (sidebarPosition == SidebarPosition.left) {
-                  sidebarPosition = SidebarPosition.right;
+                  newLayout = SharedPreferenceTextConstants.navRightOrderLeft;
                 } else if (sidebarPosition == SidebarPosition.right) {
-                  sidebarPosition = SidebarPosition.bottom;
+                  newLayout = SharedPreferenceTextConstants.navBottomOrderLeft;
                 } else {
-                  sidebarPosition = SidebarPosition.left;
+                  newLayout = SharedPreferenceTextConstants.navLeftOrderRight;
                 }
+
+                //Build #1.0.54: Update the notifier which will trigger _onLayoutChanged
+                PinakaPreferences.layoutSelectionNotifier.value = newLayout;
+                // No need to call saveLayoutSelection here as it's handled in the notifier
+                _preferences.saveLayoutSelection(newLayout);
               });
             },
             onProductSelected: (product) {

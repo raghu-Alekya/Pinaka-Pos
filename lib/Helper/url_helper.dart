@@ -1,5 +1,7 @@
 import 'dart:ffi';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
+import '../Database/assets_db_helper.dart';
 
 class UrlHelper {
   static const Map<String, String> environment = {
@@ -9,7 +11,7 @@ class UrlHelper {
     _AndroidApiKey : "ANDROID"
   };
 //Hosts
-  static const  String _dev = "https://pinakapos.techkumard.com/wp-json/"; //Build 1.1.36: new base url
+  static const String _dev = "https://pinakapos.techkumard.com"; // Build #1.1.36: Base URL without /wp-json/
   static const  String _uat = "http://uatapi.pinaka.com/";
   static const  String _prod = "http://api.pinaka.com/";
 
@@ -20,10 +22,38 @@ class UrlHelper {
   // API path components
   static const String pinakaPosV1 = "pinaka-pos/v1/"; // New variable for pinaka-pos/v1
   static const String wooCommerceV3 = "wc/v3/"; // New variable for wc/v3
+  static const String wpJson = "wp-json/"; // WP JSON API base path
 
+  //Build #1.0.54: added Dynamic base URL initialized from database
+  static String? _baseUrl;
+  // Initialize base URL from database
+  static Future<void> initializeBaseUrl() async {
+    if (kDebugMode) {
+      print("#### UrlHelper: Initializing base URL from database");
+    }
+    _baseUrl = await AssetDBHelper.instance.getAppBaseUrl();
+    if (_baseUrl == null) {
+      if (kDebugMode) {
+        print("#### UrlHelper: No base URL in database, falling back to DEV: $_dev");
+      }
+      _baseUrl = _dev; // Fallback to dev URL if database is empty
+    }
+    if (kDebugMode) {
+      print("#### UrlHelper: Base URL set to: $_baseUrl");
+    }
+  }
+
+  //Build #1.0.54: Getter for base URL with /wp-json/ appended
+  static String get baseUrl {
+    final url = '$_baseUrl/$wpJson';
+    if (kDebugMode) {
+      print("#### UrlHelper: Providing base URL: $url");
+    }
+    return url;
+  }
 /////START: make changes here to switch environment
-  static const  String host = _dev ;
-  static const  String baseUrl = host;
+//   static const  String host = _dev ;
+//   static const  String baseUrl = host;
   static const String componentVersionUrl = pinakaPosV1; // Default to pinaka-pos/v1 for existing APIs
   // static const  String apiKey = _devApiKey ;
   static final String apiKey = Platform.isIOS ? _iOSApiKey : _AndroidApiKey; // Build #1.0.8, Naveen updated this line
@@ -40,8 +70,8 @@ class UrlHelper {
   /////END: make changes here to switch environment
 
   static const  String clientID = "IOS";
-  static const  String confirmSuccessUrl = baseUrl;
-  static const  String markerUrl =  baseUrl;
+  static String confirmSuccessUrl = baseUrl;
+  static String markerUrl =  baseUrl;
 
   static const  String login = "${pinakaPosV1}token"; // Build #1.0.8
   static const  String refresh = "auth/refresh_token";

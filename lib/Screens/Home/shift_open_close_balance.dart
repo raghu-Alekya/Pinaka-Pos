@@ -1,6 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/svg.dart';
-//import 'package:pinaka_pos/Screens/Home/safe_open_screen.dart';
+import 'package:pinaka_pos/Screens/Home/safe_open_screen.dart';
 import '../../Widgets/widget_custom_num_pad.dart';
 import '../../Widgets/widget_topbar.dart';
 import 'package:flutter/material.dart';
@@ -302,7 +302,7 @@ class _ShiftOpenCloseBalanceScreenState extends State<ShiftOpenCloseBalanceScree
                                         child: ElevatedButton(
                                           onPressed: () {
                                             // Next button action
-                                            //Navigator.push(context, MaterialPageRoute(builder: (context) => SafeOpenScreen(),));
+                                            Navigator.push(context, MaterialPageRoute(builder: (context) => SafeOpenScreen(),));
                                             // Implement your next step logic here
                                           },
                                           style: ElevatedButton.styleFrom(

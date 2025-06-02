@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:pinaka_pos/Screens/Home/safe_drop_screen.dart';
+import 'package:pinaka_pos/Screens/Home/shift_history_dashboard_screen.dart';
 import 'package:pinaka_pos/Screens/Home/shift_open_close_balance.dart';
 import '../../Constants/text.dart';
 import '../../Widgets/widget_topbar.dart';
@@ -112,7 +113,7 @@ class _AppsDashboardScreenState extends State<AppsDashboardScreen> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => ShiftOpenCloseBalanceScreen(),
+                                builder: (context) => ShiftHistoryDashboardScreen(),
                               ),
                             );
                           },

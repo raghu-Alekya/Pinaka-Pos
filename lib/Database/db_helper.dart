@@ -85,8 +85,26 @@ class AppDBConst { // Build #1.0.10 - Naveen: Updated DB tables constants
   static const String storeName = 'store_name';
   static const String expirationDate = 'expiration_date';
   static const String storeBaseUrl = 'store_base_url';
+  static const String storeAddress = 'store_address';
+  static const String storePhone = 'store_phone';
+  static const String storeInfo = 'store_info';
   static const String licenseKey = 'license_key';
   static const String licenseStatus = 'license_status';
+
+  //Build #1.0.54: added Asset Tables
+  static const String assetTable = 'asset_table';
+  static const String mediaTable = 'media_table';
+  static const String taxTable = 'tax_table';
+  static const String couponTable = 'coupon_table';
+  static const String orderStatusTable = 'order_status_table';
+  static const String roleTable = 'role_table';
+  static const String subscriptionPlanTable = 'subscription_plan_table';
+  static const String storeDetailsTable = 'store_details_table';
+
+  static const String assetId = 'asset_id';
+  static const String baseUrl = 'base_url';
+  static const String currency = 'currency';
+  static const String currencySymbol = 'currency_symbol';
 }
 
 class DBHelper {
@@ -223,10 +241,118 @@ CREATE TABLE ${AppDBConst.orderTable} (
       ${AppDBConst.storeName} TEXT NOT NULL,
       ${AppDBConst.expirationDate} TEXT NOT NULL,
       ${AppDBConst.storeBaseUrl} TEXT NOT NULL,
+      ${AppDBConst.storeAddress} TEXT NOT NULL,
+      ${AppDBConst.storePhone} TEXT NOT NULL,
+      ${AppDBConst.storeInfo} TEXT NOT NULL,
       ${AppDBConst.licenseKey} TEXT NOT NULL,
       ${AppDBConst.licenseStatus} TEXT NOT NULL
     )
   ''');
+
+    //Build #1.0.54: added Asset Table
+    await db.execute('''
+    CREATE TABLE ${AppDBConst.assetTable} (
+      ${AppDBConst.assetId} INTEGER PRIMARY KEY AUTOINCREMENT,
+      ${AppDBConst.baseUrl} TEXT NOT NULL,
+      ${AppDBConst.currency} TEXT NOT NULL,
+      ${AppDBConst.currencySymbol} TEXT NOT NULL
+    )
+    ''');
+
+    // Media Table
+    await db.execute('''
+    CREATE TABLE ${AppDBConst.mediaTable} (
+      id INTEGER PRIMARY KEY,
+      title TEXT NOT NULL,
+      url TEXT NOT NULL,
+      ${AppDBConst.assetId} INTEGER NOT NULL,
+      FOREIGN KEY(${AppDBConst.assetId}) REFERENCES ${AppDBConst.assetTable}(${AppDBConst.assetId}) ON DELETE CASCADE
+    )
+    ''');
+
+    // Tax Table
+    await db.execute('''
+    CREATE TABLE ${AppDBConst.taxTable} (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      class TEXT NOT NULL,
+      rate TEXT NOT NULL,
+      country TEXT NOT NULL,
+      state TEXT NOT NULL,
+      priority TEXT NOT NULL,
+      compound TEXT NOT NULL,
+      shipping TEXT NOT NULL,
+      postcode TEXT NOT NULL,
+      postcode_count INTEGER NOT NULL,
+      city_count INTEGER NOT NULL,
+      ${AppDBConst.assetId} INTEGER NOT NULL,
+      FOREIGN KEY(${AppDBConst.assetId}) REFERENCES ${AppDBConst.assetTable}(${AppDBConst.assetId}) ON DELETE CASCADE
+    )
+    ''');
+
+    // Coupon Table
+    await db.execute('''
+    CREATE TABLE ${AppDBConst.couponTable} (
+      id INTEGER PRIMARY KEY,
+      code TEXT NOT NULL,
+      amount TEXT NOT NULL,
+      discount_type TEXT NOT NULL,
+      usage_limit TEXT NOT NULL,
+      expiry_date TEXT NOT NULL,
+      ${AppDBConst.assetId} INTEGER NOT NULL,
+      FOREIGN KEY(${AppDBConst.assetId}) REFERENCES ${AppDBConst.assetTable}(${AppDBConst.assetId}) ON DELETE CASCADE
+    )
+    ''');
+
+    // Order Status Table
+    await db.execute('''
+    CREATE TABLE ${AppDBConst.orderStatusTable} (
+      slug TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      ${AppDBConst.assetId} INTEGER NOT NULL,
+      FOREIGN KEY(${AppDBConst.assetId}) REFERENCES ${AppDBConst.assetTable}(${AppDBConst.assetId}) ON DELETE CASCADE
+    )
+    ''');
+
+    // Role Table
+    await db.execute('''
+    CREATE TABLE ${AppDBConst.roleTable} (
+      slug TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      ${AppDBConst.assetId} INTEGER NOT NULL,
+      FOREIGN KEY(${AppDBConst.assetId}) REFERENCES ${AppDBConst.assetTable}(${AppDBConst.assetId}) ON DELETE CASCADE
+    )
+    ''');
+
+    // Subscription Plan Table
+    await db.execute('''
+    CREATE TABLE ${AppDBConst.subscriptionPlanTable} (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      type TEXT NOT NULL,
+      key TEXT NOT NULL,
+      expiration TEXT NOT NULL,
+      origin TEXT NOT NULL,
+      store_id INTEGER NOT NULL,
+      ${AppDBConst.assetId} INTEGER NOT NULL,
+      FOREIGN KEY(${AppDBConst.assetId}) REFERENCES ${AppDBConst.assetTable}(${AppDBConst.assetId}) ON DELETE CASCADE
+    )
+    ''');
+
+    // Store Details Table
+    await db.execute('''
+    CREATE TABLE ${AppDBConst.storeDetailsTable} (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      address TEXT NOT NULL,
+      city TEXT NOT NULL,
+      state TEXT NOT NULL,
+      country TEXT NOT NULL,
+      zip_code TEXT NOT NULL,
+      phone_number INTEGER NOT NULL,
+      ${AppDBConst.assetId} INTEGER NOT NULL,
+      FOREIGN KEY(${AppDBConst.assetId}) REFERENCES ${AppDBConst.assetTable}(${AppDBConst.assetId}) ON DELETE CASCADE
+    )
+    ''');
 
     if (kDebugMode) {
       print("#### All tables created successfully!");

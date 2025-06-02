@@ -1,14 +1,28 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 // Import your custom numpad
+import '../Blocs/Orders/order_bloc.dart';
+import '../Blocs/Search/product_search_bloc.dart';
 import '../Constants/text.dart';
+import '../Database/assets_db_helper.dart';
+import '../Database/db_helper.dart';
+import '../Database/order_panel_db_helper.dart';
+import '../Helper/api_response.dart';
+import '../Models/Assets/asset_model.dart';
+import '../Models/Orders/orders_model.dart';
+import '../Models/Search/product_custom_item_model.dart' as model;
+import '../Repositories/Orders/order_repository.dart';
+import '../Repositories/Search/product_search_repository.dart';
 import 'widget_custom_num_pad.dart';
 
 class AppScreenTabWidget extends StatefulWidget {
-  AppScreenTabWidget({this.selectedTabIndex = 0, this.barcode = "", super.key});
+  AppScreenTabWidget({this.selectedTabIndex = 0, this.barcode = "", this.refreshOrderList, required this.scaffoldMessengerContext, super.key});
   int selectedTabIndex = 0;
   String barcode = "";
+  final BuildContext scaffoldMessengerContext;
+  final VoidCallback? refreshOrderList; // Callback to refresh order panel
 
   @override
   State<AppScreenTabWidget> createState() => _AppScreenTabWidgetState();
@@ -16,14 +30,21 @@ class AppScreenTabWidget extends StatefulWidget {
 
 class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
   // Tab selection
-
-
+  bool _isPayoutLoading = false;
+  bool _isCouponLoading = false;
+  bool _isDiscountLoading = false;
+  bool _isCustomItemLoading = false;
+  final OrderHelper _orderHelper = OrderHelper(); // Add OrderHelper instance
+  late OrderBloc orderBloc;
+  late ProductBloc productBloc;
+  int? orderId; // Store order ID
+  double orderTotal = 0.0; // Store order total
   // Discount values
   String _discountValue = "0%";
   bool _isPercentageSelected = true;
 
   // Coupon value
-  String _couponCode = "123456789";
+  String _couponCode = "";
 
   // Custom item values
   String _customItemName = "";
@@ -31,11 +52,13 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
   String _sku = "";
 
   // Tax slab options
-  final List<String> _taxSlabOptions = ['No Tax', 'GST 5%', 'GST 12%', 'GST 18%', 'GST 28%'];
+  late List<String> _taxSlabOptions = [];
   String _selectedTaxSlab = '';
+  final AssetDBHelper _assetDBHelper = AssetDBHelper.instance;
+  bool _isTaxAvailable = false;
 
   // Payout value
-  String _payoutAmount = "0.00";
+  String _payoutAmount = "";
 
   // Text editing controllers
   final TextEditingController _customItemNameController = TextEditingController();
@@ -44,11 +67,44 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
 
   @override
   void initState() {
+    orderBloc = OrderBloc(OrderRepository()); // Build #1.0.53
+    productBloc = ProductBloc(ProductRepository());
     super.initState();
-    _customItemNameController.text = _customItemName;
-    _customItemPriceController.text = _customItemPrice;
-    _sku = widget.barcode ?? "";
-    _skuController.text = _sku;
+    _customItemNameController.addListener(() {
+      _customItemName = _customItemNameController.text;
+    });
+    _customItemPriceController.addListener(() {
+      _customItemPrice = _customItemPriceController.text;
+    });
+    _skuController.addListener(() {
+      _sku = widget.barcode ?? "";
+      _sku = _skuController.text;
+    });
+    _loadOrderData(); // Load order data on initialization
+    _loadTaxSlabs();
+  }
+
+  Future<void> _loadTaxSlabs() async {
+    try {
+      List<Tax> taxes = await _assetDBHelper.getTaxList();
+      if (kDebugMode) print("#### _loadTaxSlabs: Loaded ${taxes.length} taxes: ${taxes.map((t) => t.toMap()).toList()}");
+      setState(() {
+        _taxSlabOptions = taxes.map((tax) => tax.name).toSet().toList();
+        if (_taxSlabOptions.isNotEmpty) {
+          _selectedTaxSlab = _taxSlabOptions.first;
+          if (kDebugMode) print("#### _loadTaxSlabs: Set selected tax slab to: $_selectedTaxSlab");
+        } else {
+          if (kDebugMode) print("#### _loadTaxSlabs: Tax slabs are empty");
+          _selectedTaxSlab = ''; // Ensure reset if no options
+        }
+      });
+    } catch (e) {
+      if (kDebugMode) print("#### _loadTaxSlabs: Error loading tax slabs: $e");
+      setState(() {
+        _taxSlabOptions = [];
+        _selectedTaxSlab = '';
+      });
+    }
   }
 
   @override
@@ -57,6 +113,26 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
     _customItemPriceController.dispose();
     _skuController.dispose();
     super.dispose();
+  }
+
+  // Fetch order ID and total from OrderHelper
+  Future<void> _loadOrderData() async {
+    await _orderHelper.loadData();
+    setState(() {
+      orderId = _orderHelper.activeOrderId;
+      if (kDebugMode) {
+        print("####_loadOrderData, orderId: $orderId");
+      }
+      if (orderId != null) {
+        _orderHelper.getOrderById(orderId!).then((order) {
+          if (order.isNotEmpty) {
+            setState(() {
+              orderTotal = order.first[AppDBConst.orderTotal] as double? ?? 0.0;
+            });
+          }
+        });
+      }
+    });
   }
 
   @override
@@ -184,31 +260,31 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
           height: MediaQuery.of(context).size.height / 2.25,
           child: CustomNumPad(
             onDigitPressed: (digit) {
-              setState(() {
-                if (_discountValue == "0%" || _discountValue == "\$0") {
-                  _discountValue = digit + (_isPercentageSelected ? "%" : "");
+              setState(() { // Build #1.0.53 : updated code
+                String currentValue = _discountValue.replaceAll('%', '').replaceAll('\$', '');
+                if (currentValue == "0") {
+                  currentValue = digit;
                 } else {
-                  // Remove % or $ if present
-                  String currentValue =
-                  _discountValue.replaceAll('%', '').replaceAll('\$', '');
-                  // Add digit
                   currentValue += digit;
-                  // Re-add % if needed
-                  _discountValue =
-                      currentValue + (_isPercentageSelected ? "%" : "");
                 }
+                _discountValue = _isPercentageSelected ? "$currentValue%" : currentValue;
               });
             },
             onClearPressed: () {
               setState(() {
-                _discountValue = _isPercentageSelected ? "0%" : "\$0";
+                _discountValue = _isPercentageSelected ? "0%" : "0";
+              });
+            },
+            onDeletePressed: () { // Build #1.0.53 : updated code
+              setState(() {
+                String currentValue = _discountValue.replaceAll('%', '').replaceAll('\$', '');
+                currentValue = currentValue.isNotEmpty ? currentValue.substring(0, currentValue.length - 1) : "0";
+                _discountValue = _isPercentageSelected ? "$currentValue%" : currentValue;
               });
             },
             actionButtonType: ActionButtonType.add,
-            onAddPressed: () {
-              // Handle adding the discount
-              _handleAddDiscount();
-            },
+            onAddPressed: _handleAddDiscount,
+            isLoading: _isDiscountLoading,
           ),
         ),
       ],
@@ -243,11 +319,11 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
           ),
           alignment: Alignment.center,
           child: Text(
-            _couponCode.isEmpty ? "1234567890" : _couponCode,
-            style: const TextStyle(
+            _couponCode.isEmpty ? "Ex: 123456789" : _couponCode, // Build #1.0.53 : updated code
+            style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF1E2745),
+              color: _couponCode.isEmpty ? Colors.grey : const Color(0xFF1E2745),
             ),
           ),
         ),
@@ -269,11 +345,14 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
                 _couponCode = "";
               });
             },
-            actionButtonType: ActionButtonType.add,
-            onAddPressed: () {
-              // Handle adding the coupon
-              _handleAddCoupon();
+            onDeletePressed: () { // Build #1.0.53 : updated code
+              setState(() {
+                _couponCode = _couponCode.isNotEmpty ? _couponCode.substring(0, _couponCode.length - 1) : "";
+              });
             },
+            actionButtonType: ActionButtonType.add,
+            onAddPressed: _handleAddCoupon,
+            isLoading: _isCouponLoading,
           ),
         ),
       ],
@@ -597,8 +676,12 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
           },
           actionButtonType: ActionButtonType.add,
           onAddPressed: () {
+            if (kDebugMode) {
+              print("#### DEBUG 11@33 onAddPressed");
+            }
             _handleAddCustomItem();
           },
+          isLoading: _isCustomItemLoading,
         ),
       ),
     );
@@ -747,6 +830,9 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
               );
             }).toList(),
             onChanged: (newValue) {
+              if (kDebugMode) {
+                print("##### _buildTaxDropdown onChanged: $newValue");
+              }
               setState(() {
                 _selectedTaxSlab = newValue!;
               });
@@ -786,11 +872,11 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
               ),
               alignment: Alignment.center,
               child: Text(
-                "\$${_payoutAmount}",
-                style: const TextStyle(
+                _payoutAmount.isEmpty ? "\$0" : "\$$_payoutAmount", // Build #1.0.53 : updated code
+                style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF1E2745),
+                  color: _payoutAmount.isEmpty ? Colors.grey : const Color(0xFF1E2745),
                 ),
               ),
             ),
@@ -823,7 +909,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
           child: CustomNumPad(
             onDigitPressed: (digit) {
               setState(() {
-                if (_payoutAmount == "0.00") {
+                if (_payoutAmount == "0.00" || _payoutAmount.isEmpty) {
                   _payoutAmount = digit;
                 } else {
                   _payoutAmount += digit;
@@ -832,14 +918,17 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
             },
             onClearPressed: () {
               setState(() {
-                _payoutAmount = "0.00";
+                _payoutAmount = "";
+              });
+            },
+            onDeletePressed: () { // Build #1.0.53 : updated code
+              setState(() {
+                _payoutAmount = _payoutAmount.isNotEmpty ? _payoutAmount.substring(0, _payoutAmount.length - 1) : "";
               });
             },
             actionButtonType: ActionButtonType.add,
-            onAddPressed: () {
-              // Handle adding the payout
-              _handleAddPayout();
-            },
+            onAddPressed: _handleAddPayout,
+            isLoading: _isPayoutLoading,
           ),
         ),
       ],
@@ -961,6 +1050,10 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
 
   // Build the discount value display
   Widget _buildDiscountDisplay() {
+    // Build #1.0.53 : updated code
+    String displayValue = _isPercentageSelected ? _discountValue : "\$${_discountValue}";
+    bool isPlaceholder = _discountValue == "0%" || _discountValue == "0";
+
     return Container(
       width: MediaQuery.of(context).size.width / 2.75,
       height: MediaQuery.of(context).size.height / 14,
@@ -972,72 +1065,479 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
       ),
       alignment: Alignment.center,
       child: Text(
-        _isPercentageSelected ? _discountValue : "\$${_discountValue}",
-        style: const TextStyle(
+        displayValue,
+        style: TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.bold,
-          color: Color(0xFF1E2745),
+          color: isPlaceholder ? Colors.grey : const Color(0xFF1E2745),
         ),
       ),
     );
   }
 
-  // Handle adding the discount
-  void _handleAddDiscount() {
-    // Here you would add the logic to apply the discount
-    // This is where you'd connect to your state management solution
-    String discountAmount = _discountValue;
-    debugPrint("Applied discount: $discountAmount");
+// Handle adding the discount
+  void _handleAddDiscount() async { // Build #1.0.53 : updated code with discount api call
+    String discountValue = _discountValue.replaceAll('%', '').replaceAll('\$', '');
+    if (discountValue.isEmpty || discountValue == "0" || double.tryParse(discountValue) == null) {
+      if (kDebugMode) print("Invalid discount value: $discountValue");
+      return;
+    }
 
-    // Show confirmation snackbar
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text("Discount of $discountAmount applied successfully"),
-        backgroundColor: Colors.green,
-      ),
-    );
+    if (orderId == null) {
+      if (kDebugMode) print("No active order selected");
+      ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
+        const SnackBar(
+          content: Text("No active order selected"),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isDiscountLoading = true;
+    });
+
+    try {
+      // Fetch the current order total from the database
+      final db = await DBHelper.instance.database;
+      final orderData = await db.query(
+        AppDBConst.orderTable,
+        where: '${AppDBConst.orderId} = ?',
+        whereArgs: [orderId],
+      );
+
+      if (orderData.isEmpty) {
+        if (kDebugMode) print("Order $orderId not found in database");
+        setState(() {
+          _isDiscountLoading = false;
+        });
+        return;
+      }
+
+      double currentOrderTotal = orderData.first[AppDBConst.orderTotal] as double? ?? 0.0;
+      if (kDebugMode) print("Fetched order total for order $orderId: $currentOrderTotal");
+
+      // Calculate discount based on current order total
+      double discountAmount = double.parse(discountValue);
+      if (_isPercentageSelected) {
+        discountAmount = (discountAmount / 100) * currentOrderTotal;
+        if (kDebugMode) print("Calculated discount amount from percentage: $discountAmount");
+      }
+
+      // Apply discount locally
+      await db.update(
+        AppDBConst.orderTable,
+        {
+          AppDBConst.orderDiscount: discountAmount,
+          AppDBConst.orderTotal: currentOrderTotal - discountAmount,
+        },
+        where: '${AppDBConst.orderId} = ?',
+        whereArgs: [orderId],
+      );
+
+      // Refresh OrderHelper and widget state
+      await _orderHelper.loadData();
+      await _loadOrderData();
+
+      setState(() {
+        _discountValue = _isPercentageSelected ? "0%" : "0";
+      });
+
+      // Show temporary success message
+      ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
+        SnackBar(
+          content: Text("Discount of \$${discountAmount.toStringAsFixed(2)} applied"),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+
+      // Call API to confirm discount
+      StreamSubscription? subscription;
+      if (kDebugMode) print("Subscribing to addPayoutStream for discount");
+      subscription = orderBloc.addPayoutStream.listen((response) async {
+        if (!mounted) {
+          subscription?.cancel();
+          return;
+        }
+        if (response.status == Status.COMPLETED) {
+          if (kDebugMode) print("Discount confirmed via API for order $orderId");
+          setState(() {
+            _isDiscountLoading = false;
+          });
+          widget.refreshOrderList?.call(); // Trigger order panel refresh
+          subscription?.cancel();
+        } else if (response.status == Status.ERROR) {
+          if (kDebugMode) print("Failed to confirm discount: ${response.message}");
+          setState(() {
+            _isDiscountLoading = false;
+          });
+          subscription?.cancel();
+        }
+      }, onError: (error) {
+        if (kDebugMode) print("addPayoutStream error: $error");
+          setState(() {
+            _isDiscountLoading = false;
+          });
+        subscription?.cancel();
+      });
+
+      await orderBloc.addPayout(orderId: orderId!, amount: discountAmount, isPayOut: false);
+    } catch (e) {
+      if (kDebugMode) print("Error processing discount: $e");
+      setState(() {
+        _isDiscountLoading = false;
+      });
+    }
   }
 
-  // Handle adding the coupon
-  void _handleAddCoupon() {
-    // Here you would add the logic to apply the coupon
-    print("Applied coupon: $_couponCode");
+// Handle adding the coupon
+  void _handleAddCoupon() async { // Build #1.0.53 : updated code with add coupon api call
+    if (kDebugMode) print("### _handleAddCoupon - Coupon Code: $_couponCode");
+    if (_couponCode.isEmpty) {
+      if (kDebugMode) print("### _couponCode is empty");
+      return;
+    }
 
-    // Show confirmation snackbar
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text("Coupon '$_couponCode' applied successfully"),
-        backgroundColor: Colors.green,
-      ),
-    );
+    if (orderId == null) {
+      if (kDebugMode) print("No active order selected");
+      ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
+        const SnackBar(
+          content: Text("No active order selected"),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isCouponLoading = true;
+    });
+
+    StreamSubscription? subscription;
+      if (kDebugMode) print("### Subscribing to applyCouponStream");
+      subscription = orderBloc.applyCouponStream.listen((response) {
+        if (!mounted) {
+          if (kDebugMode) print("### Widget not mounted, skipping coupon UI update");
+          subscription?.cancel(); // Cancel subscription if widget is not mounted
+          return;
+        }
+        if (response.status == Status.COMPLETED) {
+          if (kDebugMode) print("Coupon applied successfully for order $orderId");
+          ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
+            SnackBar(
+              content: Text("Coupon '$_couponCode' applied successfully"),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+
+          if (mounted) {
+            setState(() {
+              _couponCode = "";
+              _isCouponLoading = false;
+            });
+          };
+          subscription?.cancel(); // Cancel subscription after successful operation
+        } else if (response.status == Status.ERROR) {
+          if (kDebugMode) print("Failed to apply coupon: ${response.message}");
+          ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
+            SnackBar(
+              content: Text(response.message ?? "Failed to apply coupon"),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+          if (mounted) {
+            setState(() {
+              _isCouponLoading = false;
+            });
+          };
+          subscription?.cancel(); // Cancel subscription after error
+        }
+      }, onError: (error) {
+        if (kDebugMode) print("### applyCouponStream error: $error");
+        subscription?.cancel(); // Cancel subscription on stream error
+      });
+
+      if (kDebugMode) print("### Calling orderBloc.applyCouponToOrder");
+      await orderBloc.applyCouponToOrder(orderId: orderId!, couponCode: _couponCode);
   }
 
-  // Handle adding the custom item
-  void _handleAddCustomItem() {
-    // Here you would add the logic to add a custom item
-    debugPrint("Added custom item: $_customItemName at \$$_customItemPrice with tax: $_selectedTaxSlab, SKU: $_sku");
+// Handle adding the custom item
+  void _handleAddCustomItem() async {
+    if (kDebugMode) {
+      print("#### DEBUG 55@99 _handleAddCustomItem");
+    }
+    // Validation
+    if (_customItemName.isEmpty) {
+      if (kDebugMode) print("Custom item name is empty");
+      ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
+        const SnackBar(
+          content: Text("Please enter item name"),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+    if (_customItemPrice.isEmpty || double.tryParse(_customItemPrice) == null || double.parse(_customItemPrice) == 0) {
+      if (kDebugMode) print("Invalid custom item price: $_customItemPrice");
+      ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
+        const SnackBar(
+          content: Text("Please enter a valid price"),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+    if (_selectedTaxSlab.isEmpty) {
+      if (kDebugMode) print("No tax slab selected");
+      ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
+        const SnackBar(
+          content: Text("Please select a tax slab"),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+    if (_sku.isEmpty) {
+      if (kDebugMode) print("SKU is empty");
+      ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
+        const SnackBar(
+          content: Text("Please generate SKU"),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+    if (orderId == null) {
+      if (kDebugMode) print("No active order selected");
+      ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
+        const SnackBar(
+          content: Text("No active order selected"),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
 
-    // Show confirmation snackbar
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content:
-        Text("Custom item '$_customItemName' added at \$$_customItemPrice with $_selectedTaxSlab"),
-        backgroundColor: Colors.green,
-      ),
-    );
+    setState(() {
+      _isCustomItemLoading = true;
+    });
+
+    try {
+      // Fetch tax details
+      List<Tax> taxes = await _assetDBHelper.getTaxList();
+      Tax? selectedTax = taxes.firstWhere(
+            (tax) => tax.name == _selectedTaxSlab,
+        orElse: () => Tax(id: '0', name: _selectedTaxSlab),
+      );
+
+      // Prepare custom item request
+      model.AddCustomItemRequest request = model.AddCustomItemRequest(
+        name: _customItemName,
+        type: "simple",
+        regularPrice: _customItemPrice,
+        sku: _sku,
+        taxes: model.Tax(id: int.parse(selectedTax.id), name: _selectedTaxSlab),
+      );
+
+      // Check if item with same SKU already exists in the order to prevent duplicates
+      final db = await DBHelper.instance.database;
+      final existingItems = await db.query(
+        AppDBConst.purchasedItemsTable,
+        where: '${AppDBConst.orderIdForeignKey} = ? AND ${AppDBConst.itemSKU} = ?',
+        whereArgs: [orderId, _sku],
+      );
+
+      if (existingItems.isNotEmpty) {
+        if (kDebugMode) print("Item with SKU $_sku already exists in order $orderId");
+        ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
+          const SnackBar(
+            content: Text("Item with this SKU already added to the order"),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 2),
+          ),
+        );
+        setState(() {
+          _isCustomItemLoading = false;
+        });
+        return;
+      }
+
+      // Stream subscription for adding custom item
+      StreamSubscription? subscription;
+      if (kDebugMode) print("Subscribing to createProductStream");
+      subscription = productBloc.addCustomItemStream.listen((response) async {
+        if (!mounted) {
+          subscription?.cancel();
+          return;
+        }
+        if (response.status == Status.COMPLETED) {
+          if (kDebugMode) print("Custom item created successfully: ${response.data?.id}");
+
+          // Insert item into purchasedItemsTable
+          await db.insert(AppDBConst.purchasedItemsTable, {
+            AppDBConst.orderIdForeignKey: orderId,
+            AppDBConst.itemId: response.data!.id,
+            AppDBConst.itemName: _customItemName,
+            AppDBConst.itemSKU: _sku,
+            AppDBConst.itemPrice: double.parse(_customItemPrice),
+            AppDBConst.itemCount: 1,
+            AppDBConst.itemSumPrice: double.parse(_customItemPrice),
+            AppDBConst.itemImage: '', // Add image if available
+          });
+
+          // Update order total
+          final items = await _orderHelper.getOrderItems(orderId!);
+          final orderTotal = items.fold(0.0, (sum, item) => sum + (item[AppDBConst.itemSumPrice] as num).toDouble());
+          await db.update(
+            AppDBConst.orderTable,
+            {AppDBConst.orderTotal: orderTotal},
+            where: '${AppDBConst.orderId} = ?',
+            whereArgs: [orderId],
+          );
+
+          // Refresh OrderHelper and UI
+          await _orderHelper.loadData();
+          await _loadOrderData();
+          if (kDebugMode) print("Calling refreshOrderList for order $orderId");
+          widget.refreshOrderList?.call();
+
+          // Show success message
+          ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
+            SnackBar(
+              content: Text("Custom item '$_customItemName' added at \$$_customItemPrice"),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+
+          // Clear input fields
+          setState(() {
+            _customItemName = "";
+            _customItemPrice = "";
+            _sku = "";
+            _selectedTaxSlab = _taxSlabOptions.isNotEmpty ? _taxSlabOptions.first : "";
+            _customItemNameController.clear();
+            _customItemPriceController.clear();
+            _skuController.clear();
+            _isCustomItemLoading = false;
+          });
+
+          subscription?.cancel();
+        } else if (response.status == Status.ERROR) {
+          if (kDebugMode) print("Failed to create custom item: ${response.message}");
+          ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
+            SnackBar(
+              content: Text(response.message ?? "Failed to add custom item"),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+          setState(() {
+            _isCustomItemLoading = false;
+          });
+          subscription?.cancel();
+        }
+      }, onError: (error) {
+        if (kDebugMode) print("createProductStream error: $error");
+        setState(() {
+          _isCustomItemLoading = false;
+        });
+        subscription?.cancel();
+      });
+
+      // Trigger the custom item creation
+      await productBloc.addCustomItem(request);
+    } catch (e) {
+      if (kDebugMode) print("Exception in _handleAddCustomItem: $e");
+      setState(() {
+        _isCustomItemLoading = false;
+      });
+    }
   }
 
-  // Handle adding the payout
-  void _handleAddPayout() {
-    // Here you would add the logic to add a payout
-    debugPrint("Added payout amount: \$$_payoutAmount");
+// Handle adding the payout
+  void _handleAddPayout() async { // Build #1.0.53 : updated code with add payout api call
+    if (_payoutAmount.isEmpty || _payoutAmount == "0" || double.tryParse(_payoutAmount) == null) {
+      if (kDebugMode) print("Invalid payout amount: $_payoutAmount");
+      return;
+    }
 
-    // Show confirmation snackbar
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text("Payout of \$$_payoutAmount added successfully"),
-        backgroundColor: Colors.green,
-      ),
-    );
+    if (orderId == null) {
+      if (kDebugMode) print("No active order selected");
+      ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
+        const SnackBar(
+          content: Text("No active order selected"),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isPayoutLoading = true;
+    });
+
+    StreamSubscription? subscription;
+      if (kDebugMode) print("Subscribing to addPayoutStream for payout");
+      subscription = orderBloc.addPayoutStream.listen((response) {
+        if (!mounted) {
+          if (kDebugMode) print("Widget not mounted, skipping payout UI update");
+          subscription?.cancel(); // Cancel subscription if widget is not mounted
+          return;
+        }
+        if (response.status == Status.COMPLETED) {
+          if (kDebugMode) print("Payout added successfully for order $orderId");
+          ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
+            SnackBar(
+              content: Text("Payout of \$$_payoutAmount added successfully"),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+          if (mounted) {
+          setState(() {
+            _payoutAmount = "";
+            _isPayoutLoading = false;
+          });
+          };
+          subscription?.cancel(); // Cancel subscription after successful operation
+        } else if (response.status == Status.ERROR) {
+          if (kDebugMode) print("Failed to add payout: ${response.message}");
+          ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
+            SnackBar(
+              content: Text(response.message ?? "Failed to add payout"),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+          if (mounted) {
+            setState(() {
+              _isPayoutLoading = false;
+            });
+          };
+          subscription?.cancel(); // Cancel subscription after error
+        }
+      }, onError: (error) {
+        if (kDebugMode) print("addPayoutStream error: $error");
+        subscription?.cancel(); // Cancel subscription on stream error
+      });
+
+      await orderBloc.addPayout(
+        orderId: orderId!,
+        amount: double.parse(_payoutAmount),
+        isPayOut: true,
+      );
   }
 }

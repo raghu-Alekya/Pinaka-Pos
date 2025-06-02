@@ -9,6 +9,7 @@ import '../../../Database/db_helper.dart';
 import '../../../Database/user_db_helper.dart';
 import '../../../Helper/Extentions/theme_notifier.dart';
 import '../../../Preferences/pinaka_preferences.dart';
+import '../../../Repositories/Auth/store_validation_repository.dart';
 
 class SettingsScreen extends StatefulWidget { // Build #1.0.6 - Added Settings Screen
   const SettingsScreen({super.key});
@@ -26,6 +27,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool enableGST = false;
   String selectedLanguage = "English";
   bool isRetailer = true;
+  String layoutSelection = ""; // Default layout
+  final StoreValidationRepository _storeValidationRepository = StoreValidationRepository();
 
   TextEditingController nameController = TextEditingController();
   TextEditingController contactNoController = TextEditingController();
@@ -43,21 +46,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.initState();
     _loadUserDataFromDB();
     _loadAppThemeMode(); // Appearance light/dark/system
+    _loadSavedLayout();
   }
 
   Future<void> _loadUserDataFromDB() async { // Build #1.0.13 : now user data loads from user table DB
     try {
       final userData = await UserDbHelper().getUserData();
+      final storeData = await UserDbHelper().getStoreValidationData(); //Build #1.0.54: added
+      final deviceDetails = await _storeValidationRepository.getDeviceDetails(); // Fetch device details
 
       if (userData != null) {
         nameController.text       = userData[AppDBConst.userDisplayName] ?? "Unknown Name";
-        contactNoController.text  = "+9101234567891";
         emailController.text      = userData[AppDBConst.userEmail] ?? "test@pinaka.com";
-        deviceIdController.text   = "4C4C4544-005A-3310-8043-B3C04F334733";
+        deviceIdController.text   = deviceDetails['device_id'] ?? "unknown"; // device ID
 
         if (kDebugMode) {
           print("#### Loaded user data into controllers: $userData");
         }
+      }
+
+      if (storeData != null) { //Build #1.0.54: added
+        if (kDebugMode) {
+          print("### TEST storeName : ${storeData[AppDBConst.storeName] ?? ""}");
+          print("### TEST licenseKey : ${storeData[AppDBConst.licenseKey] ?? ""}");
+        }
+        setState(() {
+          contactNoController.text  = storeData[AppDBConst.storePhone] ?? "";
+          companyNameController.text = storeData[AppDBConst.storeName] ?? "";
+          gstInController.text = storeData[AppDBConst.licenseKey] ?? "";
+          // Add subscription details to UI if needed
+        });
+      }
+
+      if (kDebugMode) {
+        print("#### Loaded user data: $userData");
+        print("#### Loaded store data: $storeData");
       }
     } catch (e) {
       if (kDebugMode) {
@@ -66,17 +89,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Future<void> _loadAppThemeMode() async { // Build #1.0.9 : By default dark theme getting selected on launch even after changing from settings
-    String? savedTheme = await _preferences.getSavedAppThemeMode();
+  //Build #1.0.54: added load saved layout and update notifier
+  Future<void> _loadSavedLayout() async {
+    String? savedLayout = await _preferences.getSavedLayoutSelection();
+    PinakaPreferences.layoutSelectionNotifier.value =
+        savedLayout ?? SharedPreferenceTextConstants.navLeftOrderRight;
+    if (kDebugMode) {
+      print(
+          "#### PinakaPreferences: Initialized with layout: ${PinakaPreferences.layoutSelectionNotifier.value}");
+    }
 
     setState(() {
-      if (savedTheme == ThemeMode.light.toString()) {
-        appearance = TextConstants.lightText;
-      } else if (savedTheme == ThemeMode.dark.toString()) {
-        appearance = TextConstants.darkText;
-      } else {
-        appearance = TextConstants.systemText;
-      }
+      layoutSelection = PinakaPreferences.layoutSelectionNotifier.value;
+    });
+  }
+
+  Future<void> _loadAppThemeMode() async { // Build #1.0.9 : By default dark theme getting selected on launch even after changing from settings
+    String? savedTheme = await _preferences.getSavedAppThemeMode() ?? ThemeMode.light.toString();
+
+    setState(() {
+      appearance = savedTheme == ThemeMode.dark.toString() ? TextConstants.darkText : TextConstants.lightText;
     });
 
     if (kDebugMode) {
@@ -98,47 +130,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     return Scaffold(
       backgroundColor: themeHelper.getTheme(context).scaffoldBackgroundColor,
+      appBar: AppBar(
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: themeHelper.getTheme(context).textTheme.bodyLarge?.color),
+          onPressed: () {
+            Navigator.pop(context); // Return true to indicate a refresh
+          },
+        ),
+        title: Text(
+          TextConstants.settingsHeaderText,
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: themeHelper.getTheme(context).textTheme.bodyLarge?.color,
+          ),
+        ),
+        actions: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.tealAccent,
+              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+            onPressed: () {},
+            child: Text(TextConstants.saveChangesBtnText, style: TextStyle(color: Colors.black)),
+          ),
+          SizedBox(width: 16),
+        ],
+        backgroundColor: themeHelper.getTheme(context).scaffoldBackgroundColor,
+      ),
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
-              // Title and Save Changes Button
-              // Title and Save Changes Button
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      IconButton(
-                        icon: Icon(Icons.arrow_back, color: themeHelper.getTheme(context).textTheme.bodyLarge?.color),
-                        onPressed: () {
-                          Navigator.pop(context);
-                        },
-                      ),
-                      SizedBox(width: 8), // Add spacing between arrow and text
-                      Text(
-                        TextConstants.settingsHeaderText,
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: themeHelper.getTheme(context).textTheme.bodyLarge?.color,
-                        ),
-                      ),
-                    ],
-                  ),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.tealAccent,
-                      padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                    ),
-                    onPressed: () {},
-                    child: Text(TextConstants.saveChangesBtnText, style: TextStyle(color: Colors.black)),
-                  ),
-                ],
-              ),
-              SizedBox(height: 16),
-              // Combined Sections
               _buildCombinedSections(themeHelper),
             ],
           ),
@@ -241,6 +265,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ],
         ),
         _buildTextField(label: TextConstants.emailText, controller: emailController),
+        // _buildTextField(
+        //     label: "Subscription Type",
+        //     controller: TextEditingController(text: storeData?[AppDBConst.subscriptionType] ?? ""),
+        //     isReadOnly: true),
+        // _buildTextField(
+        //     label: "Expiration Date",
+        //     controller: TextEditingController(text: storeData?[AppDBConst.expirationDate] ?? ""),
+        //     isReadOnly: true),
       ],
     );
   }
@@ -261,10 +293,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             SizedBox(width: 10),
             Expanded(
                 child: _buildTextField(
-                    label: TextConstants.companyNameText, hintText: TextConstants.companyNameHintText)),
+                    label: TextConstants.companyNameText, controller: companyNameController, hintText: TextConstants.companyNameHintText)),
           ],
         ),
-        _buildTextField(label: TextConstants.gstinText, hintText: TextConstants.gstinHintText),
+        _buildTextField(label: TextConstants.gstinText, controller: gstInController, hintText: TextConstants.gstinHintText),
         _buildTextField(label: TextConstants.headerText, hintText: TextConstants.headerHintText),
         _buildTextField(label: TextConstants.footerText, hintText: TextConstants.footerHintText),
       ],
@@ -383,7 +415,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             _buildAppearanceOption(TextConstants.lightText, themeManager),
             _buildAppearanceOption(TextConstants.darkText, themeManager),
-            _buildAppearanceOption(TextConstants.systemText, themeManager),
+          ],
+        ),
+        SizedBox(height: 16),
+        Text(TextConstants.layoutSelectionHeader,
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+        Row(
+          children: [
+            _buildLayoutOption(TextConstants.layoutNavLeftOrderRight, SharedPreferenceTextConstants.navLeftOrderRight),
+            _buildLayoutOption(TextConstants.layoutNavRightOrderLeft, SharedPreferenceTextConstants.navRightOrderLeft),
+            _buildLayoutOption(TextConstants.layoutNavBottomOrderLeft, SharedPreferenceTextConstants.navBottomOrderLeft),
           ],
         ),
         // Text(TextConstants.selectKeyboardText, // Build #1.0.15 : removed Keyboard type UI
@@ -401,6 +442,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _buildSwitchOption(TextConstants.outOfStockMngText, outOfStockManage, (value) {
           setState(() => outOfStockManage = value);
         }),
+      ],
+    );
+  }
+
+  //Build #1.0.54: Add _buildLayoutOption
+  Widget _buildLayoutOption(String title, String value) {
+    return Row(
+      children: [
+        Radio(
+          value: value,
+          groupValue: layoutSelection,
+          onChanged: (value) {
+            setState(() => layoutSelection = value.toString());
+            _preferences.saveLayoutSelection(value.toString()); // This updates the notifier
+          },
+          fillColor: WidgetStateProperty.resolveWith<Color>((states) {
+            if (states.contains(WidgetState.selected)) {
+              return Colors.white;
+            }
+            return Colors.white;
+          }),
+        ),
+        Text(title, style: TextStyle(color: Colors.white)),
       ],
     );
   }
@@ -647,6 +711,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+// Update _buildAppearanceOption
   Widget _buildAppearanceOption(String title, ThemeNotifier themeManager) {
     return Row(
       children: [
@@ -656,19 +721,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           onChanged: (value) {
             setState(() {
               appearance = value.toString();
-              if (appearance == TextConstants.lightText) {
-                themeManager.setThemeMode(ThemeMode.light);
-              } else if (appearance == TextConstants.darkText) {
-                themeManager.setThemeMode(ThemeMode.dark);
-              } else {
-                if (kDebugMode) {
-                  print("_buildAppearanceOption value 33 : $value");
-                }
-                themeManager.setThemeMode(ThemeMode.system);
-              }
-
-              // Save the selected theme mode to preferences
-              _preferences.saveAppThemeMode(themeManager.themeMode); // Build #1.0.9 : By default dark theme getting selected on launch even after changing from settings
+              themeManager.setThemeMode( //Build #1.0.54: updated
+                  appearance == TextConstants.lightText ? ThemeMode.light : ThemeMode.dark
+              );
+              _preferences.saveAppThemeMode(themeManager.themeMode);
             });
           },
           fillColor: WidgetStateProperty.resolveWith<Color>((states) {

@@ -200,10 +200,12 @@ import 'dart:io';
 import '../../Blocs/Orders/order_bloc.dart';
 import '../../Blocs/Search/product_search_bloc.dart';
 import '../../Database/order_panel_db_helper.dart';
+import '../../Helper/Extentions/nav_layout_manager.dart';
 import '../../Helper/auto_search.dart';
 import '../../Models/FastKey/fastkey_product_model.dart';
 import '../../Models/Orders/orders_model.dart';
 import '../../Models/Search/product_search_model.dart';
+import '../../Preferences/pinaka_preferences.dart';
 import '../../Repositories/Orders/order_repository.dart';
 import '../../Repositories/Search/product_search_repository.dart';
 import '../../Utilities/textfield_search.dart';
@@ -224,9 +226,6 @@ import '../../Repositories/FastKey/fastkey_product_repository.dart';
 import '../../Utilities/shimmer_effect.dart';
 import '../../Database/db_helper.dart';
 
-enum SidebarPosition { left, right, bottom }
-enum OrderPanelPosition { left, right }
-
 class FastKeyScreen extends StatefulWidget {
   final int? lastSelectedIndex;
 
@@ -236,13 +235,13 @@ class FastKeyScreen extends StatefulWidget {
   State<FastKeyScreen> createState() => _FastKeyScreenState();
 }
 
-class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserver {
+class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserver, LayoutSelectionMixin {
   final List<String> items = List.generate(18, (index) => 'Bud Light');
   int _selectedSidebarIndex = 0;
   DateTime now = DateTime.now();
   List<int> quantities = [1, 1, 1, 1];
-  SidebarPosition sidebarPosition = SidebarPosition.left;
-  OrderPanelPosition orderPanelPosition = OrderPanelPosition.right;
+  // SidebarPosition sidebarPosition = SidebarPosition.left;
+  // OrderPanelPosition orderPanelPosition = OrderPanelPosition.right;
   bool isLoading = true;
 
   final ValueNotifier<int?> fastKeyTabIdNotifier = ValueNotifier<int?>(null);
@@ -269,6 +268,8 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
   TextEditingController _productSearchController = TextEditingController();
   final _searchTextGridKey = GlobalKey<TextFieldSearchState>();
   late SearchProduct _autoSuggest;
+  final productBloc = ProductBloc(ProductRepository());
+  final PinakaPreferences _preferences = PinakaPreferences(); // Add this
 
   @override
   void initState() {
@@ -1170,14 +1171,20 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
         children: [
           TopBar(
             onModeChanged: () {
+              String newLayout;
               setState(() {
                 if (sidebarPosition == SidebarPosition.left) {
-                  sidebarPosition = SidebarPosition.right;
+                  newLayout = SharedPreferenceTextConstants.navRightOrderLeft;
                 } else if (sidebarPosition == SidebarPosition.right) {
-                  sidebarPosition = SidebarPosition.bottom;
+                  newLayout = SharedPreferenceTextConstants.navBottomOrderLeft;
                 } else {
-                  sidebarPosition = SidebarPosition.left;
+                  newLayout = SharedPreferenceTextConstants.navLeftOrderRight;
                 }
+
+                // Update the notifier which will trigger _onLayoutChanged
+                PinakaPreferences.layoutSelectionNotifier.value = newLayout;
+                // No need to call saveLayoutSelection here as it's handled in the notifier
+                _preferences.saveLayoutSelection(newLayout);
               });
             },
             onProductSelected: (product) {
@@ -1308,6 +1315,8 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                         valueListenable: fastKeyTabIdNotifier,
                         builder: (context, fastKeyTabId, child) {
                           return NestedGridWidget(
+                            productBloc: productBloc, //Build #1.0.54: updated code
+                            orderHelper: orderHelper,
                             isHorizontal: true,
                             isLoading: isLoading,
                             showAddButton: showAddButton,
@@ -1374,9 +1383,11 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
             custom_widgets.NavigationBar(
               selectedSidebarIndex: _selectedSidebarIndex,
               onSidebarItemSelected: (index) {
-                setState(() {
-                  _selectedSidebarIndex = index;
-                });
+                if (mounted) { //Build #1.0.54
+                  setState(() {
+                    _selectedSidebarIndex = index;
+                  });
+                }
               },
               isVertical: false,
             ),

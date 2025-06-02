@@ -9,11 +9,13 @@ import '../Utilities/printer_settings.dart';
 
 class PinakaPreferences { // Build #1.0.7 , Naveen - added PinakaPreferences code
   static late SharedPreferences _prefs;
+  static late ValueNotifier<String> layoutSelectionNotifier; //Build #1.0.54: added
 
   static SharedPreferences get prefs => _prefs;
 
   static Future<void> prepareSharedPref() async {
     _prefs = await SharedPreferences.getInstance();
+    layoutSelectionNotifier =  ValueNotifier<String>('');
   }
 
   // saveThemeMode
@@ -24,6 +26,23 @@ class PinakaPreferences { // Build #1.0.7 , Naveen - added PinakaPreferences cod
   // Get ThemeMode from SharedPreferences
   Future<String?> getSavedAppThemeMode() async { // Build #1.0.9 : By default dark theme getting selected on launch even after changing from settings
     return _prefs.getString(SharedPreferenceTextConstants.themeModeKey);
+  }
+
+  //Build #1.0.54: added in PinakaPreferences class
+  Future<void> saveLayoutSelection(String layout) async {
+    await _prefs.setString(SharedPreferenceTextConstants.layoutSelection, layout);
+    // Only update notifier if the value has changed
+    if (layoutSelectionNotifier.value != layout) {
+      layoutSelectionNotifier.value = layout;
+    }
+    if (kDebugMode) {
+      print("#### PinakaPreferences: Saved layout: $layout");
+    }
+  }
+
+  Future<String?> getSavedLayoutSelection() async {
+    return _prefs.getString(SharedPreferenceTextConstants.layoutSelection) ??
+        SharedPreferenceTextConstants.navLeftOrderRight;
   }
 
   // saveSelectedPrinter

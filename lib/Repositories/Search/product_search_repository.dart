@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import '../../Helper/api_helper.dart';
 import '../../Helper/url_helper.dart';
+import '../../Models/Search/product_custom_item_model.dart';
 import '../../Models/Search/product_by_sku_model.dart';
 import '../../Models/Search/product_search_model.dart';
 import '../../Models/Search/product_variation_model.dart';
@@ -103,6 +104,35 @@ class ProductRepository { // Build #1.0.13 : added product search repository
       }
     } else if (response is List) {
       return response.map((productJson) => ProductBySkuResponse.fromJson(productJson)).toList();
+    } else {
+      throw Exception("Unexpected response type");
+    }
+  }
+
+  Future<AddCustomItemModel> addCustomItem(AddCustomItemRequest request) async {
+    String url = "${UrlHelper.wooCommerceV3}${UrlMethodConstants.products}";
+    if (kDebugMode) {
+      print("ProductRepository - CreateProduct URL: $url");
+    }
+
+    final response = await _helper.post(url, request.toJson(), true);
+
+    if (kDebugMode) {
+      print("ProductRepository - CreateProduct Raw Response: $response");
+    }
+
+    if (response is String) {
+      try {
+        final Map<String, dynamic> responseData = json.decode(response);
+        return AddCustomItemModel.fromJson(responseData);
+      } catch (e) {
+        if (kDebugMode) {
+          print("ProductRepository - Error parsing create product response: $e");
+        }
+        throw Exception("Failed to parse create product response");
+      }
+    } else if (response is Map<String, dynamic>) {
+      return AddCustomItemModel.fromJson(response);
     } else {
       throw Exception("Unexpected response type");
     }

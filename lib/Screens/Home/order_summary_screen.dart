@@ -54,6 +54,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
   double tenderAmount = 0.0; // Build #1.0.33 : added new variables
   double paidAmount = 0.0;
   double changeAmount = 0.0;
+  double discount = 0.0; // Add this to track discount
   bool isLoading = false; // Add this to track loading state
   // final TextEditingController _paymentController = TextEditingController();
   var _printerSettings =  PrinterSettings();
@@ -549,19 +550,22 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                     mainAxisSize: MainAxisSize.min,
                   children: [
                     // Order calculations
-                    _buildOrderCalculation(TextConstants.subTotalText, '\$${getSubTotal()}',
+                    _buildOrderCalculation(TextConstants.subTotalText, '\$${getSubTotal().toStringAsFixed(2)}',
                         isTotal: true),
-                    _buildOrderCalculation(TextConstants.taxText , '\$0.0'),
-                    _buildOrderCalculation(TextConstants.discount, '-\$0.0',
+                    _buildOrderCalculation(TextConstants.taxText, '\$0.0'),
+                    _buildOrderCalculation(TextConstants.discount, '-\$${discount.toStringAsFixed(2)}',
                         isDiscount: true),
                     SizedBox(height: ResponsiveLayout.getHeight(3)),
                     DottedLine(),
                     SizedBox(height: ResponsiveLayout.getHeight(3)),
-                    _buildOrderCalculation(TextConstants.total, '\$${getSubTotal()}', isTotal: true),
-                    _buildOrderCalculation(TextConstants.payByCash, '\$0.0'),
-                    _buildOrderCalculation(TextConstants.payByOther, '\$0.0'),
-                    _buildOrderCalculation(TextConstants.tenderAmount, '\$0.0'),
-                    _buildOrderCalculation(TextConstants.change, '\$0.0'),
+                    _buildOrderCalculation(TextConstants.total, '\$${(getSubTotal() - discount).toStringAsFixed(2)}',
+                        isTotal: true),
+                    _buildOrderCalculation(TextConstants.payByCash, selectedPaymentMethod == TextConstants.cash
+                        ? '\$${paidAmount.toStringAsFixed(2)}' : '\$0.0'),
+                    _buildOrderCalculation(TextConstants.payByOther, selectedPaymentMethod != TextConstants.cash
+                        ? '\$${paidAmount.toStringAsFixed(2)}' : '\$0.0'),
+                    _buildOrderCalculation(TextConstants.tenderAmount, '\$${tenderAmount.toStringAsFixed(2)}'),
+                    _buildOrderCalculation(TextConstants.change, '\$${changeAmount.toStringAsFixed(2)}'),
                   ],
                   ),
               ),
@@ -584,7 +588,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
       final db = await DBHelper.instance.database;
       final List<Map<String, dynamic>> orderData = await db.query(
         AppDBConst.orderTable,
-        columns: [AppDBConst.orderServerId],
+        columns: [AppDBConst.orderServerId, AppDBConst.orderDiscount],
         where: '${AppDBConst.orderId} = ?',
         whereArgs: [orderHelper.activeOrderId],
       );
@@ -593,8 +597,9 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
         setState(() {
           orderId = orderData.first[AppDBConst.orderServerId] as int? ?? 0;
           orderDateTime = "${orderData.first[AppDBConst.orderDate]} ${orderData.first[AppDBConst.orderTime]}" ;
+          discount = (orderData.first[AppDBConst.orderDiscount] as num?)?.toDouble() ?? 0.0; // Fetch discount
           if (kDebugMode) {
-            print("Fetched orderServerId: $orderId for activeOrderId: ${orderHelper.activeOrderId}, Time: $orderDateTime");
+            print("Fetched orderServerId: $orderId, Discount: $discount for activeOrderId: ${orderHelper.activeOrderId}, Time: $orderDateTime");
           }
         });
       } else {
@@ -618,7 +623,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
 
       setState(() {
         orderItems = items;
-        balanceAmount = total;
+        balanceAmount = total - discount; // Adjust balance with discount
         tenderAmount = 0.0; // Reset for new order
         changeAmount = 0.0; // Reset for new order
         paidAmount = 0.0; // Reset for new order
@@ -630,6 +635,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
         tenderAmount = 0.0; // Reset
         changeAmount = 0.0; // Reset
         paidAmount = 0.0; // Reset
+        discount = 0.0; // Reset discount
       });
     }
   }
@@ -917,11 +923,13 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     } else if (label == TextConstants.change) {
       amount = '\$${changeAmount.toStringAsFixed(2)}';
     } else if (label == TextConstants.total) {
-      amount = '\$${getSubTotal().toStringAsFixed(2)}';
+      amount = '\$${(getSubTotal() - discount).toStringAsFixed(2)}'; // Adjust total with discount
     } else if (label == TextConstants.payByCash) { //Build 1.1.36: added pay by cash data also
       amount = selectedPaymentMethod == TextConstants.cash
           ? '\$${paidAmount.toStringAsFixed(2)}'
           : '\$0.0';
+    } else if (label == TextConstants.discount) {
+      amount = '-\$${discount.toStringAsFixed(2)}'; // Display discount from DB
     }
 
     return Container(

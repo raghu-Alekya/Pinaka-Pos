@@ -91,10 +91,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:pinaka_pos/Widgets/widget_variants_dialog.dart';
 import '../Blocs/Search/product_search_bloc.dart';
 import '../Constants/text.dart';
+import '../Database/order_panel_db_helper.dart';
 import '../Helper/api_response.dart';
 import '../Models/Search/product_search_model.dart';
+import '../Models/Search/product_variation_model.dart';
 import '../Repositories/Search/product_search_repository.dart';
 
 class TopBar extends StatefulWidget { // Build #1.0.13 : Updated top bar with search api integration
@@ -118,6 +121,7 @@ class _TopBarState extends State<TopBar> {
   final ProductBloc _productBloc = ProductBloc(ProductRepository());
   OverlayEntry? _overlayEntry;
   final GlobalKey _searchFieldKey = GlobalKey();
+  final OrderHelper orderHelper = OrderHelper();
 
   @override
   void initState() {
@@ -234,9 +238,58 @@ class _TopBarState extends State<TopBar> {
                                 : const Icon(Icons.image),
                             title: Text(product.name ?? ''),
                             subtitle: Text('\$${product.price ?? '0.00'}'),
-                            onTap: () {
-                              widget.onProductSelected?.call(product);
-                              _clearSearch();
+                            onTap: () { //Build #1.0.54: fixed variant dialog issue
+                              _productBloc.fetchProductVariations(product.id!);
+                              showDialog(
+                                context: context,
+                                builder: (context) => StreamBuilder<APIResponse<List<ProductVariation>>>(
+                                  stream: _productBloc.variationStream,
+                                  builder: (context, snapshot) {
+                                    if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                                    if (snapshot.data!.status == Status.LOADING) return const Center(child: CircularProgressIndicator());
+                                    if (snapshot.data!.status == Status.COMPLETED) {
+                                      final variations = snapshot.data!.data!;
+                                      if (variations.isNotEmpty) {
+                                        return VariantsDialog(
+                                          title: product.name ?? '',
+                                          variations: variations.map((v) => {
+                                            "id": v.id,
+                                            "name": v.name,
+                                            "price": v.regularPrice,
+                                            "image": v.image.src,
+                                          }).toList(),
+                                          onAddVariant: (variant, quantity) async {
+                                            await orderHelper.addItemToOrder(
+                                              variant["name"],
+                                              variant["image"],
+                                              double.tryParse(variant["price"].toString()) ?? 0.0,
+                                              quantity,
+                                              'SKU${variant["name"]}',
+                                              onItemAdded: () {
+                                                Navigator.pop(context); // Close the dialog
+                                                _clearSearch(); // Clear the search field
+                                                widget.onProductSelected?.call(ProductResponse( // Trigger refresh
+                                                  id: variant["id"],
+                                                  name: variant["name"],
+                                                  price: variant["price"].toString(),
+                                                  images: [variant["image"]],
+                                                ));
+                                              },
+                                            );
+                                          },
+                                        );
+                                      } else {
+                                        Navigator.pop(context);
+                                        widget.onProductSelected?.call(product);
+                                        _clearSearch();
+                                        return const SizedBox.shrink();
+                                      }
+                                    }
+                                    Navigator.pop(context);
+                                    return const SizedBox.shrink();
+                                  },
+                                ),
+                              );
                             },
                           );
                         },

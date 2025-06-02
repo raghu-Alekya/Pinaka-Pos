@@ -162,7 +162,7 @@ class OrderLineItemResponse {
   final String totalTax;
   final List<OrderMetaData> metaData;
   final String sku;
-  final int price;
+  final double price; // Use double to handle both int and double
   final Map<String, dynamic> image;
 
   OrderLineItemResponse({
@@ -199,7 +199,9 @@ class OrderLineItemResponse {
             .toList() ??
             [],
         sku: json['sku'] ?? '',
-        price: json['price'] ?? 0,
+        price: (json['price'] is int
+            ? (json['price'] as int).toDouble() // Convert int to double
+            : json['price'] ?? 0.0), // Use double directly or default to 0.0
         image: json['image'] ?? {'id': '0', 'src': ''},
       );
 }
@@ -238,6 +240,7 @@ class FeeLine {
   final String? taxClass;
   final String? taxStatus;
   final String? total;
+  final String? originalValue; // Build #1.0.53
 
   FeeLine({
     this.id,
@@ -245,6 +248,7 @@ class FeeLine {
     this.taxClass,
     this.taxStatus,
     this.total,
+    this.originalValue,
   });
 
   Map<String, dynamic> toJson() => {
@@ -253,6 +257,7 @@ class FeeLine {
     if (taxClass != null) 'tax_class': taxClass,
     if (taxStatus != null) 'tax_status': taxStatus,
     if (total != null) 'total': total,
+    if (originalValue != null) 'original_value': originalValue,
   };
 
   factory FeeLine.fromJson(Map<String, dynamic> json) => FeeLine(
@@ -261,6 +266,7 @@ class FeeLine {
     taxClass: json['tax_class'],
     taxStatus: json['tax_status'],
     total: json['total'],
+    originalValue: json['original_value'],
   );
 }
 
@@ -558,5 +564,25 @@ class ApplyCouponRequestModel {
 
   Map<String, dynamic> toJson() => {
     'coupon_lines': couponLines.map((e) => e.toJson()).toList(),
+  };
+}
+
+class AddPayoutRequestModel { // Build #1.0.53 : Added
+  final List<FeeLine> feeLines;
+
+  AddPayoutRequestModel({required this.feeLines});
+
+  Map<String, dynamic> toJson() => {
+    'fee_lines': feeLines.map((e) => e.toJson()).toList(),
+  };
+}
+
+class RemovePayoutRequestModel { // Build #1.0.53 : Added
+  final List<FeeLine> feeLines;
+
+  RemovePayoutRequestModel({required this.feeLines});
+
+  Map<String, dynamic> toJson() => {
+    'fee_lines': feeLines.map((e) => e.toJson()).toList(),
   };
 }

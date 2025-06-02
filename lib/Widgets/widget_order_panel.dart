@@ -10,6 +10,7 @@ import 'package:flutter_barcode_listener/flutter_barcode_listener.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:pinaka_pos/Screens/Home/order_summary_screen.dart';
+import 'package:pinaka_pos/Widgets/widget_alert_popup_dialogs.dart';
 import 'package:pinaka_pos/Widgets/widget_custom_num_pad.dart';
 import 'package:pinaka_pos/Widgets/widget_nested_grid_layout.dart';
 import 'package:pinaka_pos/Widgets/widget_tabs.dart';
@@ -73,7 +74,9 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
   @override
   void didUpdateWidget(RightOrderPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
-    _getOrderTabs(); // Build #1.0.10 : Reload tabs when the widget updates (e.g., after item selection)
+    if (mounted) {
+      _getOrderTabs(); // Build #1.0.10 : Reload tabs when the widget updates (e.g., after item selection)
+    }
 
     if (kDebugMode) {
       print("##### OrderPanel didUpdateWidget");
@@ -104,6 +107,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
       });
     }
 
+    if (!mounted) return; // Prevent controller initialization if unmounted
     _initializeTabController(); // Initialize tab controller
 
     if (tabs.isNotEmpty) {
@@ -124,20 +128,22 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
         index = tabs.length - 1;
         await orderHelper.setActiveOrder(tabs[index]["orderId"] as int);
       }
-
-      _tabController?.index = index;
-      if (kDebugMode) {
-        print("##### DEBUG: _getOrderTabs - Set tab index to $index, activeOrderId: ${orderHelper.activeOrderId}");
+      if (mounted && _tabController != null) {
+        _tabController?.index = index;
+        if (kDebugMode) {
+          print("##### DEBUG: _getOrderTabs - Set tab index to $index, activeOrderId: ${orderHelper.activeOrderId}");
+        }
       }
-
       await fetchOrderItems(); // Load items for active order
     } else {
       if (kDebugMode) {
         print("##### DEBUG: _getOrderTabs - No tabs available");
       }
-      setState(() {
-        orderItems.clear(); // Clear items if no tabs
-      });
+      if (mounted) {
+        setState(() {
+          orderItems.clear(); // Clear items if no tabs
+        });
+      }
     }
   }
 
@@ -207,6 +213,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
 
   // Build #1.0.10: Initializes the tab controller and handles tab switching
   void _initializeTabController() {
+    if (!mounted) return; // Prevent initialization if unmounted
     _tabController?.dispose(); // Dispose existing controller
     _tabController = TabController(length: tabs.length, vsync: this);
 
@@ -221,7 +228,9 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
 
         await orderHelper.setActiveOrder(selectedOrderId); // Set new active order
         await fetchOrderItems(); // Load items for the selected order
-        setState(() {}); // Refresh UI
+        if (mounted) {
+          setState(() {}); // Refresh UI
+        }
       }
     });
   }
@@ -231,6 +240,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
     int orderId = await orderHelper.createOrder(); // Create a new order
     await orderHelper.setActiveOrder(orderId); // Set the new order as active
 
+    if (!mounted) return;
     setState(() {
       tabs.add({
         "title": "#$orderId", // New order number
@@ -239,6 +249,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
       });
     });
 
+    if (!mounted) return;
     _initializeTabController(); // Reinitialize tab controller
     _tabController?.index = tabs.length - 1; // Select the new tab
     _scrollToSelectedTab(); // Ensure new tab is visible
@@ -346,6 +357,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
     _fetchOrdersSubscription?.cancel();
     orderBloc.dispose();
     _tabController?.dispose();
+    _scrollController.dispose(); // Dispose ScrollController
     _productBySkuSubscription?.cancel(); // Build #1.0.44 : Added Cancel product subscription
     productBloc.dispose(); // Added: Dispose ProductBloc
     super.dispose();
@@ -407,43 +419,46 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
               if (kDebugMode) {
                 print("##### DEBUG: onBarcodeScanned - Product found: ${product.name}, variations: ${product.variations.length}");
               }
+
               ///Todo: Need to call variation service before showing dialog
-              // if (product.variations.isNotEmpty) {
-              //   // Show variants dialog for products with variations
-              //   if (kDebugMode) {
-              //     print("##### DEBUG: onBarcodeScanned - Showing variants dialog");
-              //   }
-              //   // Assume variations contain objects with id, price, image, and attributes
-              //   List<Map<String, dynamic>> variantMaps = product.variations.map((v) {
-              //     return {
-              //       'id': v['id'] ?? v, // Handle both object and ID cases
-              //       'name': (v['attributes'] as List<dynamic>?)?.join(', ') ?? 'Variant',
-              //       'price': v['price'] ?? product.price,
-              //       'image': v['image']?['src'] ?? product.images.isNotEmpty ? product.images.first.src : '',
-              //     };
-              //   }).toList();
-              //
-              //   showDialog(
-              //     context: context,
-              //     builder: (context) => VariantsDialog(
-              //       title: product.name,
-              //       variations: variantMaps,
-              //       onAddVariant: (variant, quantity) async {
-              //         if (kDebugMode) {
-              //           print("##### DEBUG: onBarcodeScanned - Adding variant: ${variant['name']}, quantity: $quantity");
-              //         }
-              //         await orderHelper.addItemToOrder(
-              //           variant['name'],
-              //           variant['image'],
-              //           double.parse(variant['price'].toString()),
-              //           quantity,
-              //           barcode,
-              //         );
-              //         await fetchOrderItems();
-              //       },
-              //     ),
-              //   );
-              // } else {
+              if (product.variations.isNotEmpty) {
+                // Show variants dialog for products with variations
+                if (kDebugMode) {
+                  print("##### DEBUG: onBarcodeScanned - Showing variants dialog");
+                }
+                // Assume variations contain objects with id, price, image, and attributes
+                List<Map<String, dynamic>> variantMaps = product.variations.map((v) {
+                  return {
+                    'id': v['id'] ?? v, // Handle both object and ID cases
+                    'name': (v['attributes'] as List<dynamic>?)?.join(', ') ?? 'Variant',
+                    'price': v['price'] ?? product.price,
+                    'image': v['image']?['src'] ?? product.images.isNotEmpty ? product.images.first.src : '',
+                  };
+                }).toList();
+                if (!mounted) return;
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                showDialog(
+                  context: context,
+                  builder: (context) => VariantsDialog(
+                    title: product.name,
+                    variations: variantMaps,
+                    onAddVariant: (variant, quantity) async {
+                      if (kDebugMode) {
+                        print("##### DEBUG: onBarcodeScanned - Adding variant: ${variant['name']}, quantity: $quantity");
+                      }
+                      await orderHelper.addItemToOrder(
+                        variant['name'],
+                        variant['image'],
+                        double.parse(variant['price'].toString()),
+                        quantity,
+                        barcode,
+                      );
+                      await fetchOrderItems();
+                    },
+                  ),
+                );
+                });
+              } else {
                 // Add product directly to order
                 if (kDebugMode) {
                   print("##### DEBUG: onBarcodeScanned - Adding product: ${product.name}");
@@ -456,21 +471,25 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                   barcode,
                 );
                 await fetchOrderItems();
-              // }
+              }
             } else {
               // Show error if product not found
               if (kDebugMode) {
                 print("##### DEBUG: onBarcodeScanned - Product not found for SKU: $barcode");
               }
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text("Product not found for SKU: $barcode")),
-              );
-              ///Todo: Call custom items screen and pass the barcode to it
-              /// call widget_tabs -> AppScreenTabWidget
-              /// pass _selectedTabIndex = 2 ( custom items )
-              Navigator.push(context, MaterialPageRoute(
-                builder: (context) => AddScreen(barcode: barcode,selectedTabIndex: 2,),
-              ));
+              if (!mounted) return;
+              await CustomDialog.showCustomItemNotAdded(context).then((_) { //Build #1.0.54: added
+                // Navigate to AddScreen when "Let's Try Again" is pressed
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => AddScreen(
+                      barcode: barcode,
+                      selectedTabIndex: 2, // Custom items tab
+                    ),
+                  ),
+                );
+              });
             }
           });
         }
@@ -691,12 +710,53 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                       motion: const DrawerMotion(),
                       children: [
                         CustomSlidableAction(
-                          onPressed: (context) async {
+                          onPressed: (context) async { // Build #1.0.53 : when delte tap call delte order item api
                             if (kDebugMode) {
-                              print("Deleting item at index $index");
-                            } // Debug print
-                            deleteItemFromOrder(orderItem[AppDBConst.itemId]);
-                            fetchOrderItems();
+                              print("Deleting item at index $index with itemId: ${orderItem[AppDBConst.itemId]}");
+                            }
+                            if (orderHelper.activeOrderId != null) {
+                              final order = orderHelper.orders.firstWhere(
+                                    (order) => order[AppDBConst.orderId] == orderHelper.activeOrderId,
+                                orElse: () => {},
+                              );
+                              final serverOrderId = order[AppDBConst.orderServerId] as int?;
+
+                              if (serverOrderId != null) {
+                                setState(() => _isLoading = true);
+
+                                _updateOrderSubscription?.cancel();
+                                _updateOrderSubscription = orderBloc.deleteOrderItemStream.listen((response) async {
+                                  setState(() => _isLoading = false);
+
+                                  if (response.status == Status.COMPLETED) {
+                                    if (kDebugMode) {
+                                      print("OrderPanel - Item deleted successfully for order $serverOrderId");
+                                    }
+                                    await orderHelper.deleteItem(orderItem[AppDBConst.itemId]);
+                                    await fetchOrderItems();
+                                    widget.refreshOrderList?.call();
+                                  } else if (response.status == Status.ERROR) {
+                                    if (kDebugMode) {
+                                      print("OrderPanel - Delete failed: ${response.message}");
+                                    }
+
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text(response.message ?? "Failed to delete item")),
+                                    );
+                                  }
+                                });
+
+                                await orderBloc.deleteOrderItem(
+                                  orderId: serverOrderId,
+                                  lineItems: [OrderLineItem(id: orderItem[AppDBConst.itemId], quantity: 0)],
+                                );
+                              } else {
+                                // Fallback to local delete if no server ID
+                                await orderHelper.deleteItem(orderItem[AppDBConst.itemId]);
+                                await fetchOrderItems();
+                                widget.refreshOrderList?.call();
+                              }
+                            }
                           },
                           backgroundColor: Colors.transparent, // No background color
                           child: Column(
@@ -1012,7 +1072,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                         ),
                       ),
                       Text(
-                        "\$${getSubTotal()}",
+                        "\$${getSubTotal().toStringAsFixed(2)}", // only two index show
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -1141,7 +1201,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                 child: _isLoading  //Build 1.1.36: added loader for pay button in order panel
                     ? CircularProgressIndicator(color: Colors.white)
                     : Text(
-                  "Pay \$${getSubTotal()}",
+                  "Pay \$${getSubTotal().toStringAsFixed(2)}", // only two index show
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,

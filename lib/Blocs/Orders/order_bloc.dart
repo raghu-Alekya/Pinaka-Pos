@@ -1,5 +1,6 @@
 // blocs/order_bloc.dart
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import '../../Constants/text.dart';
 import '../../Database/order_panel_db_helper.dart';
@@ -12,58 +13,71 @@ import '../../Repositories/Orders/order_repository.dart';
 class OrderBloc { // Build #1.0.25 - added by naveen
   final OrderRepository _orderRepository;
 
-  // Stream Controllers
-  late StreamController<APIResponse<CreateOrderResponseModel>> _createOrderController ;
-  // = StreamController<APIResponse<CreateOrderResponseModel>>.broadcast();
+  // Build #1.0.53 : updated code - Stream Controllers ---
+  late  StreamController<APIResponse<CreateOrderResponseModel>> _createOrderController;
+  late  StreamController<APIResponse<UpdateOrderResponseModel>> _updateOrderController;
+  late  StreamController<APIResponse<UpdateOrderResponseModel>> _applyCouponController;
+  late  StreamController<APIResponse<UpdateOrderResponseModel>> _deleteOrderItemController;
+  late  StreamController<APIResponse<ApplyDiscountResponse>> _applyDiscountController;
+  late  StreamController<APIResponse<UpdateOrderResponseModel>> _changeOrderStatusController;
+  late  StreamController<APIResponse<OrdersListModel>> _fetchOrdersController;
+  late  StreamController<APIResponse<UpdateOrderResponseModel>> _addPayoutController;
+  late  StreamController<APIResponse<UpdateOrderResponseModel>> _removePayoutController;
 
-  final StreamController<APIResponse<UpdateOrderResponseModel>> _updateOrderController =
-  StreamController<APIResponse<UpdateOrderResponseModel>>.broadcast();
+  // Build #1.0.53 : updated code -  Constructor ---
+  OrderBloc(this._orderRepository) {
+    _createOrderController = StreamController<APIResponse<CreateOrderResponseModel>>.broadcast();
+    _updateOrderController = StreamController<APIResponse<UpdateOrderResponseModel>>.broadcast();
+    _applyCouponController = StreamController<APIResponse<UpdateOrderResponseModel>>.broadcast();
+    _deleteOrderItemController = StreamController<APIResponse<UpdateOrderResponseModel>>.broadcast();
+    _applyDiscountController = StreamController<APIResponse<ApplyDiscountResponse>>.broadcast();
+    _changeOrderStatusController = StreamController<APIResponse<UpdateOrderResponseModel>>.broadcast();
+    _fetchOrdersController = StreamController<APIResponse<OrdersListModel>>.broadcast();
+    _addPayoutController = StreamController<APIResponse<UpdateOrderResponseModel>>.broadcast();
+    _removePayoutController = StreamController<APIResponse<UpdateOrderResponseModel>>.broadcast();
 
-  final StreamController<APIResponse<UpdateOrderResponseModel>> _applyCouponController =
-  StreamController<APIResponse<UpdateOrderResponseModel>>.broadcast();
+    if (kDebugMode) {
+      print("OrderBloc Initialized with all stream controllers.");
+    }
+  }
 
-  final StreamController<APIResponse<UpdateOrderResponseModel>> _deleteOrderItemController =
-  StreamController<APIResponse<UpdateOrderResponseModel>>.broadcast();
-
-  // Build #1.0.49: Added apply discount code
-  late StreamController<APIResponse<ApplyDiscountResponse>> _applyDiscountController;
-  StreamController<APIResponse<ApplyDiscountResponse>> get applyDiscountController => _applyDiscountController;
-  StreamSink<APIResponse<ApplyDiscountResponse>> get applyDiscountSink => _applyDiscountController.sink;
-  Stream<APIResponse<ApplyDiscountResponse>> get applyDiscountStream => _applyDiscountController.stream;
-
-  // Build #1.0.49: Added change order status code
-  // Stream Controller for change order status
-  final StreamController<APIResponse<UpdateOrderResponseModel>> _changeOrderStatusController =
-  StreamController<APIResponse<UpdateOrderResponseModel>>.broadcast();
-  StreamSink<APIResponse<UpdateOrderResponseModel>> get changeOrderStatusSink => _changeOrderStatusController.sink;
-  Stream<APIResponse<UpdateOrderResponseModel>> get changeOrderStatusStream => _changeOrderStatusController.stream;
-
-  // fetch orders
-  late StreamController<APIResponse<OrdersListModel>> _fetchOrdersController;
-  StreamSink<APIResponse<OrdersListModel>> get fetchOrdersSink => _fetchOrdersController.sink;
-  Stream<APIResponse<OrdersListModel>> get fetchOrdersStream => _fetchOrdersController.stream;
-
-  // Getters for Streams
+  // Build #1.0.53 : updated code -  Getters for Streams and Sinks ---
+  // Create Order
   StreamSink<APIResponse<CreateOrderResponseModel>> get createOrderSink => _createOrderController.sink;
   Stream<APIResponse<CreateOrderResponseModel>> get createOrderStream => _createOrderController.stream;
 
+  // Update Order
   StreamSink<APIResponse<UpdateOrderResponseModel>> get updateOrderSink => _updateOrderController.sink;
   Stream<APIResponse<UpdateOrderResponseModel>> get updateOrderStream => _updateOrderController.stream;
 
+  // Apply Coupon
   StreamSink<APIResponse<UpdateOrderResponseModel>> get applyCouponSink => _applyCouponController.sink;
   Stream<APIResponse<UpdateOrderResponseModel>> get applyCouponStream => _applyCouponController.stream;
 
+  // Delete Order Item
   StreamSink<APIResponse<UpdateOrderResponseModel>> get deleteOrderItemSink => _deleteOrderItemController.sink;
   Stream<APIResponse<UpdateOrderResponseModel>> get deleteOrderItemStream => _deleteOrderItemController.stream;
 
-  OrderBloc(this._orderRepository) {
-    _createOrderController = StreamController<APIResponse<CreateOrderResponseModel>>.broadcast();
-    _fetchOrdersController = StreamController<APIResponse<OrdersListModel>>.broadcast();
-    _applyDiscountController = StreamController<APIResponse<ApplyDiscountResponse>>.broadcast();
-    if (kDebugMode) {
-      print("OrderBloc Initialized with all 4 order APIs");
-    }
-  }
+  // Apply Discount
+  StreamSink<APIResponse<ApplyDiscountResponse>> get applyDiscountSink => _applyDiscountController.sink;
+  Stream<APIResponse<ApplyDiscountResponse>> get applyDiscountStream => _applyDiscountController.stream;
+
+  // Change Order Status
+  StreamSink<APIResponse<UpdateOrderResponseModel>> get changeOrderStatusSink => _changeOrderStatusController.sink;
+  Stream<APIResponse<UpdateOrderResponseModel>> get changeOrderStatusStream => _changeOrderStatusController.stream;
+
+  // Fetch Orders
+  StreamSink<APIResponse<OrdersListModel>> get fetchOrdersSink => _fetchOrdersController.sink;
+  Stream<APIResponse<OrdersListModel>> get fetchOrdersStream => _fetchOrdersController.stream;
+
+  // Add Payout
+  StreamSink<APIResponse<UpdateOrderResponseModel>> get addPayoutSink => _addPayoutController.sink;
+  Stream<APIResponse<UpdateOrderResponseModel>> get addPayoutStream => _addPayoutController.stream;
+
+  // Remove Payout
+  StreamSink<APIResponse<UpdateOrderResponseModel>> get removePayoutSink => _removePayoutController.sink;
+  Stream<APIResponse<UpdateOrderResponseModel>> get removePayoutStream => _removePayoutController.stream;
+
 
   // 1. Create Order
   Future<void> createOrder(List<OrderMetaData> metaData) async {
@@ -149,12 +163,12 @@ class OrderBloc { // Build #1.0.25 - added by naveen
   }
 
   //Build #1.0.40: fetchOrders
-  Future<void> fetchOrders() async {
+  Future<void> fetchOrders({bool allStatuses = false}) async { //Build #1.0.54: updated
     if (_fetchOrdersController.isClosed) return;
 
     fetchOrdersSink.add(APIResponse.loading(TextConstants.loading));
     try {
-      final response = await _orderRepository.getOrders();
+      final response = await _orderRepository.getOrders(allStatuses: allStatuses); //Build #1.0.54: updated
 
       if (kDebugMode) {
         print("OrderBloc - Fetched ${response.orders.length} orders");
@@ -199,11 +213,7 @@ class OrderBloc { // Build #1.0.25 - added by naveen
 
       applyCouponSink.add(APIResponse.completed(response));
     } catch (e) {
-      if (e.toString().contains('SocketException')) {
-        applyCouponSink.add(APIResponse.error("Network error. Please check your connection."));
-      } else {
-        applyCouponSink.add(APIResponse.error("Failed to apply coupon: ${e.toString()}"));
-      }
+      applyCouponSink.add(APIResponse.error(_extractErrorMessage(e))); // Build #1.0.53 : Extracting the message from error
       if (kDebugMode) print("Exception in applyCouponToOrder: $e");
     }
   }
@@ -297,6 +307,92 @@ class OrderBloc { // Build #1.0.25 - added by naveen
     }
   }
 
+  // Build #1.0.53 : Add Payout to Order
+  Future<void> addPayout({required int orderId, required double amount, required bool isPayOut}) async {
+    if (_addPayoutController.isClosed) return;
+
+    addPayoutSink.add(APIResponse.loading(TextConstants.loading));
+    try {
+      final AddPayoutRequestModel request;
+      if (isPayOut == true) {
+        request = AddPayoutRequestModel(
+          feeLines: [
+            FeeLine(
+              name: TextConstants.payout,
+              taxStatus: TextConstants.none,
+              total: "-${amount.toStringAsFixed(2)}",
+              originalValue: amount.toStringAsFixed(2),
+            )
+          ],
+        );
+      } else {
+        request = AddPayoutRequestModel(
+          feeLines: [
+            FeeLine(
+              name: TextConstants.discountText,
+              taxStatus: TextConstants.none,
+              total: "-${amount.toStringAsFixed(2)}",
+              originalValue: amount.toStringAsFixed(2),
+            )
+          ],
+        );
+      }
+      final response = await _orderRepository.addPayout(orderId: orderId, request: request);
+
+      if (kDebugMode) {
+        print("OrderBloc - Payout added to order ID: ${response.id}");
+        print("OrderBloc - New total: ${response.total}");
+      }
+
+      addPayoutSink.add(APIResponse.completed(response));
+    } catch (e) {
+      addPayoutSink.add(APIResponse.error(_extractErrorMessage(e)));
+      if (kDebugMode) print("Exception in addPayout: $e");
+    }
+  }
+
+  // Build #1.0.53 : Remove Payout from Order
+  Future<void> removePayout({required int orderId, required int payoutId}) async {
+    if (_removePayoutController.isClosed) return;
+
+    removePayoutSink.add(APIResponse.loading(TextConstants.loading));
+    try {
+      final request = RemovePayoutRequestModel(
+        feeLines: [FeeLine(id: payoutId, name: null)],
+      );
+      final response = await _orderRepository.removePayout(orderId: orderId, request: request);
+
+      if (kDebugMode) {
+        print("OrderBloc - Payout removed from order ID: ${response.id}");
+        print("OrderBloc - New total: ${response.total}");
+      }
+
+      removePayoutSink.add(APIResponse.completed(response));
+    } catch (e) {
+      removePayoutSink.add(APIResponse.error(_extractErrorMessage(e)));
+      if (kDebugMode) print("Exception in removePayout: $e");
+    }
+  }
+
+  // Helper function to extract error message
+  String _extractErrorMessage(dynamic error) {
+    if (error.toString().contains('SocketException')) {
+      return "Network error. Please check your connection.";
+    }
+    try {
+      // Extract JSON part from error string
+      final jsonMatch = RegExp(r'\{.*\}').firstMatch(error.toString());
+      if (jsonMatch != null) {
+        final errorJson = jsonDecode(jsonMatch.group(0)!);
+        return errorJson['message']?.toString() ?? "Operation failed";
+      }
+      // Fallback to splitting error string
+      return error.toString().split('message":"').last.split('","').first;
+    } catch (_) {
+      return "Operation failed";
+    }
+  }
+
   void dispose() {
     if (!_createOrderController.isClosed) _createOrderController.close();
     if (!_fetchOrdersController.isClosed) _fetchOrdersController.close();
@@ -305,6 +401,8 @@ class OrderBloc { // Build #1.0.25 - added by naveen
     if (!_deleteOrderItemController.isClosed) _deleteOrderItemController.close();
     if (!_applyDiscountController.isClosed) _applyDiscountController.close();
     if (!_changeOrderStatusController.isClosed) _changeOrderStatusController.close();
+    if (!_addPayoutController.isClosed) _addPayoutController.close();
+    if (!_removePayoutController.isClosed) _removePayoutController.close();
     if (kDebugMode) print("OrderBloc disposed with all controllers");
   }
 }

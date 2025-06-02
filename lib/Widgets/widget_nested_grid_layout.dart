@@ -925,8 +925,8 @@ class NestedGridWidget extends StatelessWidget {
                             onItemTapped(index);
                             return;
                           }
-            
-                          final productId = item["fast_key_item_id"];
+
+                          final productId = int.tryParse(item["fast_key_product_id"].toString()) ?? 0; //Build #1.0.54: fixed variant dialog issue
                           if (kDebugMode) {
                             print("NestedGridWidget - Product tapped: ${item['fast_key_item_name']}, ID: $productId");
                           }
@@ -989,7 +989,7 @@ class NestedGridWidget extends StatelessWidget {
                                       }
                                       Navigator.pop(context);
                                       onItemTapped(index);
-                                      return const Center(child: CircularProgressIndicator());
+                                      return const SizedBox.shrink();
                                     }
                                   } else {
                                     if (kDebugMode) {
@@ -997,7 +997,7 @@ class NestedGridWidget extends StatelessWidget {
                                     }
                                     Navigator.pop(context);
                                     onItemTapped(index);
-                                    return const Center(child: CircularProgressIndicator());
+                                    return const SizedBox.shrink();
                                   }
                                 },
                               ),

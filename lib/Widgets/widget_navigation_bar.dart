@@ -297,7 +297,7 @@ class NavigationBar extends StatelessWidget {
                 MaterialPageRoute(builder: (context) => FastKeyScreen(lastSelectedIndex: lastSelectedIndex)),
               );
             },
-            isVertical: isVertical,
+            isVertical: false, //Build #1.0.54: updated
           ),
           SidebarButton(
             icon: Icons.category,
@@ -316,7 +316,7 @@ class NavigationBar extends StatelessWidget {
                 MaterialPageRoute(builder: (context) => CategoriesScreen(lastSelectedIndex: lastSelectedIndex)),
               );
             },
-            isVertical: isVertical,
+            isVertical: false,
           ),
           SidebarButton(
             icon: Icons.add_box_outlined,
@@ -333,7 +333,7 @@ class NavigationBar extends StatelessWidget {
                 MaterialPageRoute(builder: (context) => AddScreen()),
               );
             },
-            isVertical: isVertical,
+            isVertical: false,
           ),
           SidebarButton(
             icon: Icons.shopping_basket,
@@ -352,7 +352,7 @@ class NavigationBar extends StatelessWidget {
                 MaterialPageRoute(builder: (context) => OrdersScreen(lastSelectedIndex: lastSelectedIndex)),
               );
             },
-            isVertical: isVertical,
+            isVertical: false,
           ),
           SidebarButton(
             icon: Icons.apps,
@@ -371,7 +371,7 @@ class NavigationBar extends StatelessWidget {
                         AppsDashboardScreen()),
               );
             },
-            isVertical: isVertical,
+            isVertical: false,
           ),
           // Additional dynamic items can be added here.
         ];
@@ -391,7 +391,7 @@ class NavigationBar extends StatelessWidget {
 
               onSidebarItemSelected(5); // Highlight settings
 
-              Navigator.pushReplacement(
+              Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (context) => SettingsScreen(),
@@ -401,14 +401,14 @@ class NavigationBar extends StatelessWidget {
                 onSidebarItemSelected(lastSelectedIndex);
               });
             },
-            isVertical: isVertical,
+            isVertical: false,
           ),
           SidebarButton(
             icon: Icons.logout,
             label: TextConstants.logoutText,
             isSelected: selectedSidebarIndex == 6,
             onTap: () => onSidebarItemSelected(6),
-            isVertical: isVertical,
+            isVertical: false,
           ),
           const SizedBox(width: 10),
         ];

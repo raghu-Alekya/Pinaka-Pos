@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../../Constants/text.dart';
 import '../../Helper/api_response.dart';
+import '../../Models/Search/product_custom_item_model.dart';
 import '../../Models/Search/product_by_sku_model.dart';
 import '../../Models/Search/product_search_model.dart';
 import '../../Models/Search/product_variation_model.dart';
@@ -28,6 +29,12 @@ class ProductBloc { // Build #1.0.13: Added Product Search Bloc
   StreamSink<APIResponse<List<ProductBySkuResponse>>> get productBySkuSink => _productBySkuController.sink;
   Stream<APIResponse<List<ProductBySkuResponse>>> get productBySkuStream => _productBySkuController.stream;
 
+  late StreamController<APIResponse<AddCustomItemModel>> _addCustomItemController;
+
+  StreamController<APIResponse<AddCustomItemModel>> get addCustomItemController => _addCustomItemController;
+  StreamSink<APIResponse<AddCustomItemModel>> get addCustomItemSink => _addCustomItemController.sink;
+  Stream<APIResponse<AddCustomItemModel>> get addCustomItemStream => _addCustomItemController.stream;
+
   ProductBloc(this._productRepository) {
     if (kDebugMode) {
       print("ProductBloc Initialized");
@@ -35,6 +42,7 @@ class ProductBloc { // Build #1.0.13: Added Product Search Bloc
     _productController = StreamController<APIResponse<List<ProductResponse>>>.broadcast();
     _variationController = StreamController<APIResponse<List<ProductVariation>>>.broadcast();
     _productBySkuController = StreamController<APIResponse<List<ProductBySkuResponse>>>.broadcast();
+    _addCustomItemController = StreamController<APIResponse<AddCustomItemModel>>.broadcast();
   }
 
   Future<void> fetchProducts({String? searchQuery}) async {
@@ -126,6 +134,26 @@ class ProductBloc { // Build #1.0.13: Added Product Search Bloc
     }
   }
 
+  Future<void> addCustomItem(AddCustomItemRequest request) async {
+    if (_addCustomItemController.isClosed) return;
+
+    addCustomItemSink.add(APIResponse.loading(TextConstants.loading));
+    try {
+      AddCustomItemModel product = await _productRepository.addCustomItem(request);
+      if (kDebugMode) {
+        print("ProductBloc - Created product: ${product.id}");
+      }
+      addCustomItemSink.add(APIResponse.completed(product));
+    } catch (e) {
+      if (e.toString().contains('SocketException')) {
+        addCustomItemSink.add(APIResponse.error("Network error. Please check your connection."));
+      } else {
+        addCustomItemSink.add(APIResponse.error("Failed to create product"));
+      }
+      if (kDebugMode) print("ProductBloc - Exception in createProduct: $e");
+    }
+  }
+
   void dispose() {
     if (!_productController.isClosed) {
       _productController.close();
@@ -138,6 +166,10 @@ class ProductBloc { // Build #1.0.13: Added Product Search Bloc
     if (!_productBySkuController.isClosed) {
       _productBySkuController.close();
       if (kDebugMode) print("ProductBloc - ProductBySkuController disposed");
+    }
+    if (!_addCustomItemController.isClosed) {
+      _addCustomItemController.close();
+      if (kDebugMode) print("ProductBloc - CreateProductController disposed");
     }
   }
 }

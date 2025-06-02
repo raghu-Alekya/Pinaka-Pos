@@ -48,6 +48,10 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String bothText              = "Both";
   static const String quickProAddText       = "Quick Product Add";
   static const String outOfStockMngText     = "Out Of Stock Manage";
+  static const String layoutSelectionHeader      = "Layout selection for navigation bar and order panel";
+  static const String layoutNavLeftOrderRight    = "Navigation at left & Orders at right";
+  static const String layoutNavRightOrderLeft    = "Navigation at right & Orders at left";
+  static const String layoutNavBottomOrderLeft   = "Navigation at bottom & Orders at left";
 
   static const String printerSettText       = "Printer Settings";
   static const String selectPrintText       = "Select printer & paper size";
@@ -201,6 +205,13 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String completed             = "completed";
   static const String orderCancelled        = "Order successfully cancelled";
   static const String orderCompleted        = "Order successfully completed";
+  static const String payout                = "Payout"; // Build #1.0.53
+  static const String discountText          = "discount";
+  static const String none                  = "none";
+
+  //Build #1.0.54: added
+  static const String allStatus             = "pending, processing, on-hold, completed, cancelled, refunded, failed";
+  static const String processing            = "processing";
 
 }
 
@@ -212,5 +223,9 @@ class SharedPreferenceTextConstants {
 
   static const String themeModeKey = "theme_mode";
   static const String selectedPrinter = "selected_printer";
+  static const String layoutSelection = 'layoutSelection';
+  static const String navLeftOrderRight = 'NavLeftOrderRight'; //Build #1.0.54: added
+  static const String navRightOrderLeft = 'NavRightOrderLeft';
+  static const String navBottomOrderLeft = 'NavBottomOrderLeft';
 
 }

@@ -1,7 +1,8 @@
-class AssetResponse { //Build #1.0.40
+// Asset Model
+class AssetResponse {
   final String baseUrl;
   final List<Media> media;
-  final List<dynamic> taxes;
+  final List<Tax> taxes;
   final List<Coupon> coupons;
   final List<OrderStatus> orderStatuses;
   final String currency;
@@ -25,45 +26,34 @@ class AssetResponse { //Build #1.0.40
 
   factory AssetResponse.fromJson(Map<String, dynamic> json) {
     return AssetResponse(
-      baseUrl: json['base_url'] ?? '',
+      baseUrl: json['base_url']?.toString() ?? '',
       media: (json['media'] as List<dynamic>?)
-          ?.map((e) => Media.fromJson(e as Map<String, dynamic>))
+          ?.map((item) => Media.fromJson(item as Map<String, dynamic>))
           .toList() ??
           [],
-      taxes: json['taxes'] ?? [],
+      taxes: (json['taxes'] as List<dynamic>?)
+          ?.map((item) => Tax.fromJson(item as Map<String, dynamic>))
+          .toList() ??
+          [],
       coupons: (json['coupons'] as List<dynamic>?)
-          ?.map((e) => Coupon.fromJson(e as Map<String, dynamic>))
+          ?.map((item) => Coupon.fromJson(item as Map<String, dynamic>))
           .toList() ??
           [],
       orderStatuses: (json['order_statuses'] as List<dynamic>?)
-          ?.map((e) => OrderStatus.fromJson(e as Map<String, dynamic>))
+          ?.map((item) => OrderStatus.fromJson(item as Map<String, dynamic>))
           .toList() ??
           [],
-      currency: json['currency'] ?? '',
-      currencySymbol: json['currency_symbol'] ?? '',
+      currency: json['currency']?.toString() ?? '',
+      currencySymbol: json['currency_symbol']?.toString() ?? '',
       roles: (json['roles'] as List<dynamic>?)
-          ?.map((e) => Role.fromJson(e as Map<String, dynamic>))
+          ?.map((item) => Role.fromJson(item as Map<String, dynamic>))
           .toList() ??
           [],
-      subscriptionPlans:
-      SubscriptionPlan.fromJson(json['subscription_plans'] ?? {}),
-      storeDetails: StoreDetails.fromJson(json['store_details'] ?? {}),
+      subscriptionPlans: SubscriptionPlan.fromJson(
+          json['subscription_plans'] as Map<String, dynamic>? ?? {}),
+      storeDetails: StoreDetails.fromJson(
+          json['store_details'] as Map<String, dynamic>? ?? {}),
     );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'base_url': baseUrl,
-      'media': media.map((e) => e.toJson()).toList(),
-      'taxes': taxes,
-      'coupons': coupons.map((e) => e.toJson()).toList(),
-      'order_statuses': orderStatuses.map((e) => e.toJson()).toList(),
-      'currency': currency,
-      'currency_symbol': currencySymbol,
-      'roles': roles.map((e) => e.toJson()).toList(),
-      'subscription_plans': subscriptionPlans.toJson(),
-      'store_details': storeDetails.toJson(),
-    };
   }
 }
 
@@ -72,25 +62,97 @@ class Media {
   final String title;
   final String url;
 
-  Media({
-    required this.id,
-    required this.title,
-    required this.url,
-  });
+  Media({required this.id, required this.title, required this.url});
 
   factory Media.fromJson(Map<String, dynamic> json) {
     return Media(
-      id: json['id'] ?? 0,
-      title: json['title'] ?? '',
-      url: json['url'] ?? '',
+      id: int.tryParse(json['id']?.toString() ?? '0') ?? 0,
+      title: json['title']?.toString() ?? '',
+      url: json['url']?.toString() ?? '',
     );
   }
 
-  Map<String, dynamic> toJson() {
+  Map<String, dynamic> toMap() {
     return {
       'id': id,
       'title': title,
       'url': url,
+    };
+  }
+}
+
+class Tax {
+  final String id;
+  final String name;
+  final String? className;
+  final String? rate;
+  final String? country;
+  final String? state;
+  final String? priority;
+  final String? compound;
+  final String? shipping;
+  final List<String>? postcode;
+  final int? postcodeCount;
+  final int? cityCount;
+
+  Tax({
+    required this.id,
+    required this.name,
+     this.className,
+     this.rate,
+     this.country,
+     this.state,
+     this.priority,
+     this.compound,
+     this.shipping,
+     this.postcode,
+     this.postcodeCount,
+     this.cityCount,
+  });
+
+  factory Tax.fromJson(Map<String, dynamic> json) {
+    // Handle both API response (postcode as List) and database (postcode as String)
+    List<String> postcodeList;
+    if (json['postcode'] is List) {
+      // From API response
+      postcodeList = (json['postcode'] as List<dynamic>?)?.map((item) => item.toString()).toList() ?? [];
+    } else {
+      // From database, where postcode is a comma-separated string
+      postcodeList = json['postcode']?.toString().split(',') ?? [];
+      // Remove empty entries if the string is empty
+      postcodeList = postcodeList.where((item) => item.isNotEmpty).toList();
+    }
+
+    return Tax(
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      className: json['class']?.toString() ?? '',
+      rate: json['rate']?.toString() ?? '',
+      country: json['country']?.toString() ?? '',
+      state: json['state']?.toString() ?? '',
+      priority: json['priority']?.toString() ?? '',
+      compound: json['compound']?.toString() ?? '',
+      shipping: json['shipping']?.toString() ?? '',
+      postcode: postcodeList,
+      postcodeCount: int.tryParse(json['postcode_count']?.toString() ?? '0') ?? 0,
+      cityCount: int.tryParse(json['city_count']?.toString() ?? '0') ?? 0,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'name': name,
+      'class': className,
+      'rate': rate,
+      'country': country,
+      'state': state,
+      'priority': priority,
+      'compound': compound,
+      'shipping': shipping,
+      'postcode': postcode?.join(','),
+      'postcode_count': postcodeCount,
+      'city_count': cityCount,
     };
   }
 }
@@ -114,16 +176,16 @@ class Coupon {
 
   factory Coupon.fromJson(Map<String, dynamic> json) {
     return Coupon(
-      id: json['id'] ?? 0,
-      code: json['code'] ?? '',
-      amount: json['amount'] ?? '',
-      discountType: json['discount_type'] ?? '',
-      usageLimit: json['usage_limit'] ?? '',
-      expiryDate: json['expiry_date'] ?? '',
+      id: int.tryParse(json['id']?.toString() ?? '0') ?? 0,
+      code: json['code']?.toString() ?? '',
+      amount: json['amount']?.toString() ?? '',
+      discountType: json['discount_type']?.toString() ?? '',
+      usageLimit: json['usage_limit']?.toString() ?? '',
+      expiryDate: json['expiry_date']?.toString() ?? '',
     );
   }
 
-  Map<String, dynamic> toJson() {
+  Map<String, dynamic> toMap() {
     return {
       'id': id,
       'code': code,
@@ -139,19 +201,16 @@ class OrderStatus {
   final String slug;
   final String name;
 
-  OrderStatus({
-    required this.slug,
-    required this.name,
-  });
+  OrderStatus({required this.slug, required this.name});
 
   factory OrderStatus.fromJson(Map<String, dynamic> json) {
     return OrderStatus(
-      slug: json['slug'] ?? '',
-      name: json['name'] ?? '',
+      slug: json['slug']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
     );
   }
 
-  Map<String, dynamic> toJson() {
+  Map<String, dynamic> toMap() {
     return {
       'slug': slug,
       'name': name,
@@ -163,19 +222,16 @@ class Role {
   final String slug;
   final String name;
 
-  Role({
-    required this.slug,
-    required this.name,
-  });
+  Role({required this.slug, required this.name});
 
   factory Role.fromJson(Map<String, dynamic> json) {
     return Role(
-      slug: json['slug'] ?? '',
-      name: json['name'] ?? '',
+      slug: json['slug']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
     );
   }
 
-  Map<String, dynamic> toJson() {
+  Map<String, dynamic> toMap() {
     return {
       'slug': slug,
       'name': name,
@@ -188,7 +244,7 @@ class SubscriptionPlan {
   final String key;
   final String expiration;
   final String origin;
-  final bool storeId;
+  final String storeId; // Changed from bool to String
 
   SubscriptionPlan({
     required this.type,
@@ -200,21 +256,21 @@ class SubscriptionPlan {
 
   factory SubscriptionPlan.fromJson(Map<String, dynamic> json) {
     return SubscriptionPlan(
-      type: json['type'] ?? '',
-      key: json['key'] ?? '',
-      expiration: json['expiration'] ?? '',
-      origin: json['origin'] ?? '',
-      storeId: json['store_id'] ?? false,
+      type: json['type']?.toString() ?? '',
+      key: json['key']?.toString() ?? '',
+      expiration: json['expiration']?.toString() ?? '',
+      origin: json['origin']?.toString() ?? '',
+      storeId: json['store_id']?.toString() ?? '', // Changed to String
     );
   }
 
-  Map<String, dynamic> toJson() {
+  Map<String, dynamic> toMap() {
     return {
       'type': type,
       'key': key,
       'expiration': expiration,
       'origin': origin,
-      'store_id': storeId,
+      'store_id': storeId, // Updated to handle String
     };
   }
 }
@@ -226,7 +282,7 @@ class StoreDetails {
   final String state;
   final String country;
   final String zipCode;
-  final bool phoneNumber;
+  final String? phoneNumber; // Changed to String? to handle potential phone numbers or null
 
   StoreDetails({
     required this.name,
@@ -235,22 +291,22 @@ class StoreDetails {
     required this.state,
     required this.country,
     required this.zipCode,
-    required this.phoneNumber,
+    this.phoneNumber, // Nullable to handle missing or varied data
   });
 
   factory StoreDetails.fromJson(Map<String, dynamic> json) {
     return StoreDetails(
-      name: json['name'] ?? '',
-      address: json['address'] ?? '',
-      city: json['city'] ?? '',
-      state: json['state'] ?? '',
-      country: json['country'] ?? '',
-      zipCode: json['zip_code'] ?? '',
-      phoneNumber: json['phone_number'] ?? false,
+      name: json['name']?.toString() ?? '',
+      address: json['address']?.toString() ?? '',
+      city: json['city']?.toString() ?? '',
+      state: json['state']?.toString() ?? '',
+      country: json['country']?.toString() ?? '',
+      zipCode: json['zip_code']?.toString() ?? '',
+      phoneNumber: json['phone_number']?.toString(), // Handle as String or null
     );
   }
 
-  Map<String, dynamic> toJson() {
+  Map<String, dynamic> toMap() {
     return {
       'name': name,
       'address': address,

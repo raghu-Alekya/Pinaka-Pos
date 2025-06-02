@@ -82,6 +82,9 @@ class UserDbHelper { // Build #1.0.13: Added for user data into db
       AppDBConst.storeName: response.storeName,
       AppDBConst.expirationDate: response.expirationDate,
       AppDBConst.storeBaseUrl: response.storeBaseUrl,
+      AppDBConst.storeAddress: response.storeAddress, //Build #1.0.54: updated
+      AppDBConst.storePhone: response.storePhone,
+      AppDBConst.storeInfo: response.storeInfo,
       AppDBConst.licenseKey: response.licenseKey,
       AppDBConst.licenseStatus: response.licenseStatus,
     };

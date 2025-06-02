@@ -107,13 +107,14 @@ class CustomNumPad extends StatelessWidget {
 
     switch(numPadType){
       case NumPadType.age:
+        // TODO: Handle Age Verification NumPad case.
         break;
       case NumPadType.payment:
-        // TODO: Handle this case.
-        throw UnimplementedError();
+        // TODO: Handle Payment NumPad case.
+
       case NumPadType.login:
-        // TODO: Handle this case.
-        throw UnimplementedError();
+        // TODO: Handle Login NumPad case.
+
     }
     // Original numpad layout remains unchanged
     return GridView.count(

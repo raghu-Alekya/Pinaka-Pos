@@ -196,6 +196,15 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String failedToUpdateOrder   = "Failed to update order"; // Build #1.0.13: updated to here
   static const String doYouWantTo           = "Do you want to?"; // Build #1.0.13: updated to here
   static const String swipeToCloseShift     = "Swipe to Close Shift"; // Build #1.0.13: updated to here
+  static const String verifyDrawerAndSafeAmounts = "Verify Drawer & Safe Amounts";
+  static const String totalAmount           = "Total Amount:";
+  static const String shortAmount           = "Short :";
+  static const String overAmount            = "Over :";
+  static const String startShift            = "Start Shift";
+  static const String closeShift            = "Close Shift";
+  static const String back                  = "Back";
+  static const String ShiftStartDescription = "Once you've entered and verified the opening cash amounts, click start shift to begin transactions.";
+  static const String ShiftCloseDescription = "Make sure all amounts are tallied accurately. Click close shift to logout and end your shift";
 
   static const String noPrinter             = "No printer selected";
   static const String voidConfirmTitle      = "Transaction Void Confirmation ?";  // Build #1.0.49

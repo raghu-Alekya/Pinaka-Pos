@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
+import '../../Widgets/widget_alert_popup_dialogs.dart';
 import '../../Widgets/widget_topbar.dart';
 import '../../Widgets/widget_navigation_bar.dart' as custom_widgets;
 
@@ -162,7 +163,14 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> {
                                       height: MediaQuery.of(context).size.height * 0.06,
                                       width: MediaQuery.of(context).size.width * 0.1,
                                       child: ElevatedButton(
-                                        onPressed: () {},
+                                        onPressed: () {
+                                          // // bool? result =
+                                          // CustomDialog.showStartShiftVerification(
+                                          //   context,
+                                          //   totalAmount: 370.00,
+                                          //   overAmount: 10// optional
+                                          // );
+                                        },
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: const Color(0xFFFF6B6B),
                                           foregroundColor: Colors.white,

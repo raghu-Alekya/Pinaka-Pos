@@ -60,6 +60,14 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
   final ProductBloc productBloc = ProductBloc(ProductRepository()); // Build #1.0.44 : Added for barcode scanning
   StreamSubscription? _productBySkuSubscription; // Build #1.0.44 : Added for product stream
 
+  bool _showFullSummary = false;
+
+  void _toggleSummary() {
+    setState(() {
+      _showFullSummary = !_showFullSummary;
+    });
+  }
+
   @override
   void initState() {
     if (kDebugMode) {
@@ -1043,88 +1051,118 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
         Column(
           children: [
             // Summary container
-            Container(
-              height: MediaQuery.of(context).size.height * 0.125,
-              margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 5,
-                    offset: const Offset(0, 2),
+            AnimatedSize(
+              duration: Duration(milliseconds: 1000),
+                curve: Curves.easeInOut,
+                child: _showFullSummary
+                ? Container(
+                  margin: const EdgeInsets.only(top: 8, right: 8, left: 8),
+                  decoration: BoxDecoration(
+                      borderRadius: BorderRadius.only(
+                          topRight: Radius.circular(8),
+                          topLeft: Radius.circular(8)),
+                      color: Colors.white
                   ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  // Order summary section
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  padding: const EdgeInsets.all(8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        "Sub total",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text("Gross Total", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12), ),
+                          Text("\$${getSubTotal().toStringAsFixed(2)}", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),),
+                        ],
                       ),
-                      Text(
-                        "\$${getSubTotal().toStringAsFixed(2)}", // only two index show
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      SizedBox(height: 2,),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(spacing: 5,
+                            children: [
+                              SvgPicture.asset("assets/svg/discount_star.svg",height: 12, width: 12,),
+                              Text("Discount", style: TextStyle(color: Colors.green, fontSize: 10)),
+                            ],
+                          ),
+                          Text("-\$3.00", style: TextStyle(color: Colors.green,fontSize: 10 )),
+                        ],
                       ),
-                    ],
-                  ),
-                  //const SizedBox(height: 8),
+                      SizedBox(height: 2,),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(spacing: 5,
+                            children: [
+                              SvgPicture.asset("assets/svg/discount_star.svg",height: 12, width: 12,),
+                              Text("Merchant Discount", style: TextStyle(color: Colors.blue, fontSize: 10)),
+                              SvgPicture.asset("assets/svg/delete.svg",height: 12, width: 12,),
+                            ],
+                          ),
+                          const Text("-\$3.00", style: TextStyle(color: Colors.blue, fontSize: 10)),
 
-                  // Tax row
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        "Tax",
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey,
-                        ),
+                        ],
                       ),
-                      Text(
-                        "\$${orderTax.toStringAsFixed(2)}",
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey,
-                        ),
+                      SizedBox(height: 2,),
+                      const DottedLine(),
+                      SizedBox(height: 2,),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Text("Net Total",style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),),
+                          Text("\$32.00", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),),
+                        ],
+                      ),
+                      SizedBox(height: 2,),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: const [
+                          Text("Tax", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10,color: Colors.grey),),
+                          Text("\$3.00", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10,color: Colors.grey),),
+                        ],
+                      ),
+                      SizedBox(height: 2,),
+                      const DottedLine(),
+                      SizedBox(height: 2,),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: const [
+                          Text("Net Payable", style: TextStyle(fontWeight: FontWeight.bold)),
+                          Text("\$35.00", style: TextStyle(fontWeight: FontWeight.bold)),
+                        ],
                       ),
                     ],
                   ),
-                  //const SizedBox(height: 4),
+                )
+                    : SizedBox.shrink(),
+            ),
+            GestureDetector(
+              onTap: _toggleSummary,
+              child: Container(
+                margin: const EdgeInsets.only(top:2, right: 8, left: 8),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.only(
 
-                  // Discount row - with green text
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        "Discount",
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF1BA672),
-                        ),
-                      ),
-                      Text(
-                        "-\$${orderDiscount.toStringAsFixed(2)}",
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Color(0xFF1BA672),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                      bottomRight: Radius.circular(8),
+                      bottomLeft: Radius.circular(8)),
+                  color: Colors.grey.shade300
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 5),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text("Total Items : 6", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),),
+                    Row(
+                      children: [
+                        Text(_showFullSummary ? 'Net Payable : \$${getSubTotal()}' : 'Net Payable : \$${getSubTotal()}',style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        const SizedBox(width: 8),
+                        Icon(_showFullSummary ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
 

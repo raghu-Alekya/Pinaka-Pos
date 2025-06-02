@@ -369,7 +369,11 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return BarcodeKeyboardListener( // Build #1.0.44 : Added - Wrap with BarcodeKeyboardListener for barcode scanning
+      bufferDuration: Duration(milliseconds: 400),
       onBarcodeScanned: (barcode) async {
+        if (kDebugMode) {
+          print("##### DEBUG: onBarcodeScanned - Scanned barcode: $barcode");
+        }
         if (barcode.isNotEmpty) {
           if (kDebugMode) {
             print("##### DEBUG: onBarcodeScanned - Scanned barcode: $barcode");
@@ -403,42 +407,43 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
               if (kDebugMode) {
                 print("##### DEBUG: onBarcodeScanned - Product found: ${product.name}, variations: ${product.variations.length}");
               }
-              if (product.variations.isNotEmpty) {
-                // Show variants dialog for products with variations
-                if (kDebugMode) {
-                  print("##### DEBUG: onBarcodeScanned - Showing variants dialog");
-                }
-                // Assume variations contain objects with id, price, image, and attributes
-                List<Map<String, dynamic>> variantMaps = product.variations.map((v) {
-                  return {
-                    'id': v['id'] ?? v, // Handle both object and ID cases
-                    'name': (v['attributes'] as List<dynamic>?)?.join(', ') ?? 'Variant',
-                    'price': v['price'] ?? product.price,
-                    'image': v['image']?['src'] ?? product.images.isNotEmpty ? product.images.first.src : '',
-                  };
-                }).toList();
-
-                showDialog(
-                  context: context,
-                  builder: (context) => VariantsDialog(
-                    title: product.name,
-                    variations: variantMaps,
-                    onAddVariant: (variant, quantity) async {
-                      if (kDebugMode) {
-                        print("##### DEBUG: onBarcodeScanned - Adding variant: ${variant['name']}, quantity: $quantity");
-                      }
-                      await orderHelper.addItemToOrder(
-                        variant['name'],
-                        variant['image'],
-                        double.parse(variant['price'].toString()),
-                        quantity,
-                        barcode,
-                      );
-                      await fetchOrderItems();
-                    },
-                  ),
-                );
-              } else {
+              ///Todo: Need to call variation service before showing dialog
+              // if (product.variations.isNotEmpty) {
+              //   // Show variants dialog for products with variations
+              //   if (kDebugMode) {
+              //     print("##### DEBUG: onBarcodeScanned - Showing variants dialog");
+              //   }
+              //   // Assume variations contain objects with id, price, image, and attributes
+              //   List<Map<String, dynamic>> variantMaps = product.variations.map((v) {
+              //     return {
+              //       'id': v['id'] ?? v, // Handle both object and ID cases
+              //       'name': (v['attributes'] as List<dynamic>?)?.join(', ') ?? 'Variant',
+              //       'price': v['price'] ?? product.price,
+              //       'image': v['image']?['src'] ?? product.images.isNotEmpty ? product.images.first.src : '',
+              //     };
+              //   }).toList();
+              //
+              //   showDialog(
+              //     context: context,
+              //     builder: (context) => VariantsDialog(
+              //       title: product.name,
+              //       variations: variantMaps,
+              //       onAddVariant: (variant, quantity) async {
+              //         if (kDebugMode) {
+              //           print("##### DEBUG: onBarcodeScanned - Adding variant: ${variant['name']}, quantity: $quantity");
+              //         }
+              //         await orderHelper.addItemToOrder(
+              //           variant['name'],
+              //           variant['image'],
+              //           double.parse(variant['price'].toString()),
+              //           quantity,
+              //           barcode,
+              //         );
+              //         await fetchOrderItems();
+              //       },
+              //     ),
+              //   );
+              // } else {
                 // Add product directly to order
                 if (kDebugMode) {
                   print("##### DEBUG: onBarcodeScanned - Adding product: ${product.name}");
@@ -451,7 +456,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                   barcode,
                 );
                 await fetchOrderItems();
-              }
+              // }
             } else {
               // Show error if product not found
               if (kDebugMode) {
@@ -972,6 +977,9 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
         //     ],
         //   ),
         // )
+///Todo: update ui as per loading from screen
+        ///Show print and email invoice buttons if coming from order history screen
+        ///else show regular buttons
         Column(
           children: [
             // Summary container

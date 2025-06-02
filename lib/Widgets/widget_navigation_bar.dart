@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:pinaka_pos/Screens/Auth/login_screen.dart';
 import 'package:pinaka_pos/Screens/Home/apps_dashboard_screen.dart';
 import 'package:pinaka_pos/Screens/Home/categories_screen.dart';
 import 'package:pinaka_pos/Screens/Home/fast_key_screen.dart';
@@ -234,6 +235,7 @@ class NavigationBar extends StatelessWidget {
                   onConfirmBtnTap: () {
                     /// logout function
                     Navigator.of(context).pop();
+                    Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen(),));
                   },
                   onCancelBtnTap: () {
                     /// cancel

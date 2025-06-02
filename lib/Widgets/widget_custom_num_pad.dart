@@ -5,6 +5,7 @@ import 'package:pinaka_pos/Widgets/widget_payment_dialog.dart';
 import '../Constants/text.dart';
 
 enum ActionButtonType { delete, ok, add, pay }
+enum NumPadType { payment, login, age }
 
 class CustomNumPad extends StatelessWidget {
   final Function(String) onDigitPressed;
@@ -18,6 +19,7 @@ class CustomNumPad extends StatelessWidget {
   final String Function()? getPaidAmount; // Build #1.0.29: Change to a callback
   final double? balanceAmount; // Build #1.0.29 : Added to compare with paid amount
   final bool? isLoading; // Add isLoading
+  final NumPadType numPadType = NumPadType.login;
 
   const CustomNumPad({
     super.key,
@@ -103,6 +105,16 @@ class CustomNumPad extends StatelessWidget {
       );
     }
 
+    switch(numPadType){
+      case NumPadType.age:
+        break;
+      case NumPadType.payment:
+        // TODO: Handle this case.
+        throw UnimplementedError();
+      case NumPadType.login:
+        // TODO: Handle this case.
+        throw UnimplementedError();
+    }
     // Original numpad layout remains unchanged
     return GridView.count(
       shrinkWrap: true,

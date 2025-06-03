@@ -353,8 +353,11 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
       if (response.status == Status.COMPLETED && response.data != null) {
         setState(() {
           categoryProducts = response.data!.products.map((product) {
+            if (kDebugMode) {
+              print("Category Product name: ${ product.name}, id: ${ product.id}");
+            }
             return {
-              'fast_key_item_id': product.id,
+              'fast_key_product_id': product.id,
               'fast_key_item_name': product.name,
               'fast_key_item_image': product.images.isNotEmpty ? product.images.first : '',
               'fast_key_item_price': product.price,

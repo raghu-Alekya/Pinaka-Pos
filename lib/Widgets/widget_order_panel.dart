@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_barcode_listener/flutter_barcode_listener.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:pinaka_pos/Providers/Auth/product_variation_provider.dart';
 import 'package:pinaka_pos/Screens/Home/order_summary_screen.dart';
 import 'package:pinaka_pos/Widgets/widget_alert_popup_dialogs.dart';
 import 'package:pinaka_pos/Widgets/widget_custom_num_pad.dart';
@@ -430,42 +431,46 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
 
               ///Todo: Need to call variation service before showing dialog
               if (product.variations.isNotEmpty) {
+                ///1. Call _productBloc.fetchProductVariations(product.id!);
+                ///2. load Variation popup
+                ///3. On add button from variation popup -> add to order list
+                VariationPopup(product.id, product.name, orderHelper, onProductSelected: fetchOrderItems).showVariantDialog(context: context);
                 // Show variants dialog for products with variations
                 if (kDebugMode) {
                   print("##### DEBUG: onBarcodeScanned - Showing variants dialog");
                 }
                 // Assume variations contain objects with id, price, image, and attributes
-                List<Map<String, dynamic>> variantMaps = product.variations.map((v) {
-                  return {
-                    'id': v['id'] ?? v, // Handle both object and ID cases
-                    'name': (v['attributes'] as List<dynamic>?)?.join(', ') ?? 'Variant',
-                    'price': v['price'] ?? product.price,
-                    'image': v['image']?['src'] ?? product.images.isNotEmpty ? product.images.first.src : '',
-                  };
-                }).toList();
-                if (!mounted) return;
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                showDialog(
-                  context: context,
-                  builder: (context) => VariantsDialog(
-                    title: product.name,
-                    variations: variantMaps,
-                    onAddVariant: (variant, quantity) async {
-                      if (kDebugMode) {
-                        print("##### DEBUG: onBarcodeScanned - Adding variant: ${variant['name']}, quantity: $quantity");
-                      }
-                      await orderHelper.addItemToOrder(
-                        variant['name'],
-                        variant['image'],
-                        double.parse(variant['price'].toString()),
-                        quantity,
-                        barcode,
-                      );
-                      await fetchOrderItems();
-                    },
-                  ),
-                );
-                });
+                // List<Map<String, dynamic>> variantMaps = product.variations.map((v) {
+                //   return {
+                //     'id': v['id'] ?? v, // Handle both object and ID cases
+                //     'name': (v['attributes'] as List<dynamic>?)?.join(', ') ?? 'Variant',
+                //     'price': v['price'] ?? product.price,
+                //     'image': v['image']?['src'] ?? product.images.isNotEmpty ? product.images.first.src : '',
+                //   };
+                // }).toList();
+                // if (!mounted) return;
+                // WidgetsBinding.instance.addPostFrameCallback((_) {
+                // showDialog(
+                //   context: context,
+                //   builder: (context) => VariantsDialog(
+                //     title: product.name,
+                //     variations: variantMaps,
+                //     onAddVariant: (variant, quantity) async {
+                //       if (kDebugMode) {
+                //         print("##### DEBUG: onBarcodeScanned - Adding variant: ${variant['name']}, quantity: $quantity");
+                //       }
+                //       await orderHelper.addItemToOrder(
+                //         variant['name'],
+                //         variant['image'],
+                //         double.parse(variant['price'].toString()),
+                //         quantity,
+                //         barcode,
+                //       );
+                //       await fetchOrderItems();
+                //     },
+                //   ),
+                // );
+                // });
               } else {
                 // Add product directly to order
                 if (kDebugMode) {
@@ -1156,7 +1161,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                     Text("Total Items : 6", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),),
                     Row(
                       children: [
-                        Text(_showFullSummary ? 'Net Payable : \$${getSubTotal()}' : 'Net Payable : \$${getSubTotal()}',style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        Text(_showFullSummary ? 'Net Payable : \$${getSubTotal().toStringAsFixed(2)}' : 'Net Payable : \$${getSubTotal()}',style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                         const SizedBox(width: 8),
                         Icon(_showFullSummary ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,),
                       ],

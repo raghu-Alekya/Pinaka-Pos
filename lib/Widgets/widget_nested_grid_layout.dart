@@ -743,6 +743,7 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:pinaka_pos/Helper/auto_search.dart';
 import 'package:pinaka_pos/Widgets/widget_variants_dialog.dart';
 import '../Blocs/Orders/order_bloc.dart';
 import '../Blocs/Search/product_search_bloc.dart';
@@ -750,6 +751,7 @@ import '../Constants/text.dart';
 import '../Database/order_panel_db_helper.dart';
 import '../Helper/api_response.dart';
 import '../Models/Search/product_variation_model.dart';
+import '../Providers/Auth/product_variation_provider.dart';
 import '../Utilities/shimmer_effect.dart';
 import 'package:reorderable_grid_view/reorderable_grid_view.dart';
 
@@ -926,83 +928,90 @@ class NestedGridWidget extends StatelessWidget {
                             return;
                           }
 
-                          final productId = int.tryParse(item["fast_key_product_id"].toString()) ?? 0; //Build #1.0.54: fixed variant dialog issue
+                          final productId = int.tryParse(item["fast_key_product_id"].toString()) ?? -1; //Build #1.0.54: fixed variant dialog issue
                           if (kDebugMode) {
-                            print("NestedGridWidget - Product tapped: ${item['fast_key_item_name']}, ID: $productId");
+                            print("NestedGridWidget - Product tapped: ${item['fast_key_item_name']}, ID: $productId, (${item["fast_key_product_id"]})");
                           }
-            
-                          // Fetch variations for the product
-                          productBloc!.fetchProductVariations(productId);
-            
-                          // Show dialog and listen to the variation stream
-                          if (context.mounted) {
-                            showDialog(
-                              context: context,
-                              builder: (context) => StreamBuilder<APIResponse<List<ProductVariation>>>(
-                                stream: productBloc!.variationStream,
-                                builder: (context, snapshot) {
-                                  if (!snapshot.hasData) {
-                                    if (kDebugMode) {
-                                      print("NestedGridWidget - No data in stream, waiting...");
-                                    }
-                                    return const Center(child: CircularProgressIndicator());
-                                  }
-            
-                                  final response = snapshot.data!;
-                                  if (response.status == Status.LOADING) {
-                                    return const Center(child: CircularProgressIndicator());
-                                  } else if (response.status == Status.COMPLETED) {
-                                    final variations = response.data!;
-                                    if (variations.isNotEmpty) {
-                                      if (kDebugMode) {
-                                        print("NestedGridWidget - Variations found: ${variations.length}");
-                                      }
-                                      return VariantsDialog(
-                                        title: item["fast_key_item_name"],
-                                        variations: variations
-                                            .map((v) => {
-                                          "id": v.id,
-                                          "name": v.name,
-                                          "price": v.regularPrice,
-                                          "image": v.image.src,
-                                        }).toList(),
-                                        onAddVariant: (variant, quantity) {
-                                          if (kDebugMode) {
-                                            print("NestedGridWidget - Adding variant to order: ID=${variant['id']}, Name=${variant['name']}, Quantity=$quantity");
-                                          }
-                                          orderHelper?.addItemToOrder(
-                                            variant["name"],
-                                            variant["image"],
-                                            double.tryParse(variant["price"].toString()) ?? 0.0,
-                                            quantity,
-                                            'SKU${variant["name"]}',
-                                            onItemAdded: () {
-                                              Navigator.pop(context);
-                                              onItemTapped(index, variantAdded: true);
-                                            },
-                                          );
-                                        },
-                                      );
-                                    } else {
-                                      if (kDebugMode) {
-                                        print("NestedGridWidget - No variations found, proceeding with product");
-                                      }
-                                      Navigator.pop(context);
-                                      onItemTapped(index);
-                                      return const SizedBox.shrink();
-                                    }
-                                  } else {
-                                    if (kDebugMode) {
-                                      print("NestedGridWidget - Error fetching variations: ${response.message}");
-                                    }
-                                    Navigator.pop(context);
-                                    onItemTapped(index);
-                                    return const SizedBox.shrink();
-                                  }
-                                },
-                              ),
-                            );
-                          }
+
+                          VariationPopup(productId, item['fast_key_item_name'], orderHelper!,onProductSelected:() {
+
+                            Navigator.pop(context);
+                            onItemTapped(index, variantAdded: true);
+                            return Future(() => null,);
+                            // throw Exception();
+                          }, ).showVariantDialog(context: context);
+                          // // Fetch variations for the product
+                          // productBloc!.fetchProductVariations(productId);
+                          //
+                          // // Show dialog and listen to the variation stream
+                          // if (context.mounted) {
+                          //   showDialog(
+                          //     context: context,
+                          //     builder: (context) => StreamBuilder<APIResponse<List<ProductVariation>>>(
+                          //       stream: productBloc!.variationStream,
+                          //       builder: (context, snapshot) {
+                          //         if (!snapshot.hasData) {
+                          //           if (kDebugMode) {
+                          //             print("NestedGridWidget - No data in stream, waiting...");
+                          //           }
+                          //           return const Center(child: CircularProgressIndicator());
+                          //         }
+                          //
+                          //         final response = snapshot.data!;
+                          //         if (response.status == Status.LOADING) {
+                          //           return const Center(child: CircularProgressIndicator());
+                          //         } else if (response.status == Status.COMPLETED) {
+                          //           final variations = response.data!;
+                          //           if (variations.isNotEmpty) {
+                          //             if (kDebugMode) {
+                          //               print("NestedGridWidget - Variations found: ${variations.length}");
+                          //             }
+                          //             return VariantsDialog(
+                          //               title: item["fast_key_item_name"],
+                          //               variations: variations
+                          //                   .map((v) => {
+                          //                 "id": v.id,
+                          //                 "name": v.name,
+                          //                 "price": v.regularPrice,
+                          //                 "image": v.image.src,
+                          //               }).toList(),
+                          //               onAddVariant: (variant, quantity) {
+                          //                 if (kDebugMode) {
+                          //                   print("NestedGridWidget - Adding variant to order: ID=${variant['id']}, Name=${variant['name']}, Quantity=$quantity");
+                          //                 }
+                          //                 orderHelper?.addItemToOrder(
+                          //                   variant["name"],
+                          //                   variant["image"],
+                          //                   double.tryParse(variant["price"].toString()) ?? 0.0,
+                          //                   quantity,
+                          //                   'SKU${variant["name"]}',
+                          //                   onItemAdded: () {
+                          //                     Navigator.pop(context);
+                          //                     onItemTapped(index, variantAdded: true);
+                          //                   },
+                          //                 );
+                          //               },
+                          //             );
+                          //           } else {
+                          //             if (kDebugMode) {
+                          //               print("NestedGridWidget - No variations found, proceeding with product");
+                          //             }
+                          //             Navigator.pop(context);
+                          //             onItemTapped(index);
+                          //             return const SizedBox.shrink();
+                          //           }
+                          //         } else {
+                          //           if (kDebugMode) {
+                          //             print("NestedGridWidget - Error fetching variations: ${response.message}");
+                          //           }
+                          //           Navigator.pop(context);
+                          //           onItemTapped(index);
+                          //           return const SizedBox.shrink();
+                          //         }
+                          //       },
+                          //     ),
+                          //   );
+                          // }
                         },
                         child: Card(
                           color: Colors.white,
@@ -1070,5 +1079,10 @@ class NestedGridWidget extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> updateOrderPanel(int index) async{
+    // Navigator.pop(context);
+    onItemTapped(index, variantAdded: true);
   }
 }

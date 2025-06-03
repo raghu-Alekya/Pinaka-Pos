@@ -198,6 +198,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     // Custom NumPad
                     CustomNumPad(
+                      numPadType: NumPadType.login,
                       onDigitPressed: _updatePassword,
                       onClearPressed: _clearPassword,
                       onDeletePressed: _deletePassword,

@@ -1122,7 +1122,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                                   // Build #1.0.29:  Update CustomNumPad code
                                   // Update CustomNumPad usage in _buildPaymentSection
                                   CustomNumPad(
-                                    isPayment: true,
+                                    numPadType: NumPadType.payment,
                                     getPaidAmount: () => amountController.text,
                                     balanceAmount: balanceAmount,
                                     onDigitPressed: (value) {

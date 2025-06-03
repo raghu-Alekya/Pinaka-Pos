@@ -37,6 +37,9 @@ class _AppsDashboardScreenState extends State<AppsDashboardScreen> {
   //OrderPanelPosition orderPanelPosition = OrderPanelPosition.right; // Default to right
   bool isLoading = true; // Add a loading state
 
+  // Add variables to track which card is being pressed
+  int? _pressedCardIndex;
+
   @override
   void initState() {
     super.initState();
@@ -109,6 +112,7 @@ class _AppsDashboardScreenState extends State<AppsDashboardScreen> {
                         _buildCard(
                           title: TextConstants.cashier,
                           icon: 'assets/svg/cashier.svg',
+                          cardIndex: 0,
                           onTap: () {
                             Navigator.push(
                               context,
@@ -121,6 +125,7 @@ class _AppsDashboardScreenState extends State<AppsDashboardScreen> {
                         _buildCard(
                           title: TextConstants.safeDrop,
                           icon: 'assets/svg/safe_drop.svg',
+                          cardIndex: 1,
                           onTap: () {
                             Navigator.push(
                               context,
@@ -174,44 +179,50 @@ class _AppsDashboardScreenState extends State<AppsDashboardScreen> {
     required String title,
     required String icon,
     required VoidCallback onTap,
+    required int cardIndex,
   }) {
-    return InkWell(
-      onTap: onTap,
+    return Material(
+      elevation: 2,
       borderRadius: BorderRadius.circular(12),
-      child: Card(
-        elevation: 2,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
-        ),
-        child: Column(
-          children: [
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFFECF7FF),
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(18),
-                    topRight: Radius.circular(18),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        //splashColor: Colors.blue.withValues(alpha: 0.3),
+        highlightColor: Colors.blue.withValues(alpha: 0.3),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Column(
+            children: [
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFECF7FF),
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(18),
+                      topRight: Radius.circular(18),
+                    ),
+                  ),
+                  width: double.infinity,
+                  child: SvgPicture.asset(
+                    icon,
+                    fit: BoxFit.contain,
                   ),
                 ),
-                width: double.infinity,
-                child: SvgPicture.asset(
-                  icon,
-                  fit: BoxFit.contain,
+              ),
+              Padding(
+                padding: const EdgeInsets.all(25.0),
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(25.0),
-              child: Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

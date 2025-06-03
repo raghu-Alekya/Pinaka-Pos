@@ -33,6 +33,7 @@ class _StoreIdScreenState extends State<StoreIdScreen> {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
   String? _lastErrorMessage;
+  bool _isPasswordVisible = false; // Added for password visibility toggle
 
 
   @override
@@ -73,6 +74,13 @@ class _StoreIdScreenState extends State<StoreIdScreen> {
         MaterialPageRoute(builder: (context) => const FastKeyScreen()),
       );
     }
+  }
+
+  // Toggle password visibility
+  void _togglePasswordVisibility() {
+    setState(() {
+      _isPasswordVisible = !_isPasswordVisible;
+    });
   }
 
   // void _updatePassword(String value) {
@@ -271,18 +279,28 @@ class _StoreIdScreenState extends State<StoreIdScreen> {
                           ),
                           child: TextFormField(
                             controller: _passwordController,
-                            decoration: const InputDecoration(
+                            keyboardType: TextInputType.text,
+                            autocorrect: false,
+                            enableSuggestions: false,
+                            decoration: InputDecoration(
                               hintText: 'Password',
-                              enabledBorder: UnderlineInputBorder(
+                              enabledBorder: const UnderlineInputBorder(
                                 borderSide: BorderSide(
                                   color: Colors.white,
                                   width: 1.0,
                                   style: BorderStyle.none,
                                 ),
                               ),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                                  color: Colors.grey,
+                                ),
+                                onPressed: _togglePasswordVisibility,
+                              ),
                             ),
                             textAlign: TextAlign.center,
-                            obscureText: true,
+                            obscureText: !_isPasswordVisible, // Password visibility based on toggle
                             textInputAction: TextInputAction.next,
                             validator: (value) {
                               if (value == null || value.isEmpty) {

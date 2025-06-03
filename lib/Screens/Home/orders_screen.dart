@@ -993,7 +993,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
       }
     });
 
-    _orderBloc.fetchOrders(allStatuses: true);
+    _orderBloc.fetchOrders(allStatuses: false);
   }
 
   // Sort orders based on column

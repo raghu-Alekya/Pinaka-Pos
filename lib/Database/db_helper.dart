@@ -35,13 +35,21 @@ class AppDBConst { // Build #1.0.10 - Naveen: Updated DB tables constants
   // Purchased Items Table
   static const String purchasedItemsTable = 'purchased_items_table';
   static const String itemId = 'items_id';
-  static const String itemName = 'item_name';
+  static const String itemServerId = 'items_server_id'; // For delete edit or update this id is required every time so save API response with this id
+  static const String itemName = 'item_name'; //For Coupons it will be "code": "123456", for payout it will be empty,
   static const String itemSKU = 'item_sku'; // Stock Keeping Unit (unique identifier for the product)
   static const String itemPrice = 'item_price';
   static const String itemImage = 'item_image';
   static const String itemCount = 'items_count'; // Quantity of the item
   static const String itemSumPrice = 'item_sum_price'; // Total price (quantity * price)
+  static const String itemType = 'item_type'; // Enum (Product, Coupon, Payout)
   static const String orderIdForeignKey = 'order_id'; // Links to the order this item belongs to
+
+  // Coupon Items Table: remove if above itemType is not working properly
+  static const String couponsItemsTable = 'coupons_items_table';
+  static const String couponId = 'coupon_id';
+  static const String couponCode = 'coupon_code';
+  static const String couponNominalAmount = 'coupon_nominal_amount';
 
   // Build #1.0.11 : FastKey Tabs Table Updated
   static const String fastKeyTable = 'fast_key_tabs';
@@ -58,7 +66,7 @@ class AppDBConst { // Build #1.0.10 - Naveen: Updated DB tables constants
   static const String fastKeyItemsTable = 'fast_key_items';
   static const String fastKeyItemId = 'fast_key_item_id';
   static const String fastKeyProductId = 'fast_key_product_id'; // Build #1.0.19: Updated new colum's
-  static const String fastKeySlNumber = 'fast_key_sl_number';
+  static const String fastKeySlNumber = 'fast_key_sl_number'; // server id
   static const String fastKeyIdForeignKey = 'fast_key_id';
   static const String fastKeyItemName = 'fast_key_item_name';
   static const String fastKeyItemImage = 'fast_key_item_image';

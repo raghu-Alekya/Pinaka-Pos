@@ -1,3 +1,5 @@
+import 'package:pinaka_pos/Models/Search/product_by_sku_model.dart';
+
 class ProductResponse { // Build #1.0.13 : Added product search model
   int? id;
   String? name;
@@ -21,7 +23,7 @@ class ProductResponse { // Build #1.0.13 : Added product search model
   String? weight;
   Dimensions? dimensions;
   List<String>? categories;
-  List<String>? tags;
+  List<Tags>? tags;
   List<String>? images;
   List<Attribute>? attributes;
   List<MetaData>? metaData;
@@ -90,7 +92,7 @@ class ProductResponse { // Build #1.0.13 : Added product search model
           ? List<String>.from(json['categories'].map((x) => x.toString()))
           : null,
       tags: json['tags'] != null
-          ? List<String>.from(json['tags'].map((x) => x.toString()))
+          ? List<Tags>.from(json['tags'].map((x) => Tags.fromJson(x)))
           : null,
       images: _parseImages(json['images']),
       attributes: json['attributes'] != null
@@ -147,7 +149,7 @@ class ProductResponse { // Build #1.0.13 : Added product search model
       'weight': weight,
       'dimensions': dimensions?.toJson(),
       'categories': categories,
-      'tags': tags,
+      'tags': tags?.map((x) => x.toJson()).toList(),
       'images': images,
       'attributes': attributes?.map((x) => x?.toJson()).toList(),
       'meta_data': metaData?.map((x) => x.toJson()).toList(),
@@ -234,6 +236,30 @@ class MetaData {
     };
   }
 }
+
+// class Tags {
+//   int? id;
+//   String? name;
+//   String? slug;
+//
+//   Tags({this.id, this.name, this.slug});
+//
+//   factory Tags.fromJson(Map<String, dynamic> json) {
+//     return Tags(
+//       id: json['id'] as int?,
+//       name: json['name'] as String?,
+//       slug: json['slug'] as String?,
+//     );
+//   }
+//
+//   Map<String, dynamic> toJson() {
+//     return {
+//       'id': id,
+//       'name': name,
+//       'slug': slug,
+//     };
+//   }
+// }
 
 class ProductRequest { // Build #1.0.13 : Added product search model
   int page;

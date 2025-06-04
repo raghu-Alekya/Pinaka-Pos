@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_barcode_listener/flutter_barcode_listener.dart';
 import 'package:pinaka_pos/Widgets/widget_custom_num_pad.dart';
 
 class AgeVerificationPopup extends StatefulWidget {
@@ -196,30 +197,47 @@ class _AgeVerificationPopupState extends State<AgeVerificationPopup> {
 
             const SizedBox(height: 4),
 
-            // Date input field
-            TextField(
-              controller: _dobController,
-              readOnly: true,
-              decoration: InputDecoration(
-                hintText: 'mm/dd/yyyy',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: Colors.grey[300]!),
+            BarcodeKeyboardListener( // Build #1.0.44 : Added - Wrap with BarcodeKeyboardListener for barcode scanning
+                bufferDuration: Duration(milliseconds: 400),
+
+                onBarcodeScanned:(barcode) async {
+                if (kDebugMode) {
+                  print(
+                      "##### DEBUG:Age Verification onBarcodeScanned - Scanned barcode: $barcode");
+                }
+                if (barcode.isNotEmpty) {
+                  if (kDebugMode) {
+                    print(
+                        "##### DEBUG:Age Verification onBarcodeScanned - Scanned barcode: $barcode");
+                  }
+                }
+              },
+              child: TextField(
+                controller: _dobController,
+                readOnly: true,
+                decoration: InputDecoration(
+                  hintText: 'mm/dd/yyyy',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: Colors.grey[300]!),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Colors.blue),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
                 ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: Colors.blue),
+                style: const TextStyle(
+                  fontSize: 16,
+                  letterSpacing: 1.2,
                 ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 16,
-                ),
-              ),
-              style: const TextStyle(
-                fontSize: 16,
-                letterSpacing: 1.2,
               ),
             ),
+            // Date input field
+
 
             // Error message
             if (_errorMessage != null) ...[

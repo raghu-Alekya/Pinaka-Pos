@@ -29,14 +29,16 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
     super.initState();
     quantity = widget.orderItem[AppDBConst.itemCount];
     controller = TextEditingController(
-        text: quantity == 0 ? "" : quantity.toString()
+        text: quantity == 0 ? "1" : quantity.toString()
     );
   }
 
   void updateQuantity(int newQuantity) {
+    if(newQuantity == 0 )
+      return;
     setState(() {
       quantity = newQuantity;
-      controller.text = quantity == 0 ? "" : quantity.toString();
+      controller.text = quantity == 0 ? "1" : quantity.toString();
     });
   }
 
@@ -167,11 +169,11 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                 child: CustomNumPad(
                   onDigitPressed: (digit) {
                     setState(() {
-                      int newQty = int.tryParse((controller.text.isEmpty ? "0" : controller.text) + digit) ?? quantity;
+                      int newQty = int.tryParse((controller.text.isEmpty ? "1" : controller.text) + digit) ?? quantity;
                       updateQuantity(newQty);
                     });
                   },
-                  onClearPressed: () => updateQuantity(0),
+                  onClearPressed: () => updateQuantity(1),
                   onAddPressed: () {
                     widget.onQuantityUpdated(quantity);
                     Navigator.pop(context);

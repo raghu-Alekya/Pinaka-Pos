@@ -9,8 +9,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_barcode_listener/flutter_barcode_listener.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:pinaka_pos/Models/Search/product_by_sku_model.dart' as SKU;
+import 'package:pinaka_pos/Models/Search/product_search_model.dart';
 import 'package:pinaka_pos/Providers/Auth/product_variation_provider.dart';
 import 'package:pinaka_pos/Screens/Home/order_summary_screen.dart';
+import 'package:pinaka_pos/Widgets/widget_age_verification_popup_dialog.dart';
 import 'package:pinaka_pos/Widgets/widget_alert_popup_dialogs.dart';
 import 'package:pinaka_pos/Widgets/widget_custom_num_pad.dart';
 import 'package:pinaka_pos/Widgets/widget_nested_grid_layout.dart';
@@ -390,7 +393,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return BarcodeKeyboardListener( // Build #1.0.44 : Added - Wrap with BarcodeKeyboardListener for barcode scanning
-      bufferDuration: Duration(milliseconds: 400),
+      bufferDuration: Duration(milliseconds: 3000),
       onBarcodeScanned: (barcode) async {
         if (kDebugMode) {
           print("##### DEBUG: onBarcodeScanned - Scanned barcode: $barcode");
@@ -399,6 +402,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
           if (kDebugMode) {
             print("##### DEBUG: onBarcodeScanned - Scanned barcode: $barcode");
           }
+
           // Create new order if none exists
           if (tabs.isEmpty) {
             if (kDebugMode) {
@@ -434,7 +438,8 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                 ///1. Call _productBloc.fetchProductVariations(product.id!);
                 ///2. load Variation popup
                 ///3. On add button from variation popup -> add to order list
-                VariationPopup(product.id, product.name, orderHelper, onProductSelected: fetchOrderItems).showVariantDialog(context: context);
+                _ageRestrictedProduct(product); /// use product id:22, sku:woo-fashion-socks
+                //VariationPopup(product.id, product.name, orderHelper, onProductSelected: fetchOrderItems).showVariantDialog(context: context);
                 // Show variants dialog for products with variations
                 if (kDebugMode) {
                   print("##### DEBUG: onBarcodeScanned - Showing variants dialog");
@@ -642,6 +647,51 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
       ),
     );
   }
+
+  void _ageRestrictedProduct(SKU.ProductBySkuResponse product) {
+///@
+//
+// ANSI 636026100102DL00410277ZA03180012DLDAQD05848559 DCSBELE SHRAVAN DDEN DACKUMAR DDFNvDADNONEaDDGNrDCAD DCBNONEtDCDNONEaDBD02052025gDBB07181978gDBA09032030 DBC1=DAU070 in DAYBROpDAG233 W FELLARS DRrDAIPHOENIXoDAJAZdDAK850237501  uDCF003402EB0B124005cDCGUSAtDCK48102972534.DDAFtDDB02282023aDDD1gDAZBLKsDAW196?DDK1
+//     ZAZAAN.ZACN
+
+    var tagg = product.tags?.firstWhere((element) => element.name == "Age Restricted", orElse: () => SKU.Tags()) ;
+    var hasAgeRestriction = tagg?.name?.contains("Age Restricted");
+
+    if (kDebugMode) {
+      print("Order Panel _ageRestrictedProduct hasAgeRestriction = $hasAgeRestriction");
+    }
+
+    if (hasAgeRestriction ?? false) {
+      var tag = product.tags?.firstWhere((element) => element.name == "Age Restricted", orElse: () => SKU.Tags());
+      if (kDebugMode) {
+        print("Order Panel _ageRestrictedProduct hasAgeRestriction tag = ${tag?.id}, ${tag?.name}, ${tag?.slug}");
+      }
+      if(tag?.slug == "") {
+        return;
+      }
+      AgeVerificationHelper.showAgeVerification(
+        context: context,
+        // productName: product.name,
+        minimumAge: int.parse(tag?.slug ?? "0"),
+        onManualVerify: () {
+          // Add product to cart - manually verified
+          // _addToCart(product);
+        },
+        onAgeVerified: () {
+          // Add product to cart - age verified
+          // _addToCart(product);
+        },
+        onCancel: () {
+          // User cancelled - don't add to cart
+          Navigator.pop(context);
+        },
+      );
+    } else {
+      // No age restriction - add directly
+      // _addToCart(product);
+    }
+  }
+  
 // Current Order UI
   Widget buildCurrentOrder() {
     final theme = Theme.of(context); // Build #1.0.6 - added theme for order panel
@@ -651,12 +701,14 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
     // Fetch discount and tax for the active order
     double orderDiscount = 0.0;
     double orderTax = 0.0;
+    double merchantDiscount = 0.0;
 
     if (orderHelper.activeOrderId != null) {
       final order = orderHelper.orders.firstWhere(
             (order) => order[AppDBConst.orderId] == orderHelper.activeOrderId,
         orElse: () => {},
       );
+      orderDiscount = order[AppDBConst.orderDiscount] as double? ?? 0.0;
       orderDiscount = order[AppDBConst.orderDiscount] as double? ?? 0.0;
       orderTax = order[AppDBConst.orderTax] as double? ?? 0.0;
     }
@@ -1089,7 +1141,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                               Text("Discount", style: TextStyle(color: Colors.green, fontSize: 10)),
                             ],
                           ),
-                          Text("-\$3.00", style: TextStyle(color: Colors.green,fontSize: 10 )),
+                          Text("-\$$orderDiscount", style: TextStyle(color: Colors.green,fontSize: 10 )),
                         ],
                       ),
                       SizedBox(height: 2,),
@@ -1103,7 +1155,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                               SvgPicture.asset("assets/svg/delete.svg",height: 12, width: 12,),
                             ],
                           ),
-                          const Text("-\$3.00", style: TextStyle(color: Colors.blue, fontSize: 10)),
+                          const Text("-\$${0.0}", style: TextStyle(color: Colors.blue, fontSize: 10)),
 
                         ],
                       ),
@@ -1158,7 +1210,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text("Total Items : 6", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),),
+                    Text("Total Items : ${orderItems.length}", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),),
                     Row(
                       children: [
                         Text(_showFullSummary ? 'Net Payable : \$${getSubTotal().toStringAsFixed(2)}' : 'Net Payable : \$${getSubTotal()}',style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),

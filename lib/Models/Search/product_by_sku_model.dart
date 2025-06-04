@@ -54,7 +54,7 @@ class ProductBySkuResponse { // Build #1.0.43: Added by naveen
   final int parentId;
   final String purchaseNote;
   final List<Category> categories;
-  final List<dynamic> tags;
+  final List<Tags>? tags;
   final List<Image> images;
   final List<dynamic> attributes;
   final List<dynamic> defaultAttributes;
@@ -205,7 +205,9 @@ class ProductBySkuResponse { // Build #1.0.43: Added by naveen
           ?.map((e) => Category.fromJson(e))
           .toList() ??
           [],
-      tags: List<dynamic>.from(json['tags'] ?? []),
+      tags: json['tags'] != null
+          ? List<Tags>.from(json['tags'].map((x) => Tags.fromJson(x)))
+          : null,
       images: (json['images'] as List<dynamic>?)
           ?.map((e) => Image.fromJson(e))
           .toList() ??
@@ -529,6 +531,30 @@ class Collection {
   Map<String, dynamic> toJson() {
     return {
       'href': href,
+    };
+  }
+}
+
+class Tags {
+  int? id;
+  String? name;
+  String? slug;
+
+  Tags({this.id, this.name, this.slug});
+
+  factory Tags.fromJson(Map<String, dynamic> json) {
+    return Tags(
+      id: json['id'] as int?,
+      name: json['name'] as String?,
+      slug: json['slug'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'slug': slug,
     };
   }
 }

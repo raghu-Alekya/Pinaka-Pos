@@ -1128,7 +1128,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text("Gross Total", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12), ),
-                          Text("\$${getSubTotal().toStringAsFixed(2)}", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),),
+                          Text("${TextConstants.currencySymbol}${getSubTotal().toStringAsFixed(2)}", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),),
                         ],
                       ),
                       SizedBox(height: 2,),

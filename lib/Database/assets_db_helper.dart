@@ -1,3 +1,4 @@
+import 'package:pinaka_pos/Constants/text.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
@@ -50,7 +51,9 @@ class AssetDBHelper { //Build #1.0.54: added
           AppDBConst.currencySymbol: assetResponse.currencySymbol,
         });
 
-      if (kDebugMode) {
+        TextConstants.currencySymbol = assetResponse.currencySymbol;
+
+        if (kDebugMode) {
         print("#### AssetDBHelper: Inserted asset with ID: $assetId");
       }
 
@@ -142,6 +145,19 @@ class AssetDBHelper { //Build #1.0.54: added
     });
   }
 
+  // Retrieve the currency from the asset table
+  Future<List<String?>?> getCurrency() async {
+    if (kDebugMode) {
+      print("#### AssetDBHelper: Fetching base URL");
+    }
+    final db = await database;
+    final result = await db.query(AppDBConst.assetTable,
+        columns: [AppDBConst.currency, AppDBConst.currencySymbol], limit: 1);
+    if (kDebugMode) {
+      print("#### AssetDBHelper: Base URL query result: $result");
+    }
+    return result.isNotEmpty ? [result.first[AppDBConst.currency] as String?,result.first[AppDBConst.currencySymbol] as String?] : null;
+  }
 
   // Retrieve the base URL from the asset table
   Future<String?> getAppBaseUrl() async {

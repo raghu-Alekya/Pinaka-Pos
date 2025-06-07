@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart';
 
 class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedPreferenceTextConstants classes
 
+  static String currencySymbol        = "\u{20B9}";
   static const String loginBtnText          = "Login";
   static const String settingsHeaderText    = "Settings";
   static const String saveChangesBtnText    = "Save Changes";

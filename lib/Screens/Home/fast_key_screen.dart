@@ -570,7 +570,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
     await orderHelper.addItemToOrder(
       selectedProduct["fast_key_item_name"],
       selectedProduct["fast_key_item_image"],
-      selectedProduct["fast_key_item_price"],
+      double.tryParse(selectedProduct["fast_key_item_price"].toString()) ?? 0.0,
       1,
       'SKU${selectedProduct["fast_key_item_name"]}',
       onItemAdded: _createOrder,

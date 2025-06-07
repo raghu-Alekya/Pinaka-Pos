@@ -6,7 +6,7 @@ import '../../Constants/text.dart';
 import '../../Database/order_panel_db_helper.dart';
 import '../../Helper/api_response.dart';
 import '../../Models/Orders/apply_discount_model.dart';
-import '../../Models/Orders/get_orders_model.dart';
+import '../../Models/Orders/get_orders_model.dart' as model;
 import '../../Models/Orders/orders_model.dart';
 import '../../Repositories/Orders/order_repository.dart';
 
@@ -20,9 +20,10 @@ class OrderBloc { // Build #1.0.25 - added by naveen
   late  StreamController<APIResponse<UpdateOrderResponseModel>> _deleteOrderItemController;
   late  StreamController<APIResponse<ApplyDiscountResponse>> _applyDiscountController;
   late  StreamController<APIResponse<UpdateOrderResponseModel>> _changeOrderStatusController;
-  late  StreamController<APIResponse<OrdersListModel>> _fetchOrdersController;
+  late  StreamController<APIResponse<model.OrdersListModel>> _fetchOrdersController;
   late  StreamController<APIResponse<UpdateOrderResponseModel>> _addPayoutController;
   late  StreamController<APIResponse<UpdateOrderResponseModel>> _removePayoutController;
+  late StreamController<APIResponse<UpdateOrderResponseModel>> _removeCouponController;
 
   // Build #1.0.53 : updated code -  Constructor ---
   OrderBloc(this._orderRepository) {
@@ -32,10 +33,10 @@ class OrderBloc { // Build #1.0.25 - added by naveen
     _deleteOrderItemController = StreamController<APIResponse<UpdateOrderResponseModel>>.broadcast();
     _applyDiscountController = StreamController<APIResponse<ApplyDiscountResponse>>.broadcast();
     _changeOrderStatusController = StreamController<APIResponse<UpdateOrderResponseModel>>.broadcast();
-    _fetchOrdersController = StreamController<APIResponse<OrdersListModel>>.broadcast();
+    _fetchOrdersController = StreamController<APIResponse<model.OrdersListModel>>.broadcast();
     _addPayoutController = StreamController<APIResponse<UpdateOrderResponseModel>>.broadcast();
     _removePayoutController = StreamController<APIResponse<UpdateOrderResponseModel>>.broadcast();
-
+    _removeCouponController = StreamController<APIResponse<UpdateOrderResponseModel>>.broadcast();
     if (kDebugMode) {
       print("OrderBloc Initialized with all stream controllers.");
     }
@@ -67,8 +68,8 @@ class OrderBloc { // Build #1.0.25 - added by naveen
   Stream<APIResponse<UpdateOrderResponseModel>> get changeOrderStatusStream => _changeOrderStatusController.stream;
 
   // Fetch Orders
-  StreamSink<APIResponse<OrdersListModel>> get fetchOrdersSink => _fetchOrdersController.sink;
-  Stream<APIResponse<OrdersListModel>> get fetchOrdersStream => _fetchOrdersController.stream;
+  StreamSink<APIResponse<model.OrdersListModel>> get fetchOrdersSink => _fetchOrdersController.sink;
+  Stream<APIResponse<model.OrdersListModel>> get fetchOrdersStream => _fetchOrdersController.stream;
 
   // Add Payout
   StreamSink<APIResponse<UpdateOrderResponseModel>> get addPayoutSink => _addPayoutController.sink;
@@ -77,7 +78,9 @@ class OrderBloc { // Build #1.0.25 - added by naveen
   // Remove Payout
   StreamSink<APIResponse<UpdateOrderResponseModel>> get removePayoutSink => _removePayoutController.sink;
   Stream<APIResponse<UpdateOrderResponseModel>> get removePayoutStream => _removePayoutController.stream;
-
+   // Remove Coupon
+  StreamSink<APIResponse<UpdateOrderResponseModel>> get removeCouponSink => _removeCouponController.sink;
+  Stream<APIResponse<UpdateOrderResponseModel>> get removeCouponStream => _removeCouponController.stream;
 
   // 1. Create Order
   Future<void> createOrder(List<OrderMetaData> metaData) async {
@@ -211,6 +214,21 @@ class OrderBloc { // Build #1.0.25 - added by naveen
         print("OrderBloc - Order Status: ${response.status}");
       }
 
+      OrderHelper orderHelper = OrderHelper();
+      for (var coupon in response.couponLines ?? []) {
+        if (kDebugMode) {
+          print("##### code 123: ${coupon.code ?? ''}");
+        }
+        await orderHelper.addItemToOrder(
+          coupon.code ?? '',
+          'assets/svg/coupon.svg',
+          coupon.nominalAmount?.toDouble() ?? 0.0, // Safely convert to double
+          1, //quantity
+          '', //sku
+          type: ItemType.coupon.value,
+        );
+      }
+
       applyCouponSink.add(APIResponse.completed(response));
     } catch (e) {
       applyCouponSink.add(APIResponse.error(_extractErrorMessage(e))); // Build #1.0.53 : Extracting the message from error
@@ -243,10 +261,7 @@ class OrderBloc { // Build #1.0.25 - added by naveen
     }
   }
   // 5. Delete Order Item
-  Future<void> deleteOrderItem({
-    required int orderId,
-    required List<OrderLineItem> lineItems,
-  }) async {
+  Future<void> deleteOrderItem({required int orderId, required List<OrderLineItem> lineItems,}) async {
     if (_deleteOrderItemController.isClosed) return;
 
     deleteOrderItemSink.add(APIResponse.loading(TextConstants.loading));
@@ -343,6 +358,19 @@ class OrderBloc { // Build #1.0.25 - added by naveen
         print("OrderBloc - Payout added to order ID: ${response.id}");
         print("OrderBloc - New total: ${response.total}");
       }
+      OrderHelper orderHelper = OrderHelper();
+      for (var feeLine in response.feeLines) {
+        if (feeLine.name == TextConstants.payout) {
+          await orderHelper.addItemToOrder(
+            feeLine.name ?? 'Payout', //TODO: change here to replace of payout
+            'assets/svg/payout.svg',
+            double.parse(feeLine.total ?? '0.0'),
+            1, // quantity
+            '', //sku
+            type: ItemType.payout.value,
+          );
+        }
+      }
 
       addPayoutSink.add(APIResponse.completed(response));
     } catch (e) {
@@ -371,6 +399,32 @@ class OrderBloc { // Build #1.0.25 - added by naveen
     } catch (e) {
       removePayoutSink.add(APIResponse.error(_extractErrorMessage(e)));
       if (kDebugMode) print("Exception in removePayout: $e");
+    }
+  }
+
+  // Build #1.0.64: Remove Coupon Function
+  Future<void> removeCoupon({required int orderId, required String couponCode}) async {
+    if (_removeCouponController.isClosed) return;
+
+    removeCouponSink.add(APIResponse.loading(TextConstants.loading));
+    try {
+      final request = RemoveCouponRequestModel(
+        couponLines: [CouponLine(code: couponCode, remove: true)],
+      );
+      final response = await _orderRepository.removeCoupon(orderId: orderId, request: request);
+
+      if (kDebugMode) {
+        print("OrderBloc - Coupon removed from order ID: ${response.id}");
+        print("OrderBloc - New total: ${response.total}");
+      }
+
+      // OrderHelper orderHelper = OrderHelper();
+      // await orderHelper.removeCouponFromOrder(couponCode);
+
+      removeCouponSink.add(APIResponse.completed(response));
+    } catch (e) {
+      removeCouponSink.add(APIResponse.error(_extractErrorMessage(e)));
+      if (kDebugMode) print("Exception in removeCoupon: $e");
     }
   }
 
@@ -403,6 +457,7 @@ class OrderBloc { // Build #1.0.25 - added by naveen
     if (!_changeOrderStatusController.isClosed) _changeOrderStatusController.close();
     if (!_addPayoutController.isClosed) _addPayoutController.close();
     if (!_removePayoutController.isClosed) _removePayoutController.close();
+    if (!_removeCouponController.isClosed) _removeCouponController.close();
     if (kDebugMode) print("OrderBloc disposed with all controllers");
   }
 }

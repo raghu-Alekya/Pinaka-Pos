@@ -31,6 +31,8 @@ class OrderModel {
   final Billing billing;
   final Shipping shipping;
   final List<LineItem> lineItems;
+  List<FeeLine>? feeLines;    // For payout and discount data
+  List<CouponLine>? couponLines; // For coupon data
   final List<MetaData> metaData;
   final String? datePaid;
   final String? dateCompleted;
@@ -60,6 +62,8 @@ class OrderModel {
     required this.billing,
     required this.shipping,
     required this.lineItems,
+    this.feeLines,
+    this.couponLines,
     required this.metaData,
     this.datePaid,
     this.dateCompleted,
@@ -94,6 +98,8 @@ class OrderModel {
           ?.map((item) => LineItem.fromJson(item))
           .toList() ??
           [],
+      feeLines: (json['fee_lines'] as List<dynamic>?)?.map((e) => FeeLine.fromJson(e as Map<String, dynamic>)).toList(),
+      couponLines: (json['coupon_lines'] as List<dynamic>?)?.map((e) => CouponLine.fromJson(e as Map<String, dynamic>)).toList(),
       metaData: (json['meta_data'] as List<dynamic>?)
           ?.map((item) => MetaData.fromJson(item))
           .toList() ??
@@ -104,6 +110,81 @@ class OrderModel {
       paymentMethodTitle: json['payment_method_title'] ?? '',
       number: json['number'] ?? '',
       currencySymbol: json['currency_symbol'] ?? '₹',
+    );
+  }
+}
+
+class FeeLine {// Build #1.0.64
+  int? id;
+  String? name;
+  String? taxClass;
+  String? taxStatus;
+  String? amount;
+  String? total;
+  String? totalTax;
+  List<dynamic>? taxes;
+  List<dynamic>? metaData;
+
+  FeeLine({
+    this.id,
+    this.name,
+    this.taxClass,
+    this.taxStatus,
+    this.amount,
+    this.total,
+    this.totalTax,
+    this.taxes,
+    this.metaData,
+  });
+
+  factory FeeLine.fromJson(Map<String, dynamic> json) {
+    return FeeLine(
+      id: json['id'] as int?,
+      name: json['name'] as String?,
+      taxClass: json['tax_class'] as String?,
+      taxStatus: json['tax_status'] as String?,
+      amount: json['amount'] as String?,
+      total: json['total'] as String?,
+      totalTax: json['total_tax'] as String?,
+      taxes: json['taxes'] as List<dynamic>?,
+      metaData: json['meta_data'] as List<dynamic>?,
+    );
+  }
+}
+
+class CouponLine { // Build #1.0.64
+  int? id;
+  String? code;
+  String? discount;
+  String? discountTax;
+  double? nominalAmount;
+  String? discountType;
+  bool? freeShipping;
+  List<MetaData>? metaData;
+
+  CouponLine({
+    this.id,
+    this.code,
+    this.discount,
+    this.discountTax,
+    this.nominalAmount,
+    this.discountType,
+    this.freeShipping,
+    this.metaData,
+  });
+
+  factory CouponLine.fromJson(Map<String, dynamic> json) {
+    return CouponLine(
+      id: json['id'] as int?,
+      code: json['code'] as String?,
+      discount: json['discount'] as String?,
+      discountTax: json['discount_tax'] as String?,
+      nominalAmount: double.tryParse(json['nominal_amount'].toString()) ?? 0.0,
+      discountType: json['discount_type'] as String?,
+      freeShipping: json['free_shipping'] as bool?,
+      metaData: (json['meta_data'] as List<dynamic>?)
+          ?.map((item) => MetaData.fromJson(item))
+          .toList(),
     );
   }
 }

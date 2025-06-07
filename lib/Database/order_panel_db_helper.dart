@@ -4,10 +4,21 @@ import 'package:pinaka_pos/Database/user_db_helper.dart';
 import 'package:pinaka_pos/Models/Orders/orders_model.dart';
 import 'package:pinaka_pos/Repositories/Orders/order_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sqflite/sqflite.dart';
 import '../Constants/text.dart';
 import '../Helper/api_response.dart';
-import '../Models/Orders/get_orders_model.dart';
+import '../Models/Orders/get_orders_model.dart' as model;
 import 'db_helper.dart';
+
+// Build #1.0.64: Add ItemType enum
+enum ItemType {
+  customProduct(TextConstants.customProductText),
+  coupon(TextConstants.couponText),
+  payout(TextConstants.payoutText);
+
+  final String value;
+  const ItemType(this.value);
+}
 
 class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Order data
   static final OrderHelper _instance = OrderHelper._internal(); // Singleton instance to ensure only one instance of OrderHelper exists
@@ -138,7 +149,7 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
   }
 
   //Build #1.0.40: syncOrdersFromApi
-  Future<void> syncOrdersFromApi(List<OrderModel> apiOrders) async {
+  Future<void> syncOrdersFromApi(List<model.OrderModel> apiOrders) async {
     final db = await DBHelper.instance.database;
     if (kDebugMode) {
       print("#### DEBUG: syncOrdersFromApi - Processing ${apiOrders.length} orders");
@@ -196,6 +207,8 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
 
       // Sync line items using API order id
       await updateOrderItems(apiOrder.id, apiOrder.lineItems);
+      await updateOrderPayoutItems(apiOrder.id, apiOrder.feeLines ?? []); // Build #1.0.64
+      await updateOrderCouponItems(apiOrder.id, apiOrder.couponLines ?? []);
     }
 
     if (kDebugMode) {
@@ -205,7 +218,7 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
   }
 
   //Build #1.0.40: update order items using item id
-  Future<void> updateOrderItems(int orderId, List<LineItem> apiItems) async {
+  Future<void> updateOrderItems(int orderId, List<model.LineItem> apiItems) async {
     if (kDebugMode) {
       print("#### DEBUG: updateOrderItems orderId: $orderId");
     }
@@ -263,6 +276,7 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
           AppDBConst.itemCount: itemQuantity,
           AppDBConst.itemSumPrice: itemSumPrice,
           AppDBConst.orderIdForeignKey: orderId,
+          AppDBConst.itemType: ItemType.customProduct.value, // Added: Add item_type
         });
         if (kDebugMode) {
           print("#### DEBUG: Inserted new item ID: $itemId for order $orderId");
@@ -313,6 +327,167 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
       print("#### DEBUG: Updated order total: $orderTotal, discount: $orderDiscount, tax: $orderTax for order $orderId, items: $items");
     }
   }
+
+
+  // Build #1.0.64 : Modified updateOrderPayoutItems to align with updateOrderItems
+  Future<void> updateOrderPayoutItems(int orderId, List<model.FeeLine> feeLines) async {
+    if (kDebugMode) {
+      print("#### DEBUG: updateOrderPayoutItems orderId: $orderId");
+    }
+    final db = await DBHelper.instance.database;
+    final existingItems = await db.query(
+      AppDBConst.purchasedItemsTable,
+      where: '${AppDBConst.orderIdForeignKey} = ? AND ${AppDBConst.itemType} = ?',
+      whereArgs: [orderId, ItemType.payout.value],
+    );
+
+    final existingItemsMap = {
+      for (var item in existingItems) item[AppDBConst.itemId].toString(): item,
+    };
+
+    if (kDebugMode) {
+      print("#### DEBUG: updateOrderPayoutItems - Processing ${feeLines.length} payout items for order $orderId, existing items: ${existingItems.length}");
+    }
+
+    for (var feeLine in feeLines) {
+      if (feeLine.name == TextConstants.payout) {
+        final itemId = feeLine.id.toString();
+        final double itemPrice = double.parse(feeLine.total ?? '0.0');
+        final int itemQuantity = 1;
+        final double itemSumPrice = itemPrice;
+
+        if (kDebugMode) {
+          print("#### DEBUG: updateOrderPayoutItems - Processing payout item ID: $itemId, name: ${feeLine.name}, price: $itemPrice, quantity: $itemQuantity, sumPrice: $itemSumPrice");
+        }
+
+        if (existingItemsMap.containsKey(itemId)) {
+          final existingItem = existingItemsMap[itemId]!;
+          await db.update(
+            AppDBConst.purchasedItemsTable,
+            {
+              AppDBConst.itemName: feeLine.name ?? 'Payout',
+              AppDBConst.itemPrice: itemPrice,
+              AppDBConst.itemCount: itemQuantity,
+              AppDBConst.itemSumPrice: itemSumPrice,
+              AppDBConst.itemImage: 'assets/svg/payout.svg',
+              AppDBConst.itemSKU: '',
+            },
+            where: '${AppDBConst.itemId} = ?',
+            whereArgs: [existingItem[AppDBConst.itemId]],
+          );
+          if (kDebugMode) {
+            print("#### DEBUG: Updated payout item ID: $itemId for order $orderId");
+          }
+          existingItemsMap.remove(itemId);
+        } else {
+          await db.insert(AppDBConst.purchasedItemsTable, {
+            AppDBConst.itemId: feeLine.id,
+            AppDBConst.itemName: feeLine.name ?? 'Payout',
+            AppDBConst.itemSKU: '',
+            AppDBConst.itemPrice: itemPrice,
+            AppDBConst.itemImage: 'assets/svg/payout.svg',
+            AppDBConst.itemCount: itemQuantity,
+            AppDBConst.itemSumPrice: itemSumPrice,
+            AppDBConst.orderIdForeignKey: orderId,
+            AppDBConst.itemType: ItemType.payout.value,
+          });
+          if (kDebugMode) {
+            print("#### DEBUG: Inserted new payout item ID: $itemId for order $orderId");
+          }
+        }
+      }
+    }
+
+    for (var item in existingItemsMap.values) {
+      await db.delete(
+        AppDBConst.purchasedItemsTable,
+        where: '${AppDBConst.itemId} = ?',
+        whereArgs: [item[AppDBConst.itemId]],
+      );
+      if (kDebugMode) {
+        print("#### DEBUG: Deleted obsolete payout item ID: ${item[AppDBConst.itemId]} for order $orderId");
+      }
+    }
+  }
+
+  // Build #1.0.64 : Modified updateOrderCouponItems to align with updateOrderItems
+  Future<void> updateOrderCouponItems(int orderId, List<model.CouponLine> couponLines) async {
+    if (kDebugMode) {
+      print("#### DEBUG: updateOrderCouponItems orderId: $orderId");
+    }
+    final db = await DBHelper.instance.database;
+    final existingItems = await db.query(
+      AppDBConst.purchasedItemsTable,
+      where: '${AppDBConst.orderIdForeignKey} = ? AND ${AppDBConst.itemType} = ?',
+      whereArgs: [orderId, ItemType.coupon.value],
+    );
+
+    final existingItemsMap = {
+      for (var item in existingItems) item[AppDBConst.itemId].toString(): item,
+    };
+
+    if (kDebugMode) {
+      print("#### DEBUG: updateOrderCouponItems - Processing ${couponLines.length} coupon items for order $orderId, existing items: ${existingItems.length}");
+    }
+
+    for (var coupon in couponLines) {
+      final itemId = coupon.id.toString();
+      final double itemPrice = coupon.nominalAmount ?? 0.0;
+      final int itemQuantity = 1;
+      final double itemSumPrice = itemPrice;
+
+      if (kDebugMode) {
+        print("#### DEBUG: updateOrderCouponItems - Processing coupon item ID: $itemId, code: ${coupon.code}, price: $itemPrice, quantity: $itemQuantity, sumPrice: $itemSumPrice");
+      }
+
+      if (existingItemsMap.containsKey(itemId)) {
+        final existingItem = existingItemsMap[itemId]!;
+        await db.update(
+          AppDBConst.purchasedItemsTable,
+          {
+            AppDBConst.itemName: coupon.code ?? 'Coupon',
+            AppDBConst.itemPrice: itemPrice,
+            AppDBConst.itemCount: itemQuantity,
+            AppDBConst.itemSumPrice: itemSumPrice,
+            AppDBConst.itemImage: 'assets/svg/coupon.svg',
+            AppDBConst.itemSKU: '',
+          },
+          where: '${AppDBConst.itemId} = ?',
+          whereArgs: [existingItem[AppDBConst.itemId]],
+        );
+        if (kDebugMode) {
+          print("#### DEBUG: Updated coupon item ID: $itemId for order $orderId");
+        }
+        existingItemsMap.remove(itemId);
+      } else {
+        await db.insert(AppDBConst.purchasedItemsTable, {
+          AppDBConst.itemId: coupon.id,
+          AppDBConst.itemName: '',
+          AppDBConst.itemSKU: '',
+          AppDBConst.itemPrice: itemPrice,
+          AppDBConst.itemImage: 'assets/svg/coupon.svg',
+          AppDBConst.itemCount: itemQuantity,
+          AppDBConst.itemSumPrice: itemSumPrice,
+          AppDBConst.orderIdForeignKey: orderId,
+          AppDBConst.itemType: ItemType.coupon.value,
+        });
+        if (kDebugMode) {
+          print("#### DEBUG: Inserted new coupon item ID: $itemId for order $orderId");
+        }
+      }
+    }
+
+    for (var item in existingItemsMap.values) {
+      await db.delete(
+        AppDBConst.purchasedItemsTable,
+        where: '${AppDBConst.itemId} = ?',
+        whereArgs: [item[AppDBConst.itemId]],
+      );
+      if (kDebugMode) {
+        print("#### DEBUG: Deleted obsolete coupon item ID: ${item[AppDBConst.itemId]} for order $orderId");
+      }
+    }
+ }
 
   // Creates a new order and sets it as active
   Future<int> createOrder() async { // Build #1.0.11 : updated
@@ -448,7 +623,7 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
   }
 
   // Adds an item to the currently active order; creates an order if none exists
-  Future<void> addItemToOrder(String name, String image, double price, int quantity, String sku, {VoidCallback? onItemAdded}) async {
+  Future<void> addItemToOrder(String name, String image, double price, int quantity, String sku,{VoidCallback? onItemAdded, String? type}) async {
     // Ensure there is an active order; create one if needed
     if (activeOrderId == null) {
       await createOrder();
@@ -484,6 +659,7 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
         AppDBConst.itemSumPrice: price * quantity,
         AppDBConst.orderIdForeignKey: activeOrderId,
         AppDBConst.itemSKU: sku,
+        AppDBConst.itemType: type,
       });
     }
 

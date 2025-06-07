@@ -709,8 +709,8 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
         orElse: () => {},
       );
       orderDiscount = order[AppDBConst.orderDiscount] as double? ?? 0.0;
-      orderDiscount = order[AppDBConst.orderDiscount] as double? ?? 0.0;
       orderTax = order[AppDBConst.orderTax] as double? ?? 0.0;
+      merchantDiscount = order[AppDBConst.merchantDiscount] as double? ?? 0.0;
     }
     return Column(
       children: [
@@ -731,7 +731,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
             ],
           ),
         ),
-         Padding(
+        Padding(
           padding: EdgeInsets.symmetric(horizontal: 10),
           child: DottedLine(
             dashLength: 4,
@@ -762,6 +762,34 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
             },
             itemBuilder: (context, index) {
               final orderItem = orderItems[index];
+              ///Build #1.0.64:  added conditions
+              /// Compare item type
+              /// if it is payout change icon, name is empty, show amount in red colour
+              /// if it is coupon change icon, name is coupon code (show last 4 digits, prefix with 'X' for each character before last 4), show amount in red colour
+              final itemType = orderItem[AppDBConst.itemType]?.toString().toLowerCase() ?? '';
+              /// Check if the item is a payout or a coupon
+              final isPayout = itemType.contains('payout');
+              final isCoupon = itemType.contains('coupon');
+              final isPayoutOrCoupon = isPayout || isCoupon;
+              /// Get the original name
+              final originalName = orderItem[AppDBConst.itemName]?.toString() ?? '';
+              if (kDebugMode) {
+                print("#### originalName: $originalName");
+              }
+              /// Set display name based on item type
+              String displayName = originalName;
+              if (isPayout) {
+                displayName = '';
+              } else if (isCoupon) {
+                final visiblePartLength = 4;
+                final nameLength = originalName.length;
+                if (nameLength > visiblePartLength) {
+                  final maskedLength = nameLength - visiblePartLength;
+                  final maskedPart = 'X' * maskedLength;
+                  final visiblePart = originalName.substring(nameLength - visiblePartLength);
+                  displayName = '$maskedPart$visiblePart';
+                }
+              }
               return ClipRRect(
                 key: ValueKey(index),
                 borderRadius: BorderRadius.circular(20),
@@ -775,7 +803,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                       motion: const DrawerMotion(),
                       children: [
                         CustomSlidableAction(
-                          onPressed: (context) async { // Build #1.0.53 : when delte tap call delte order item api
+                          onPressed: (context) async {
                             if (kDebugMode) {
                               print("Deleting item at index $index with itemId: ${orderItem[AppDBConst.itemId]}");
                             }
@@ -785,36 +813,96 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                                 orElse: () => {},
                               );
                               final serverOrderId = order[AppDBConst.orderServerId] as int?;
+                              //Build #1.0.64: based on item type delete that item api calling
+                              final itemType = orderItem[AppDBConst.itemType]?.toString().toLowerCase() ?? '';
+                              final isPayout = itemType.contains('payout');
+                              final isCoupon = itemType.contains('coupon');
 
                               if (serverOrderId != null) {
-                                setState(() => _isLoading = true);
-
                                 _updateOrderSubscription?.cancel();
-                                _updateOrderSubscription = orderBloc.deleteOrderItemStream.listen((response) async {
-                                  setState(() => _isLoading = false);
 
-                                  if (response.status == Status.COMPLETED) {
-                                    if (kDebugMode) {
-                                      print("OrderPanel - Item deleted successfully for order $serverOrderId");
+                                if (isPayout) {
+                                  final db = await DBHelper.instance.database;
+                                  final payoutItem = await db.query(
+                                    AppDBConst.purchasedItemsTable,
+                                    where: '${AppDBConst.itemId} = ? AND ${AppDBConst.itemType} = ?',
+                                    whereArgs: [orderItem[AppDBConst.itemId], ItemType.payout.value],
+                                  );
+                                  if (payoutItem.isNotEmpty) {
+                                    final payoutId = payoutItem.first[AppDBConst.itemServerId] as int?;
+                                    if (payoutId != null) {
+                                      _updateOrderSubscription = orderBloc.removePayoutStream.listen((response) async {
+                                       // setState(() => _isLoading = false);
+                                        if (response.status == Status.COMPLETED) {
+                                          if (kDebugMode) {
+                                            print("OrderPanel - Payout deleted successfully for order $serverOrderId");
+                                          }
+                                          await db.update(
+                                            AppDBConst.orderTable,
+                                            {AppDBConst.merchantDiscount: 0.0},
+                                            where: '${AppDBConst.orderId} = ?',
+                                            whereArgs: [orderHelper.activeOrderId],
+                                          );
+                                          await orderHelper.deleteItem(orderItem[AppDBConst.itemId]);
+                                          await fetchOrderItems();
+                                          widget.refreshOrderList?.call();
+                                        } else {
+                                          if (kDebugMode) {
+                                            print("OrderPanel - Payout delete failed: ${response.message}");
+                                          }
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(content: Text(response.message ?? "Failed to delete payout")),
+                                          );
+                                        }
+                                      });
+                                      await orderBloc.removePayout(orderId: serverOrderId, payoutId: payoutId);
                                     }
-                                    await orderHelper.deleteItem(orderItem[AppDBConst.itemId]);
-                                    await fetchOrderItems();
-                                    widget.refreshOrderList?.call();
-                                  } else if (response.status == Status.ERROR) {
-                                    if (kDebugMode) {
-                                      print("OrderPanel - Delete failed: ${response.message}");
-                                    }
-
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text(response.message ?? "Failed to delete item")),
-                                    );
                                   }
-                                });
-
-                                await orderBloc.deleteOrderItem(
-                                  orderId: serverOrderId,
-                                  lineItems: [OrderLineItem(id: orderItem[AppDBConst.itemId], quantity: 0)],
-                                );
+                                } else if (isCoupon) {
+                                  final couponCode = orderItem[AppDBConst.itemName]?.toString() ?? '';
+                                  _updateOrderSubscription = orderBloc.removeCouponStream.listen((response) async {
+                                   // setState(() => _isLoading = false);
+                                    if (response.status == Status.COMPLETED) {
+                                      if (kDebugMode) {
+                                        print("OrderPanel - Coupon deleted successfully for order $serverOrderId");
+                                      }
+                                      await orderHelper.deleteItem(orderItem[AppDBConst.itemId]);
+                                      await fetchOrderItems();
+                                      widget.refreshOrderList?.call();
+                                    } else {
+                                      if (kDebugMode) {
+                                        print("OrderPanel - Coupon delete failed: ${response.message}");
+                                      }
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text(response.message ?? "Failed to delete coupon")),
+                                      );
+                                    }
+                                  });
+                                  await orderBloc.removeCoupon(orderId: serverOrderId, couponCode: couponCode);
+                                } else {
+                                  _updateOrderSubscription = orderBloc.deleteOrderItemStream.listen((response) async {
+                                   // setState(() => _isLoading = false);
+                                    if (response.status == Status.COMPLETED) {
+                                      if (kDebugMode) {
+                                        print("OrderPanel - Item deleted successfully for order $serverOrderId");
+                                      }
+                                      await orderHelper.deleteItem(orderItem[AppDBConst.itemId]);
+                                      await fetchOrderItems();
+                                      widget.refreshOrderList?.call();
+                                    } else {
+                                      if (kDebugMode) {
+                                        print("OrderPanel - Delete failed: ${response.message}");
+                                      }
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text(response.message ?? "Failed to delete item")),
+                                      );
+                                    }
+                                  });
+                                  await orderBloc.deleteOrderItem(
+                                    orderId: serverOrderId,
+                                    lineItems: [OrderLineItem(id: orderItem[AppDBConst.itemId], quantity: 0)],
+                                  );
+                                }
                               } else {
                                 // Fallback to local delete if no server ID
                                 await orderHelper.deleteItem(orderItem[AppDBConst.itemId]);
@@ -881,44 +969,44 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                               borderRadius: BorderRadius.circular(10),
                               child: orderItem[AppDBConst.itemImage].toString().startsWith('http')
                                   ? Image.network(
-                                      orderItem[AppDBConst.itemImage],
-                                      height: 30,
-                                      width: 30,
-                                      fit: BoxFit.cover,
-                                      errorBuilder:
-                                          (context, error, stackTrace) {
-                                        return SvgPicture.asset(
-                                          'assets/svg/password_placeholder.svg',
-                                          height: 30,
-                                          width: 30,
-                                          fit: BoxFit.cover,
-                                        );
-                                      },
-                                    )
+                                orderItem[AppDBConst.itemImage],
+                                height: 30,
+                                width: 30,
+                                fit: BoxFit.cover,
+                                errorBuilder:
+                                    (context, error, stackTrace) {
+                                  return SvgPicture.asset(
+                                    'assets/svg/password_placeholder.svg',
+                                    height: 30,
+                                    width: 30,
+                                    fit: BoxFit.cover,
+                                  );
+                                },
+                              )
                                   : orderItem[AppDBConst.itemImage]
-                                          .toString()
-                                          .startsWith('assets/')
-                                      ? SvgPicture.asset(
-                                          orderItem[AppDBConst.itemImage],
-                                          height: 30,
-                                          width: 30,
-                                          fit: BoxFit.cover,
-                                        )
-                                      : Image.file(
-                                          File(orderItem[AppDBConst.itemImage]),
-                                          height: 30,
-                                          width: 30,
-                                          fit: BoxFit.cover,
-                                          errorBuilder:
-                                              (context, error, stackTrace) {
-                                            return SvgPicture.asset(
-                                              'assets/svg/password_placeholder.svg',
-                                              height: 30,
-                                              width: 30,
-                                              fit: BoxFit.cover,
-                                            );
-                                          },
-                                        ),
+                                  .toString()
+                                  .startsWith('assets/')
+                                  ? SvgPicture.asset(
+                                orderItem[AppDBConst.itemImage],
+                                height: 30,
+                                width: 30,
+                                fit: BoxFit.cover,
+                              )
+                                  : Image.file(
+                                File(orderItem[AppDBConst.itemImage]),
+                                height: 30,
+                                width: 30,
+                                fit: BoxFit.cover,
+                                errorBuilder:
+                                    (context, error, stackTrace) {
+                                  return SvgPicture.asset(
+                                    'assets/svg/password_placeholder.svg',
+                                    height: 30,
+                                    width: 30,
+                                    fit: BoxFit.cover,
+                                  );
+                                },
+                              ),
                             ),
                             const SizedBox(width: 10),
                             Expanded(
@@ -927,17 +1015,19 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Text(
-                                    orderItem[AppDBConst.itemName],
+                                    displayName, // Modified: Use displayName instead of itemName
                                     style: const TextStyle(
                                         fontSize: 13,
                                         fontWeight: FontWeight.bold,
                                         color: Colors.black),
                                   ),
-                                  Text(
-                                    "${orderItem[AppDBConst.itemCount]} * \$${orderItem[AppDBConst.itemPrice]}", // Build #1.0.12: now item count will update in order panel
-                                    style:
-                                        const TextStyle(color: Colors.black54, fontSize: 10),
-                                  ),
+                                  // Modified: Show quantity * price only for non-Payout/Coupon items
+                                  if (!isPayoutOrCoupon)
+                                    Text(
+                                      "${orderItem[AppDBConst.itemCount]} * \$${orderItem[AppDBConst.itemPrice]}",
+                                      style:
+                                      const TextStyle(color: Colors.black54, fontSize: 10),
+                                    ),
                                 ],
                               ),
                             ),
@@ -946,9 +1036,11 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                               children: [
                                 Text(
                                   "\$${(orderItem[AppDBConst.itemCount] * orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}",
-                                  style: const TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold),
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: isPayoutOrCoupon ? Colors.red : Colors.black, // Added: Red color for Payout/Coupon
+                                  ),
                                 ),
                               ],
                             ),
@@ -962,249 +1054,149 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
             },
           ),
         ),
-        // Container(
-        //   padding: const EdgeInsets.fromLTRB(18, 0, 18, 0),
-        //   // decoration: BoxDecoration(
-        //   //   color: Colors.grey.shade200,
-        //   //   borderRadius: BorderRadius.circular(16),
-        //   // ),
-        //   child: Row(
-        //     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        //     children: [
-        //       // EBT Container
-        //       Expanded(
-        //         child: Container(
-        //           padding: EdgeInsets.all(8),
-        //           decoration: BoxDecoration(
-        //             color: Colors.grey.shade200,
-        //           ),
-        //           child: Column(
-        //             crossAxisAlignment: CrossAxisAlignment.center,
-        //             children: [
-        //               Text(TextConstants.ebtText,
-        //                   style: TextStyle(
-        //                       fontSize: 14,
-        //                       fontWeight: FontWeight.bold,
-        //                       color: Colors.black45)),
-        //               Text("\$0.00",
-        //                   style: TextStyle(
-        //                       fontSize: 14, fontWeight: FontWeight.bold)),
-        //             ],
-        //           ),
-        //         ),
-        //       ),
-        //       // Payouts Container
-        //       Expanded(
-        //         child: Container(
-        //           padding: EdgeInsets.all(8),
-        //           decoration: BoxDecoration(
-        //             color: Colors.grey.shade300,
-        //           ),
-        //           child: Column(
-        //             crossAxisAlignment: CrossAxisAlignment.center,
-        //             children: [
-        //               Text(TextConstants.payoutsText,
-        //                   style: TextStyle(
-        //                       fontSize: 14,
-        //                       fontWeight: FontWeight.bold,
-        //                       color: Colors.black45)),
-        //               Text("\$0.00",
-        //                   style: TextStyle(
-        //                       fontSize: 14, fontWeight: FontWeight.bold)),
-        //             ],
-        //           ),
-        //         ),
-        //       ),
-        //       // Subtotal Container
-        //       Expanded(
-        //         child: Container(
-        //           padding: EdgeInsets.all(8),
-        //           decoration: BoxDecoration(
-        //             color: Colors.grey.shade400,
-        //           ),
-        //           child: Column(
-        //             crossAxisAlignment: CrossAxisAlignment.center,
-        //             children: [
-        //               Text(TextConstants.subTotalText,
-        //                   style: TextStyle(
-        //                       fontSize: 14,
-        //                       fontWeight: FontWeight.bold,
-        //                       color: Colors.black45)),
-        //               Text("\$0.00",
-        //                   style: TextStyle(
-        //                       fontSize: 14, fontWeight: FontWeight.bold)),
-        //             ],
-        //           ),
-        //         ),
-        //       ),
-        //       // Tax Container
-        //       Expanded(
-        //         child: Container(
-        //           padding: EdgeInsets.all(8),
-        //           decoration: BoxDecoration(
-        //             color: Colors.grey.shade500,
-        //           ),
-        //           child: Column(
-        //             crossAxisAlignment: CrossAxisAlignment.center,
-        //             children: [
-        //               Text(TextConstants.taxText,
-        //                   style: TextStyle(
-        //                       fontSize: 14,
-        //                       fontWeight: FontWeight.bold,
-        //                       color: Colors.white)),
-        //               Text("\$0.00",
-        //                   style: TextStyle(
-        //                       fontSize: 14,
-        //                       fontWeight: FontWeight.bold,
-        //                       color: Colors.white)),
-        //             ],
-        //           ),
-        //         ),
-        //       ),
-        //     ],
-        //   ),
-        // ),
-        // Container(
-        //   padding: const EdgeInsets.all(16),
-        //   child: Row(
-        //     children: [
-        //       Expanded(
-        //         child: ElevatedButton(
-        //           onPressed: () {},
-        //           style: ElevatedButton.styleFrom(
-        //             backgroundColor: Colors.white,
-        //             shape: RoundedRectangleBorder(
-        //               borderRadius: BorderRadius.circular(10),
-        //               side: const BorderSide(color: Colors.black),
-        //             ),
-        //           ),
-        //           child: const Text(TextConstants.holdOrderText,
-        //               style: TextStyle(color: Colors.black)),
-        //         ),
-        //       ),
-        //       const SizedBox(width: 10),
-        //       Expanded(
-        //         child: ElevatedButton(
-        //           onPressed: () {
-        //             Navigator.push(context, MaterialPageRoute(builder: (context) => OrderSummaryScreen(),));
-        //           },
-        //           style: ElevatedButton.styleFrom(
-        //             backgroundColor: Colors.green,
-        //             shape: RoundedRectangleBorder(
-        //                 borderRadius: BorderRadius.circular(10)),
-        //           ),
-        //           child: Text(
-        //             "${TextConstants.payText} \$${(widget.quantities.fold(0.0, (double sum, qty) => sum + qty * 0.99)).toStringAsFixed(2)}",
-        //             style: const TextStyle(color: Colors.white),
-        //           ),
-        //         ),
-        //       ),
-        //     ],
-        //   ),
-        // )
-///Todo: update ui as per loading from screen
-        ///Show print and email invoice buttons if coming from order history screen
-        ///else show regular buttons
         Column(
           children: [
             // Summary container
             AnimatedSize(
               duration: Duration(milliseconds: 1000),
-                curve: Curves.easeInOut,
-                child: _showFullSummary
-                ? Container(
-                  margin: const EdgeInsets.only(top: 8, right: 8, left: 8),
-                  decoration: BoxDecoration(
-                      borderRadius: BorderRadius.only(
-                          topRight: Radius.circular(8),
-                          topLeft: Radius.circular(8)),
-                      color: Colors.white
-                  ),
-                  padding: const EdgeInsets.all(8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text("Gross Total", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12), ),
-                          Text("\$${getSubTotal().toStringAsFixed(2)}", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),),
-                        ],
-                      ),
-                      SizedBox(height: 2,),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(spacing: 5,
-                            children: [
-                              SvgPicture.asset("assets/svg/discount_star.svg",height: 12, width: 12,),
-                              Text("Discount", style: TextStyle(color: Colors.green, fontSize: 10)),
-                            ],
-                          ),
-                          Text("-\$$orderDiscount", style: TextStyle(color: Colors.green,fontSize: 10 )),
-                        ],
-                      ),
-                      SizedBox(height: 2,),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(spacing: 5,
-                            children: [
-                              SvgPicture.asset("assets/svg/discount_star.svg",height: 12, width: 12,),
-                              Text("Merchant Discount", style: TextStyle(color: Colors.blue, fontSize: 10)),
-                              SvgPicture.asset("assets/svg/delete.svg",height: 12, width: 12,),
-                            ],
-                          ),
-                          const Text("-\$${0.0}", style: TextStyle(color: Colors.blue, fontSize: 10)),
+              curve: Curves.easeInOut,
+              child: _showFullSummary
+                  ? Container(
+                margin: const EdgeInsets.only(top: 8, right: 8, left: 8),
+                decoration: BoxDecoration(
+                    borderRadius: BorderRadius.only(
+                        topRight: Radius.circular(8),
+                        topLeft: Radius.circular(8)),
+                    color: Colors.white
+                ),
+                padding: const EdgeInsets.all(8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text("Gross Total", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12), ),
+                        Text("\$${getSubTotal().toStringAsFixed(2)}", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),),
+                      ],
+                    ),
+                    SizedBox(height: 2,),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(spacing: 5,
+                          children: [
+                            SvgPicture.asset("assets/svg/discount_star.svg",height: 12, width: 12,),
+                            Text("Discount", style: TextStyle(color: Colors.green, fontSize: 10)),
+                          ],
+                        ),
+                        Text("-\$${orderDiscount.toStringAsFixed(2)}", style: TextStyle(color: Colors.green,fontSize: 10 )),
+                      ],
+                    ),
+                    SizedBox(height: 2,),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(spacing: 5,
+                          children: [
+                            SvgPicture.asset("assets/svg/discount_star.svg",height: 12, width: 12,),
+                            Text("Merchant Discount", style: TextStyle(color: Colors.blue, fontSize: 10)),
+                            GestureDetector(
+                              onTap: () async { //Build #1.0.64: delete button on Merchant tap delete payout api call
+                                if (orderHelper.activeOrderId != null) {
+                                  final order = orderHelper.orders.firstWhere(
+                                        (order) => order[AppDBConst.orderId] == orderHelper.activeOrderId,
+                                    orElse: () => {},
+                                  );
+                                  final serverOrderId = order[AppDBConst.orderServerId] as int?;
+                                  if (serverOrderId != null) {
+                                    final db = await DBHelper.instance.database;
+                                    final payoutItem = await db.query(
+                                      AppDBConst.purchasedItemsTable,
+                                      where: '${AppDBConst.orderIdForeignKey} = ? AND ${AppDBConst.itemType} = ?',
+                                      whereArgs: [orderHelper.activeOrderId, ItemType.payout.value],
+                                    );
+                                    if (payoutItem.isNotEmpty) {
+                                      final payoutId = payoutItem.first[AppDBConst.itemServerId] as int?;
+                                      if (payoutId != null) {
+                                        setState(() => _isLoading = true);
+                                        orderBloc.removePayout(orderId: serverOrderId, payoutId: payoutId);
+                                        orderBloc.removePayoutStream.listen((response) async {
+                                          setState(() => _isLoading = false);
+                                          if (response.status == Status.COMPLETED) {
+                                            await db.update(
+                                              AppDBConst.orderTable,
+                                              {AppDBConst.merchantDiscount: 0.0},
+                                              where: '${AppDBConst.orderId} = ?',
+                                              whereArgs: [orderHelper.activeOrderId],
+                                            );
+                                            await orderHelper.deleteItem(payoutItem.first[AppDBConst.itemId] as int);
+                                            fetchOrderItems();
+                                            widget.refreshOrderList?.call();
+                                          } else {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(content: Text(response.message ?? "Failed to remove discount")),
+                                            );
+                                          }
+                                        });
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              child: SvgPicture.asset("assets/svg/delete.svg", height: 12, width: 12),
+                            ),
+                          ],
+                        ),
+                         Text("-\$${merchantDiscount.toStringAsFixed(2)}", style: TextStyle(color: Colors.blue, fontSize: 10)),
 
-                        ],
-                      ),
-                      SizedBox(height: 2,),
-                      const DottedLine(),
-                      SizedBox(height: 2,),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Text("Net Total",style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),),
-                          Text("\$32.00", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),),
-                        ],
-                      ),
-                      SizedBox(height: 2,),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: const [
-                          Text("Tax", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10,color: Colors.grey),),
-                          Text("\$3.00", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10,color: Colors.grey),),
-                        ],
-                      ),
-                      SizedBox(height: 2,),
-                      const DottedLine(),
-                      SizedBox(height: 2,),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: const [
-                          Text("Net Payable", style: TextStyle(fontWeight: FontWeight.bold)),
-                          Text("\$35.00", style: TextStyle(fontWeight: FontWeight.bold)),
-                        ],
-                      ),
-                    ],
-                  ),
-                )
-                    : SizedBox.shrink(),
+                      ],
+                    ),
+                    SizedBox(height: 2,),
+                    const DottedLine(),
+                    SizedBox(height: 2,),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Text("Net Total",style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),),
+                        Text("\$32.00", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),),
+                      ],
+                    ),
+                    SizedBox(height: 2,),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: const [
+                        Text("Tax", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10,color: Colors.grey),),
+                        Text("\$3.00", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10,color: Colors.grey),),
+                      ],
+                    ),
+                    SizedBox(height: 2,),
+                    const DottedLine(),
+                    SizedBox(height: 2,),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: const [
+                        Text("Net Payable", style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text("\$35.00", style: TextStyle(fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ],
+                ),
+              )
+                  : SizedBox.shrink(),
             ),
             GestureDetector(
               onTap: _toggleSummary,
               child: Container(
                 margin: const EdgeInsets.only(top:2, right: 8, left: 8),
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.only(
-
-                      bottomRight: Radius.circular(8),
-                      bottomLeft: Radius.circular(8)),
-                  color: Colors.grey.shade300
+                    borderRadius: BorderRadius.only(
+                        bottomRight: Radius.circular(8),
+                        bottomLeft: Radius.circular(8)),
+                    color: Colors.grey.shade300
                 ),
                 padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 5),
                 child: Row(
@@ -1213,7 +1205,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                     Text("Total Items : ${orderItems.length}", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),),
                     Row(
                       children: [
-                        Text(_showFullSummary ? 'Net Payable : \$${getSubTotal().toStringAsFixed(2)}' : 'Net Payable : \$${getSubTotal()}',style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        Text(_showFullSummary ? 'Net Payable : \$${getSubTotal().toStringAsFixed(2)}' : 'Net Payable : \$${getSubTotal().toStringAsFixed(2)}',style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                         const SizedBox(width: 8),
                         Icon(_showFullSummary ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,),
                       ],

@@ -42,6 +42,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
   // Discount values
   String _discountValue = "0%";
   bool _isPercentageSelected = true;
+  late int _selectedTabIndex;
 
   // Coupon value
   String _couponCode = "";
@@ -82,6 +83,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
     });
     _loadOrderData(); // Load order data on initialization
     _loadTaxSlabs();
+    _selectedTabIndex = widget.selectedTabIndex;
   }
 
   Future<void> _loadTaxSlabs() async {
@@ -172,7 +174,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
     if (kDebugMode) {
       print("Widget_tabs _buildTab index : $index");
     }
-    bool isSelected = widget.selectedTabIndex == index;
+    bool isSelected = _selectedTabIndex == index;
     return Expanded(
       child: GestureDetector(
         onTap: () {
@@ -180,7 +182,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
             print("Widget_tabs _buildTab onTap index : $index");
           }
           setState(() {
-            widget.selectedTabIndex = index;
+            _selectedTabIndex = index;
           });
         },
         child: Container(height: MediaQuery.of(context).size.height * 0.065,
@@ -214,7 +216,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
 
   // Build content based on selected tab
   Widget _buildTabContent() {
-    switch (widget.selectedTabIndex) {
+    switch (_selectedTabIndex) {
       case 0:
         return _buildDiscountsTab();
       case 1:
@@ -1126,21 +1128,6 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
         if (kDebugMode) print("Calculated discount amount from percentage: $discountAmount");
       }
 
-      // Apply discount locally
-      await db.update(
-        AppDBConst.orderTable,
-        {
-          AppDBConst.orderDiscount: discountAmount,
-          AppDBConst.orderTotal: currentOrderTotal - discountAmount,
-        },
-        where: '${AppDBConst.orderId} = ?',
-        whereArgs: [orderId],
-      );
-
-      // Refresh OrderHelper and widget state
-      await _orderHelper.loadData();
-      await _loadOrderData();
-
       setState(() {
         _discountValue = _isPercentageSelected ? "0%" : "0";
       });
@@ -1167,6 +1154,21 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
           setState(() {
             _isDiscountLoading = false;
           });
+
+          // Build #1.0.64: After API response in _handleAddDiscount
+          await db.update(
+            AppDBConst.orderTable,
+            {
+              AppDBConst.merchantDiscount: discountAmount,
+            },
+            where: '${AppDBConst.orderId} = ?',
+            whereArgs: [orderId],
+          );
+
+          // Refresh OrderHelper and widget state
+          await _orderHelper.loadData();
+          await _loadOrderData();
+
           widget.refreshOrderList?.call(); // Trigger order panel refresh
           subscription?.cancel();
         } else if (response.status == Status.ERROR) {
@@ -1217,9 +1219,10 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
       _isCouponLoading = true;
     });
 
+    try {
     StreamSubscription? subscription;
       if (kDebugMode) print("### Subscribing to applyCouponStream");
-      subscription = orderBloc.applyCouponStream.listen((response) {
+      subscription = orderBloc.applyCouponStream.listen((response) async {
         if (!mounted) {
           if (kDebugMode) print("### Widget not mounted, skipping coupon UI update");
           subscription?.cancel(); // Cancel subscription if widget is not mounted
@@ -1235,12 +1238,37 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
             ),
           );
 
-          if (mounted) {
+          // Build #1.0.64: Purchase item
+          // 1.line items like product items, custom items
+          // 2. Coupon line items
+          // 3.  Fee line items like payout
+          // Order will contain
+          // 1. Fee lines item like discount
+          // Apply coupon locally (assuming there's a local DB update logic)
+          final db = await DBHelper.instance.database;
+          for (var coupon in response.data?.couponLines ?? []) {
+            await db.insert(AppDBConst.purchasedItemsTable, {
+              AppDBConst.orderIdForeignKey: orderId!,
+              AppDBConst.itemServerId: coupon.id,
+              AppDBConst.itemName: coupon.code ?? '',
+              AppDBConst.itemSKU: '',
+              AppDBConst.itemPrice: 0.0,
+              AppDBConst.itemCount: 1,
+              AppDBConst.itemSumPrice: coupon.nominalAmount?.toDouble() ?? 0.0,
+              AppDBConst.itemImage: 'assets/svg/coupon.svg',
+              AppDBConst.itemType: ItemType.coupon.value,
+            });
+          }
+          // Refresh OrderHelper and UI
+          await _orderHelper.loadData();
+          await _loadOrderData();
+
             setState(() {
               _couponCode = "";
               _isCouponLoading = false;
             });
-          };
+
+          widget.refreshOrderList?.call(); // Trigger refresh after local update
           subscription?.cancel(); // Cancel subscription after successful operation
         } else if (response.status == Status.ERROR) {
           if (kDebugMode) print("Failed to apply coupon: ${response.message}");
@@ -1265,6 +1293,12 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
 
       if (kDebugMode) print("### Calling orderBloc.applyCouponToOrder");
       await orderBloc.applyCouponToOrder(orderId: orderId!, couponCode: _couponCode);
+  } catch (e) {
+      if (kDebugMode) print("Error applying coupon: $e");
+      setState(() {
+        _isCouponLoading = false;
+      });
+    }
   }
 
 // Handle adding the custom item
@@ -1393,7 +1427,8 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
             AppDBConst.itemPrice: double.parse(_customItemPrice),
             AppDBConst.itemCount: 1,
             AppDBConst.itemSumPrice: double.parse(_customItemPrice),
-            AppDBConst.itemImage: '', // Add image if available
+            AppDBConst.itemImage: 'assets/svg/custom_item.svg',
+            AppDBConst.itemType: ItemType.customProduct.value, // Build #1.0.64
           });
 
           // Update order total
@@ -1410,7 +1445,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
           await _orderHelper.loadData();
           await _loadOrderData();
           if (kDebugMode) print("Calling refreshOrderList for order $orderId");
-          widget.refreshOrderList?.call();
+        //  widget.refreshOrderList?.call();
 
           // Show success message
           ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
@@ -1432,7 +1467,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
             _skuController.clear();
             _isCustomItemLoading = false;
           });
-
+          widget.refreshOrderList?.call(); // Trigger refresh after local update
           subscription?.cancel();
         } else if (response.status == Status.ERROR) {
           if (kDebugMode) print("Failed to create custom item: ${response.message}");
@@ -1489,9 +1524,30 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
       _isPayoutLoading = true;
     });
 
+    try {
+      // Fetch current order total
+      final db = await DBHelper.instance.database;
+      final orderData = await db.query(
+        AppDBConst.orderTable,
+        where: '${AppDBConst.orderId} = ?',
+        whereArgs: [orderId],
+      );
+
+      if (orderData.isEmpty) {
+        if (kDebugMode) print("Order $orderId not found");
+        setState(() {
+          _isPayoutLoading = false;
+        });
+        return;
+      }
+
+      // Refresh OrderHelper and UI
+      await _orderHelper.loadData();
+      await _loadOrderData();
+
     StreamSubscription? subscription;
       if (kDebugMode) print("Subscribing to addPayoutStream for payout");
-      subscription = orderBloc.addPayoutStream.listen((response) {
+      subscription = orderBloc.addPayoutStream.listen((response) async {
         if (!mounted) {
           if (kDebugMode) print("Widget not mounted, skipping payout UI update");
           subscription?.cancel(); // Cancel subscription if widget is not mounted
@@ -1506,12 +1562,31 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
               duration: const Duration(seconds: 2),
             ),
           );
+
+          // Build #1.0.64: After API response in _handleAddPayout
+          for (var feeLine in response.data!.feeLines) {
+            if (feeLine.name == TextConstants.payout) {
+              await db.insert(AppDBConst.purchasedItemsTable, {
+                AppDBConst.orderIdForeignKey: orderId!,
+                AppDBConst.itemServerId: feeLine.id,
+                AppDBConst.itemName: feeLine.name ?? 'Payout',
+                AppDBConst.itemSKU: '',
+                AppDBConst.itemPrice: 0.0,
+                AppDBConst.itemCount: 1,
+                AppDBConst.itemSumPrice: double.parse(feeLine.total ?? '0.0'),
+                AppDBConst.itemImage: 'assets/svg/payout.svg',
+                AppDBConst.itemType: ItemType.payout.value,
+              });
+            }
+          }
+
           if (mounted) {
           setState(() {
             _payoutAmount = "";
             _isPayoutLoading = false;
           });
           };
+          widget.refreshOrderList?.call(); // Trigger order panel refresh
           subscription?.cancel(); // Cancel subscription after successful operation
         } else if (response.status == Status.ERROR) {
           if (kDebugMode) print("Failed to add payout: ${response.message}");
@@ -1539,5 +1614,11 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
         amount: double.parse(_payoutAmount),
         isPayOut: true,
       );
+  }catch (e) {
+      if (kDebugMode) print("Error processing payout: $e");
+      setState(() {
+        _isPayoutLoading = false;
+      });
+    }
   }
 }

@@ -316,6 +316,10 @@ class CouponLine {
   final String? discount;
   final String? discountTax;
   final List<OrderMetaData>? metaData;
+  final String? discountType;
+  final num? nominalAmount; // Keep as num? to handle int or double from API
+  final bool? freeShipping;
+  final bool? remove; // Added for remove coupon
 
   CouponLine({
     this.id,
@@ -323,16 +327,11 @@ class CouponLine {
     this.discount,
     this.discountTax,
     this.metaData,
+    this.discountType,
+    this.nominalAmount,
+    this.freeShipping,
+    this.remove,
   });
-
-  Map<String, dynamic> toJson() => {
-    if (id != null) 'id': id,
-    'code': code,
-    if (discount != null) 'discount': discount,
-    if (discountTax != null) 'discount_tax': discountTax,
-    if (metaData != null)
-      'meta_data': metaData!.map((e) => e.toJson()).toList(),
-  };
 
   factory CouponLine.fromJson(Map<String, dynamic> json) => CouponLine(
     id: json['id'],
@@ -342,7 +341,24 @@ class CouponLine {
     metaData: (json['meta_data'] as List<dynamic>?)
         ?.map((e) => OrderMetaData.fromJson(e))
         .toList(),
+    discountType: json['discount_type'], // Build #1.0.64
+    nominalAmount: json['nominal_amount'], // Keep as num? for flexibility
+    freeShipping: json['free_shipping'],
+    remove: json['remove'],
   );
+
+  Map<String, dynamic> toJson() => {
+    if (id != null) 'id': id,
+    'code': code,
+    if (discount != null) 'discount': discount,
+    if (discountTax != null) 'discount_tax': discountTax,
+    if (metaData != null)
+      'meta_data': metaData!.map((e) => e.toJson()).toList(),
+    if (discountType != null) 'discount_type': discountType,
+    if (nominalAmount != null) 'nominal_amount': nominalAmount,
+    if (freeShipping != null) 'free_shipping': freeShipping,
+    if (remove != null) 'remove': remove,
+  };
 }
 
 // Create Order Models
@@ -584,5 +600,15 @@ class RemovePayoutRequestModel { // Build #1.0.53 : Added
 
   Map<String, dynamic> toJson() => {
     'fee_lines': feeLines.map((e) => e.toJson()).toList(),
+  };
+}
+
+class RemoveCouponRequestModel {// Build #1.0.64
+  final List<CouponLine> couponLines;
+
+  RemoveCouponRequestModel({required this.couponLines});
+
+  Map<String, dynamic> toJson() => {
+    'coupon_lines': couponLines.map((e) => e.toJson()).toList(),
   };
 }

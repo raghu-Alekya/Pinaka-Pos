@@ -113,16 +113,16 @@ class _LoginScreenState extends State<LoginScreen> {
 
     //Build #1.0.54: added, check if assets are already saved in the database
     String? baseUrl = await AssetDBHelper.instance.getAppBaseUrl();
-    if (baseUrl == null) {
+   // if (baseUrl == null) { //Build #1.0.64: updated
       if (kDebugMode) {
         print("#### LoginScreen: No assets found in database, fetching assets");
       }
       _assetBloc.fetchAssets(); // Fetch and save assets only if not already saved
-    } else {
-      if (kDebugMode) {
-        print("#### LoginScreen: Assets already saved in database, skipping fetch");
-      }
-    }
+    // } else {
+    //   if (kDebugMode) {
+    //     print("#### LoginScreen: Assets already saved in database, skipping fetch");
+    //   }
+    // }
   }
 
   @override

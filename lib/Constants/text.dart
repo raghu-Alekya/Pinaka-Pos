@@ -218,6 +218,9 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String payout                = "Payout"; // Build #1.0.53
   static const String discountText          = "discount";
   static const String none                  = "none";
+  static const String customProductText     = "CustomProduct"; // Build #1.0.64
+  static const String couponText            = "Coupon";
+  static const String payoutText            = "Payout";
 
   //Build #1.0.54: added
   static const String allStatus             = "pending, processing, on-hold, completed, cancelled, refunded, failed";

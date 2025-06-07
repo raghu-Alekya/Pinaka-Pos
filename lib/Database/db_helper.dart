@@ -29,6 +29,7 @@ class AppDBConst { // Build #1.0.10 - Naveen: Updated DB tables constants
   static const String orderTime = 'time'; // Order creation time
   static const String orderPaymentMethod = 'payment_method'; // e.g., cash, card, UPI
   static const String orderDiscount = 'discount'; // Optional: Discount applied to the order
+  static const String merchantDiscount = 'merchant_discount'; // Build #1.0.64 //TODO: we have to handle multiple discount for single order merchant discount's
   static const String orderTax = 'tax'; // Optional: Tax applied to the order
   static const String orderShipping = 'shipping'; // Optional: Shipping charges
 
@@ -174,6 +175,7 @@ CREATE TABLE ${AppDBConst.orderTable} (
   ${AppDBConst.orderTime} TEXT NOT NULL,
   ${AppDBConst.orderPaymentMethod} TEXT, -- Optional: Payment method (e.g., cash, card)
   ${AppDBConst.orderDiscount} REAL DEFAULT 0, -- Optional: Discount applied to the order
+  ${AppDBConst.merchantDiscount} REAL DEFAULT 0, -- Optional: Merchant Discount applied to the order
   ${AppDBConst.orderTax} REAL DEFAULT 0, -- Optional: Tax applied to the order
   ${AppDBConst.orderShipping} REAL DEFAULT 0, -- Optional: Shipping charges
   FOREIGN KEY(${AppDBConst.userId}) REFERENCES ${AppDBConst.userTable}(${AppDBConst.userId}) ON DELETE CASCADE
@@ -184,6 +186,7 @@ CREATE TABLE ${AppDBConst.orderTable} (
     await db.execute('''
     CREATE TABLE ${AppDBConst.purchasedItemsTable} (
       ${AppDBConst.itemId} INTEGER PRIMARY KEY AUTOINCREMENT,
+      ${AppDBConst.itemServerId} INTEGER, -- Required: Updated by REST API, can be NULL initially
       ${AppDBConst.itemName} TEXT NOT NULL,
       ${AppDBConst.itemSKU} TEXT NOT NULL,
       ${AppDBConst.itemPrice} REAL NOT NULL,
@@ -191,6 +194,7 @@ CREATE TABLE ${AppDBConst.orderTable} (
       ${AppDBConst.itemCount} INTEGER NOT NULL,
       ${AppDBConst.itemSumPrice} REAL NOT NULL,
       ${AppDBConst.orderIdForeignKey} INTEGER NOT NULL,
+      ${AppDBConst.itemType} TEXT NOT NULL,
       FOREIGN KEY(${AppDBConst.orderIdForeignKey}) REFERENCES ${AppDBConst.orderTable}(${AppDBConst.orderId}) ON DELETE CASCADE
     )
     ''');

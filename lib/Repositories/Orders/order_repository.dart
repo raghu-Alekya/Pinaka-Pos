@@ -303,4 +303,34 @@ class OrderRepository {  // Build #1.0.25 - added by naveen
       throw Exception("Unexpected response type in remove payout PUT");
     }
   }
+
+  // Build #1.0.64: removeCoupon API call
+  Future<UpdateOrderResponseModel> removeCoupon({required int orderId, required RemoveCouponRequestModel request}) async {
+    final url = "${UrlHelper.componentVersionUrl}${UrlMethodConstants.orders}/$orderId";
+
+    if (kDebugMode) {
+      print("OrderRepository - PUT URL for remove coupon: $url");
+      print("OrderRepository - Request Body: ${request.toJson()}");
+    }
+
+    final response = await _helper.post(url, request.toJson(), true);
+
+    if (kDebugMode) {
+      print("OrderRepository - Remove Coupon Raw Response: $response");
+    }
+
+    if (response is String) {
+      try {
+        final responseData = json.decode(response);
+        return UpdateOrderResponseModel.fromJson(responseData);
+      } catch (e) {
+        if (kDebugMode) print("Error parsing remove coupon response: $e");
+        throw Exception("Failed to parse remove coupon response");
+      }
+    } else if (response is Map<String, dynamic>) {
+      return UpdateOrderResponseModel.fromJson(response);
+    } else {
+      throw Exception("Unexpected response type in remove coupon PUT");
+    }
+  }
 }

@@ -168,9 +168,9 @@ class DBHelper {
       print("#### DB Path: $path");
     }
     // Uncomment the line below to delete the database during development/testing
-    await deleteDatabase(path);
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.clear(); // This removes all stored preferences
+    // await deleteDatabase(path);
+    // final SharedPreferences prefs = await SharedPreferences.getInstance();
+    // await prefs.clear(); // This removes all stored preferences
 
     return await openDatabase(path, version: 1, onCreate: _createTables);
   }

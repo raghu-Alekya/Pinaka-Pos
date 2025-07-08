@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../Blocs/Assets/asset_bloc.dart';
 import '../../Blocs/Auth/login_bloc.dart';
 import '../../Constants/text.dart';
@@ -13,6 +14,7 @@ import '../../Repositories/Assets/asset_repository.dart';
 import '../../Repositories/Auth/login_repository.dart';
 import '../../Widgets/widget_custom_num_pad.dart';
 import '../../Widgets/widget_loading.dart';
+import '../../screens/Home/shift_open_close_balance.dart';
 import '../Home/fast_key_screen.dart';
 import '../../Widgets/widget_error.dart';
 
@@ -112,12 +114,12 @@ class _LoginScreenState extends State<LoginScreen> {
     _bloc.fetchLoginToken(LoginRequest(pin));
 
     //Build #1.0.54: added, check if assets are already saved in the database
-    String? baseUrl = await AssetDBHelper.instance.getAppBaseUrl();
+  //  String? baseUrl = await AssetDBHelper.instance.getAppBaseUrl();
    // if (baseUrl == null) { //Build #1.0.64: updated
       if (kDebugMode) {
         print("#### LoginScreen: No assets found in database, fetching assets");
       }
-      _assetBloc.fetchAssets(); // Fetch and save assets only if not already saved
+    //Build 1.0.68: await added for completion of save assets else getting empty data
     // } else {
     //   if (kDebugMode) {
     //     print("#### LoginScreen: Assets already saved in database, skipping fetch");
@@ -149,165 +151,182 @@ class _LoginScreenState extends State<LoginScreen> {
           // Right Side - Login Interface
           Expanded(
             flex: 1,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Password Fields
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(6, (index) {
-                        double paddingValue = isPortrait ? 8.5 : 12.5;
-                        return Padding(
-                          padding: EdgeInsets.symmetric(horizontal: paddingValue),
-                          child: AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 300),
-                            child: Container(
-                              key: ValueKey<int>(index),
-                              width: isPortrait ? 50.0 : 70.0,
-                              height: isPortrait ? 50.0 : 70.0,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFFFFFF),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                    color: Colors.grey.shade300, width: 1),
-                              ),
-                              child: Center(
-                                child: _password[index].isEmpty
-                                    ? SvgPicture.asset(
-                                  'assets/svg/password_placeholder.svg',
-                                  width: 15,
-                                  height: 15,
-                                )
-                                    : SvgPicture.asset(
-                                  'assets/svg/password_placeholder.svg',
-                                  colorFilter: const ColorFilter.mode(
-                                      Colors.black, BlendMode.srcIn),
-                                  width: 15,
-                                  height: 15,
+            child: Container(
+              color: Color(0xFFE0E0E0),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // Password Fields
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(6, (index) {
+                          double paddingValue = isPortrait ? 8.5 : 12.5;
+                          return Padding(
+                            padding: EdgeInsets.symmetric(horizontal: paddingValue),
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 300),
+                              child: Container(
+                                key: ValueKey<int>(index),
+                                width: isPortrait ? 50.0 : 70.0,
+                                height: isPortrait ? 50.0 : 70.0,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFFFFFF),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                      color: Colors.grey.shade300, width: 1),
+                                ),
+                                child: Center(
+                                  child: _password[index].isEmpty
+                                      ? SvgPicture.asset(
+                                    'assets/svg/password_placeholder.svg',
+                                    width: 15,
+                                    height: 15,
+                                  )
+                                      : SvgPicture.asset(
+                                    'assets/svg/password_placeholder.svg',
+                                    colorFilter: const ColorFilter.mode(
+                                        Colors.black, BlendMode.srcIn),
+                                    width: 15,
+                                    height: 15,
+                                  ),
                                 ),
                               ),
                             ),
+                          );
+                        }),
+                      ),
+                      const SizedBox(height: 32),
+
+                      // Custom NumPad
+                      CustomNumPad(
+                        numPadType: NumPadType.login,
+                        onDigitPressed: _updatePassword,
+                        onClearPressed: _clearPassword,
+                        onDeletePressed: _deletePassword,
+                        actionButtonType: ActionButtonType.delete,
+                      ),
+
+                      const SizedBox(height: 32),
+
+                      // Login Button
+                      SizedBox(
+                        width: MediaQuery.of(context).size.width /
+                            (isPortrait ? 7.3 : 7.2),
+                        height: MediaQuery.of(context).size.height /
+                            (isPortrait ? 20.0 : 10.0),
+                        child: ElevatedButton(
+                          onPressed: _handleLogin,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF1E2745), // Background color: #1E2745
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
-                        );
-                      }),
-                    ),
-                    const SizedBox(height: 32),
-
-                    // Custom NumPad
-                    CustomNumPad(
-                      numPadType: NumPadType.login,
-                      onDigitPressed: _updatePassword,
-                      onClearPressed: _clearPassword,
-                      onDeletePressed: _deletePassword,
-                      actionButtonType: ActionButtonType.delete,
-                    ),
-
-                    const SizedBox(height: 32),
-
-                    // Login Button
-                    SizedBox(
-                      width: MediaQuery.of(context).size.width /
-                          (isPortrait ? 7.3 : 7.2),
-                      height: MediaQuery.of(context).size.height /
-                          (isPortrait ? 20.0 : 10.0),
-                      child: ElevatedButton(
-                        onPressed: _handleLogin,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF1E2745), // Background color: #1E2745
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        // In LoginScreen.dart - update the ElevatedButton's child widget
-                        child: StreamBuilder<APIResponse<LoginResponse>>(
-                          stream: _bloc.loginStream,
-                          builder: (context, snapshot) {
-                            if (snapshot.hasData) {
-                              switch (snapshot.data?.status) {
-                                case Status.LOADING:
-                                  return Center(
-                                    child: Loading(
-                                      loadingMessage: snapshot.data?.message,
-                                    ),
-                                  );
-
-                                case Status.COMPLETED:
-                                  if (snapshot.data?.data?.token != null) {
-                                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                                      Navigator.pushReplacement(
-                                        context,
-                                        MaterialPageRoute(builder: (context) => const FastKeyScreen()),
-                                      );
-                                    });
+                          // In LoginScreen.dart - update the ElevatedButton's child widget
+                          child: StreamBuilder<APIResponse<LoginResponse>>(
+                            stream: _bloc.loginStream,
+                            builder: (context, snapshot) {
+                              if (snapshot.hasData) {
+                                switch (snapshot.data?.status) {
+                                  case Status.LOADING:
                                     return Center(
                                       child: Loading(
-                                        loadingMessage: TextConstants.loading,
+                                        loadingMessage: snapshot.data?.message,
                                       ),
                                     );
-                                  } else {
-                                    return Center(
-                                      child: Text(
-                                        snapshot.data?.data?.message ?? "",
-                                        textAlign: TextAlign.center,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 16,
-                                          color: Colors.red,
-                                        ),
-                                      ),
-                                    );
-                                  }
 
-                                case Status.ERROR:
-                                  if (!_hasErrorShown) { // 👈 Ensure error is shown only once
-                                    _hasErrorShown = true;
-                                    WidgetsBinding.instance.addPostFrameCallback((_) { // Build #1.0.16
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            snapshot.data?.message ?? "Login failed. Please try again.",
-                                            style: const TextStyle(color: Colors.red),
-                                          ),
-                                          backgroundColor: Colors.black, // ✅ Black background
-                                          duration: const Duration(seconds: 3),
+                                  case Status.COMPLETED:
+                                    if (snapshot.data?.data?.token != null) {
+                                      WidgetsBinding.instance.addPostFrameCallback((_) async {
+                                        // Build #1.0.69 : Call Fetch Assets Api after login api call success!
+                                        await _assetBloc.fetchAssets(); // Fetch and save assets
+
+                                        // Build #1.0.70 - check shift started or not based on shift id
+                                        final prefs = await SharedPreferences.getInstance();
+                                        final shiftId = prefs.getString(TextConstants.shiftId);
+                                        if (shiftId != null && shiftId.isNotEmpty) {
+                                          Navigator.pushReplacement(
+                                              context,
+                                              MaterialPageRoute(builder: (context) => const FastKeyScreen()));
+                                        }else{
+                                          Navigator.pushReplacement(
+                                            context,
+                                            MaterialPageRoute(builder: (context) => const ShiftOpenCloseBalanceScreen(),
+                                              settings: RouteSettings(arguments: TextConstants.loginScreen),
+                                            ),
+                                          );
+                                        }
+                                      });
+                                      return Center(
+                                        child: Loading(
+                                          loadingMessage: TextConstants.loading,
                                         ),
                                       );
-                                    });
-                                  }
-                                // return Center(
-                                  //   child: Text(
-                                  //     snapshot.data?.message ?? "Something went wrong",
-                                  //     textAlign: TextAlign.center,
-                                  //     style: const TextStyle(
-                                  //       fontWeight: FontWeight.w600,
-                                  //       fontSize: 16,
-                                  //       color: Colors.red,
-                                  //     ),
-                                  //   ),
-                                  // );
-                                default:
-                                  break;
+                                    } else {
+                                      return Center(
+                                        child: Text(
+                                          snapshot.data?.data?.message ?? "",
+                                          textAlign: TextAlign.center,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 16,
+                                            color: Colors.red,
+                                          ),
+                                        ),
+                                      );
+                                    }
+
+                                  case Status.ERROR:
+                                    if (!_hasErrorShown) { // 👈 Ensure error is shown only once
+                                      _hasErrorShown = true;
+                                      WidgetsBinding.instance.addPostFrameCallback((_) { // Build #1.0.16
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              snapshot.data?.message ?? "Login failed. Please try again.",
+                                              style: const TextStyle(color: Colors.red),
+                                            ),
+                                            backgroundColor: Colors.black, // ✅ Black background
+                                            duration: const Duration(seconds: 3),
+                                          ),
+                                        );
+                                      });
+                                    }
+                                  // return Center(
+                                    //   child: Text(
+                                    //     snapshot.data?.message ?? "Something went wrong",
+                                    //     textAlign: TextAlign.center,
+                                    //     style: const TextStyle(
+                                    //       fontWeight: FontWeight.w600,
+                                    //       fontSize: 16,
+                                    //       color: Colors.red,
+                                    //     ),
+                                    //   ),
+                                    // );
+                                  default:
+                                    break;
+                                }
                               }
-                            }
-                            return const Center(
-                              child: Text(
-                                TextConstants.loginBtnText,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 16,
+                              return const Center(
+                                child: Text(
+                                  TextConstants.loginBtnText,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 16,
+                                  ),
                                 ),
-                              ),
-                            );
-                          },
+                              );
+                            },
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

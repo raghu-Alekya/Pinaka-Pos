@@ -55,7 +55,8 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String layoutNavBottomOrderLeft   = "Navigation at bottom & Orders at left";
 
   static const String printerSettText       = "Printer Settings";
-  static const String selectPrintText       = "Select printer & paper size";
+  static const String selectPrintText       = "Select a printer";
+  static const String connectedPrintText       = "Connected printer";
   static const String noPrinterText         = "No Printers Found";
   static const String add3PrintersText      = "You can add up to 3 Printers";
   static const String cacheText             = "Cache";
@@ -66,9 +67,11 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String distributorText       = "Distributor";
 
   static const String editCateText          = "Edit Category";
+  static const String selectImageText          = "Select Image";
   static const String addCateText           = "Add Category";
   static const String imgRequiredText       = "Image is required";
   static const String addFastKeyNameText    = "Add Fast key Name";
+  static const String uploadImage           = "Upload Image";
   static const String nameText              = "Name";
   static const String nameReqText           = "Name is required";
   static const String categoryNameText      = "Enter the category name";
@@ -106,7 +109,10 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String ebtText               = "EBT";
   static const String payoutsText           = "Payouts";
   static const String subTotalText          = "Sub total";
+  static const String grossTotal            = "Gross Total";
   static const String taxText               = "Tax";
+  static const String netTotalText          = "Net Total"; //Build #1.0.67
+  static const String totalItemsText        = "Total Items";
   static const String holdOrderText         = "Hold Order";
   static const String payText               = "Pay :";
   static const String enterQuanText         = "Enter Quantity for";
@@ -118,7 +124,9 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String orderId              = "Order ID";
   static const String paymentSummary       = "Payment Summary";
   static const String discount             = "Discount";
+  static const String merchantDiscount     = "Merchant Discount";
   static const String total                = "Total";
+  static const String netPayable           = "Net Payable";
   static const String payByCash            = "Pay By cash";
   static const String payByOther           = "Pay By Other";
   static const String tenderAmount         = "Tender Amount.";
@@ -154,10 +162,19 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String invalidCoupon         = "Invalid Coupon";
   static const String invalidCouponDescription = "The coupon code you entered is not valid. Please check the code and try again.";
   static const String letsTryAgain          = "Let's, Try Again";
+  static const String removePayoutFailed    = "Failed to remove payout";
+  static const String removeCouponFailed    = "Failed to remove coupon";
+  static const String removeDiscountFailed  = "Failed to remove discount";
   static const String discountNotApplied    = "Discount Not Applied";
   static const String discountNotAppliedDescription = "The discount couldn’t be applied. Please double-check the eligibility criteria.";
-  static const String removeDiscountOrCoupon = "Remove applied discount\nOr coupon?";
-  static const String removeDiscountOrCouponDescription = "This action cannot be undone. The item will return to its original price.";
+  static const String removeCoupon          = "Remove applied coupon?"; //Build #1.0.67
+  static const String removeDiscount        = "Remove applied discount? ";
+  static const String removePayout          = "Remove applied payout?";
+  static const String itemRemoved           = "Item removed successfully";
+  static const String removeCustomItemFailed = "Failed to remove custom item";
+  static const String customItemText         = "custom item";
+  static const String removeCustomItem       = "Remove custom item?";
+  static const String removeSpecialOrderItemDescription = "This action cannot be undone. The item will return to its original price.";
   static const String remove                = "Remove";
   static const String close                 = "Close";
   static const String areYouSure            = "Are you sure ?";
@@ -198,7 +215,7 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String doYouWantTo           = "Do you want to?"; // Build #1.0.13: updated to here
   static const String swipeToCloseShift     = "Swipe to Close Shift"; // Build #1.0.13: updated to here
   static const String verifyDrawerAndSafeAmounts = "Verify Drawer & Safe Amounts";
-  static const String totalAmount           = "Total Amount:";
+  static const String totalAmount           = "Total Amount: ";
   static const String shortAmount           = "Short :";
   static const String overAmount            = "Over :";
   static const String startShift            = "Start Shift";
@@ -213,18 +230,60 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String yesVoid               = "Yes, Void !";
   static const String cancelled             = "cancelled";
   static const String completed             = "completed";
+  static const String onhold                = "on-hold";
   static const String orderCancelled        = "Order successfully cancelled";
   static const String orderCompleted        = "Order successfully completed";
+  static const String orderOnHold           = "Order changed to \'On Hold\'";
   static const String payout                = "Payout"; // Build #1.0.53
-  static const String discountText          = "discount";
+  static const String discountText          = "Discount";
   static const String none                  = "none";
-  static const String customProductText     = "CustomProduct"; // Build #1.0.64
-  static const String couponText            = "Coupon";
-  static const String payoutText            = "Payout";
+ // static const String customProductText     = "CustomProduct"; // Build #1.0.64
+  static const String couponText            = "coupon"; //Build #1.0.68
+  static const String payoutText            = "payout";
+  static const String productText           = "Product";
+  static const String alreadyExistTitle     = "Item already exists";
+  static const String alreadyExistSubTitle  = "Item already present in fast key";
+  static const String taxable               = "taxable";
+  static const String simple                = "simple";
+
+  // Build #1.0.70 - Added by Naveen
+  static const String shiftOpen             = "Shift Open Balance Screen";
+  static const String navLogout             = "NavigationBar_Logout";
+  static const String shiftClose            = "Shift Closing Balance Screen";
+  static const String navCashier            = "AppsDashboardScreen_Cashier";
+  static const String navShiftHistory       = "ShiftHistoryDashboardScreen";  //Build #1.0.74
+  static const String shiftBal              = "Shift Balance Screen";
+  static const String shiftId               = "shiftId";
+  static const String shiftSubTitle         = "Count and record drawer cash to begin / close your shift.";
+  static const String shiftScreen           = "ShiftOpenCloseBalanceScreen";
+  static const String nextText              = "Next";
+  static const String notes                 = "Notes";
+  static const String type                  = "Type";
+  static const String noOfNotes             = "No. of Notes";
+  static const String coins                 = "Coins";
+  static const String noOfCoins             = "No. of Coins";
+  static const String totalAmountText       = "Total Amount";
+  static const String loginScreen           = "LoginScreen";
+  static const String closed                = "closed";
+  static const String update                = "update";
+  static const String open                  = "open";
+  static const String noOfTubes             = "No Of Tubes";
+  static const String amount                = "Amount";
+  static const String totalColumns          = "Total Columns";
+  static const String tubes                 = "(Tubes)";
+  static const String safeTotalAmount       = "Total Amount of money in the form of notes and coins from tubes.";
+  static const String updateShift           = 'Update';
+  static const String updateShiftDescription = 'Please verify the drawer and safe amounts to update.';
+
+  static const String fastKeyId             = 'fastkey_id';  //Build #1.0.89
+  static const String productId             = 'product_id';
+
+
 
   //Build #1.0.54: added
   static const String allStatus             = "pending, processing, on-hold, completed, cancelled, refunded, failed";
   static const String processing            = "processing";
+  static const String orderScreenStatus     = "pending, on-hold, completed, cancelled, refunded, failed";
 
 }
 

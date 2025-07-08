@@ -25,21 +25,31 @@ class FastKeyRequest {  // Build #1.0.15
   final String fastkeyTitle;
   final int fastkeyIndex;
   final String fastkeyImage;
-  final int userId;
+  final int? userId;
+  final int? fastkeyServerId;
 
   FastKeyRequest({
     required this.fastkeyTitle,
     required this.fastkeyIndex,
     required this.fastkeyImage,
-    required this.userId,
+    this.userId,
+    this.fastkeyServerId, // Build #1.0.89: added for update fast key api
   });
 
-  Map<String, dynamic> toJson() => {
-    'fastkey_title': fastkeyTitle,
-    'fastkey_index': fastkeyIndex,
-    'fastkey_image': fastkeyImage,
-    'user_id': userId,
-  };
+  Map<String, dynamic> toJson() {
+    final Map<String, dynamic> data = {
+      'fastkey_title': fastkeyTitle,
+      'fastkey_index': fastkeyIndex,
+      'fastkey_image': fastkeyImage,
+    };
+    if (userId != null) {
+      data['user_id'] = userId;
+    }
+    if (fastkeyServerId != null) {
+      data['fastkey_id'] = fastkeyServerId;
+    }
+    return data;
+  }
 }
 
 /// API RESPONSE: POST /fastkeys/create

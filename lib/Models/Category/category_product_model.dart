@@ -1,4 +1,6 @@
 // models/category_product_model.dart
+import 'category_model.dart';
+
 class CategoryProduct{ // Build #1.0.21
   final int id;
   final String name;
@@ -13,9 +15,10 @@ class CategoryProduct{ // Build #1.0.21
   final bool onSale;
   final bool purchasable;
   final String stockStatus;
-  final List<String> categories;
+  final List<CategoryModel>? categories;
   final List<String> images;
   final List<dynamic> attributes;
+  List<Tags>? tags;
 
   CategoryProduct({
     required this.id,
@@ -34,6 +37,7 @@ class CategoryProduct{ // Build #1.0.21
     required this.categories,
     required this.images,
     required this.attributes,
+    this.tags,
   });
 
   factory CategoryProduct.fromJson(Map<String, dynamic> json) {
@@ -51,11 +55,40 @@ class CategoryProduct{ // Build #1.0.21
       onSale: json['on_sale'] ?? false,
       purchasable: json['purchasable'] ?? false,
       stockStatus: json['stock_status'] ?? '',
-      categories: List<String>.from(json['categories'] ?? []),
+      categories: json['categories'] != null
+          ? List<CategoryModel>.from(json['categories'].map((x) => CategoryModel.fromJson(x))) //json.map((item) => CategoryModel.fromJson(item)).toList()
+          : null,
       images: List<String>.from(
           (json['images'] as List?)?.map((img) => img.toString()) ?? []),
       attributes: json['attributes'] ?? [],
+      tags: json['tags'] != null
+          ? List<Tags>.from(json['tags'].map((x) => Tags.fromJson(x)))
+          : null,
     );
+  }
+}
+
+class Tags {
+  int? id;
+  String? name;
+  String? slug;
+
+  Tags({this.id, this.name, this.slug});
+
+  factory Tags.fromJson(Map<String, dynamic> json) {
+    return Tags(
+      id: json['id'] as int?,
+      name: json['name'] as String?,
+      slug: json['slug'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'slug': slug,
+    };
   }
 }
 

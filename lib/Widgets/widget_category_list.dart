@@ -889,6 +889,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:pinaka_pos/Constants/layout_values.dart';
 import 'package:pinaka_pos/Helper/Extentions/theme_notifier.dart';
+import 'package:provider/provider.dart';
 import '../Constants/text.dart';
 import '../Utilities/shimmer_effect.dart';
 import '../Utilities/responsive_layout.dart';
@@ -925,6 +926,9 @@ class CategoryList extends StatelessWidget {
   });
 
   Widget _buildImage(String imagePath) {
+    if (kDebugMode) {
+      print("Category List _buildImage : $imagePath");
+    }
     if (imagePath.startsWith('assets/') && imagePath.endsWith('.svg')) {
       return SvgPicture.asset(
         imagePath,
@@ -939,6 +943,21 @@ class CategoryList extends StatelessWidget {
         width: 40,
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) => const Icon(Icons.image, size: 40),
+      );
+    } else if (imagePath.startsWith("http")) {
+      return Image.network(
+        imagePath,
+        width: 40,
+        height: 40,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            width: 40,
+            height: 40,
+            color: Colors.grey.shade300,
+            child: const Icon(Icons.broken_image, color: Colors.grey),
+          );
+        },
       );
     } else {
       return Image.file(
@@ -959,6 +978,7 @@ class CategoryList extends StatelessWidget {
 //Build 1.1.36: Updated The horizontal list with reOrder functionality
   Widget _buildHorizontalList(BuildContext context, ScrollController scrollController) {
     var size = MediaQuery.of(context).size;
+    final themeHelper = Provider.of<ThemeNotifier>(context);
     ResponsiveLayout.init(context);
     return GestureDetector(
       onTap: () {
@@ -971,7 +991,7 @@ class CategoryList extends StatelessWidget {
         height: ResponsiveLayout.getHeight(100),
         margin: const EdgeInsets.only(top: 5),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: themeHelper.themeMode == ThemeMode.dark? ThemeNotifier.primaryBackground : Colors.white,
           borderRadius: BorderRadius.circular(15),
           boxShadow: [
             BoxShadow(
@@ -987,7 +1007,7 @@ class CategoryList extends StatelessWidget {
           children: [
             Row(
               children: [
-                SizedBox(width: ResponsiveLayout.getWidth(30)),
+                SizedBox(width: ResponsiveLayout.getWidth(35)),
                 Expanded(
                     child: SizedBox(
                       height: ResponsiveLayout.getHeight(100),
@@ -1037,11 +1057,11 @@ class CategoryList extends StatelessWidget {
                             child: Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 5.0),
                               child: AnimatedContainer(
-                                width: 70,
+                                width: ResponsiveLayout.getHeight(70),
                                 duration: const Duration(milliseconds: 300),
                                 //padding: const EdgeInsets.fromLTRB(8, 0, 8, 0),
                                 decoration: BoxDecoration(
-                                  color: isSelected ? ThemeNotifier.tabSelection : Colors.white,
+                                  color: isSelected ? ThemeNotifier.tabSelection : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground :  Colors.white,
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
                                     color: showEditButton ? Colors.blueAccent : isSelected ? Colors.red : Colors.black12,
@@ -1095,7 +1115,7 @@ class CategoryList extends StatelessWidget {
                                             overflow: TextOverflow.ellipsis,
                                             fontWeight: FontWeight.normal,
                                             fontVariations: const <FontVariation>[FontVariation('wght', 900.0)],
-                                            color: Colors.black87,
+                                            color: isSelected ? Colors.black87 : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.black87,
                                           ),
                                         ),
                                       ],
@@ -1111,13 +1131,13 @@ class CategoryList extends StatelessWidget {
                 ),
                     const SizedBox(width: 30),
                     if (isAddButtonEnabled)
-                _buildAddButton(onAddButtonPressed ?? () {}),
+                _buildAddButton(context , onAddButtonPressed ?? () {}),
               ],
             ),
             // Left navigation button
             Positioned(
-              left: 5,
-              child: _buildCircularNavButton(Icons.arrow_back_ios, () {
+              left: 0,
+              child: _buildCircularNavButton(context, Icons.arrow_back_ios, () {
                 if (kDebugMode) {
                   print("### CategoryList: Left navigation button pressed");
                 }
@@ -1131,7 +1151,7 @@ class CategoryList extends StatelessWidget {
             // Right navigation button
             Positioned(
               right: isAddButtonEnabled ? 75 : 5,
-              child: _buildCircularNavButton(Icons.arrow_forward_ios, () {
+              child: _buildCircularNavButton(context, Icons.arrow_forward_ios, () {
                 if (kDebugMode) {
                   print("### CategoryList: Right navigation button pressed");
                 }
@@ -1150,6 +1170,7 @@ class CategoryList extends StatelessWidget {
 
 
   Widget _buildVerticalList(BuildContext context) {
+    final themeHelper = Provider.of<ThemeNotifier>(context);
     return GestureDetector(
       onTap: () {
         if (kDebugMode) {
@@ -1260,13 +1281,13 @@ class CategoryList extends StatelessWidget {
                                     category['title'],
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
-                                      color: isSelected ? Colors.white : Colors.black,
+                                      color: isSelected ? Colors.black87 : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.black87,
                                     ),
                                   ),
                                   Text(
                                     category['itemCount'].toString(),
                                     style: TextStyle(
-                                      color: isSelected ? Colors.white : Colors.grey,
+                                      color: isSelected ? Colors.grey : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.grey,
                                     ),
                                   ),
                                 ],
@@ -1287,7 +1308,7 @@ class CategoryList extends StatelessWidget {
             padding: const EdgeInsets.all(5),
             decoration: BoxDecoration(
               border: Border.all(color: Colors.black12),
-              color: Colors.white,
+              color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : Colors.white,
               borderRadius: BorderRadius.circular(12),
             ),
             child: SizedBox(
@@ -1308,13 +1329,14 @@ class CategoryList extends StatelessWidget {
     );
   }
 
-  Widget _buildCircularNavButton(IconData icon, VoidCallback onPressed) {
+  Widget _buildCircularNavButton(BuildContext context, IconData icon, VoidCallback onPressed) {
+    final themeHelper = Provider.of<ThemeNotifier>(context);
     return Container(
       width: 50,
       height: 50,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: Colors.white,
+        color: themeHelper.themeMode == ThemeMode.dark? ThemeNotifier.circularNavBackground : Colors.white,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.2),
@@ -1325,26 +1347,27 @@ class CategoryList extends StatelessWidget {
       ),
       child: IconButton(
         icon: Icon(icon, size: 24),
-        color: Colors.black45,
+        color: themeHelper.themeMode == ThemeMode.dark? Colors.white : Colors.black45,
         onPressed: onPressed,
         padding: EdgeInsets.zero,
       ),
     );
   }
 
-  Widget _buildAddButton(VoidCallback onPressed) {
+  Widget _buildAddButton(BuildContext context, VoidCallback onPressed) {
+    final themeHelper = Provider.of<ThemeNotifier>(context);
     return Container(
       height: LayoutValues.size_110,
       width: LayoutValues.size_70,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : Colors.white,
         borderRadius: BorderRadius.circular(LayoutValues.radius_12),
         border: Border.all(color: Colors.black12),
         boxShadow: [
           BoxShadow(
             color: ThemeNotifier.shadow_F7,
             blurRadius: LayoutValues.radius_5,
-            spreadRadius: LayoutValues.radius_5,
+            // spreadRadius: LayoutValues.radius_5,
             offset: Offset(LayoutValues.zero,LayoutValues.zero),
           ),
         ],

@@ -366,9 +366,10 @@ class _PrinterSetupState extends State<PrinterSetup> {
                               _isConnected = await _printerSettings.connectDevice();
                               setState(() {
                                 if (kDebugMode) {
-                                  print(">>>>> Device is connected : $_isConnected");
+                                  print(">>>>> PrinterSetupScreen Device is connected : $_isConnected");
                                 }
                               });
+                              Navigator.pop(context, 'refresh'); // Pass a result when popping
                             },
                             child: const Text("Connect", textAlign: TextAlign.center),
                           ),

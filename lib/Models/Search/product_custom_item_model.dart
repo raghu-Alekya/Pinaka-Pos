@@ -1,34 +1,43 @@
 // Models for API request and response
-class AddCustomItemRequest {
-  String name;
-  String type;
-  String regularPrice;
-  String sku;
-  Tax? taxes;
-  List<Category>? categories;
-  List<Image>? images;
+// class Tag {
+//   String name;
+//
+//   Tag({required this.name});
+//
+//   Map<String, dynamic> toJson() => {
+//     'name': name,
+//   };
+// }
+
+class AddCustomItemRequest { //Build #1.0.68
+  final String name;
+  final String type;
+  final String regularPrice;
+  final String sku;
+  final String? taxStatus;
+  final String? taxClass;
+  final List<Tag> tags;
 
   AddCustomItemRequest({
     required this.name,
     this.type = "simple",
     required this.regularPrice,
     required this.sku,
-    this.taxes,
-    this.categories,
-    this.images,
+    this.taxStatus,
+    this.taxClass,
+    required this.tags,
   });
 
   Map<String, dynamic> toJson() {
-    final Map<String, dynamic> data = {
+    return {
       'name': name,
       'type': type,
       'regular_price': regularPrice,
       'sku': sku,
+      'tax_status': taxStatus,
+      'tax_class': taxClass,
+      'tags': tags.map((tag) => tag.toJson()).toList(),
     };
-    if (taxes != null) data['taxes'] = taxes!.toJson();
-    if (categories != null) data['categories'] = categories!.map((c) => c.toJson()).toList();
-    if (images != null) data['images'] = images!.map((i) => i.toJson()).toList();
-    return data;
   }
 }
 
@@ -511,11 +520,12 @@ class Tag {
     );
   }
 
+  // Convert to JSON - handles both cases (with or without id/slug)
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
+      if (id != null) 'id': id,
       'name': name,
-      'slug': slug,
+      if (slug != null) 'slug': slug,
     };
   }
 }

@@ -11,7 +11,7 @@ class ProductRepository { // Build #1.0.13 : added product search repository
   final APIHelper _helper = APIHelper();
 
   Future<List<ProductResponse>> fetchProducts({String? searchQuery}) async {
-    String url = "${UrlHelper.componentVersionUrl}${UrlMethodConstants.products}";
+    String url = "${UrlHelper.wooCommerceV3}${UrlMethodConstants.products}";
 
     if (searchQuery != null && searchQuery.isNotEmpty) {
       url += "${UrlParameterConstants.productSearchParameter}$searchQuery${EndUrlConstants.productSearchEndUrl}";

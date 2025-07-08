@@ -1,7 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart'; // For displaying SVG images
-import 'package:pinaka_pos/Constants/text.dart'; // Contains text constants for UI
+import 'package:pinaka_pos/Constants/text.dart';
+import 'package:provider/provider.dart';
+
+import '../Helper/Extentions/theme_notifier.dart'; // Contains text constants for UI
 
 // Enum for different payment completion states
 enum PaymentStatus { successful, partial, receipt, exitConfirmation, voidConfirmation }
@@ -74,13 +77,16 @@ class _PaymentDialogState extends State<PaymentDialog> {
   bool _isVoidConfirmLoading = false; // Track loading for void confirm
   bool _isDoneLoading = false; // Track loading for done action
   bool _isNoReceiptLoading = false; // Track loading for no receipt action
+  bool _isContinueLoading = false; // Track loading for no receipt action
 
   @override
   Widget build(BuildContext context) {
+    final themeHelper = Provider.of<ThemeNotifier>(context);
     return Dialog(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20), // Rounded corners for dialog
       ),
+      backgroundColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.popUpsBackground : null,
       child: Container(
         padding: const EdgeInsets.all(30), // Padding inside dialog
         width: 750, // Fixed width for dialog
@@ -98,7 +104,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 24,
-                  color: Colors.grey[800],
+                  color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.grey[800],
                   height: 1.5,
                 ),
               )// Vertical spacing
@@ -108,7 +114,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 24,
-                  color: Colors.grey[800],
+                  color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.grey[800],
                   height: 1.5, // Line height
                 ),
               )
@@ -193,6 +199,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
   }
 
   Widget _buildTitle() {
+    final themeHelper = Provider.of<ThemeNotifier>(context);
     String title; // Title text based on payment status
     switch (widget.status) {
       case PaymentStatus.successful:
@@ -220,12 +227,13 @@ class _PaymentDialogState extends State<PaymentDialog> {
       style: TextStyle(
         fontSize: 24,
         fontWeight: FontWeight.w700, // Bold title
-        color: widget.status == PaymentStatus.exitConfirmation ? Colors.black87 : Colors.blueGrey[800],
+        color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : widget.status == PaymentStatus.exitConfirmation ? Colors.black87 : Colors.blueGrey[800],
       ),
     );
   }
 
   Widget _buildPaymentInfo() {
+    final themeHelper = Provider.of<ThemeNotifier>(context);
     if (widget.status == PaymentStatus.receipt) {
       return Row(
         mainAxisAlignment: MainAxisAlignment.center, // Center the receipt options
@@ -269,7 +277,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
       width: MediaQuery.of(context).size.width * 0.25,
       padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 0),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.popUpsBackground : Colors.white,
       ),
       child: Column(
         children: [
@@ -369,9 +377,11 @@ class _PaymentDialogState extends State<PaymentDialog> {
                 });
                 widget.onExitCancel?.call();
                 Future.delayed(const Duration(milliseconds: 500), () {
-                  setState(() {
-                    _isVoidCancelLoading = false; // Hide loader after action
-                  });
+                  if(mounted) { // Build #1.0.80: fixed setState Error
+                    setState(() {
+                      _isVoidCancelLoading = false; // Hide loader after action
+                    });
+                  }
                 });
               },
               backgroundColor: Colors.grey[100]!,
@@ -419,8 +429,18 @@ class _PaymentDialogState extends State<PaymentDialog> {
           Expanded(
             child: _buildButton(
               TextConstants.continueText,
-              widget.onExitConfirm ?? () {},
-              backgroundColor: const Color(0xFFFE6464), // Red button
+                  () { // Build #1.0.104: Fixed: Exit button loader issue
+                if (kDebugMode) {
+                  print("DEBUG: continue button pressed");
+                }
+                setState(() {
+                  _isContinueLoading = true; // Show loader on button
+                });
+                widget.onExitConfirm?.call();
+                // Loader persists until _handleVoidPayment updates widget.isVoidLoading
+              },
+              backgroundColor: const Color(0xFFFE6464),
+              isLoading: _isContinueLoading, // Combine states
             ),
           ),
         ],

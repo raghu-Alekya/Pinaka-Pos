@@ -173,18 +173,18 @@
 //       'end_time': '08:00:00',
 //       'id': '11216',
 //       'status': 'Processing',
-//       'sales_amount': '\$30',
-//       'over_short': '-\$10',
+//       'sales_amount': '${TextConstants.currencySymbol}30',
+//       'over_short': '-${TextConstants.currencySymbol}10',
 //     },
 //     {
 //       'date': '28/10/2023',
 //       'duration': '8:00:00',
 //       'start_time': '12:00:00',
 //       'end_time': '08:00:00',
-//       'sales_amount': '\$50',
+//       'sales_amount': '${TextConstants.currencySymbol}50',
 //       'id': '11217',
 //       'status': 'Refunded',
-//       'over_short': '-\$90',
+//       'over_short': '-${TextConstants.currencySymbol}90',
 //     },
 //     {
 //       'date': '28/10/2023',
@@ -193,8 +193,8 @@
 //       'end_time': '08:00:00',
 //       'id': '11218',
 //       'status': 'Cancelled',
-//       'sales_amount': '\$530',
-//       'over_short': '-\$160',
+//       'sales_amount': '${TextConstants.currencySymbol}530',
+//       'over_short': '-${TextConstants.currencySymbol}160',
 //     },
 //     {
 //       'date': '28/10/2023',
@@ -203,8 +203,8 @@
 //       'end_time': '08:00:00',
 //       'id': '11219',
 //       'status': 'Completed',
-//       'sales_amount': '\$150',
-//       'over_short': '-\$70',
+//       'sales_amount': '${TextConstants.currencySymbol}150',
+//       'over_short': '-${TextConstants.currencySymbol}70',
 //     },
 //     {
 //       'date': '28/10/2023',
@@ -213,8 +213,8 @@
 //       'end_time': '08:00:00',
 //       'id': '11221',
 //       'status': 'On hold',
-//       'sales_amount': '\$450',
-//       'over_short': '-\$600',
+//       'sales_amount': '${TextConstants.currencySymbol}450',
+//       'over_short': '-${TextConstants.currencySymbol}600',
 //     },
 //   ];
 //
@@ -450,7 +450,7 @@
 //                           //     showMenu(
 //                           //       context: context,
 //                           //       position: RelativeRect.fromLTRB(100, 100, 0, 0),
-//                           //       items: ["All", "₹", "\$"]
+//                           //       items: ["All", "₹", "${TextConstants.currencySymbol}"]
 //                           //           .map((currency) => PopupMenuItem<String>(
 //                           //         value: currency,
 //                           //         child: Text(currency),
@@ -467,7 +467,7 @@
 //                           // ),
 //                           FilterChipWidget(
 //                             label: "Currency: $_selectedCurrencyFilter",
-//                             options: ["All", "₹", "\$"],
+//                             options: ["All", "₹", "${TextConstants.currencySymbol}"],
 //                             selectedValue: _selectedCurrencyFilter,
 //                             onSelected: (value) {
 //                               setState(() {
@@ -886,12 +886,25 @@
 // }
 
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:intl/intl.dart';
+import 'package:pinaka_pos/Database/db_helper.dart';
+import 'package:pinaka_pos/Models/Assets/asset_model.dart';
+import 'package:provider/provider.dart';
+import 'package:syncfusion_flutter_datepicker/datepicker.dart';
 import '../../Blocs/Orders/order_bloc.dart';
+import '../../Database/assets_db_helper.dart';
 import '../../Database/order_panel_db_helper.dart';
+import '../../Helper/Extentions/nav_layout_manager.dart';
+import '../../Helper/Extentions/theme_notifier.dart';
+import '../../Preferences/pinaka_preferences.dart';
+import '../../Widgets/widget_order_screen_panel.dart';
+import '../../Widgets/widget_order_status.dart';
 import '../../Widgets/widget_filter_chip.dart';
 import '../../Widgets/widget_order_panel.dart';
+import '../../Widgets/widget_pagination.dart';
 import '../../Widgets/widget_range_filter.dart';
 import '../../Widgets/widget_topbar.dart';
 import '../../Models/Orders/get_orders_model.dart' as model; // Added prefix
@@ -902,12 +915,6 @@ import '../../Widgets/widget_navigation_bar.dart' as custom_widgets;
 
 import 'package:quickalert/quickalert.dart';
 
-// Enum for sidebar position
-enum SidebarPosition { left, right, bottom }
-
-// Enum for order panel position
-enum OrderPanelPosition { left, right }
-
 class OrdersScreen extends StatefulWidget { //Build #1.0.54: updated
   final int? lastSelectedIndex;
 
@@ -917,17 +924,15 @@ class OrdersScreen extends StatefulWidget { //Build #1.0.54: updated
   State<OrdersScreen> createState() => _OrdersScreenState();
 }
 
-class _OrdersScreenState extends State<OrdersScreen> {
+class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
   late OrderBloc _orderBloc;
   List<model.OrderModel> _orders = []; // Use model.OrderModel
   int _selectedSidebarIndex = 3;
   DateTime now = DateTime.now();
   List<int> quantities = [1, 1, 1, 1];
-  SidebarPosition sidebarPosition = SidebarPosition.left;
-  OrderPanelPosition orderPanelPosition = OrderPanelPosition.right;
-  bool isLoading = true;
+  bool isLoading = false; // Build #1.0.104
   String _selectedStatusFilter = "All";
-  String _selectedUserFilter = "User1";
+  String _selectedUserFilter = "All";
   String _selectedOrderTypeFilter = "All";
   String _selectedPaymentMethodFilter = "All";
   late double _minSalesAmount;
@@ -936,10 +941,26 @@ class _OrdersScreenState extends State<OrdersScreen> {
   String? _sortColumn;
   bool _isAscending = true;
   StreamSubscription? _fetchOrdersSubscription;
-  List<String> _availableStatuses = ["All"];
+
+  ///Filters
+  // List<String> _availableStatuses = ["All"];
+  List<OrderStatus> _filterStatuses = [OrderStatus(slug: "", name: "All")];
+  List<Employees> _filterUsers = [Employees(iD: "",displayName: "All")];
+  List<OrderType> _filterOrderType = [OrderType(slug: "",name: "All")];
+
   Map<String, dynamic>? _selectedOrder;
   int? _selectedOrderId;
   final OrderHelper orderHelper = OrderHelper(); // Helper instance to manage orders
+  final PinakaPreferences _preferences = PinakaPreferences(); // Added this
+  // Date range filter variables
+  DateTime? _startDate;
+  DateTime? _endDate;
+  bool _isDateRangeApplied = false;
+
+  // Add these variables for pagination
+  int _currentPage = 1;
+  int _rowsPerPage = 10;
+  final List<int> _rowsPerPageOptions = [10, 20, 50, 100];
 
   @override
   void initState() {
@@ -949,9 +970,26 @@ class _OrdersScreenState extends State<OrdersScreen> {
     _minSalesAmount = 0.0;
     _maxSalesAmount = 10000.0; // Default max, will be updated from API
     _salesAmountRange = RangeValues(_minSalesAmount, _maxSalesAmount);
-
+    initFilters();
     // Initialize order fetching
-    _fetchOrders();
+    //_fetchOrders();
+    _orderScreenPanel = OrderScreenPanel(
+      formattedDate: '',
+      formattedTime: '',
+      quantities: quantities,
+    );
+  }
+
+  Future<void> initFilters() async {
+    var filterStatuses = await AssetDBHelper.instance.getOrderStatusList();
+    filterStatuses.removeWhere((e) => e.slug == 'processing');
+    _filterStatuses.addAll(filterStatuses);
+
+    var filterUsers = await AssetDBHelper.instance.getEmployeeList();
+    _filterUsers.addAll(filterUsers);
+
+    var filterOrderType = await AssetDBHelper.instance.getOrderTypeList();
+    _filterOrderType.addAll(filterOrderType);
   }
 
   //Build #1.0.54: added Fetch orders from API
@@ -966,21 +1004,29 @@ class _OrdersScreenState extends State<OrdersScreen> {
           _orders = response.data!.orders;
           isLoading = false;
 
+          if(_orders.isEmpty){
+            return;
+          }
+          // if(_selectedOrderId == null) {
+            _selectedOrderId = _orders.first.id;
+            /// Making 1st order selected by default
+            _onOrderRowSelected(_selectedOrderId!);
+          // }
           // Extract unique statuses from orders for filter
-          _availableStatuses = ["All"] + _orders
-              .map((order) => order.status)
-              .toSet()
-              .toList();
+          // _availableStatuses = ["All"] + _orders
+          //     .map((order) => order.status)
+          //     .toSet()
+          //     .toList();
 
           // Update sales amount range based on API data
-          if (_orders.isNotEmpty) {
-            final salesValues = _orders
-                .map((order) => double.tryParse(order.total) ?? 0.0)
-                .toList();
-            _minSalesAmount = salesValues.reduce((a, b) => a < b ? a : b);
-            _maxSalesAmount = salesValues.reduce((a, b) => a > b ? a : b);
-            _salesAmountRange = RangeValues(_minSalesAmount, _maxSalesAmount);
-          }
+          // if (_orders.isNotEmpty) {
+          //   final salesValues = _orders
+          //       .map((order) => double.tryParse(order.total) ?? 0.0)
+          //       .toList();
+          //   _minSalesAmount = salesValues.reduce((a, b) => a < b ? a : b);
+          //   _maxSalesAmount = salesValues.reduce((a, b) => a > b ? a : b);
+          //   _salesAmountRange = RangeValues(_minSalesAmount, _maxSalesAmount);
+          // }
         });
       } else if (response.status == Status.ERROR) {
         debugPrint("OrdersScreen: Error fetching orders - ${response.message}");
@@ -990,10 +1036,16 @@ class _OrdersScreenState extends State<OrdersScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(response.message ?? "Failed to fetch orders")),
         );
+      } else if (response.status == Status.LOADING){
+        setState(() => isLoading = true); // Build #1.0.104
       }
     });
 
-    _orderBloc.fetchOrders(allStatuses: false);
+    var selectedStatus = _filterStatuses.firstWhere((element) => element.name == _selectedStatusFilter).slug;
+    var selectedUserId = _filterUsers.firstWhere((element) => element.displayName == _selectedUserFilter).iD ?? "";
+    var selectedOrderType = _filterOrderType.firstWhere((element) => element.name == _selectedOrderTypeFilter).slug ?? "";
+
+    _orderBloc.fetchFilteredOrders(allStatuses: true, pageNumber: _currentPage, pageLimit: _rowsPerPage, status: selectedStatus, orderType: selectedOrderType, userId: selectedUserId);
   }
 
   // Sort orders based on column
@@ -1014,6 +1066,10 @@ class _OrdersScreenState extends State<OrdersScreen> {
                   ? a.id.compareTo(b.id)
                   : b.id.compareTo(a.id);
             case 'date':
+              return _isAscending
+                  ? a.dateCreated.compareTo(b.dateCreated)
+                  : b.dateCreated.compareTo(a.dateCreated);
+            case 'time':
               return _isAscending
                   ? a.dateCreated.compareTo(b.dateCreated)
                   : b.dateCreated.compareTo(a.dateCreated);
@@ -1073,15 +1129,84 @@ class _OrdersScreenState extends State<OrdersScreen> {
     );
   }
 
+  // Open date range picker dialog
+  void _openDateRangePickerDialog() {
+    final themeHelper = Provider.of<ThemeNotifier>(context, listen: false);
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: themeHelper.themeMode == ThemeMode.dark
+        ? ThemeNotifier.secondaryBackground : null,
+          title: const Text("Select Date Range"),
+          content: SizedBox(
+            height: 400,
+            width: 350,
+            child: SfDateRangePicker(
+              onSelectionChanged: _onDateRangeSelectionChanged,
+              selectionMode: DateRangePickerSelectionMode.range,
+              initialSelectedRange: _startDate != null && _endDate != null
+                  ? PickerDateRange(_startDate, _endDate)
+                  : null,
+              showActionButtons: true,
+              onSubmit: (Object? value) {
+                Navigator.pop(context);
+              },
+              onCancel: () {
+                Navigator.pop(context);
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // Handle date range selection
+  void _onDateRangeSelectionChanged(DateRangePickerSelectionChangedArgs args) {
+    if (args.value is PickerDateRange) {
+      final PickerDateRange range = args.value;
+      setState(() {
+        _startDate = range.startDate;
+        _endDate = range.endDate ?? range.startDate;
+        _isDateRangeApplied = _startDate != null && _endDate != null;
+        _currentPage = 1;
+        debugPrint("OrdersScreen: Date range selected from $_startDate to $_endDate");
+      });
+    }
+  }
+
   // Clear all filters
   void _clearFilters() {
     setState(() {
       _selectedStatusFilter = "All";
-      _selectedUserFilter = "User1";
+      _selectedUserFilter = "User 1";
       _selectedPaymentMethodFilter = "All";
+      _selectedOrderTypeFilter = "All";
       _salesAmountRange = RangeValues(_minSalesAmount, _maxSalesAmount);
+      _startDate = null;
+      _endDate = null;
+      _isDateRangeApplied = false;
+      _currentPage = 1;
       debugPrint("OrdersScreen: Filters cleared");
     });
+  }
+
+  // Check if order date falls within selected range
+  bool _isDateInRange(String dateCreated) {
+    if (!_isDateRangeApplied || _startDate == null || _endDate == null) {
+      return true;
+    }
+
+    final orderDate = DateTime.tryParse(dateCreated);
+    if (orderDate == null) return true;
+
+    final orderDateOnly = DateTime(orderDate.year, orderDate.month, orderDate.day);
+    final startDateOnly = DateTime(_startDate!.year, _startDate!.month, _startDate!.day);
+    final endDateOnly = DateTime(_endDate!.year, _endDate!.month, _endDate!.day);
+
+    return orderDateOnly.isAfter(startDateOnly.subtract(const Duration(days: 1))) &&
+        orderDateOnly.isBefore(endDateOnly.add(const Duration(days: 1)));
   }
 
   @override
@@ -1093,44 +1218,68 @@ class _OrdersScreenState extends State<OrdersScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    debugPrint("????? OrdersScreen: didChangeDependencies");
+    _fetchOrders();
+    _onOrderRowSelected(-1);///initialise order panel
+  }
+
+  @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    String formattedDate = DateFormat("EEE, MMM d' ${now.year}'").format(now);
-    String formattedTime = DateFormat('hh:mm a').format(now);
-
+    // String formattedDate = DateFormat("EEE, MMM d' ${now.year}'").format(now);
+    // String formattedTime = DateFormat('hh:mm a').format(now);
+    final themeHelper = Provider.of<ThemeNotifier>(context);
     // Update filteredData where clause
-    List<model.OrderModel> filteredData = _orders.where((order) {
-      bool statusMatches = _selectedStatusFilter == "All" ||
-          order.status == _selectedStatusFilter;
-      bool paymentMethodMatches = _selectedPaymentMethodFilter == "All" ||
-          order.paymentMethodTitle == _selectedPaymentMethodFilter;
-      double salesAmount = _extractSalesAmount(order.total);
-      bool salesAmountMatches = salesAmount >= _salesAmountRange.start &&
-          salesAmount <= _salesAmountRange.end;
-      return statusMatches && paymentMethodMatches && salesAmountMatches;
+    List<model.OrderModel> filteredData = //_orders.toList();
+    _orders.where((order) {
+    //   bool statusMatches = _selectedStatusFilter == "All" ||
+    //       order.status == _selectedStatusFilter;
+    //   bool orderTypeMatches = _selectedOrderTypeFilter == "All" ||
+    //       order.createdVia == _selectedOrderTypeFilter;
+    //   double salesAmount = _extractSalesAmount(order.total);
+    //   bool salesAmountMatches = salesAmount >= _salesAmountRange.start &&
+    //       salesAmount <= _salesAmountRange.end;
+      bool dateMatches = _isDateInRange(order.dateCreated);
+      return /*statusMatches && orderTypeMatches && salesAmountMatches &&*/ dateMatches;
     }).toList();
+
+    // Pagination Logic
+    final int totalItems = filteredData.length;
+    final int totalPages = (totalItems / _rowsPerPage).ceil();
+    final int startIndex = (_currentPage - 1) * _rowsPerPage;
+    final int endIndex = startIndex + _rowsPerPage > totalItems ? totalItems : startIndex + _rowsPerPage;
+
+    final List<model.OrderModel> paginatedData = filteredData.isNotEmpty
+        ? filteredData.sublist(startIndex, endIndex)
+        : [];
 
     // Update isFilterApplied check
     bool isFilterApplied = _selectedStatusFilter != "All" ||
-        _selectedPaymentMethodFilter != "All";
+        _selectedOrderTypeFilter != "All";
     bool isRangeFilterApplied = _salesAmountRange.start > _minSalesAmount ||
         _salesAmountRange.end < _maxSalesAmount;
-
     return Scaffold(
       body: Column(
         children: [
           // Top Bar
           TopBar(
-            onModeChanged: () {
+            onModeChanged: () { //Build #1.0.84: Issue fixed: nav mode re-setting
+              String newLayout;
               setState(() {
                 if (sidebarPosition == SidebarPosition.left) {
-                  sidebarPosition = SidebarPosition.right;
+                  newLayout = SharedPreferenceTextConstants.navRightOrderLeft;
                 } else if (sidebarPosition == SidebarPosition.right) {
-                  sidebarPosition = SidebarPosition.bottom;
+                  newLayout = SharedPreferenceTextConstants.navBottomOrderLeft;
                 } else {
-                  sidebarPosition = SidebarPosition.left;
+                  newLayout = SharedPreferenceTextConstants.navLeftOrderRight;
                 }
-                debugPrint("OrdersScreen: Sidebar position changed to $sidebarPosition");
+
+                // Update the notifier which will trigger _onLayoutChanged
+                PinakaPreferences.layoutSelectionNotifier.value = newLayout;
+                // No need to call saveLayoutSelection here as it's handled in the notifier
+                _preferences.saveLayoutSelection(newLayout);
               });
             },
           ),
@@ -1139,10 +1288,6 @@ class _OrdersScreenState extends State<OrdersScreen> {
             thickness: 0.4,
             height: 1,
           ),
-
-          // SizedBox(
-          //   height: 10,
-          // ),
 
           // Main Content
           Expanded(
@@ -1166,17 +1311,13 @@ class _OrdersScreenState extends State<OrdersScreen> {
                 if (sidebarPosition == SidebarPosition.right ||
                     (sidebarPosition == SidebarPosition.bottom &&
                         orderPanelPosition == OrderPanelPosition.left))
-                  RightOrderPanel(
-                    formattedDate: formattedDate,
-                    formattedTime: formattedTime,
-                    quantities: quantities,
-                  ),
-
+                  _orderScreenPanel,
 
                 // Main Content (Table layout View)
                 Expanded(
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       // Filters
                       Wrap(
@@ -1184,104 +1325,159 @@ class _OrdersScreenState extends State<OrdersScreen> {
                         children: [
                           // User Filter
                           FilterChipWidget(
-                            label: "User: $_selectedUserFilter",
-                            options: const ["User1", "User2", "User3"],
+                            label: "User",
+                            options: _filterUsers.map((filter) => filter.displayName ?? "").toList(),//const ["All", "User1", "User2", "User3"],
                             selectedValue: _selectedUserFilter,
                             onSelected: (value) {
                               setState(() {
                                 _selectedUserFilter = value;
+                                _currentPage = 1;
+                                _fetchOrders();
                                 debugPrint("OrdersScreen: User filter changed to $value");
                               });
                             },
                           ),
                           // Status Filter
                           FilterChipWidget(
-                            label: "Status: $_selectedStatusFilter",
-                            options: _availableStatuses,
+                            label: "Status" /*$_selectedStatusFilter*/,
+                            options: _filterStatuses.map((filter) => filter.name).toList(),
                             selectedValue: _selectedStatusFilter,
                             onSelected: (value) {
                               setState(() {
                                 _selectedStatusFilter = value;
+                                _currentPage = 1;
+                                _fetchOrders();
                                 debugPrint("OrdersScreen: Status filter changed to $value");
                               });
                             },
                           ),
                           // Order Type Filter
                           FilterChipWidget(
-                            label: "Payment: $_selectedPaymentMethodFilter",
-                            options: [
-                              "All",
-                              ..._orders
-                                  .map((order) => order.paymentMethodTitle)
-                                  .toSet()
-                                  .toList()
-                            ],
-                            selectedValue: _selectedPaymentMethodFilter,
+                            label: "OrderType"/*: $_selectedPaymentMethodFilter"*/,
+                            options: _filterOrderType.map((e) => e.name).toList(),
+                            // [
+                            //   "All",
+                            //   ..._orders
+                            //       .map((order) => order.createdVia)
+                            //       .toSet()
+                            //       .toList()
+                            // ],
+                            selectedValue: _selectedOrderTypeFilter,
                             onSelected: (value) {
                               setState(() {
-                                _selectedPaymentMethodFilter = value;
+                                _selectedOrderTypeFilter = value;
+                                _currentPage = 1;
+                                _fetchOrders();
                                 debugPrint("OrdersScreen: Payment method filter changed to $value");
                               });
                             },
                           ),
                           // Range Filter
+                          // Container(
+                          //   height: MediaQuery.of(context).size.height * 0.06,
+                          //   margin: EdgeInsets.symmetric(vertical: 10),
+                          //   padding: const EdgeInsets.symmetric(horizontal: 4),
+                          //   child: ChoiceChip(
+                          //     shape: const RoundedRectangleBorder(
+                          //       side: BorderSide(color: Colors.black),
+                          //       borderRadius: BorderRadius.all(Radius.circular(10.0)),
+                          //     ),
+                          //     visualDensity: VisualDensity.compact,
+                          //     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          //     padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                          //     label: Row(
+                          //       mainAxisSize: MainAxisSize.min,
+                          //       children: [
+                          //         Text(
+                          //           "Select Range",
+                          //           style: TextStyle(
+                          //             color: isRangeFilterApplied
+                          //                 ? Colors.white
+                          //                 : Colors.black,
+                          //           ),
+                          //         ),
+                          //         const SizedBox(width: 4),
+                          //         Icon(
+                          //           Icons.filter_list,
+                          //           size: 18,
+                          //           color: isRangeFilterApplied
+                          //               ? Colors.white
+                          //               : Colors.black,
+                          //         ),
+                          //       ],
+                          //     ),
+                          //     showCheckmark: false,
+                          //     selected: isRangeFilterApplied,
+                          //     selectedColor: Colors.redAccent,
+                          //     backgroundColor: Colors.grey[200],
+                          //     onSelected: (selected) {
+                          //       _openRangeFilterDialog();
+                          //       _currentPage = 1;
+                          //     },
+                          //   ),
+                          // ),
+                          // Date Range Filter
                           Container(
-                            height: 40,
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
-                            child: ChoiceChip(
-                              shape: const RoundedRectangleBorder(
-                                side: BorderSide(color: Colors.black),
-                                borderRadius: BorderRadius.all(Radius.circular(10.0)),
-                              ),
-                              visualDensity: VisualDensity.compact,
-                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-                              label: Row(
+                            margin: EdgeInsets.symmetric(vertical: 10),
+                            child: GestureDetector(
+                              onTap: _openDateRangePickerDialog,
+                              child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Text(
-                                    "Select Range",
-                                    style: TextStyle(
-                                      color: isRangeFilterApplied
-                                          ? Colors.white
-                                          : Colors.black,
+                                  // if (_isDateRangeApplied) ...[
+                                  //   Text(
+                                  //     "${DateFormat('dd/MM').format(_startDate!)} - ${DateFormat('dd/MM').format(_endDate!)}",
+                                  //     style: TextStyle(
+                                  //       color: _isDateRangeApplied ? Colors.white : Colors.black,
+                                  //       fontSize: 14,
+                                  //     ),
+                                  //   ),
+                                  //   const SizedBox(width: 8),
+                                  // ],
+                                  SvgPicture.asset(
+                                    'assets/svg/filter_calendar.svg',
+                                    width: MediaQuery.of(context).size.width * 0.1,
+                                    height: MediaQuery.of(context).size.height * 0.06,
+                                    colorFilter: ColorFilter.mode(
+                                      _isDateRangeApplied ? Colors.redAccent :themeHelper.themeMode == ThemeMode.dark
+                                          ? ThemeNotifier.textDark : Colors.black,
+                                      BlendMode.srcIn,
                                     ),
+                                    //color: _isDateRangeApplied ? Colors.white : Colors.black,
                                   ),
-                                  const SizedBox(width: 4),
-                                  Icon(
-                                    Icons.filter_list,
-                                    size: 18,
-                                    color: isRangeFilterApplied
-                                        ? Colors.white
-                                        : Colors.black,
-                                  ),
+                                  // if (!_isDateRangeApplied) ...[
+                                  //   const SizedBox(width: 8),
+                                  //   Text(
+                                  //     "Date Range",
+                                  //     style: TextStyle(
+                                  //       color: Colors.black,
+                                  //       fontSize: 14,
+                                  //     ),
+                                  //   ),
+                                  // ],
                                 ],
                               ),
-                              showCheckmark: false,
-                              selected: isRangeFilterApplied,
-                              selectedColor: Colors.redAccent,
-                              backgroundColor: Colors.grey[200],
-                              onSelected: (selected) {
-                                _openRangeFilterDialog();
-                              },
                             ),
                           ),
                           // Clear Filters
-                          if (isFilterApplied || isRangeFilterApplied)
-                            IconButton(
-                              icon: Icon(
-                                Icons.clear,
-                                color: isFilterApplied || isRangeFilterApplied
-                                    ? Colors.redAccent
-                                    : Colors.black,
+                          if (isFilterApplied || isRangeFilterApplied || _isDateRangeApplied)
+                            Container(
+                              margin:EdgeInsets.symmetric(vertical: 5),
+                              child: IconButton(
+                                icon: Icon(
+                                  Icons.clear,
+                                  color: isFilterApplied || isRangeFilterApplied || _isDateRangeApplied
+                                      ? Colors.redAccent
+                                      : Colors.black,
+                                ),
+                                onPressed: _clearFilters,
                               ),
-                              onPressed: _clearFilters,
                             ),
                         ],
                       ),
                       const SizedBox(height: 16),
 
-                      // Data Table
+                      // Data Table and Pagination controls
                       Expanded(
                         child: isLoading
                             ? const Center(child: CircularProgressIndicator())
@@ -1295,50 +1491,66 @@ class _OrdersScreenState extends State<OrdersScreen> {
                               mainAxisAlignment: MainAxisAlignment.start,
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // Table Header
+                                // Table Header with colored container
                                 Container(
                                   padding: const EdgeInsets.only(left: 0.0, top: 8.0, bottom: 8.0),
                                   decoration: BoxDecoration(
+                                    color: themeHelper.themeMode == ThemeMode.dark
+                                        ? ThemeNotifier.primaryBackground : Colors.grey[100], // Light grey background
                                     borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color:themeHelper.themeMode == ThemeMode.dark
+                                        ? ThemeNotifier.borderColor : Colors.grey.shade300),
                                   ),
                                   child: Row(
                                     mainAxisAlignment: MainAxisAlignment.start,
                                     children: [
                                       _buildSortableColumn("ID", 'id'),
+                                      _buildSortableColumn("Order Type", 'orderType'),
                                       _buildSortableColumn("Date", 'date'),
-                                     // _buildHeaderCell("Duration"),
-                                     //  _buildHeaderCell("Start Time"),
-                                     //  _buildHeaderCell("End Time"),
+                                      _buildSortableColumn("Time", 'time'),
                                       _buildSortableColumn("Sales Amount", 'sales_amount'),
-                                    //  _buildHeaderCell("Over/Short"),
                                       _buildSortableColumn("Status", 'status'),
-                                      _buildHeaderCell(""),
+                                      //_buildHeaderCell(""),
                                     ],
                                   ),
                                 ),
                                 const SizedBox(height: 10),
 
                                 // Data Rows
-                                ...filteredData.map((order) {
+                                //...filteredData.map((order)
+                                  ...paginatedData.map((order){
                                   final date = DateTime.tryParse(order.dateCreated)?.toLocal();
                                   final formattedDate = date != null
-                                      ? DateFormat('dd/MM/yyyy').format(date)
+                                      ? DateFormat("EEE, MMM d' '${now.year}'").format(date)
                                       : '';
+                                  final formattedTime = date != null
+                                      ? DateFormat('HH:mm:ss').format(date)
+                                      : '';
+                                  final isSelected = orderHelper.activeOrderId == order.id; // Check if the row is selected
+
                                   return Padding(
-                                    padding: const EdgeInsets.only(bottom: 8),
+                                    padding: EdgeInsets.only(bottom: 8),
                                     child: GestureDetector( // Add GestureDetector for row click
                                       onTap: () => _onOrderRowSelected(order.id),
                                       child: Container(
-                                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                                        padding: EdgeInsets.symmetric(vertical: 8.0),
                                         decoration: BoxDecoration(
-                                          color: Colors.white,
+                                          color: isSelected
+                                              ? (themeHelper.themeMode == ThemeMode.dark
+                                              ? Color(0xFF334756)  // Dark selection color for dark mode
+                                              : Color(0xFFF3ECEC)) // Light selection color for light mode
+                                              : (themeHelper.themeMode == ThemeMode.dark
+                                              ? ThemeNotifier.primaryBackground
+                                              : Colors.white),
                                           borderRadius: BorderRadius.circular(12),
-                                          border: Border.all(color: Colors.grey.shade300),
+                                          border: Border.all(color: themeHelper.themeMode == ThemeMode.dark
+                                              ? ThemeNotifier.borderColor : Colors.grey.shade300),
                                           boxShadow: [
                                             BoxShadow(
-                                              color: Colors.grey.withOpacity(0.2),
-                                              blurRadius: 4,
-                                              offset: const Offset(0, 2),
+                                              color: themeHelper.themeMode == ThemeMode.dark
+                                                  ? ThemeNotifier.shadow_F7 : Colors.grey.withValues(alpha: 0.2),
+                                              blurRadius: 2,
+                                              offset: const Offset(0, 0),
                                             ),
                                           ],
                                         ),
@@ -1346,13 +1558,12 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                           mainAxisAlignment: MainAxisAlignment.start,
                                           children: [
                                             _buildDataCell(order.id.toString()),
+                                            _buildDataCell(_filterOrderType.firstWhere((e) => e.slug == order.createdVia.toString()).name), //AppDBConst.orderType
                                             _buildDataCell(formattedDate),
-                                            // _buildDataCell('N/A'), // Duration not in API response
-                                            // _buildDataCell('N/A'), // Start time not in API response
-                                            // _buildDataCell('N/A'), // End time not in API response
+                                            _buildDataCell(formattedTime),
                                             _buildDataCell('${order.currencySymbol}${order.total}'),
                                           //  _buildDataCell('N/A'), // Over/short not in API response
-                                            _buildDataCell(order.status),
+                                            _buildDataCell(order.status, isStatus: true),
                                             // Add action buttons if needed
                                           ],
                                         ),
@@ -1360,11 +1571,74 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                     ),
                                   );
                                 }),
+                                // Show message when no data available
+                                if (paginatedData.isEmpty && filteredData.isEmpty)
+                                  Container(
+                                    padding: const EdgeInsets.all(20),
+                                    child: Center(
+                                      child: Text(
+                                        'No orders found',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          color: themeHelper.themeMode == ThemeMode.dark
+                                              ? ThemeNotifier.textDark : Colors.grey,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+
+                                // Show message when filters result in no data
+                                if (paginatedData.isEmpty && filteredData.isEmpty && _orders.isNotEmpty)
+                                  Container(
+                                    padding: const EdgeInsets.all(20),
+                                    child: Center(
+                                      child: Text(
+                                        'No orders match the selected filters',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          color: themeHelper.themeMode == ThemeMode.dark
+                                              ? ThemeNotifier.textDark : Colors.grey,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
                               ],
                             ),
                           ),
                         ),
                       ),
+                      // ADDED: Pagination Controls
+                      //if (!isLoading && totalItems > 0)
+                      if (filteredData.length > _rowsPerPage)
+                        _buildPaginationControls(totalItems, totalPages),
+                      // REUSABLE PAGINATION WIDGET
+                      // PaginationWidget(
+                      //   currentPage: _currentPage,
+                      //   totalItems: filteredData.length,
+                      //   rowsPerPage: _rowsPerPage,
+                      //   rowsPerPageOptions: _rowsPerPageOptions,
+                      //   onPageChanged: (page) {
+                      //     setState(() {
+                      //       _currentPage = page;
+                      //     });
+                      //     debugPrint("OrdersScreen: Page changed to $page");
+                      //   },
+                      //   onRowsPerPageChanged: (rowsPerPage) {
+                      //     setState(() {
+                      //       _rowsPerPage = rowsPerPage;
+                      //       _currentPage = 1; // Reset to first page
+                      //     });
+                      //     debugPrint("OrdersScreen: Rows per page changed to $rowsPerPage");
+                      //   },
+                      //   showFirstLastButtons: true,
+                      //   showPageNumbers: true,
+                      //   emptyMessage: "No orders found",
+                      //   // Optional customization
+                      //   backgroundColor: Colors.grey[50],
+                      //   textStyle: const TextStyle(fontSize: 14, color: Colors.black87),
+                      //   buttonColor: Colors.blue,
+                      //   disabledButtonColor: Colors.grey,
+                      // ),
                     ],
                   ),
                 ),
@@ -1373,11 +1647,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                 if (sidebarPosition != SidebarPosition.right &&
                     !(sidebarPosition == SidebarPosition.bottom &&
                         orderPanelPosition == OrderPanelPosition.left))
-                  RightOrderPanel(
-                    formattedDate: formattedDate,
-                    formattedTime: formattedTime,
-                    quantities: quantities,
-                  ),
+                  _orderScreenPanel,
 
                 // Right Sidebar
                 if (sidebarPosition == SidebarPosition.right)
@@ -1411,22 +1681,164 @@ class _OrdersScreenState extends State<OrdersScreen> {
       ),
     );
   }
-
-  // In _OrdersScreenState, add a method to handle row selection
+  late OrderScreenPanel _orderScreenPanel;
+ // method to handle row selection
   void _onOrderRowSelected(int orderId) async {
+    debugPrint("OrdersScreen: _onOrderRowSelected id $orderId");
+    // Explicitly declare selectedOrder as a nullable OrderModel
+    model.OrderModel? selectedOrder;
+    // ADD this logic to determine the date and time for the panel
+    String panelDate;
+    String panelTime;
+
+    if (_selectedOrderId != null) {
+      // Use indexWhere to safely find the index of the selected order.
+      // It returns -1 if no element is found, preventing errors.
+      final index = _orders.indexWhere((order) => order.id == _selectedOrderId);
+
+      if (index != -1) {
+        // If the index is valid, get the order from the list.
+        selectedOrder = _orders[index];
+      }
+    }
+
+    if (selectedOrder != null) {
+      // If an order is selected, parse and format its date and time
+      final date = DateTime.tryParse(selectedOrder.dateCreated)?.toLocal();
+      if (date != null) {
+        panelDate = DateFormat("EEE, MMM d, yyyy").format(date);
+        panelTime = DateFormat('hh:mm a').format(date);
+      } else {
+        // Fallback if the date string is invalid
+        panelDate = 'Invalid Date';
+        panelTime = 'Invalid Time';
+      }
+    } else {
+      // If no order is selected, default to the current date and time
+      final now = DateTime.now();
+      panelDate = DateFormat("EEE, MMM d, yyyy").format(now);
+      panelTime = DateFormat('hh:mm a').format(now);
+    }
+
     if (orderHelper.activeOrderId != orderId) {
       // Create or switch to order tab in RightOrderPanel
       await orderHelper.setActiveOrder(orderId);
       // Notify RightOrderPanel to refresh
-      setState(() {});
-      debugPrint("OrdersScreen: Selected order ID $orderId");
+      // Set the state with the selected order's ID
+      setState(() {
+        // If the user taps the same row, you might want to deselect it
+        if (_selectedOrderId == orderId) {
+          _selectedOrderId = null;
+          // Consider clearing the helper as well if needed
+          // orderHelper.clearActiveOrder();
+        } else {
+          _selectedOrderId = orderId;
+        }
+      });
+      debugPrint("OrdersScreen: Selected order ID $_selectedOrderId");
     }
+    _orderScreenPanel = OrderScreenPanel(
+      formattedDate: panelDate,
+      formattedTime: panelTime,
+      quantities: quantities,
+    );
+    // _orderScreenPanel.setFormattedDate = panelDate;
+    // _orderScreenPanel.setFormattedTime = panelTime;
+
+  }
+
+  Widget _buildPaginationControls(int totalItems, int totalPages) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          const Text("Rows per page:"),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8.0),
+              border: Border.all(color: Colors.grey.shade400),
+            ),
+            child: DropdownButton<int>(
+              value: _rowsPerPage,
+              underline: const SizedBox.shrink(),
+              items: _rowsPerPageOptions.map((int value) {
+                return DropdownMenuItem<int>(
+                  value: value,
+                  child: Text(value.toString()),
+                );
+              }).toList(),
+              onChanged: (int? newValue) {
+                if (newValue != null) {
+                  setState(() {
+                    _rowsPerPage = newValue;
+                    _currentPage = 1; // Reset to first page
+                  });
+                }
+              },
+            ),
+          ),
+          const SizedBox(width: 24),
+          Text(
+            totalItems == 0
+                ? '0-0 of 0'
+                : '${(_currentPage - 1) * _rowsPerPage + 1}-${(_currentPage * _rowsPerPage) > totalItems ? totalItems : (_currentPage * _rowsPerPage)} of $totalItems',
+          ),
+          const SizedBox(width: 24),
+          IconButton(
+            icon: const Icon(Icons.first_page),
+            onPressed: _currentPage == 1 || totalItems == 0
+                ? null
+                : () {
+              setState(() {
+                _currentPage = 1;
+              });
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.chevron_left),
+            onPressed: _currentPage == 1 || totalItems == 0
+                ? null
+                : () {
+              setState(() {
+                _currentPage--;
+              });
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.chevron_right),
+            onPressed: _currentPage == totalPages || totalItems == 0
+                ? null
+                : () {
+              setState(() {
+                _currentPage++;
+                // _fetchOrders();
+                // _orderBloc.fetchOrders(true, _currentPage);
+              });
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.last_page),
+            onPressed: _currentPage == totalPages || totalItems == 0
+                ? null
+                : () {
+              setState(() {
+                _currentPage = totalPages;
+              });
+            },
+          ),
+        ],
+      ),
+    );
   }
 
   // Build sortable column header
   Widget _buildSortableColumn(String label, String columnKey) {
+    final themeHelper = Provider.of<ThemeNotifier>(context);
     return SizedBox(
-      width: 120,
+      width: MediaQuery.of(context).size.width * 0.105,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 0.0, horizontal: 4.0),
         child: InkWell(
@@ -1436,25 +1848,31 @@ class _OrdersScreenState extends State<OrdersScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  color: Colors.grey,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
+              Flexible(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: themeHelper.themeMode == ThemeMode.dark
+                  ? ThemeNotifier.textDark : Colors.grey,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                textAlign: TextAlign.center,
               ),
+              const SizedBox(width: 4),
               if (_sortColumn == columnKey)
                 Icon(
                   _isAscending ? Icons.arrow_upward : Icons.arrow_downward,
-                  color: Colors.blue,
+                  color:  Colors.blue,
                   size: 16,
                 )
               else
-                const Icon(
+                Icon(
                   Icons.unfold_more,
-                  color: Colors.grey,
+                  color: themeHelper.themeMode == ThemeMode.dark
+                      ? ThemeNotifier.textDark : Colors.grey,
                   size: 16,
                 ),
             ],
@@ -1467,7 +1885,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
   // Build header cell
   Widget _buildHeaderCell(String text) {
     return SizedBox(
-      width: 120,
+      width: MediaQuery.of(context).size.width * 0.105,
       child: Text(
         text,
         style: const TextStyle(
@@ -1481,18 +1899,27 @@ class _OrdersScreenState extends State<OrdersScreen> {
   }
 
   // Build data cell
-  Widget _buildDataCell(String text) {
+  Widget _buildDataCell(String text, {bool isStatus = false}) {
+    final themeHelper = Provider.of<ThemeNotifier>(context);
     return SizedBox(
-      width: 120,
+      width: MediaQuery.of(context).size.width * 0.105,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
-        child: Text(
+        child: isStatus
+            ? StatusWidget(
+          status: text,
+          dotSize: 8.0,
+          fontSize: 14.0,
+        )
+            : Text(
           text,
-          style: const TextStyle(
-            color: Colors.black87,
+          style: TextStyle(
+            color: themeHelper.themeMode == ThemeMode.dark
+                ? ThemeNotifier.textDark : Colors.black87,
             fontSize: 14,
           ),
           textAlign: TextAlign.center,
+          overflow: TextOverflow.ellipsis,
         ),
       ),
     );

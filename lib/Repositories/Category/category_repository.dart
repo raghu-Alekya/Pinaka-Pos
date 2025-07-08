@@ -55,8 +55,8 @@ class CategoryRepository { // Build #1.0.21
       try {
         final responseData = json.decode(response);
         return CategoryProductListResponse.fromJson(List.from(responseData));
-      } catch (e) {
-        if (kDebugMode) print("Error parsing products response: $e");
+      } catch (e, s) {
+        if (kDebugMode) print("Error parsing products response: $e, Stack: $s");
         throw Exception("Failed to parse products response");
       }
     } else if (response is List) {

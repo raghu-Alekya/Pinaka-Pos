@@ -35,7 +35,9 @@ class CategoryBloc { // Build #1.0.21 - Added category screen bloc - naveen
   // Fetch categories by parent ID (0 for top-level categories)
   Future<void> fetchCategories(int parentId) async {
     if (_categoriesController.isClosed) return;
-
+    if (kDebugMode) {
+      print("CategoryBloc - Fetching sub categories with parentId: $parentId");
+    }
     categoriesSink.add(APIResponse.loading(TextConstants.loading));
     try {
       final response = await _categoryRepository.getCategories(parent: parentId);
@@ -59,6 +61,9 @@ class CategoryBloc { // Build #1.0.21 - Added category screen bloc - naveen
   Future<void> fetchProductsByCategory(int categoryId) async {
     if (_productsController.isClosed) return;
 
+    if (kDebugMode) {
+      print("CategoryBloc - Fetching product with categoryId: $categoryId");
+    }
     productsSink.add(APIResponse.loading(TextConstants.loading));
     try {
       final response = await _categoryRepository.getProductsByCategory(categoryId);
@@ -68,13 +73,13 @@ class CategoryBloc { // Build #1.0.21 - Added category screen bloc - naveen
       }
 
       productsSink.add(APIResponse.completed(response));
-    } catch (e) {
+    } catch (e,s) {
       if (e.toString().contains('SocketException')) {
         productsSink.add(APIResponse.error("Network error. Please check your connection."));
       } else {
-        productsSink.add(APIResponse.error("Failed to fetch products: ${e.toString()}"));
+        productsSink.add(APIResponse.error("Failed to fetch products."));
       }
-      if (kDebugMode) print("Exception in fetchProductsByCategory: $e");
+      if (kDebugMode) print("Exception in fetchProductsByCategory: $e Stack: $s");
     }
   }
 

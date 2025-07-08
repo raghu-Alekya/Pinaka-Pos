@@ -2,11 +2,13 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:pinaka_pos/Screens/Auth/login_screen.dart';
+import 'package:provider/provider.dart';
 import '../../Blocs/Auth/login_bloc.dart';
 import '../../Blocs/Auth/store_validation_bloc.dart';
 import '../../Constants/text.dart';
 import '../../Database/db_helper.dart';
 import '../../Database/user_db_helper.dart';
+import '../../Helper/Extentions/theme_notifier.dart';
 import '../../Helper/api_response.dart';
 import '../../Models/Auth/login_model.dart';
 import '../../Models/Auth/store_validation_model.dart';
@@ -152,6 +154,7 @@ class _StoreIdScreenState extends State<StoreIdScreen> {
   Widget build(BuildContext context) {
     bool isPortrait =
         MediaQuery.of(context).orientation == Orientation.portrait;
+    final themeHelper = Provider.of<ThemeNotifier>(context);
 
     return Scaffold(
       body: Row(
@@ -239,9 +242,9 @@ class _StoreIdScreenState extends State<StoreIdScreen> {
                               : MediaQuery.of(context).size.width / 3,
                           padding: const EdgeInsets.symmetric(horizontal: 8),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.paymentEntryContainerColor : Colors.white,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.grey.shade300),
+                            border: Border.all(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.borderColor : Colors.grey.shade300),
                           ),
                           child: TextFormField(
                             keyboardType: TextInputType.emailAddress,
@@ -273,41 +276,57 @@ class _StoreIdScreenState extends State<StoreIdScreen> {
                               : MediaQuery.of(context).size.width / 3,
                           padding: const EdgeInsets.symmetric(horizontal: 8),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.paymentEntryContainerColor : Colors.white,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.grey.shade300),
+                            border: Border.all(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.borderColor : Colors.grey.shade300),
                           ),
-                          child: TextFormField(
-                            controller: _passwordController,
-                            keyboardType: TextInputType.text,
-                            autocorrect: false,
-                            enableSuggestions: false,
-                            decoration: InputDecoration(
-                              hintText: 'Password',
-                              enabledBorder: const UnderlineInputBorder(
-                                borderSide: BorderSide(
-                                  color: Colors.white,
-                                  width: 1.0,
-                                  style: BorderStyle.none,
+                          child: Stack(
+                            alignment: Alignment.centerRight,
+                            children: [
+                              TextFormField(
+                                controller: _passwordController,
+                                keyboardType: TextInputType.text,
+                                autocorrect: false,
+                                enableSuggestions: false,
+                                decoration: const InputDecoration(
+                                  hintText: 'Password',
+                                  enabledBorder: UnderlineInputBorder(
+                                    borderSide: BorderSide(
+                                      color: Colors.white,
+                                      width: 1.0,
+                                      style: BorderStyle.none,
+                                    ),
+                                  ),
+                                  focusedBorder: UnderlineInputBorder(
+                                    borderSide: BorderSide(
+                                      color: Colors.white,
+                                      width: 1.0,
+                                      style: BorderStyle.none,
+                                    ),
+                                  ),
+                                ),
+                                textAlign: TextAlign.center,
+                                obscureText: !_isPasswordVisible,
+                                textInputAction: TextInputAction.next,
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Enter a Password';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              // Position the icon separately using Stack
+                              Positioned(
+                                right: 8,
+                                child: IconButton(
+                                  icon: Icon(
+                                    _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                                    color: Colors.grey,
+                                  ),
+                                  onPressed: _togglePasswordVisibility,
                                 ),
                               ),
-                              suffixIcon: IconButton(
-                                icon: Icon(
-                                  _isPasswordVisible ? Icons.visibility : Icons.visibility_off,
-                                  color: Colors.grey,
-                                ),
-                                onPressed: _togglePasswordVisibility,
-                              ),
-                            ),
-                            textAlign: TextAlign.center,
-                            obscureText: !_isPasswordVisible, // Password visibility based on toggle
-                            textInputAction: TextInputAction.next,
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Enter a Password';
-                              }
-                              return null;
-                            },
+                            ],
                           ),
                         ),
                         const SizedBox(height: 10),
@@ -317,9 +336,9 @@ class _StoreIdScreenState extends State<StoreIdScreen> {
                               : MediaQuery.of(context).size.width / 3,
                           padding: const EdgeInsets.symmetric(horizontal: 8),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.paymentEntryContainerColor : Colors.white,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.grey.shade300),
+                            border: Border.all(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.borderColor : Colors.grey.shade300),
                           ),
                           child: TextFormField(
                             keyboardType: TextInputType.text,

@@ -1,6 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:pinaka_pos/Constants/text.dart';
+import 'package:provider/provider.dart';
+
+import '../Helper/Extentions/theme_notifier.dart';
 
 class CustomDialog {
   // Reusable Button Styles
@@ -19,161 +23,218 @@ class CustomDialog {
   );
 
   // Reusable Text Styles
-  static const TextStyle _titleStyle = TextStyle(
-    fontSize: 18,
-    fontWeight: FontWeight.bold,
-    color: Color(0xFF4C5F7D),
-  );
-
-  static const TextStyle _descriptionStyle = TextStyle(
-    fontSize: 14,
-    color: Colors.grey,
-  );
-
-  static const TextStyle _lightDescriptionStyle = TextStyle(
-    fontSize: 14,
-    color: Color(0xFFD0CCCC),
-  );
-
-  static const TextStyle _mutedDescriptionStyle = TextStyle(
-    fontSize: 14,
-    color: Color(0xFF9CA3AF),
-  );
-
-  // Public Methods
-  static Future<void> showInvalidCoupon(BuildContext context) {
-    return _showSimpleDialog(
-      context,
-      title: TextConstants.invalidCoupon,
-      description: TextConstants.invalidCouponDescription,
-      buttonText: TextConstants.letsTryAgain,
-      iconPath: 'assets/svg/check_broken_info.svg',
-      showCloseIcon: true,
+  static TextStyle _titleStyle(BuildContext context) {
+    final themeHelper = Provider.of<ThemeNotifier>(context);
+    return TextStyle(
+      fontSize: 18,
+      fontWeight: FontWeight.bold,
+      color: themeHelper.themeMode == ThemeMode.dark ? Color(0xFFE8E6E6): Color(0xFF4C5F7D),
     );
   }
 
-  static Future<void> showDiscountNotApplied(BuildContext context) {
-    return _showSimpleDialog(
-      context,
-      title: TextConstants.discountNotApplied,
-      description: TextConstants.discountNotAppliedDescription,
-      buttonText: TextConstants.letsTryAgain,
-      iconPath: 'assets/svg/check_broken_info.svg',
-      showCloseIcon: true,
-    );
-  }
+    static TextStyle _descriptionStyle(BuildContext context) {
+      final themeHelper = Provider.of<ThemeNotifier>(context);
+      return TextStyle(
+        fontSize: 14,
+        color: themeHelper.themeMode == ThemeMode.dark ? Color(0xFFDADADA) : Colors.grey,
+      );
+    }
 
-  static Future<bool?> showRemoveDiscountConfirmation(BuildContext context) {
-    return _showConfirmDialog(
-      context,
-      title: TextConstants.removeDiscountOrCoupon,
-      description: TextConstants.removeDiscountOrCouponDescription,
-      confirmText: TextConstants.remove,
-      cancelText: TextConstants.close,
-      iconPath: 'assets/svg/check_broken_alert.svg',
+    static const TextStyle _lightDescriptionStyle = TextStyle(
+      fontSize: 14,
+      color: Color(0xFFD0CCCC),
     );
-  }
 
-  static Future<bool?> showAreYouSure(BuildContext context) {
-    return _showConfirmDialog(
-      context,
-      title: TextConstants.areYouSure,
-      description: TextConstants.deleteTheRecordsDescription,
-      confirmText: TextConstants.yesDelete,
-      cancelText: TextConstants.noKeepIt,
-      iconPath: 'assets/svg/check_broken_alert.svg',
+    static const TextStyle _mutedDescriptionStyle = TextStyle(
+      fontSize: 14,
+      color: Color(0xFF9CA3AF),
     );
-  }
 
-  static Future<void> showCustomItemAlert(BuildContext context) {
-    return _showSimpleDialog(
-      context,
-      title: TextConstants.customItemAlert,
-      description: TextConstants.customItemAlertDescription,
-      buttonText: TextConstants.addCustomItem,
-      iconPath: 'assets/svg/check_broken_info.svg',
-      showCloseIcon: true,
-    );
-  }
+    // Public Methods
+    static Future<void> showInvalidCoupon(BuildContext context) {
+      return _showSimpleDialog(
+        context,
+        title: TextConstants.invalidCoupon,
+        description: TextConstants.invalidCouponDescription,
+        buttonText: TextConstants.letsTryAgain,
+        iconPath: 'assets/svg/check_broken_info.svg',
+        showCloseIcon: true,
+      );
+    }
 
-  static Future<void> showCouponNotApplied(BuildContext context) {
-    return _showSimpleDialog(
-      context,
-      title: TextConstants.couponNotApplied,
-      description: TextConstants.couponNotAppliedDescription,
-      buttonText: TextConstants.letsTryAgain,
-      iconPath: 'assets/svg/check_broken_info.svg',
-      showCloseIcon: true,
-    );
-  }
+    static Future<void> showDiscountNotApplied(
+        BuildContext context, {
+          String errorMessageTitle = TextConstants.discountNotApplied,
+          String errorMessageDes = TextConstants.discountNotAppliedDescription,
+          VoidCallback? onRetry,
+        }) {
+      return _showSimpleDialog(
+        context,
+        title: errorMessageTitle,
+        description: errorMessageDes,
+        buttonText: TextConstants.letsTryAgain,
+        iconPath: 'assets/svg/check_broken_info.svg',
+        showCloseIcon: true,
+        onButtonPressed: onRetry ?? () => Navigator.of(context).pop(),
+      );
+    }
 
-  static Future<void> showInvalidDiscount(BuildContext context) {
-    return _showSimpleDialog(
-      context,
-      title: TextConstants.invalidDiscount,
-      description: TextConstants.invalidDiscountDescription,
-      buttonText: TextConstants.letsTryAgain,
-      iconPath: 'assets/svg/check_broken_info.svg',
-      showCloseIcon: true,
-    );
-  }
+    //Build #1.0.67: code updated for removing the payout/coupon/discount based on
+    static Future<bool?> showRemoveSpecialOrderItemsConfirmation(BuildContext context, {String? type, Function? confirm}) {
+      return _showConfirmDialog(
+          context,
+          title: type == 'payout'
+              ? TextConstants.removePayout
+              : type == 'coupon'
+              ? TextConstants.removeCoupon
+              : type == 'custom item'
+              ? TextConstants.removeCustomItem
+              : TextConstants.removeDiscount,
 
-  static Future<void> showCustomItemNotAdded(BuildContext context) {
-    return _showSimpleDialog(
-      context,
-      title: TextConstants.customItemCouldNotBeAdded,
-      description: TextConstants.customItemCouldNotBeAddedDescription,
-      buttonText: TextConstants.letsTryAgain,
-      iconPath: 'assets/svg/check_broken_info.svg',
-      showCloseIcon: true,
-    );
-  }
+          description: TextConstants.removeSpecialOrderItemDescription,
+          confirmText: TextConstants.remove,
+          cancelText: TextConstants.close,
+          iconPath: 'assets/svg/check_broken_alert.svg',
+          confirmCallBack: confirm
+        //confirmCallback: confirm,
+      );
+    }
 
-  // Cash Drawer Verification Methods
-  static Future<bool?> showStartShiftVerification(
-      BuildContext context, {
-        required double totalAmount,
-        //double? shortAmount,
-        double? overAmount,
-      }) {
-    return _showCashVerificationDialog(
-      context,
-      totalAmount: totalAmount,
-      //shortAmount: shortAmount,
-      overAmount: overAmount,
-      isShiftStarted: false,
-    );
-  }
+    static Future<bool?> showAreYouSure(BuildContext context,
+        { Function? confirm, bool isDeleting = false}) {
+      return _showConfirmDialog(
+          context,
+          title: TextConstants.areYouSure,
+          description: TextConstants.deleteTheRecordsDescription,
+          confirmText: TextConstants.yesDelete,
+          cancelText: TextConstants.noKeepIt,
+          iconPath: 'assets/svg/check_broken_alert.svg',
+          confirmCallBack: confirm,
+          isDeleting: isDeleting
+      ); //Build #1.0.74: Pass to _showConfirmDialog
+    }
 
-  static Future<bool?> showCloseShiftVerification(
-      BuildContext context, {
-        required double totalAmount,
-        double? shortAmount,
-        //double? overAmount,
-      }) {
-    return _showCashVerificationDialog(
-      context,
-      totalAmount: totalAmount,
-      shortAmount: shortAmount,
-      //overAmount: overAmount,
-      isShiftStarted: true,
-    );
-  }
+    static Future<void> showCustomItemAlert( //Build #1.0.68: updated code
+        BuildContext context, {
+          String? title,
+          String? description,
+          String? buttonText,
+          VoidCallback? onButtonPressed,
+        }) {
+      return _showSimpleDialog(
+        context,
+        title: title ?? TextConstants.customItemAlert,
+        description: description ?? TextConstants.customItemAlertDescription,
+        buttonText: buttonText ?? TextConstants.addCustomItem,
+        iconPath: 'assets/svg/check_broken_info.svg',
+        showCloseIcon: true,
+        onButtonPressed: onButtonPressed ?? () => Navigator.of(context).pop(), // Default dismiss action
+      );
+    }
 
-  // Reusable Base Dialog Builder
-  static Widget _buildBaseDialog(BuildContext context, Widget content) {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      insetPadding: const EdgeInsets.symmetric(horizontal: 40.0, vertical: 24.0),
-      child: SizedBox(
-        width: MediaQuery.of(context).size.width * 0.35,
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: content,
+    static Future<void> showCouponNotApplied(
+        BuildContext context, {
+          String errorMessageTitle = TextConstants.couponNotApplied,
+          String errorMessageDes = TextConstants.couponNotAppliedDescription,
+          VoidCallback? onRetry,
+        }) {
+      return _showSimpleDialog(
+        context,
+        title: errorMessageTitle,
+        description: errorMessageDes,
+        buttonText: TextConstants.letsTryAgain,
+        iconPath: 'assets/svg/check_broken_info.svg',
+        showCloseIcon: true,
+        onButtonPressed: onRetry ?? () => Navigator.of(context).pop(),
+      );
+    }
+
+    static Future<void> showInvalidDiscount(BuildContext context) {
+      return _showSimpleDialog(
+        context,
+        title: TextConstants.invalidDiscount,
+        description: TextConstants.invalidDiscountDescription,
+        buttonText: TextConstants.letsTryAgain,
+        iconPath: 'assets/svg/check_broken_info.svg',
+        showCloseIcon: true,
+      );
+    }
+
+    static Future<void> showCustomItemNotAdded(
+        BuildContext context, {
+          String errorMessageTitle = TextConstants.customItemCouldNotBeAdded,
+          String errorMessageDes = TextConstants.customItemCouldNotBeAddedDescription,
+          VoidCallback? onRetry,
+        }) {
+      return _showSimpleDialog(
+        context,
+        title: errorMessageTitle,
+        description: errorMessageDes,
+        buttonText: TextConstants.letsTryAgain,
+        iconPath: 'assets/svg/check_broken_info.svg',
+        showCloseIcon: true,
+        onButtonPressed: onRetry ?? () => Navigator.of(context).pop(),
+      );
+    }
+
+    // Cash Drawer Verification Methods
+    static Future<bool?> showStartShiftVerification(
+        BuildContext context, {
+          required double totalAmount,
+          double? overShort,
+        }) {
+      return _showCashVerificationDialog(
+        context,
+        totalAmount: totalAmount,
+        overShort: overShort,
+        isShiftStarted: false,
+      );
+    }
+
+    static Future<bool?> showCloseShiftVerification(
+        BuildContext context, {
+          required double totalAmount,
+          double? overShort,
+        }) {
+      return _showCashVerificationDialog(
+        context,
+        totalAmount: totalAmount,
+        overShort: overShort,
+        isShiftStarted: true,
+      );
+    }
+
+    static Future<bool?> showUpdateShiftVerification(
+        BuildContext context, {
+          required double totalAmount,
+          double? overShort,
+        }) {
+      return _showCashVerificationDialog(
+        context,
+        totalAmount: totalAmount,
+        overShort: overShort,
+        isShiftStarted: true,
+        actionButtonTextOverride: TextConstants.updateShift,
+        descriptionTextOverride: TextConstants.updateShiftDescription,
+      );
+    }
+
+    // Reusable Base Dialog Builder
+    static Widget _buildBaseDialog(BuildContext context, Widget content) {
+      final themeHelper = Provider.of<ThemeNotifier>(context);
+      return Dialog(
+        backgroundColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.popUpsBackground : null,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 40.0, vertical: 24.0),
+        child: SizedBox(
+          width: MediaQuery.of(context).size.width * 0.35,
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: content,
+          ),
         ),
-      ),
-    );
-  }
+      );
+    }
 
   // Reusable Icon Builder
   static Widget _buildIcon(String iconPath, {double height = 50, Color? color}) {
@@ -199,246 +260,268 @@ class CustomDialog {
   //   );
   // }
 
-  // Reusable Text Builders
-  static Widget _buildTitle(String title) {
-    return Text(
-      title,
-      style: _titleStyle,
-      textAlign: TextAlign.center,
-    );
-  }
+    // Reusable Text Builders
+    static Widget _buildTitle(BuildContext context, String title) {
+      return Text(
+        title,
+        style: _titleStyle(context),
+        textAlign: TextAlign.center,
+      );
+    }
 
-  static Widget _buildDescription(String description, {TextStyle? style}) {
-    return Text(
-      description,
-      style: style ?? _descriptionStyle,
-      textAlign: TextAlign.center,
-    );
-  }
+    static Widget _buildDescription(BuildContext context, String description, {TextStyle? style}) {
+      return Text(
+        description,
+        style: style ?? _descriptionStyle(context),
+        textAlign: TextAlign.center,
+      );
+    }
 
-  // Reusable Button Builders
-  static Widget _buildPrimaryButton(String text, VoidCallback onPressed) {
-    return ElevatedButton(
-      style: _primaryButtonStyle,
-      onPressed: onPressed,
-      child: Text(text, style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-    );
-  }
-
-  static Widget _buildSecondaryButton(String text, VoidCallback onPressed) {
-    return ElevatedButton(
-      style: _secondaryButtonStyle,
-      onPressed: onPressed,
-      child: Text(text, style: TextStyle(color: Color(0xFF4C5F7D), fontWeight: FontWeight.bold)),
-    );
-  }
-
-  // Reusable Close Icon
-  static Widget _buildCloseIcon(BuildContext context) {
-    return Positioned(
-      top: 0,
-      right: 0,
-      child: GestureDetector(
-        onTap: () => Navigator.of(context).pop(),
-        child: CircleAvatar(
-          backgroundColor: Colors.redAccent,
-          radius: 20,
-          child: Icon(Icons.close, size: 20, color: Colors.white),
-        ),
-      ),
-    );
-  }
-
-  // Reusable Amount Row Builder
-  static Widget _buildAmountRow(String label, double amount, {Color? backgroundColor, Color? textColor}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-      decoration: BoxDecoration(
-        color: backgroundColor ?? Color(0xFFF8F9FA),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: textColor ?? Color(0xFF4C5F7D),
-            ),
+    // Reusable Button Builders
+    static Widget _buildPrimaryButton(String text, VoidCallback onPressed, {bool isDeleting = false}) {
+      return ElevatedButton(
+        style: _primaryButtonStyle,
+        onPressed: onPressed,
+        child: isDeleting
+            ? SizedBox( //Build #1.0.74
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(
+            color: Colors.white,
+            strokeWidth: 2,
           ),
-          Text(
-            '\$${amount.toStringAsFixed(2)}',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: textColor ?? Color(0xFF4C5F7D),
-            ),
+        )
+            : Text(
+          text,
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+      );
+    }
+
+    static Widget _buildSecondaryButton(String text, VoidCallback onPressed) {
+      return ElevatedButton(
+        style: _secondaryButtonStyle,
+        onPressed: onPressed,
+        child: Text(text, style: TextStyle(color: Color(0xFF4C5F7D), fontWeight: FontWeight.bold)),
+      );
+    }
+
+    // Reusable Close Icon
+    static Widget _buildCloseIcon(BuildContext context) {
+      return Positioned(
+        top: 0,
+        right: 0,
+        child: GestureDetector(
+          onTap: () => Navigator.of(context).pop(),
+          child: CircleAvatar(
+            backgroundColor: Colors.redAccent,
+            radius: 20,
+            child: Icon(Icons.close, size: 20, color: Colors.white),
           ),
-        ],
-      ),
-    );
-  }
-
-  // Internal Methods - Refactored
-  static Future<void> _showSimpleDialog(
-      BuildContext context, {
-        required String title,
-        required String description,
-        required String buttonText,
-        required String iconPath,
-        bool showCloseIcon = false,
-      }) {
-    return showDialog(
-      context: context,
-      builder: (_) => _buildBaseDialog(
-        context,
-        Stack(
-          children: [
-            if (showCloseIcon) _buildCloseIcon(context),
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(height: showCloseIcon ? 32 : 0),
-                _buildIcon(iconPath),
-                const SizedBox(height: 16),
-                _buildTitle(title),
-                const SizedBox(height: 8),
-                _buildDescription(description),
-                const SizedBox(height: 24),
-                _buildPrimaryButton(
-                  buttonText,
-                      () => Navigator.of(context).pop(),
-                ),
-              ],
-            ),
-          ],
         ),
-      ),
-    );
-  }
+      );
+    }
 
-  static Future<bool?> _showConfirmDialog(
-      BuildContext context, {
-        required String title,
-        required String description,
-        required String confirmText,
-        required String cancelText,
-        required String iconPath,
-      }) {
-    return showDialog(
-      context: context,
-      builder: (_) => _buildBaseDialog(
-        context,
-        Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildIcon(iconPath, height: 48),
-            const SizedBox(height: 16),
-            _buildTitle(title),
-            const SizedBox(height: 8),
-            _buildDescription(description, style: _lightDescriptionStyle),
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildSecondaryButton(
-                    cancelText,
-                        () => Navigator.of(context).pop(false),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildPrimaryButton(
-                    confirmText,
-                        () => Navigator.of(context).pop(true),
-                  ),
-                ),
-              ],
-            ),
-          ],
+    // Reusable Amount Row Builder
+    static Widget _buildAmountRow(String label, double amount, {Color? backgroundColor, Color? textColor}) {
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        decoration: BoxDecoration(
+          color: backgroundColor ?? Color(0xFFF8F9FA),
+          borderRadius: BorderRadius.circular(8),
         ),
-      ),
-    );
-  }
-
-  static Future<bool?> _showCashVerificationDialog(
-      BuildContext context, {
-        required double totalAmount,
-        double? shortAmount,
-        double? overAmount,
-        required bool isShiftStarted,
-      }) {
-    String actionButtonText = isShiftStarted
-        ? TextConstants.closeShift
-        : TextConstants.startShift;
-
-    String descriptionText = isShiftStarted
-        ? TextConstants.ShiftCloseDescription
-        : TextConstants.ShiftStartDescription;
-
-    return showDialog(
-      context: context,
-      builder: (_) => _buildBaseDialog(
-        context,
-        Column(
-          mainAxisSize: MainAxisSize.min,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // Icon with background
-            _buildIcon(
-              'assets/svg/check_broken_alert.svg',
-            ),
-            const SizedBox(height: 16),
-            // Title
-            _buildTitle(TextConstants.verifyDrawerAndSafeAmounts),
-            const SizedBox(height: 24),
-            // Total Amount
-            _buildAmountRow(TextConstants.totalAmount, totalAmount),
-            const SizedBox(height: 12),
-            // Short Amount (RED) - only show if > 0
-            if (shortAmount != null && shortAmount > 0)
-              _buildAmountRow(
-                TextConstants.shortAmount,
-                shortAmount,
-                backgroundColor: Color(0xFFFEE2E2),
-                textColor: Color(0xFFFE6464),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: textColor ?? Color(0xFF4C5F7D),
               ),
-            // Over Amount (GREEN) - only show if > 0
-            if (overAmount != null && overAmount > 0)
-              _buildAmountRow(
-                TextConstants.overAmount,
-                overAmount,
-                backgroundColor: Color(0xFFE8F5E8),
-                textColor: Color(0xFF22C55E),
+            ),
+            Text(
+              '${TextConstants.currencySymbol}${amount.toStringAsFixed(2)}',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: textColor ?? Color(0xFF4C5F7D),
               ),
-            const SizedBox(height: 16),
-            // Description
-            _buildDescription(descriptionText, style: _mutedDescriptionStyle),
-            const SizedBox(height: 24),
-            // Action Buttons
-            Row(
-              children: [
-                Expanded(
-                  child: _buildSecondaryButton(
-                    TextConstants.back,
-                        () => Navigator.of(context).pop(false),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildPrimaryButton(
-                    actionButtonText,
-                        () => Navigator.of(context).pop(true),
-                  ),
-                ),
-              ],
             ),
           ],
         ),
-      ),
-    );
-  }
+      );
+    }
+
+    // Internal Methods - Refactored
+    static Future<void> _showSimpleDialog(
+        BuildContext context, {
+          required String title,
+          required String description,
+          required String buttonText,
+          required String iconPath,
+          bool showCloseIcon = false,
+          VoidCallback? onButtonPressed,
+        }) {
+      return showDialog(
+        context: context,
+        builder: (_) => _buildBaseDialog(
+          context,
+          Stack(
+            children: [
+              if (showCloseIcon) _buildCloseIcon(context),
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(height: showCloseIcon ? 32 : 0),
+                  _buildIcon(iconPath),
+                  const SizedBox(height: 16),
+                  _buildTitle(context,title),
+                  const SizedBox(height: 8),
+                  _buildDescription(context, description),
+                  const SizedBox(height: 24),
+                  _buildPrimaryButton(
+                    buttonText,
+                    onButtonPressed ?? () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    static Future<bool?> _showConfirmDialog(
+        BuildContext context, {
+          required String title,
+          required String description,
+          required String confirmText,
+          required String cancelText,
+          required String iconPath,
+          Function? confirmCallBack,
+          bool isDeleting = false, // Add parameter
+        }) {
+      return showDialog(
+        context: context,
+        builder: (BuildContext dialogContext) => _buildBaseDialog(
+          dialogContext,
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildIcon(iconPath, height: 48),
+              const SizedBox(height: 16),
+              _buildTitle(context, title),
+              const SizedBox(height: 8),
+              _buildDescription(context, description, style: _lightDescriptionStyle),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildSecondaryButton(
+                      cancelText,
+                          () => Navigator.of(dialogContext).pop(false),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildPrimaryButton(
+                        confirmText,
+                            () {
+                          confirmCallBack?.call();
+                          Navigator.of(dialogContext).pop(true);
+                        },
+                        isDeleting:isDeleting
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    static Future<bool?> _showCashVerificationDialog(
+        BuildContext context, {
+          required double totalAmount,
+          double? overShort,
+          required bool isShiftStarted,
+          String? actionButtonTextOverride,
+          String? descriptionTextOverride,
+        }) {
+      String actionButtonText = actionButtonTextOverride ??
+          (isShiftStarted ? TextConstants.closeShift : TextConstants.startShift);
+
+      String descriptionText = descriptionTextOverride ??
+          (isShiftStarted
+              ? TextConstants.ShiftCloseDescription
+              : TextConstants.ShiftStartDescription);
+
+      //Build #1.0.74: Determine over/short label and styling
+      String overShortLabel = overShort == 0 ? 'Over/Short' : overShort! > 0 ? 'Over' : 'Short';
+      Color overShortBgColor = overShort == 0 ? Color(0xFFE8F5E8) : overShort! > 0 ? Color(0xFFE8F5E8) : Color(0xFFFEE2E2);
+      Color overShortTextColor = overShort == 0 ? Color(0xFF22C55E) : overShort! > 0 ? Color(0xFF22C55E) : Color(0xFFFE6464);
+
+      if (kDebugMode) {
+        print('Showing cash verification dialog - Total: $totalAmount, Over/Short: $overShort, Label: $overShortLabel');
+      }
+
+      return showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => _buildBaseDialog(
+          context,
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Icon with background
+              _buildIcon(
+                'assets/svg/check_broken_alert.svg',
+              ),
+              const SizedBox(height: 16),
+              // Title
+              _buildTitle(context, TextConstants.verifyDrawerAndSafeAmounts),
+              const SizedBox(height: 24),
+              // Total Amount
+              _buildAmountRow(TextConstants.totalAmount, totalAmount),
+              const SizedBox(height: 12),
+              //Build #1.0.78: Show Over/Short only if not zero
+              if (overShort != null && overShort != 0)
+                _buildAmountRow(
+                  overShortLabel,
+                  overShort.abs(),
+                  backgroundColor: overShortBgColor,
+                  textColor: overShortTextColor,
+                ),
+              const SizedBox(height: 16),
+              // Description
+              _buildDescription(context, descriptionText, style: _mutedDescriptionStyle),
+              const SizedBox(height: 24),
+              // Action Buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildSecondaryButton(
+                      TextConstants.back,
+                          () => Navigator.of(context).pop(false),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildPrimaryButton(
+                      actionButtonText,
+                          () => Navigator.of(context).pop(true),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 }
 // Reusable Components:
 // 1. Button Styles (lines 7-19):

@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sqflite/sqflite.dart';
 import 'db_helper.dart';
 
 class FastKeyDBHelper { // Build #1.0.11 : FastKeyHelper for all fast key related methods
@@ -58,17 +59,32 @@ class FastKeyDBHelper { // Build #1.0.11 : FastKeyHelper for all fast key relate
     return tabs;
   }
 
-  Future<void> updateFastKeyTab(int tabId, Map<String, dynamic> updatedData) async {
+  // Build #1.0.87
+  Future<List<Map<String, dynamic>>> getFastKeyByServerTabId(int serverTabId) async {///tab id is fastServerId from server
+    final db = await DBHelper.instance.database;
+    final tabs = await db.query(
+      AppDBConst.fastKeyTable,
+      where: '${AppDBConst.fastKeyServerId} = ?',
+      whereArgs: [serverTabId],
+    );
+
+    if (kDebugMode) {
+      print("#### Retrieved ${tabs.length} FastKey Tabs for User ID: $serverTabId");
+    }
+    return tabs;
+  }
+
+  Future<void> updateFastKeyTab(int fastKeyServerId, Map<String, dynamic> updatedData) async { // Build #1.0.89: name changed for understanding
     final db = await DBHelper.instance.database;
     await db.update(
       AppDBConst.fastKeyTable,
       updatedData,
-      where: '${AppDBConst.fastKeyId} = ?',
-      whereArgs: [tabId],
+      where: '${AppDBConst.fastKeyServerId} = ?',
+      whereArgs: [fastKeyServerId],
     );
 
     if (kDebugMode) {
-      print("#### FastKey Tab updated with ID: $tabId");
+      print("#### updateFastKeyTab -> fastKeyServerId: $fastKeyServerId");
     }
   }
 
@@ -94,7 +110,7 @@ class FastKeyDBHelper { // Build #1.0.11 : FastKeyHelper for all fast key relate
     await db.update(
       AppDBConst.fastKeyTable,
       {AppDBConst.fastKeyTabItemCount: newCount},
-      where: '${AppDBConst.fastKeyId} = ?',
+      where: '${AppDBConst.fastKeyServerId} = ?',
       whereArgs: [tabId],
     );
 
@@ -107,7 +123,7 @@ class FastKeyDBHelper { // Build #1.0.11 : FastKeyHelper for all fast key relate
     final db = await DBHelper.instance.database;
     await db.delete(
       AppDBConst.fastKeyTable,
-      where: '${AppDBConst.fastKeyId} = ?',
+      where: '${AppDBConst.fastKeyServerId} = ?',
       whereArgs: [tabId],
     );
 
@@ -130,7 +146,7 @@ class FastKeyDBHelper { // Build #1.0.11 : FastKeyHelper for all fast key relate
   }
 
   Future<int> addFastKeyItem(int tabId, String name, String image,  String price, int productId,
-      {String? sku, String? variantId, int? slNumber}) async {
+      {String? sku, String? variantId, int? slNumber, int? minAge}) async {
     final db = await DBHelper.instance.database;
     final itemId = await db.insert(AppDBConst.fastKeyItemsTable, {
       AppDBConst.fastKeyIdForeignKey: tabId,
@@ -141,7 +157,10 @@ class FastKeyDBHelper { // Build #1.0.11 : FastKeyHelper for all fast key relate
       AppDBConst.fastKeyItemVariantId: variantId ?? 'N/A',
       AppDBConst.fastKeyProductId: productId, // Build #1.0.19: Updated req elements
       AppDBConst.fastKeySlNumber: slNumber,
-    });
+      AppDBConst.fastKeyItemMinAge: minAge, // Build #1.0.19: Updated req elements
+    },
+      conflictAlgorithm: ConflictAlgorithm.ignore, // Build #1.0.80: Ignore duplicates
+    );
 
     if (kDebugMode) {
       print("#### FastKey Item added with ID: $itemId");
@@ -193,6 +212,19 @@ class FastKeyDBHelper { // Build #1.0.11 : FastKeyHelper for all fast key relate
     }
   }
 
+  // Build #1.0.89: Added
+  Future<void> deleteFastKeyItemByProductId(int fastKeyId, int productId) async {
+    final db = await DBHelper.instance.database;
+    await db.delete(
+      AppDBConst.fastKeyItemsTable,
+      where: '${AppDBConst.fastKeyIdForeignKey} = ? AND ${AppDBConst.fastKeyProductId} = ?',
+      whereArgs: [fastKeyId, productId],
+    );
+    if (kDebugMode) {
+      print("### FastKeyDBHelper: Deleted item with product ID $productId from fast key ID $fastKeyId");
+    }
+  }
+
   Future<void> deleteFastKeyItem(int itemId) async {
     final db = await DBHelper.instance.database;
     await db.delete(
@@ -203,6 +235,19 @@ class FastKeyDBHelper { // Build #1.0.11 : FastKeyHelper for all fast key relate
 
     if (kDebugMode) {
       print("#### FastKey Item deleted with ID: $itemId");
+    }
+  }
+
+  //Build #1.0.68 : Added
+  Future<void> updateFastKeyItemOrder(int fastKeyTabId, List<Map<String, dynamic>> items) async {
+    final db = await DBHelper.instance.database;
+    for (int i = 0; i < items.length; i++) {
+      await db.update(
+        AppDBConst.fastKeyItemsTable,
+        {AppDBConst.fastKeySlNumber: i + 1},
+        where: '${AppDBConst.fastKeyItemId} = ?',
+        whereArgs: [items[i][AppDBConst.fastKeyItemId]],
+      );
     }
   }
 

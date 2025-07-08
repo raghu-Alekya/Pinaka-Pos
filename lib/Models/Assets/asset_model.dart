@@ -1,4 +1,6 @@
 // Asset Model
+import 'package:flutter/foundation.dart';
+
 class AssetResponse {
   final String baseUrl;
   final List<Media> media;
@@ -10,6 +12,18 @@ class AssetResponse {
   final List<Role> roles;
   final SubscriptionPlan subscriptionPlans;
   final StoreDetails storeDetails;
+  final List<Denom> notesDenom; // Build #1.0.69 : updated assets table based on api response
+  final List<Denom> coinDenom;
+  final List<Denom> safeDenom;
+  final List<Denom> tubesDenom;
+  final String maxTubesCount;
+  final String safeDropAmount;
+  final String drawerAmount;
+  final List<Vendor> vendors;  //Build #1.0.74
+  final List<String> vendorPaymentTypes;
+  final List<String> vendorPaymentPurpose;
+  final List<Employees> employees;
+  final List<OrderType> orderTypes;
 
   AssetResponse({
     required this.baseUrl,
@@ -22,6 +36,18 @@ class AssetResponse {
     required this.roles,
     required this.subscriptionPlans,
     required this.storeDetails,
+    required this.notesDenom,
+    required this.coinDenom,
+    required this.safeDenom,
+    required this.tubesDenom,
+    required this.maxTubesCount,
+    required this.safeDropAmount,
+    required this.drawerAmount,
+    required this.vendors,
+    required this.vendorPaymentTypes,
+    required this.vendorPaymentPurpose,
+    required this.employees,
+    required this.orderTypes,
   });
 
   factory AssetResponse.fromJson(Map<String, dynamic> json) {
@@ -53,6 +79,45 @@ class AssetResponse {
           json['subscription_plans'] as Map<String, dynamic>? ?? {}),
       storeDetails: StoreDetails.fromJson(
           json['store_details'] as Map<String, dynamic>? ?? {}),
+      notesDenom: (json['notes_denom'] as List<dynamic>?)
+          ?.map((item) => Denom.fromJson(item as Map<String, dynamic>))
+          .toList() ??
+          [],
+      coinDenom: (json['coin_denom'] as List<dynamic>?)
+          ?.map((item) => Denom.fromJson(item as Map<String, dynamic>))
+          .toList() ??
+          [],
+      safeDenom: (json['safe_denom'] as List<dynamic>?)
+          ?.map((item) => Denom.fromJson(item as Map<String, dynamic>))
+          .toList() ??
+          [],
+      tubesDenom: (json['tubes_denom'] as List<dynamic>?)
+          ?.map((item) => Denom.fromJson(item as Map<String, dynamic>))
+          .toList() ??
+          [],
+      maxTubesCount: json['max_tubes_count']?.toString() ?? '',
+      safeDropAmount: json['safe_drop_amount']?.toString() ?? '',
+      drawerAmount: json['drawer_amount']?.toString() ?? '',
+      vendors: (json['vendors'] as List<dynamic>?)
+          ?.map((item) => Vendor.fromJson(item as Map<String, dynamic>))
+          .toList() ??
+          [],
+      vendorPaymentTypes: (json['vendor_payment_types'] as List<dynamic>?)
+          ?.map((item) => item.toString())
+          .toList() ??
+          [],
+      vendorPaymentPurpose: (json['vendor_payment_purpose'] as List<dynamic>?)
+          ?.map((item) => item.toString())
+          .toList() ??
+          [],
+      employees: (json['employees'] as List<dynamic>?)
+          ?.map((item) => Employees.fromJson(item as Map<String, dynamic>))
+          .toList() ??
+          [],
+      orderTypes: (json['order_types'] as List<dynamic>?)
+          ?.map((item) => OrderType.fromJson(item as Map<String, dynamic>))
+          .toList() ??
+          [],
     );
   }
 }
@@ -81,78 +146,26 @@ class Media {
   }
 }
 
-class Tax {
-  final String id;
+class Tax {  //Build #1.0.68: updated
+  final String slug;
   final String name;
-  final String? className;
-  final String? rate;
-  final String? country;
-  final String? state;
-  final String? priority;
-  final String? compound;
-  final String? shipping;
-  final List<String>? postcode;
-  final int? postcodeCount;
-  final int? cityCount;
 
   Tax({
-    required this.id,
+    required this.slug,
     required this.name,
-     this.className,
-     this.rate,
-     this.country,
-     this.state,
-     this.priority,
-     this.compound,
-     this.shipping,
-     this.postcode,
-     this.postcodeCount,
-     this.cityCount,
   });
 
   factory Tax.fromJson(Map<String, dynamic> json) {
-    // Handle both API response (postcode as List) and database (postcode as String)
-    List<String> postcodeList;
-    if (json['postcode'] is List) {
-      // From API response
-      postcodeList = (json['postcode'] as List<dynamic>?)?.map((item) => item.toString()).toList() ?? [];
-    } else {
-      // From database, where postcode is a comma-separated string
-      postcodeList = json['postcode']?.toString().split(',') ?? [];
-      // Remove empty entries if the string is empty
-      postcodeList = postcodeList.where((item) => item.isNotEmpty).toList();
-    }
-
     return Tax(
-      id: json['id']?.toString() ?? '',
+      slug: json['slug']?.toString() ?? 'tax-${json['name']?.toString().toLowerCase().replaceAll(' ', '-') ?? 'unknown'}',
       name: json['name']?.toString() ?? '',
-      className: json['class']?.toString() ?? '',
-      rate: json['rate']?.toString() ?? '',
-      country: json['country']?.toString() ?? '',
-      state: json['state']?.toString() ?? '',
-      priority: json['priority']?.toString() ?? '',
-      compound: json['compound']?.toString() ?? '',
-      shipping: json['shipping']?.toString() ?? '',
-      postcode: postcodeList,
-      postcodeCount: int.tryParse(json['postcode_count']?.toString() ?? '0') ?? 0,
-      cityCount: int.tryParse(json['city_count']?.toString() ?? '0') ?? 0,
     );
   }
 
   Map<String, dynamic> toMap() {
     return {
-      'id': id,
+      'slug': slug,
       'name': name,
-      'class': className,
-      'rate': rate,
-      'country': country,
-      'state': state,
-      'priority': priority,
-      'compound': compound,
-      'shipping': shipping,
-      'postcode': postcode?.join(','),
-      'postcode_count': postcodeCount,
-      'city_count': cityCount,
     };
   }
 }
@@ -295,6 +308,13 @@ class StoreDetails {
   });
 
   factory StoreDetails.fromJson(Map<String, dynamic> json) {
+    String? phoneNumber = json['phone_number']?.toString();
+    if (json['phone_number'] is bool) { // Build #1.0.70 - fixed null issue
+      if (kDebugMode) {
+        print("#### Warning: phone_number is a boolean in API response, defaulting to '0'");
+      }
+      phoneNumber = '0'; // Provide a default value
+    }
     return StoreDetails(
       name: json['name']?.toString() ?? '',
       address: json['address']?.toString() ?? '',
@@ -302,7 +322,7 @@ class StoreDetails {
       state: json['state']?.toString() ?? '',
       country: json['country']?.toString() ?? '',
       zipCode: json['zip_code']?.toString() ?? '',
-      phoneNumber: json['phone_number']?.toString(), // Handle as String or null
+      phoneNumber: phoneNumber,
     );
   }
 
@@ -314,7 +334,143 @@ class StoreDetails {
       'state': state,
       'country': country,
       'zip_code': zipCode,
-      'phone_number': phoneNumber,
+      'phone_number': phoneNumber ?? '0', // Provide a default value if phoneNumber is null
+    };
+  }
+}
+
+class Denom { // Build #1.0.69 : updated assets table based on api response
+  final String denom;
+  final String? image;
+  final int? tubeLimit;
+  final String? symbol;
+
+  Denom({
+    required this.denom,
+    this.image,
+    this.tubeLimit,
+    this.symbol,
+  });
+
+  factory Denom.fromJson(Map<String, dynamic> json) {
+    return Denom(
+      denom: json['denom']?.toString() ?? '', // Ensures numbers are converted to strings
+      image: json['image']?.toString(),
+      tubeLimit: int.tryParse(json['tube_limit']?.toString() ?? ''),
+      symbol: json['symbol']?.toString(),
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'denom': denom,
+      'image': image,
+      'tube_limit': tubeLimit,
+      'symbol': symbol,
+    };
+  }
+}
+//Build #1.0.74 : updated with new response
+class Vendor{
+  final int id;
+  final String vendorName;
+
+  Vendor({required this.id, required this.vendorName});
+
+  factory Vendor.fromJson(Map<String, dynamic> json) {
+    if (kDebugMode) print("Vendor.fromJson: Parsing vendor JSON: $json");
+    final idValue = json['id'] ?? json['vendor_id'];
+    final parsedId = int.tryParse(idValue?.toString() ?? '');
+    if (parsedId == null || parsedId == 0) {
+      if (kDebugMode) print("Vendor.fromJson: Invalid or missing vendor ID, received: $idValue");
+    }
+    return Vendor(
+      id: parsedId ?? 0,
+      vendorName: json['vendor_name']?.toString() ?? '',
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'vendor_id': id,
+      'vendor_name': vendorName,
+    };
+  }
+}
+
+//Build #1.0.80 : updated with Employees response
+class Employees{
+  final String? iD;
+  final String? userLogin;
+  final String? userPass;
+  final String? userNicename;
+  final String? userEmail;
+  final String? userUrl;
+  final String? userRegistered;
+  final String? userActivationKey;
+  final String? userStatus;
+  final String? displayName;
+
+  Employees(
+    {this.iD,
+    this.userLogin,
+    this.userPass,
+    this.userNicename,
+    this.userEmail,
+    this.userUrl,
+    this.userRegistered,
+    this.userActivationKey,
+    this.userStatus,
+    this.displayName});
+
+  factory Employees.fromJson(Map<String, dynamic> json) {
+    return Employees(
+      iD : json['ID'],
+      userLogin : json['user_login'],
+      userPass : json['user_pass'],
+      userNicename : json['user_nicename'],
+      userEmail : json['user_email'],
+      userUrl:  json['user_url'],
+      userRegistered : json['user_registered'],
+      userActivationKey : json['user_activation_key'],
+      userStatus : json['user_status'],
+      displayName : json['display_name']);
+  }
+
+  Map<String, dynamic> toJson() {
+    final Map<String, dynamic> data = new Map<String, dynamic>();
+    data['ID'] = this.iD;
+    data['user_login'] = this.userLogin;
+    data['user_pass'] = this.userPass;
+    data['user_nicename'] = this.userNicename;
+    data['user_email'] = this.userEmail;
+    data['user_url'] = this.userUrl;
+    data['user_registered'] = this.userRegistered;
+    data['user_activation_key'] = this.userActivationKey;
+    data['user_status'] = this.userStatus;
+    data['display_name'] = this.displayName;
+    return data;
+  }
+}
+
+class OrderType {
+  final String slug;
+  final String name;
+
+  OrderType({required this.slug, required this.name});
+
+  factory OrderType.fromJson(Map<String, dynamic> json) {
+    return OrderType(
+      slug: json['slug']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'slug': slug,
+      'name': name,
     };
   }
 }

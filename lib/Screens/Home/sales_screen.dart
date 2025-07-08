@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:pinaka_pos/Constants/text.dart';
 import 'package:pinaka_pos/Widgets/widget_filter.dart';
 import 'package:quickalert/quickalert.dart';
+
+import '../../Constants/text.dart';
 
 class SalesScreen extends StatefulWidget {
   const SalesScreen({super.key});
@@ -27,40 +30,40 @@ class _SalesScreenState extends State<SalesScreen> {
       'duration': '8:00:00',
       'start_time': '12:00:00',
       'end_time': '08:00:00',
-      'sales_amount': '\$350',
-      'over_short': '-\$60',
+      'sales_amount': '${TextConstants.currencySymbol}350',
+      'over_short': '-${TextConstants.currencySymbol}60',
     },
     {
       'date': '28/10/2023',
       'duration': '8:00:00',
       'start_time': '12:00:00',
       'end_time': '08:00:00',
-      'sales_amount': '\$350',
-      'over_short': '-\$60',
+      'sales_amount': '${TextConstants.currencySymbol}350',
+      'over_short': '-${TextConstants.currencySymbol}60',
     },
     {
       'date': '28/10/2023',
       'duration': '8:00:00',
       'start_time': '12:00:00',
       'end_time': '08:00:00',
-      'sales_amount': '\$350',
-      'over_short': '-\$60',
+      'sales_amount': '${TextConstants.currencySymbol}350',
+      'over_short': '-${TextConstants.currencySymbol}60',
     },
     {
       'date': '28/10/2023',
       'duration': '8:00:00',
       'start_time': '12:00:00',
       'end_time': '08:00:00',
-      'sales_amount': '\$350',
-      'over_short': '-\$60',
+      'sales_amount': '${TextConstants.currencySymbol}350',
+      'over_short': '-${TextConstants.currencySymbol}60',
     },
     {
       'date': '28/10/2023',
       'duration': '8:00:00',
       'start_time': '12:00:00',
       'end_time': '08:00:00',
-      'sales_amount': '\$350',
-      'over_short': '-\$60',
+      'sales_amount': '${TextConstants.currencySymbol}350',
+      'over_short': '-${TextConstants.currencySymbol}60',
     },
   ];
 
@@ -77,7 +80,7 @@ class _SalesScreenState extends State<SalesScreen> {
       children: [
         // Filter Dropdown (Reusable)
         FilterDropdown(
-          items: ["All", "₹", "\$"], // Filtering by currency type
+          items: ["All", "₹", "${TextConstants.currencySymbol}"], // Filtering by currency type
           selectedValue: _selectedFilter,
           onChanged: (value) {
             setState(() {

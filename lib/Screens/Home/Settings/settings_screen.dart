@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:pinaka_pos/Screens/Home/Settings/printer_setup_screen.dart';
+import 'package:pinaka_pos/Utilities/printer_settings.dart';
 import 'package:provider/provider.dart';
 
 import '../../../Constants/text.dart';
@@ -151,7 +152,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               backgroundColor: Colors.tealAccent,
               padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             ),
-            onPressed: () {},
+            onPressed: () {
+              Navigator.pop(context);
+            },
             child: Text(TextConstants.saveChangesBtnText, style: TextStyle(color: Colors.black)),
           ),
           SizedBox(width: 16),
@@ -209,9 +212,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               children: [
                 _buildReceiptSettingSection(),
                 Divider(color: Colors.grey[800], thickness: 1),
-                _buildTaxesAndLanguageSection(),
-                Divider(color: Colors.grey[800], thickness: 1),
+                // _buildTaxesAndLanguageSection(),
+                // Divider(color: Colors.grey[800], thickness: 1),
                 _buildPrinterSettingsSection(),
+                Divider(color: Colors.grey[800], thickness: 1),
               ],
             ),
           ),
@@ -420,7 +424,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         SizedBox(height: 16),
         Text(TextConstants.layoutSelectionHeader,
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-        Row(
+        Column(
           children: [
             _buildLayoutOption(TextConstants.layoutNavLeftOrderRight, SharedPreferenceTextConstants.navLeftOrderRight),
             _buildLayoutOption(TextConstants.layoutNavRightOrderLeft, SharedPreferenceTextConstants.navRightOrderLeft),
@@ -468,72 +472,146 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ],
     );
   }
-
+  var _printerSettings =  PrinterSettings();
   Widget _buildPrinterSettingsSection() {
+    var name = _printerSettings.selectedPrinter?.deviceName ?? '';
+    var connection = _printerSettings.selectedPrinter?.state ?? false;
+
+    if (kDebugMode) {
+      print("SettingScreen - printer ${_printerSettings.selectedPrinter}, name: $name, connection: $connection");
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(TextConstants.printerSettText,
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-        Text(TextConstants.selectPrintText,
-            style: TextStyle(fontSize: 14, color: Colors.grey)),
-        SizedBox(height: 80),
-        Center(
-          child: Column(
-            children: [
-              SvgPicture.asset(
-                'assets/svg/password_placeholder.svg', // Replace with actual asset path
-                width: 120,
-                height: 120,
+        Row(
+          children: [
+            Column(
+              children: [
+                Text(TextConstants.printerSettText,
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                Text(TextConstants.connectedPrintText,
+                    style: TextStyle(fontSize: 14, color: Colors.grey)),
+              ],
+            ),
+            Spacer(),
+            _printerSettings.selectedPrinter != null ? SizedBox() : ElevatedButton(
+              onPressed: () {
+                /// call printer setup screen
+                if (kDebugMode) {
+                  print("call printer setup screen");
+                }
+                Navigator.push(context, MaterialPageRoute(
+                  builder: (context) => PrinterSetup(),
+                )).then((result) {
+                  if (result == 'refresh') {
+                    _printerSettings.loadPrinter();
+                    setState(() {
+                      // Update state to refresh the UI
+                      if (kDebugMode) {
+                        print("SettingScreen - printer setup is done, connected printer is ${_printerSettings.selectedPrinter?.deviceName}");
+                      }
+                    });
+                  }
+                });
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(0xFF00FFAA),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                padding:
+                const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
               ),
-              SizedBox(height: 20),
-              Text(
-                TextConstants.noPrinterText,
+              child: Text(
+                TextConstants.addBtnText,
                 style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
+                  color: Colors.black,
+                  fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              SizedBox(height: 10),
-              Text(
-                TextConstants.add3PrintersText,
-                style: TextStyle(
-                  color: Colors.grey,
-                  fontSize: 14,
-                ),
-              ),
-              SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () {
-                  /// call printer setup screen
-                  if (kDebugMode) {
-                    print("call printer setup screen");
-                  }
-                  Navigator.push(context, MaterialPageRoute(
-                    builder: (context) => PrinterSetup(),
-                  ));
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(0xFF00FFAA),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
-                ),
-                child: Text(
-                  TextConstants.addBtnText,
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
+
+        SizedBox(height: 10),
+        ///Todo: show connected printer or Add printer button
+        _printerSettings.selectedPrinter != null
+            ?
+        Center(child: Row(
+          children: [
+            Text(name,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+            ),),
+            Spacer(),
+            Icon(
+              Icons.check_circle,
+              color: ThemeNotifier.buttonDark,
+              size: 25,
+            ),
+          ],
+        ),)
+            :
+        SizedBox(),
+        // Center(
+        //   child: Column(
+        //     children: [
+        //       SvgPicture.asset(
+        //         'assets/svg/password_placeholder.svg', // Replace with actual asset path
+        //         width: 120,
+        //         height: 120,
+        //       ),
+        //       SizedBox(height: 20),
+        //       Text(
+        //         TextConstants.noPrinterText,
+        //         style: TextStyle(
+        //           color: Colors.white,
+        //           fontSize: 18,
+        //           fontWeight: FontWeight.bold,
+        //         ),
+        //       ),
+        //       SizedBox(height: 10),
+        //       // Text(
+        //       //   TextConstants.add3PrintersText,
+        //       //   style: TextStyle(
+        //       //     color: Colors.grey,
+        //       //     fontSize: 14,
+        //       //   ),
+        //       // ),
+        //       SizedBox(height: 20),
+        //       ElevatedButton(
+        //         onPressed: () {
+        //           /// call printer setup screen
+        //           if (kDebugMode) {
+        //             print("call printer setup screen");
+        //           }
+        //           Navigator.push(context, MaterialPageRoute(
+        //             builder: (context) => PrinterSetup(),
+        //           ));
+        //         },
+        //         style: ElevatedButton.styleFrom(
+        //           backgroundColor: Color(0xFF00FFAA),
+        //           shape: RoundedRectangleBorder(
+        //             borderRadius: BorderRadius.circular(8),
+        //           ),
+        //           padding:
+        //           const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
+        //         ),
+        //         child: Text(
+        //           TextConstants.addBtnText,
+        //           style: TextStyle(
+        //             color: Colors.black,
+        //             fontSize: 16,
+        //             fontWeight: FontWeight.bold,
+        //           ),
+        //         ),
+        //       ),
+        //     ],
+        //   ),
+        // ),
       ],
     );
   }

@@ -98,6 +98,9 @@ class UrlMethodConstants { // Build #1.0.13
   static const String orders               = "orders";
   static const String variations           = "products"; // Used for variations endpoint
   static const String assets               = "assets"; //Build #1.0.40
+  static const String shifts               = "shifts"; // Build #1.0.70
+  static const String safes                = "safes";
+  static const String vendorPayments       = "vendor_payments";
 }
 
 class UrlParameterConstants { // Build #1.0.13
@@ -107,6 +110,7 @@ class UrlParameterConstants { // Build #1.0.13
 
   static const  String productBySku           = "?sku=";
   static const  String applyDiscount          = "custom-discount/apply/";  // Build #1.0.49
+  static const String deleteVendorPayment     = "/delete-vendor-payment";  //Build #1.0.74
 }
 
 class EndUrlConstants { // Build #1.0.13
@@ -122,5 +126,15 @@ class EndUrlConstants { // Build #1.0.13
   static const String paymentByOrderIdEndUrl      = "/get-payments-by-order-id?order_id=";
   static const String variationsEndUrl            = "/variations"; //Build 1.1.36
   static const String voidPaymentEndUrl           = "/void-payment";  // Build #1.0.49
+  static const String createShiftEndUrl           = "/create-shift"; // Build #1.0.70
+  static const String safeDropEndUrl              = "/create-safe-drop";
+  static const String shiftByUserIdEndUrl         = "/get-shifts-by-user?user_id=";  //Build #1.0.74
+  static const String shiftByShiftIdEndUrl        = "/get-shift-by-id?shift_id=";
+  static const String createVendorPayment         = "/create-vendor-payment";
+  static const String getVendorPaymentById        = "/get-vendor-payments-by-user-id?user_id=";
+  static const String vendorPaymentById           = "?vendor_payment_id=";
+  static const String updateVendorPayment         = "/update-vendor-payment";
+  static const String updateFastKeyEndUrl         = "/update-fastkey"; // Build #1.0.89
+  static const String deleteProductFromFastKeyEndUrl = "/delete-product";
 }
 

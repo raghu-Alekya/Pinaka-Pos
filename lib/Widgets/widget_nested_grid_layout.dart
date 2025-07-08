@@ -744,13 +744,18 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pinaka_pos/Helper/auto_search.dart';
+import 'package:pinaka_pos/Widgets/widget_age_verification_popup_dialog.dart';
 import 'package:pinaka_pos/Widgets/widget_variants_dialog.dart';
+import 'package:provider/provider.dart';
 import '../Blocs/Orders/order_bloc.dart';
 import '../Blocs/Search/product_search_bloc.dart';
 import '../Constants/text.dart';
+import '../Database/db_helper.dart';
 import '../Database/order_panel_db_helper.dart';
+import '../Helper/Extentions/theme_notifier.dart';
 import '../Helper/api_response.dart';
 import '../Models/Search/product_variation_model.dart';
+import '../Providers/Age/age_verification_provider.dart';
 import '../Providers/Auth/product_variation_provider.dart';
 import '../Utilities/shimmer_effect.dart';
 import 'package:reorderable_grid_view/reorderable_grid_view.dart';
@@ -832,6 +837,7 @@ class NestedGridWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final totalCount = (showAddButton ? 1 : 0) + (showBackButton ? 1 : 0) + items.length;
+    final themeHelper = Provider.of<ThemeNotifier>(context);
 
     return Expanded(
       child: Container(
@@ -839,7 +845,7 @@ class NestedGridWidget extends StatelessWidget {
         height: MediaQuery.of(context).size.height /2,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
-          color: Colors.white,
+          color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground : Colors.white,
         ),
         child: isLoading
             ? ShimmerEffect.rectangular(height: 200)
@@ -863,14 +869,14 @@ class NestedGridWidget extends StatelessWidget {
                     child: GestureDetector(
                       onTap: onAddButtonPressed ?? () {},
                       child: Card(
-                        color: Colors.white,
+                        color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground :Colors.white,
                         elevation: 4,
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
-                          children: const [
-                            Icon(Icons.add, size: 40, color: Colors.green),
+                          children: [
+                            const Icon(Icons.add, size: 40, color: Color(0xFFFE6464)),
                             //SizedBox(height: 2),
-                            Text(TextConstants.addItemText, style: TextStyle(color: Colors.green)),
+                            Text(TextConstants.addItemText, style: TextStyle(color: Color(0xFFFE6464))),
                           ],
                         ),
                       ),
@@ -885,7 +891,7 @@ class NestedGridWidget extends StatelessWidget {
                     child: GestureDetector(
                       onTap: onBackButtonPressed ?? () {},
                       child: Card(
-                        color: Colors.white,
+                        color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : Colors.white,
                         elevation: 4,
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -931,15 +937,22 @@ class NestedGridWidget extends StatelessWidget {
                           final productId = int.tryParse(item["fast_key_product_id"].toString()) ?? -1; //Build #1.0.54: fixed variant dialog issue
                           if (kDebugMode) {
                             print("NestedGridWidget - Product tapped: ${item['fast_key_item_name']}, ID: $productId, (${item["fast_key_product_id"]})");
+                            print("NestedGridWidget - minAge ${item[AppDBConst.fastKeyItemMinAge] ?? 0}");
+                          }
+                          /// use product id:22, sku:woo-fashion-socks
+                          //var isVerified = await _ageRestrictedProduct(context, minAge: item[AppDBConst.fastKeyItemMinAge] ?? 0);
+                          /// Verify Age and proceed else return
+                          final ageVerificationProvider = AgeVerificationProvider();
+                          var isVerified = await ageVerificationProvider.verifyAge(context, minAge: item[AppDBConst.fastKeyItemMinAge] ?? 0);
+                          if(!isVerified){
+                            return;
                           }
 
-                          VariationPopup(productId, item['fast_key_item_name'], orderHelper!,onProductSelected:() {
-
+                          VariationPopup(productId, item['fast_key_item_name'], orderHelper!,onProductSelected: ({required bool isVariant}) {
                             Navigator.pop(context);
-                            onItemTapped(index, variantAdded: true);
-                            return Future(() => null,);
-                            // throw Exception();
-                          }, ).showVariantDialog(context: context);
+                            onItemTapped(index, variantAdded: isVariant); //Build #1.0.78: Pass isVariant to onItemTapped
+                          },
+                          ).showVariantDialog(context: context);
                           // // Fetch variations for the product
                           // productBloc!.fetchProductVariations(productId);
                           //
@@ -1014,7 +1027,7 @@ class NestedGridWidget extends StatelessWidget {
                           // }
                         },
                         child: Card(
-                          color: Colors.white,
+                          color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground :Colors.white,
                           elevation: 4,
                           child: Padding(
                             padding: const EdgeInsets.all(10.0),
@@ -1029,19 +1042,19 @@ class NestedGridWidget extends StatelessWidget {
                                     children: [
                                       Text(
                                         item["fast_key_item_name"],
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontSize: 12,
                                           //fontWeight: FontWeight.bold,
-                                          color: Colors.black,
+                                          color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight,
                                         ),
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                       Text(
-                                        '\$${item["fast_key_item_price"]}',
-                                        style: const TextStyle(
+                                        '${TextConstants.currencySymbol}${item["fast_key_item_price"]}',
+                                        style: TextStyle(
                                           fontSize: 14,
                                           fontWeight: FontWeight.bold,
-                                          color: Colors.black,
+                                          color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight,
                                         ),
                                       ),
                                     ],
@@ -1085,4 +1098,42 @@ class NestedGridWidget extends StatelessWidget {
     // Navigator.pop(context);
     onItemTapped(index, variantAdded: true);
   }
+
+//   Future<bool> _ageRestrictedProduct(BuildContext context, {int minAge = 0}) async {
+//     ///@
+// //
+// // ANSI 636026100102DL00410277ZA03180012DLDAQD05848559 DCSBELE SHRAVAN DDEN DACKUMAR DDFNvDADNONEaDDGNrDCAD DCBNONEtDCDNONEaDBD02052025gDBB07181978gDBA09032030 DBC1=DAU070 in DAYBROpDAG233 W FELLARS DRrDAIPHOENIXoDAJAZdDAK850237501  uDCF003402EB0B124005cDCGUSAtDCK48102972534.DDAFtDDB02282023aDDD1gDAZBLKsDAW196?DDK1
+// //     ZAZAAN.ZACN
+//
+//     var isVerified = false;
+//     if (kDebugMode) {
+//       print("Fast Key _ageRestrictedProduct hasAgeRestriction = $minAge");
+//     }
+//     var hasAgeRestriction = minAge != 0;
+//     if (hasAgeRestriction) {
+//       await AgeVerificationHelper.showAgeVerification(
+//         context: context,
+//         // productName: product.name,
+//         minimumAge: minAge,
+//         onManualVerify: () {
+//           // Add product to cart - manually verified
+//           // _addToCart(product);
+//           isVerified = true;
+//         },
+//         onAgeVerified: () {
+//           // Add product to cart - age verified
+//           // _addToCart(product);
+//           isVerified = true;
+//         },
+//         onCancel: () {
+//           // User cancelled - don't add to cart
+//           isVerified = false;
+//           Navigator.pop(context);
+//         },
+//       );
+//     } else {
+//       isVerified = true;
+//     }
+//     return isVerified;
+//   }
 }

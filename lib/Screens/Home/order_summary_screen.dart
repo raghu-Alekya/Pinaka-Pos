@@ -8,7 +8,11 @@ import 'package:flutter_svg/svg.dart';
 import 'package:intl/intl.dart'; // Added for date formatting
 import 'package:pinaka_pos/Helper/Extentions/extensions.dart';
 import 'package:pinaka_pos/Utilities/printer_settings.dart';
-import 'package:thermal_printer/esc_pos_utils_platform/src/pos_column.dart';
+import 'package:provider/provider.dart';
+import 'package:thermal_printer/esc_pos_utils_platform/esc_pos_utils_platform.dart';
+import 'package:flutter/services.dart';
+import 'package:image/image.dart' as img;
+
 
 import '../../Blocs/Orders/order_bloc.dart';
 import '../../Blocs/Payment/payment_bloc.dart';
@@ -16,6 +20,7 @@ import '../../Constants/text.dart';
 import '../../Database/db_helper.dart';
 import '../../Database/order_panel_db_helper.dart';
 import '../../Database/user_db_helper.dart';
+import '../../Helper/Extentions/theme_notifier.dart';
 import '../../Helper/api_response.dart';
 import '../../Models/Payment/payment_model.dart';
 import '../../Models/Payment/void_payment_model.dart';
@@ -25,10 +30,13 @@ import '../../Utilities/responsive_layout.dart';
 import '../../Utilities/result_utility.dart';
 import '../../Widgets/widget_custom_num_pad.dart';
 import '../../Widgets/widget_payment_dialog.dart';
+import 'Settings/image_utils.dart';
 import 'Settings/printer_setup_screen.dart';
 import 'edit_product_screen.dart';
 
 import 'package:thermal_printer/thermal_printer.dart';
+
+import 'fast_key_screen.dart';
 
 class OrderSummaryScreen extends StatefulWidget {
   const OrderSummaryScreen({super.key});
@@ -42,6 +50,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
   String selectedPaymentMethod = TextConstants.cash;
   TextEditingController amountController = TextEditingController();
   final PaymentBloc paymentBloc = PaymentBloc(PaymentRepository()); // Added PaymentBloc
+  final ScrollController _scrollController = ScrollController();
   int? userId; // Build #1.0.29: To store user ID
   String? userDisplayName; // Build #1.0.29: To store user ID
   String? userRole;
@@ -50,17 +59,25 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
   int shiftId = 1; // Hardcoded as per requirement
   int vendorId = 1; // Hardcoded as per requirement
   String serviceType = "default"; // Hardcoded as per requirement
+  double total = 0.0;
   double balanceAmount = 0.0;
   double tenderAmount = 0.0; // Build #1.0.33 : added new variables
   double paidAmount = 0.0;
   double changeAmount = 0.0;
   double discount = 0.0; // Add this to track discount
+  double merchantDiscount = 0.0; // Add this to track merchant discount
+  double tax = 0.0; // AddED tax variable
+  double payByCash = 0.0;
+  double payByOther = 0.0;
+  StreamSubscription? _paymentListSubscription;
   bool isLoading = false; // Add this to track loading state
+  bool isSummaryLoading = false;
   // final TextEditingController _paymentController = TextEditingController();
   var _printerSettings =  PrinterSettings();
   List<int> bytes = [];
   String? paymentId; // To store the transaction ID after wallet payment
   late OrderBloc orderBloc;
+  bool _showFullSummary = false;
 
   @override
   void initState() {
@@ -69,6 +86,15 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     fetchOrderItems();
     _fetchUserId();
 
+  }
+
+  @override
+  void dispose() { //Build #1.0.99: Added Dispose
+    _paymentListSubscription?.cancel();
+    paymentBloc.dispose();
+    _scrollController.dispose();
+    amountController.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchUserId() async { // Build #1.0.29: get the userId from db
@@ -82,6 +108,61 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     }
   }
 
+  //Build #1.0.99: getPaymentsByOrderId API call for payment by cash and payment by other details
+  void _fetchPaymentsByOrderId() {
+    if (kDebugMode) {
+      print("###### _fetchPaymentsByOrderId");
+    }
+    if (orderId != null) {
+      setState(() {
+        isSummaryLoading = true; // Show loader
+      });
+      paymentBloc.getPaymentsByOrderId(orderId!);
+      _paymentListSubscription = paymentBloc.paymentsListStream.listen((response) {
+        if (response.status == Status.COMPLETED) {
+          if (kDebugMode) {
+            print("###### _fetchPaymentsByOrderId Api call COMPLETED");
+          }
+          _processPaymentList(response.data!);
+        } else if (response.status == Status.ERROR) {
+          if (kDebugMode) {
+            print("Error fetching payments: ${response.message}");
+          }
+        }
+        setState(() {
+          isSummaryLoading = false; // Hide loader
+        });
+      });
+    }else{
+      if (kDebugMode) {
+        print("###### orderId is null");
+      }
+    }
+  }
+
+  //Build #1.0.99: Added new method to process payment list
+  void _processPaymentList(List<PaymentListModel> payments) {
+    double cashTotal = 0.0;
+    double otherTotal = 0.0;
+
+    for (var payment in payments) {
+      double amount = double.tryParse(payment.amount) ?? 0.0;
+      if (payment.paymentMethod == 'Cash') {
+        cashTotal += amount;
+      } else {
+        otherTotal += amount;
+      }
+    }
+
+    if (kDebugMode) {
+      print("###### _processPaymentList ->>> payByCash: $cashTotal, payByOther: $otherTotal");
+    }
+    setState(() {
+      payByCash = cashTotal;
+      payByOther = otherTotal;
+    });
+  }
+
   // void fetchOrderItems() async {
   //   // TODO: Implement actual data fetching from database
   //   setState(() {
@@ -89,6 +170,11 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
   //     orderItems = [];
   //   });
   // }
+  void _toggleSummary() {
+    setState(() {
+      _showFullSummary = !_showFullSummary;
+    });
+  }
 
   void deleteItemFromOrder(dynamic itemId) async {
     // TODO: Implement actual deletion logic
@@ -108,7 +194,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
       return;
     }
 
-    String cleanAmount = amountController.text.replaceAll('\$', '').trim();
+    String cleanAmount = amountController.text.replaceAll('${TextConstants.currencySymbol}', '').trim();
     final double amount = double.tryParse(cleanAmount) ?? 0.0;
     if (amount == 0.0) {
       if (kDebugMode) {
@@ -159,6 +245,9 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
         } else if (paymentResponse.status == Status.COMPLETED) {
           final paymentData = paymentResponse.data!;
           if (paymentData.message == "Payment Created Successfully") {
+            // Build #1.0.99: Call fetch payment details by order id API call
+            _fetchPaymentsByOrderId(); // Refresh payments after successful payment
+
             setState(() {
               isLoading = false; // Hide loader on success
             });
@@ -241,9 +330,11 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final themeHelper = Provider.of<ThemeNotifier>(context);
     ResponsiveLayout.init(context);
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : Colors.white,
       body: SafeArea(
         child: Column(
           children: [
@@ -284,9 +375,10 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
   }
 
   Widget _buildHeader() {
+    final themeHelper = Provider.of<ThemeNotifier>(context);
     return Container(
       height: ResponsiveLayout.getHeight(60),
-      color: Colors.grey[100],
+      color: themeHelper.themeMode == ThemeMode.dark ?ThemeNotifier.primaryBackground : Colors.grey[100],
       padding: ResponsiveLayout.getResponsivePadding(
         horizontal: 16,
         vertical: 0,
@@ -296,7 +388,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
         children: [
           // Pinaka logo with triangle above it
           SvgPicture.asset(
-            'assets/svg/app_icon.svg',
+            themeHelper.themeMode == ThemeMode.dark ? 'assets/svg/app_logo.svg' : 'assets/svg/app_icon.svg',
             height: ResponsiveLayout.getHeight(40),
             width: ResponsiveLayout.getWidth(40),
           ),
@@ -312,7 +404,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                     vertical: 0
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : Colors.white,
                   borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(15)),
                 ),
                 child: Row(
@@ -337,6 +429,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                            userDisplayName ?? "",//'A Raghav Kumar', /// use login user display name
                           style: TextStyle(
                               fontWeight: FontWeight.w500,
+                              color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight,
                               fontSize: ResponsiveLayout.getFontSize(14)),
                         ),
                         Text(
@@ -351,7 +444,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
               SizedBox(width: ResponsiveLayout.getWidth(16)),
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : Colors.white,
                   shape: BoxShape.circle,
                 ),
                 padding: EdgeInsets.all(ResponsiveLayout.getPadding(10)),
@@ -368,15 +461,23 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
   }
 
   Widget _buildNavigationBar() {
+    final themeHelper = Provider.of<ThemeNotifier>(context);
+    final theme = Theme.of(context);
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
         height: ResponsiveLayout.getHeight(52),
         width: ResponsiveLayout.getWidth(640),
-        margin: EdgeInsets.all(ResponsiveLayout.getPadding(20)),
+        margin: EdgeInsets.only(
+          left: ResponsiveLayout.getPadding(20),
+          right: ResponsiveLayout.getPadding(20),
+          top: ResponsiveLayout.getPadding(20),
+          bottom: ResponsiveLayout.getPadding(15),
+
+        ),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(10)),
-          color: Colors.grey[100],
+          color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.appBarBackground : Colors.grey[100],
         ),
         padding: EdgeInsets.symmetric(
             horizontal: ResponsiveLayout.getPadding(6),
@@ -389,7 +490,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
             Container(
               padding: EdgeInsets.all(ResponsiveLayout.getPadding(5)),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground :Colors.white,
                 borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(8)),
                 boxShadow: [
                   BoxShadow(
@@ -399,14 +500,15 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                 ],
               ),
               child: Row(
-                mainAxisSize: MainAxisSize.min,
+                //mainAxisSize: MainAxisSize.min,
                 //mainAxisAlignment: MainAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   // Icon(Icons.chevron_left, size: 20),
                   BackButton(
                     style: ButtonStyle(
                         alignment: Alignment.centerLeft,
-                        iconSize: WidgetStatePropertyAll(ResponsiveLayout.getIconSize(16))
+                        iconSize: WidgetStatePropertyAll(ResponsiveLayout.getIconSize(20))
                     ),
                     onPressed: () {
                       _showExitPaymentConfirmation(context);
@@ -433,8 +535,8 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                 SizedBox(width: ResponsiveLayout.getWidth(4)),
                 Text(
                     DateFormat("EEE, MMM d' ${DateTime.now().year}'").format(DateTime.now()),//'Sunday, 16 March 2025',
-                  style: TextStyle(color: Colors.grey[700],
-                    fontSize: ResponsiveLayout.getFontSize(12),
+                  style: TextStyle(color: theme.secondaryHeaderColor,
+                    fontSize: ResponsiveLayout.getFontSize(14),
                   ),
 
                 ),
@@ -449,7 +551,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                 Text(
                   DateFormat('hh:mm a').format(DateTime.now()),//'11:41 A.M',
                   style: TextStyle(
-                      color: Colors.grey[700], fontWeight: FontWeight.bold, fontSize: ResponsiveLayout.getFontSize(12)),
+                      color: theme.secondaryHeaderColor, fontWeight: FontWeight.bold, fontSize: ResponsiveLayout.getFontSize(14)),
                     ),
                   ],
                 ),
@@ -462,6 +564,8 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
   }
 
   Widget _buildOrderSummary() {
+    final themeHelper = Provider.of<ThemeNotifier>(context);
+    final theme = Theme.of(context);
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
@@ -473,7 +577,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
         ),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(10)),
-          color: Colors.grey[100],
+          color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground : Colors.grey[100],
           boxShadow: [
             BoxShadow(
               color: Colors.grey.withOpacity(0.1),
@@ -484,8 +588,15 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
           ],
         ),
         child: Padding(
-          padding: EdgeInsets.all(ResponsiveLayout.getPadding(15)),
-          child: Column(
+          padding: EdgeInsets.only(
+              left: ResponsiveLayout.getPadding(15),
+            right: ResponsiveLayout.getPadding(15),
+            bottom: ResponsiveLayout.getPadding(15),
+            top: ResponsiveLayout.getPadding(10)
+          ),
+          child: isSummaryLoading //Build #1.0.99
+          ? Center(child: CircularProgressIndicator())
+              : Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Order ID and Payment Summary header
@@ -497,19 +608,19 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                     style: TextStyle(
                       fontSize: ResponsiveLayout.getFontSize(16),
                       fontWeight: FontWeight.w500,
-                      color: Colors.black87,
+                      color: themeHelper.themeMode == ThemeMode.dark ? Colors.white70 : Colors.black87,
                     ),
                   ),
                   Text(
                     TextConstants.paymentSummary,
                     style: TextStyle(
-                      color: Colors.grey[600],
+                      color:themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark :Colors.grey[600],
                       fontSize: ResponsiveLayout.getFontSize(12),
                     ),
                   ),
                 ],
               ),
-              SizedBox(height: ResponsiveLayout.getHeight(16)),
+              SizedBox(height: ResponsiveLayout.getHeight(8)),
 
               // Order items list
               Expanded(
@@ -517,57 +628,141 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                 child: Container(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(10)),
-                    color: Colors.white,
-                    border: Border.all(color: Colors.grey.shade200),
+                    color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : Colors.white,
+                    border: Border.all(color:themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.borderColor : Colors.grey.shade200),
                   ),
-                  child: ListView.separated(
-                    padding: EdgeInsets.zero,
-                    itemCount: orderItems.length,
-                    separatorBuilder: (context, index) =>
-                        Divider(height: 1, color: Colors.grey.shade200),
-                    itemBuilder: (context, index) {
-                      return _buildOrderItem(index);
-                    },
+                  child: Scrollbar(
+                   controller: _scrollController,
+                    scrollbarOrientation: ScrollbarOrientation.right,
+                    thumbVisibility: true,
+                    thickness: 8.0,
+                    interactive: false,
+                    radius: const Radius.circular(8),
+                    trackVisibility: true,
+                    child: ListView.separated(
+                      padding: EdgeInsets.zero,
+                      itemCount: orderItems.length,
+                      separatorBuilder: (context, index) =>
+                          Divider(height: 1, color: Colors.grey.shade200),
+                      itemBuilder: (context, index) {
+                        final orderItem = orderItems[index];
+                        final itemType = orderItem[AppDBConst.itemType]?.toString().toLowerCase() ?? '';
+                        final isPayout = itemType.contains(TextConstants.payoutText);
+                        final isCoupon = itemType.contains(TextConstants.couponText);
+                        final isCustomItem = itemType.contains(TextConstants.customItemText);
+                        final isPayoutOrCouponOrCustomItem = isPayout || isCoupon || isCustomItem;
+                        return _buildOrderItem(index);
+                      },
+                    ),
                   ),
                 ),
               ),
 
               // Bottom summary container
               Container(
-                height: ResponsiveLayout.getHeight(240),
-                margin: EdgeInsets.only(top: ResponsiveLayout.getPadding(5)),  //ResponsiveLayout.getHeight(5)
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(10)),
-                  color: Colors.white,
-                  border: Border.all(color: Colors.grey.shade200),
+                color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : Colors.white,
                 ),
-                padding:  EdgeInsets.only(
-                    left: ResponsiveLayout.getPadding(15),
-                    right: ResponsiveLayout.getPadding(15),
-                    top: ResponsiveLayout.getPadding(5)
+                //padding: EdgeInsets.all(5),
+                margin: EdgeInsets.only(top: ResponsiveLayout.getPadding(10)),
+                child: AnimatedSize(
+                   duration: Duration(milliseconds: 500),
+                  curve: Curves.easeInOut,
+                    child: _showFullSummary
+                        ? Container(
+                      height: ResponsiveLayout.getHeight(205),
+                      margin: EdgeInsets.all(ResponsiveLayout.getPadding(8)),  //ResponsiveLayout.getHeight(5)
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(10)),
+                      color:themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground : Colors.white,
+                      border: Border.all(color:themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.borderColor : Colors.grey.shade200),
+                    ),
+                    padding:  EdgeInsets.only(
+                        left: ResponsiveLayout.getPadding(8),
+                        right: ResponsiveLayout.getPadding(8),
+                        //top: ResponsiveLayout.getPadding(5)
+                    ),
+                    child: Column(
+                        //mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Order calculations
+                        _buildOrderCalculation(TextConstants.grossTotal, '${TextConstants.currencySymbol}${getSubTotal().toStringAsFixed(2)}',
+                            isTotal: true),
+                        _buildOrderCalculation(TextConstants.discount, '-${TextConstants.currencySymbol}${discount.toStringAsFixed(2)}',
+                            isDiscount: true),
+                        _buildOrderCalculation(TextConstants.merchantDiscount, '-${TextConstants.currencySymbol}${merchantDiscount.toStringAsFixed(2)}'),
+                        _buildOrderCalculation(TextConstants.taxText, '${TextConstants.currencySymbol}${tax.toStringAsFixed(2)}'), // Build #1.0.80: updated tax dynamically
+                        //SizedBox(height: ResponsiveLayout.getHeight(3)),
+                        DottedLine(),
+                        //SizedBox(height: ResponsiveLayout.getHeight(3)),
+                        _buildOrderCalculation(TextConstants.netPayable, '${TextConstants.currencySymbol}${balanceAmount.toStringAsFixed(2)}', // Build #1.0.80: updated balance amount dynamically
+                            isTotal: true),
+                       _buildOrderCalculation(TextConstants.payByCash, '${TextConstants.currencySymbol}${payByCash.toStringAsFixed(2)}'), //Build #1.0.99: updated values from api
+                      _buildOrderCalculation(TextConstants.payByOther, '${TextConstants.currencySymbol}${payByOther.toStringAsFixed(2)}'),
+                     // _buildOrderCalculation(TextConstants.payByCash, selectedPaymentMethod == TextConstants.cash
+                    //     ? '${TextConstants.currencySymbol}${paidAmount.toStringAsFixed(2)}' : '${TextConstants.currencySymbol}${0.0.toStringAsFixed(2)}'),
+                     // _buildOrderCalculation(TextConstants.payByOther, selectedPaymentMethod != TextConstants.cash
+                    //     ? '${TextConstants.currencySymbol}${paidAmount.toStringAsFixed(2)}' : '${TextConstants.currencySymbol}${0.0.toStringAsFixed(2)}'),
+                        _buildOrderCalculation(TextConstants.tenderAmount, '${TextConstants.currencySymbol}${tenderAmount.toStringAsFixed(2)}'),
+                        _buildOrderCalculation(TextConstants.change, '${TextConstants.currencySymbol}${changeAmount.toStringAsFixed(2)}'),
+                      ],
+                      ),
+                  )
+                  : SizedBox.shrink(),
                 ),
-                child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Order calculations
-                    _buildOrderCalculation(TextConstants.subTotalText, '\$${getSubTotal().toStringAsFixed(2)}',
-                        isTotal: true),
-                    _buildOrderCalculation(TextConstants.taxText, '\$0.0'),
-                    _buildOrderCalculation(TextConstants.discount, '-\$${discount.toStringAsFixed(2)}',
-                        isDiscount: true),
-                    SizedBox(height: ResponsiveLayout.getHeight(3)),
-                    DottedLine(),
-                    SizedBox(height: ResponsiveLayout.getHeight(3)),
-                    _buildOrderCalculation(TextConstants.total, '\$${(getSubTotal() - discount).toStringAsFixed(2)}',
-                        isTotal: true),
-                    _buildOrderCalculation(TextConstants.payByCash, selectedPaymentMethod == TextConstants.cash
-                        ? '\$${paidAmount.toStringAsFixed(2)}' : '\$0.0'),
-                    _buildOrderCalculation(TextConstants.payByOther, selectedPaymentMethod != TextConstants.cash
-                        ? '\$${paidAmount.toStringAsFixed(2)}' : '\$0.0'),
-                    _buildOrderCalculation(TextConstants.tenderAmount, '\$${tenderAmount.toStringAsFixed(2)}'),
-                    _buildOrderCalculation(TextConstants.change, '\$${changeAmount.toStringAsFixed(2)}'),
-                  ],
+              ),
+              // Toggle Summary Button
+              GestureDetector(
+                onTap: _toggleSummary,
+                child: Container(
+                  margin: EdgeInsets.only(
+                    top: _showFullSummary ? ResponsiveLayout.getPadding(2) : ResponsiveLayout.getPadding(8),
+                    right: ResponsiveLayout.getPadding(8),
+                    left: ResponsiveLayout.getPadding(8),
+                    bottom: ResponsiveLayout.getPadding(8),
                   ),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.only(
+                      bottomRight: Radius.circular(ResponsiveLayout.getRadius(10)),
+                      bottomLeft: Radius.circular(ResponsiveLayout.getRadius(10)),
+                      topLeft: _showFullSummary ? Radius.zero : Radius.circular(ResponsiveLayout.getRadius(10)),
+                      topRight: _showFullSummary ? Radius.zero : Radius.circular(ResponsiveLayout.getRadius(10)),
+                    ),
+                    color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.orderPanelSummary : Colors.grey.shade300,
+                  ),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: ResponsiveLayout.getPadding(8),
+                    vertical: ResponsiveLayout.getPadding(8),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text("${TextConstants.totalItemsText}: ${orderItems.length}",
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+
+                      Row(
+                        children: [
+                          Text(
+                            _showFullSummary
+                                ? 'Net Payable : ${TextConstants.currencySymbol}${balanceAmount.toStringAsFixed(2)}'
+                                : 'Net Payable : ${TextConstants.currencySymbol}${balanceAmount.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight,
+                            ),
+                          ),
+                          SizedBox(width: ResponsiveLayout.getPadding(8)),
+                          Icon(
+                            _showFullSummary ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_up,
+                            color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
               ),
               Expanded(flex: 0, child: SizedBox()),
             ],
@@ -582,22 +777,29 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
   // Build #1.0.10: Fetches order items for the active order
   Future<void> fetchOrderItems() async {
     if (orderHelper.activeOrderId != null) {
-      List<Map<String, dynamic>> items = await orderHelper.getOrderItems(orderHelper.activeOrderId!);
+      var orderData = await orderHelper.getOrderById(orderHelper.activeOrderId!);
+      List<Map<String, dynamic>> items = await orderHelper.getOrderItems(orderData.first[AppDBConst.orderServerId]);
 
       //Build #1.0.29:  Fetch the orderServerId from the database
-      final db = await DBHelper.instance.database;
-      final List<Map<String, dynamic>> orderData = await db.query(
-        AppDBConst.orderTable,
-        columns: [AppDBConst.orderServerId, AppDBConst.orderDiscount],
-        where: '${AppDBConst.orderId} = ?',
-        whereArgs: [orderHelper.activeOrderId],
-      );
+      // final db = await DBHelper.instance.database;
+      // final List<Map<String, dynamic>> orderData = await db.query(
+      //   AppDBConst.orderTable,
+      //   columns: [AppDBConst.orderServerId,
+      //   AppDBConst.orderDiscount,
+      //   AppDBConst.orderTax,
+      //   AppDBConst.merchantDiscount // Build #1.0.80
+      //   ],
+      //   where: '${AppDBConst.orderId} = ?',
+      //   whereArgs: [order.first[AppDBConst.orderServerId]],
+      // );
 
       if (orderData.isNotEmpty) {
         setState(() {
           orderId = orderData.first[AppDBConst.orderServerId] as int? ?? 0;
           orderDateTime = "${orderData.first[AppDBConst.orderDate]} ${orderData.first[AppDBConst.orderTime]}" ;
           discount = (orderData.first[AppDBConst.orderDiscount] as num?)?.toDouble() ?? 0.0; // Fetch discount
+          merchantDiscount = (orderData.first[AppDBConst.merchantDiscount] as num?)?.toDouble() ?? 0.0; // Build #1.0.80
+          tax = (orderData.first[AppDBConst.orderTax] as num?)?.toDouble() ?? 0.0;
           if (kDebugMode) {
             print("Fetched orderServerId: $orderId, Discount: $discount for activeOrderId: ${orderHelper.activeOrderId}, Time: $orderDateTime");
           }
@@ -608,8 +810,10 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
         }
       }
 
+      /// Call fetch payment details by order id API call after order id assigned here above, otherwise we get null order id
+      _fetchPaymentsByOrderId();
+
      // Build #1.0.29: Calculate balance amount from order items
-      double total = 0.0;
       for (var item in items) {
         double price = (item[AppDBConst.itemPrice] as num).toDouble();
         int count = item[AppDBConst.itemCount] as int;
@@ -623,7 +827,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
 
       setState(() {
         orderItems = items;
-        balanceAmount = total - discount; // Adjust balance with discount
+        balanceAmount = total - discount - merchantDiscount + tax; // Build #1.0.80: Update balance calculation
         tenderAmount = 0.0; // Reset for new order
         changeAmount = 0.0; // Reset for new order
         paidAmount = 0.0; // Reset for new order
@@ -642,6 +846,20 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
 
   Widget _buildOrderItem(int index) {
     var orderItem = orderItems[index];
+    final itemType = orderItem[AppDBConst.itemType]?.toString().toLowerCase() ?? '';
+    final isPayout = itemType.contains(TextConstants.payoutText);
+    final isCoupon = itemType.contains(TextConstants.couponText);
+    final isCustomItem = itemType.contains(TextConstants.customItemText);
+    final isPayoutOrCouponOrCustomItem = isPayout || isCoupon || isCustomItem;
+    final themeHelper = Provider.of<ThemeNotifier>(context);
+
+    final variationName = orderItem[AppDBConst.itemVariationCustomName]?.toString() ?? 'N/A';
+    final variationCount = orderItem[AppDBConst.itemVariationCount] ?? 0;
+    final combo = orderItem[AppDBConst.itemCombo] ?? '';
+    if (kDebugMode) {
+      print("#### itemType: $itemType, isPayoutOrCouponOrCustomItem: $isPayoutOrCouponOrCustomItem");
+      print("#### variationName: $variationName, variationCount: $variationCount, combo: $combo");
+    }
     return
     //   Expanded(
     //   child: ReorderableListView.builder(
@@ -782,7 +1000,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     //                                 color: Colors.black),
     //                           ),
     //                           Text(
-    //                             "${orderItem[AppDBConst.itemCount]} * \$${orderItem[AppDBConst.itemPrice]}",
+    //                             "${orderItem[AppDBConst.itemCount]} * ${TextConstants.currencySymbol}${orderItem[AppDBConst.itemPrice]}",
     //                             style: const TextStyle(color: Colors.black54),
     //                           ),
     //                         ],
@@ -792,7 +1010,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     //                       mainAxisAlignment: MainAxisAlignment.center,
     //                       children: [
     //                         Text(
-    //                           "\$${(orderItem[AppDBConst.itemCount] * orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}",
+    //                           "${TextConstants.currencySymbol}${(orderItem[AppDBConst.itemCount] * orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}",
     //                           style: const TextStyle(
     //                               fontSize: 18,
     //                               fontWeight: FontWeight.bold),
@@ -814,102 +1032,153 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
         vertical: 10,
         horizontal: 12,
       ),
-      child: Row(
-        children: [
-          // Product image
-          Container(
-            width: ResponsiveLayout.getWidth(50),
-            height: ResponsiveLayout.getHeight(50),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(8)),
-              color: Colors.grey.shade200,
-            ),
-            child: ClipRRect( // Build #1.0.13 : updated images from db not static default images
-              borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(10)),
-              child: orderItem[AppDBConst.itemImage].toString().startsWith('http')
-                  ? Image.network(
-                orderItem[AppDBConst.itemImage],
-                height: ResponsiveLayout.getHeight(30),
-                width: ResponsiveLayout.getWidth(30),
-                fit: BoxFit.cover,
-                errorBuilder:
-                    (context, error, stackTrace) {
-                  return SvgPicture.asset(
-                    'assets/svg/password_placeholder.svg',
-                    height: ResponsiveLayout.getHeight(30),
-                    width: ResponsiveLayout.getWidth(30),
-                    fit: BoxFit.cover,
-                  );
-                },
-              )
-                  : orderItem[AppDBConst.itemImage]
-                  .toString()
-                  .startsWith('assets/')
-                  ? SvgPicture.asset(
-                orderItem[AppDBConst.itemImage],
-                height: ResponsiveLayout.getHeight(30),
-                width: ResponsiveLayout.getWidth(30),
-                fit: BoxFit.cover,
-              )
-                  : Image.file(
-                File(orderItem[AppDBConst.itemImage]),
-                height: ResponsiveLayout.getHeight(30),
-                width: ResponsiveLayout.getWidth(30),
-                fit: BoxFit.cover,
-                errorBuilder:
-                    (context, error, stackTrace) {
-                  return SvgPicture.asset(
-                    'assets/svg/password_placeholder.svg',
-                    height: ResponsiveLayout.getHeight(30),
-                    width: ResponsiveLayout.getWidth(30),
-                    fit: BoxFit.cover,
-                  );
-                },
+      child: SizedBox(
+        height: MediaQuery.of(context).size.height * 0.08,
+        child: Row(
+          children: [
+            // Product image
+            Container(
+              width: ResponsiveLayout.getWidth(50),
+              height: ResponsiveLayout.getHeight(50),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(8)),
+                color:  Colors.grey.shade200,
+              ),
+              child: ClipRRect( // Build #1.0.13 : updated images from db not static default images
+                borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(10)),
+                child: orderItem[AppDBConst.itemImage].toString().startsWith('http')
+                    ? Image.network(
+                  orderItem[AppDBConst.itemImage],
+                  height: ResponsiveLayout.getHeight(30),
+                  width: ResponsiveLayout.getWidth(30),
+                  fit: BoxFit.cover,
+                  errorBuilder:
+                      (context, error, stackTrace) {
+                    return SvgPicture.asset(
+                      'assets/svg/password_placeholder.svg',
+                      height: ResponsiveLayout.getHeight(30),
+                      width: ResponsiveLayout.getWidth(30),
+                      fit: BoxFit.cover,
+                    );
+                  },
+                )
+                    : orderItem[AppDBConst.itemImage]
+                    .toString()
+                    .startsWith('assets/')
+                    ? SvgPicture.asset(
+                  orderItem[AppDBConst.itemImage],
+                  height: ResponsiveLayout.getHeight(30),
+                  width: ResponsiveLayout.getWidth(30),
+                  fit: BoxFit.cover,
+                )
+                    : Image.file(
+                  File(orderItem[AppDBConst.itemImage]),
+                  height: ResponsiveLayout.getHeight(30),
+                  width: ResponsiveLayout.getWidth(30),
+                  fit: BoxFit.cover,
+                  errorBuilder:
+                      (context, error, stackTrace) {
+                    return SvgPicture.asset(
+                      'assets/svg/password_placeholder.svg',
+                      height: ResponsiveLayout.getHeight(30),
+                      width: ResponsiveLayout.getWidth(30),
+                      fit: BoxFit.cover,
+                    );
+                  },
+                ),
               ),
             ),
-          ),
-          SizedBox(width: ResponsiveLayout.getWidth(12)),
+            SizedBox(width: ResponsiveLayout.getWidth(12)),
 
-          // Product details
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  orderItem[AppDBConst.itemName],
-                  style: TextStyle(
-                    fontWeight: FontWeight.w500,
-                    fontSize: ResponsiveLayout.getFontSize(16),
+            // Product details
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  /// TODO: Change here to apply meta values for (mix & match) "combo" and "variation"
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: [
+                      RichText(
+                        maxLines: 2,
+                        softWrap: true,
+                        text: TextSpan(
+                          children: [
+                            TextSpan(
+                              text: orderItem[AppDBConst.itemName],
+                              style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: themeHelper.themeMode == ThemeMode.dark
+                                      ? ThemeNotifier.textDark
+                                      : ThemeNotifier.textLight
+                              ),
+                            ),
+                            TextSpan(
+                              text: combo == '' ? '' : " (Combo)",
+                              style: TextStyle(fontSize: 8, color: Colors.cyan),
+                            ),
+                          ],
+                        ),
+                      ),
+                      variationCount == 0 ? SizedBox(width: 0,) : Row(
+                        children: [
+                          Text(
+                            variationName == '' ? "" : "(${variationName ?? ''})",
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 10, color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.grey),
+                          ),
+                          SizedBox(
+                            width: 4,
+                          ),
+                          SvgPicture.asset("assets/svg/variation.svg",height: 10, width: 10,),
+                          SizedBox(
+                            width: 4,
+                          ),
+                          Text(
+                            "${variationCount ?? 0}",
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 10, color: Color(0xFFFE6464)),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                ),
-                // Text(
-                //   '(350ml)',
-                //   style: TextStyle(
-                //     color: Colors.grey,
-                //     fontSize: 14,
-                //   ),
-                // ),
-                SizedBox(height: ResponsiveLayout.getHeight(4)),
-                Text(
-                  "${orderItem[AppDBConst.itemCount]} * \$${orderItem[AppDBConst.itemPrice]}", // Build #1.0.12: now item count will update in order panel
-                  style: TextStyle(
-                    color: Colors.black54,
-                    fontSize: ResponsiveLayout.getFontSize(14),
+                  if (!isPayoutOrCouponOrCustomItem)
+                  Text(
+                    "${orderItem[AppDBConst.itemCount]} * ${TextConstants.currencySymbol}${orderItem[AppDBConst.itemPrice].toStringAsFixed(2)}", // Build #1.0.12: now item count will update in order panel
+                    style: TextStyle(
+                      color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.black87,
+                      fontSize: ResponsiveLayout.getFontSize(10),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-
-          // Price
-          Text(
-            "\$${(orderItem[AppDBConst.itemCount] * orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}",
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: ResponsiveLayout.getFontSize(16),
+            // Regular Price
+            if (!isPayout)
+              Text(
+                "${TextConstants.currencySymbol}${orderItem[AppDBConst.itemPrice].toStringAsFixed(2)}",
+                style: TextStyle(
+                    color: themeHelper.themeMode == ThemeMode.dark
+                        ? ThemeNotifier.textDark
+                        : Colors.blueGrey,
+                    fontSize: 14),
+              ),
+            SizedBox(width: 20,),
+            //  Sale Price
+            Text(
+              "${TextConstants.currencySymbol}${(orderItem[AppDBConst.itemCount] * orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: ResponsiveLayout.getFontSize(16),
+                color: isPayoutOrCouponOrCustomItem ? Colors.red : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight, // Added: Red color for Payout/Coupon
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
 
@@ -918,55 +1187,93 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
   Widget _buildOrderCalculation(String label, String amount,
       {bool isTotal = false, bool isDiscount = false}) {
     // //Build #1.0.34: Update the amount based on the label
+    final themeHelper = Provider.of<ThemeNotifier>(context);
     if (label == TextConstants.tenderAmount) {
-      amount = '\$${tenderAmount.toStringAsFixed(2)}';
+      amount = '${TextConstants.currencySymbol}${tenderAmount.toStringAsFixed(2)}';
     } else if (label == TextConstants.change) {
-      amount = '\$${changeAmount.toStringAsFixed(2)}';
+      amount = '${TextConstants.currencySymbol}${changeAmount.toStringAsFixed(2)}';
     } else if (label == TextConstants.total) {
-      amount = '\$${(getSubTotal() - discount).toStringAsFixed(2)}'; // Adjust total with discount
-    } else if (label == TextConstants.payByCash) { //Build 1.1.36: added pay by cash data also
-      amount = selectedPaymentMethod == TextConstants.cash
-          ? '\$${paidAmount.toStringAsFixed(2)}'
-          : '\$0.0';
+      amount = '${TextConstants.currencySymbol}${(getSubTotal() - discount).toStringAsFixed(2)}'; // Adjust total with discount
+    } else if (label == TextConstants.payByCash) {
+      amount = '${TextConstants.currencySymbol}${payByCash.toStringAsFixed(2)}'; //Build #1.0.99: updated from api
+    }else if (label == TextConstants.payByOther) {
+      amount = '${TextConstants.currencySymbol}${payByOther.toStringAsFixed(2)}';
     } else if (label == TextConstants.discount) {
-      amount = '-\$${discount.toStringAsFixed(2)}'; // Display discount from DB
+      amount = '-${TextConstants.currencySymbol}${discount.toStringAsFixed(2)}'; // Display discount from DB
     }
 
+    // Determine colors and icons based on label
+    Color labelColor = themeHelper.themeMode == ThemeMode.dark
+        ? ThemeNotifier.textDark
+        : (isTotal ? Colors.black87 : Colors.grey[700]!);
+    Color amountColor = themeHelper.themeMode == ThemeMode.dark
+        ? ThemeNotifier.textDark
+        : (isTotal ? Colors.black87 : Colors.grey[800]!);
+    Widget? leadingIcon;
+
+    if (isTotal) {
+      amountColor = themeHelper.themeMode == ThemeMode.dark
+          ? ThemeNotifier.textDark : Colors.black87;
+    } else if (label == TextConstants.discount || isDiscount) {
+      labelColor = Colors.green[600]!;
+      amountColor = Colors.green[600]!;
+      leadingIcon = SvgPicture.asset(
+        'assets/svg/discount_star.svg',
+        // width: ResponsiveLayout.getIconSize(16),
+        // height: ResponsiveLayout.getIconSize(16),
+        // color: Colors.green[600],
+      );
+    } else if (label == TextConstants.merchantDiscount) {
+      labelColor = Colors.blue[600]!;
+      amountColor = Colors.blue[600]!;
+      leadingIcon = SvgPicture.asset(
+        'assets/svg/discount_star.svg',
+        // width: ResponsiveLayout.getIconSize(16),
+        // height: ResponsiveLayout.getIconSize(16),
+        // color: Colors.blue[600],
+      );
+    }
+
+
     return Container(
-      margin: EdgeInsets.symmetric(vertical: ResponsiveLayout.getPadding(4)),  //ResponsiveLayout.getResponsiveMargin(vertical: 4),
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: ResponsiveLayout.getPadding(4)), //EdgeInsets.symmetric(horizontal: ResponsiveLayout.getPadding(4)),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Text(
-              label,
-              style: TextStyle(
-                fontWeight: isTotal ? FontWeight.w600 : FontWeight.w500,
-                fontSize: ResponsiveLayout.getFontSize(isTotal ? 14 : 12),
-                color: isTotal ? Colors.black87 : Colors.grey[700],
-                //height: 1,
+      margin: EdgeInsets.symmetric(vertical: ResponsiveLayout.getPadding(2)),  //ResponsiveLayout.getResponsiveMargin(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Row(
+            children: [
+              if (leadingIcon != null) ...[
+                leadingIcon,
+                //SizedBox(width: ResponsiveLayout.getPadding(8)),
+              ],
+              Text(
+                label,
+                style: TextStyle(
+                  fontWeight: isTotal ? FontWeight.w600 : FontWeight.w500,
+                  fontSize: ResponsiveLayout.getFontSize(isTotal ? 14 : 12),
+                  color: labelColor
+                  //height: 1,
+                ),
               ),
+            ],
+          ),
+          Text(
+            amount,
+            style: TextStyle(
+              fontWeight: isTotal ? FontWeight.w600 : FontWeight.w500,
+              fontSize: ResponsiveLayout.getFontSize(isTotal ? 14 : 12),
+              color: amountColor
+              //height: 1,
             ),
-            Text(
-              amount,
-              style: TextStyle(
-                fontWeight: isTotal ? FontWeight.w600 : FontWeight.w500,
-                fontSize: ResponsiveLayout.getFontSize(isTotal ? 14 : 12),
-                color: isDiscount
-                    ? Colors.green[600]
-                    : (isTotal ? Colors.black87 : Colors.grey[800]),
-                //height: 1,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildPaymentSection() {
+    final themeHelper = Provider.of<ThemeNotifier>(context);
     return Container(
       margin: EdgeInsets.only(
         bottom: ResponsiveLayout.getPadding(20),
@@ -975,14 +1282,13 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
       ),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(10)),
-        color: Colors.grey[100],
+        color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground :Colors.grey[100],
       ),
       child: Padding(
         padding: EdgeInsets.only(
             left: ResponsiveLayout.getPadding(20),
             right: ResponsiveLayout.getPadding(20),
             top: ResponsiveLayout.getPadding(15),
-            bottom: 0
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -992,7 +1298,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
               flex: 3,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,/// if not required remove it
+                //mainAxisAlignment: MainAxisAlignment.spaceEvenly,/// if not required remove it
                 children: [
                   // Payment amount display row
                   // Update _buildAmountDisplay in _buildPaymentSection
@@ -1003,16 +1309,17 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                     children: [
                       _buildAmountDisplay(
                         TextConstants.balanceAmount,
-                        '\$${balanceAmount.toStringAsFixed(2)}',//'\$${getSubTotal()}',
+                        '${TextConstants.currencySymbol}${balanceAmount.toStringAsFixed(2)}',//'${TextConstants.currencySymbol}${getSubTotal()}',
                         amountColor: Colors.red,
                       ),
                       _buildAmountDisplay(
                         TextConstants.tenderAmount,
-                        '\$${tenderAmount.toStringAsFixed(2)}', // Build #1.0.33
+                        '${TextConstants.currencySymbol}${tenderAmount.toStringAsFixed(2)}', // Build #1.0.33
+                        amountColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : null
                       ),
                       _buildAmountDisplay(
                         TextConstants.change,
-                        '\$${changeAmount.toStringAsFixed(2)}', // Build #1.0.33 :
+                        '${TextConstants.currencySymbol}${changeAmount.toStringAsFixed(2)}', // Build #1.0.33 :
                         amountColor: Colors.green,
                       ),
                     ],
@@ -1026,71 +1333,74 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                     mainAxisSize: MainAxisSize.max,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Expanded(
-                        flex: 3,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Cash payment section
-                            Container(
-                             // width: MediaQuery.of(context).size.width * 0.75,
-                              padding: EdgeInsets.all(ResponsiveLayout.getPadding(16)),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(8)),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  // Label container
-                                  Container(
-                                    height: ResponsiveLayout.getHeight(36),
-                                    width: double.infinity,
-                                    padding: EdgeInsets.only(
-                                        top: ResponsiveLayout.getPadding(7),
-                                        left: ResponsiveLayout.getPadding(7)
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.red[50],
-                                      borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(6)),
-                                    ),
-                                    child: Text(
-                                      TextConstants.cashPayment,
-                                      style: TextStyle(
-                                        color: Colors.red,
-                                        fontWeight: FontWeight.w500,
-                                        fontSize: ResponsiveLayout.getFontSize(12),
-                                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Cash payment section
+                          Container(
+                           width: MediaQuery.of(context).size.width * 0.455,
+                            height: MediaQuery.of(context).size.height * 0.675,
+                            padding: EdgeInsets.only(
+                                left: ResponsiveLayout.getPadding(16),
+                              right: ResponsiveLayout.getPadding(16),
+                              top: ResponsiveLayout.getPadding(16),
+                              //bottom: ResponsiveLayout.getPadding(8),
+                            ),
+                            decoration: BoxDecoration(
+                              color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : Colors.white,
+                              borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(8)),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Label container
+                                Container(
+                                  height: ResponsiveLayout.getHeight(36),
+                                  width: double.infinity,
+                                  padding: EdgeInsets.only(
+                                      top: ResponsiveLayout.getPadding(7),
+                                      left: ResponsiveLayout.getPadding(7)
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.tabsBackground : Colors.red[50],
+                                    borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(6)),
+                                  ),
+                                  child: Text(
+                                    TextConstants.cashPayment,
+                                    style: TextStyle(
+                                      color: Colors.red,
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: ResponsiveLayout.getFontSize(12),
                                     ),
                                   ),
-                                  SizedBox(height: ResponsiveLayout.getHeight(8)),
+                                ),
+                                SizedBox(height: ResponsiveLayout.getHeight(8)),
 
                                   // Amount TextField
-                                  Container(
+                                Container(
                                     height: ResponsiveLayout.getHeight(43),
                                     decoration: BoxDecoration(
-                                      color: Colors.white,
+                                      color:themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.paymentEntryContainerColor :  Colors.white,
                                       borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(6)),
-                                      border: Border.all(color: Colors.grey.shade300),
+                                      border: Border.all(color:themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.borderColor : Colors.grey.shade300),
                                     ),
                                     child: TextField(
                                       controller: amountController,//_paymentController,
                                       readOnly: true,
-                                      // textAlignVertical: TextAlignVertical.center,
                                       textAlign: TextAlign.right,
                                       enabled: false, // Disables interaction with the TextField
                                       decoration: InputDecoration(
                                         contentPadding: EdgeInsets.only(right: ResponsiveLayout.getPadding(16)),
                                         border: InputBorder.none,
-                                        hintText: '\$0.00',
+                                        hintText: '${TextConstants.currencySymbol}0.00',
                                         hintStyle: TextStyle(
-                                          color: Colors.grey[400],///800
+                                          color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark :Colors.grey[400],///800
                                           fontSize: ResponsiveLayout.getFontSize(20),
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
                                       style: TextStyle(
-                                        color: Colors.grey[800],
+                                        color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.grey[800],
                                         fontSize: ResponsiveLayout.getFontSize(20),
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -1100,66 +1410,66 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                                       },
                                     ),
                                   ),
-                                  SizedBox(height: ResponsiveLayout.getHeight(8)),
+                                SizedBox(height: ResponsiveLayout.getHeight(8)),
 
-                                  // Quick amount buttons
-                                  // Update the Row in _buildPaymentSection to use dynamic quick amounts
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      _buildQuickAmountButton('\$${balanceAmount.toStringAsFixed(0)}'), // Match balance amount
-                                      _buildQuickAmountButton('\$${(balanceAmount + 2).toStringAsFixed(0)}'), // Slightly above
-                                      _buildQuickAmountButton('\$${(balanceAmount + 12).toStringAsFixed(0)}'), // More above
-                                      _buildQuickAmountButton('\$${((balanceAmount ~/ 10 + 1) * 10).toStringAsFixed(0)}'), // Round up to next 10
-                                      _buildQuickAmountButton('\$${((balanceAmount ~/ 50 + 1) * 50).toStringAsFixed(0)}'), // Round up to next 50
-                                    ],
-                                  ),
+                                // Quick amount buttons
+                                // Update the Row in _buildPaymentSection to use dynamic quick amounts
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    _buildQuickAmountButton('${TextConstants.currencySymbol}${balanceAmount.toStringAsFixed(0)}'), // Match balance amount
+                                    _buildQuickAmountButton('${TextConstants.currencySymbol}${(balanceAmount + 2).toStringAsFixed(0)}'), // Slightly above
+                                    _buildQuickAmountButton('${TextConstants.currencySymbol}${(balanceAmount + 12).toStringAsFixed(0)}'), // More above
+                                    _buildQuickAmountButton('${TextConstants.currencySymbol}${((balanceAmount ~/ 10 + 1) * 10).toStringAsFixed(0)}'), // Round up to next 10
+                                    _buildQuickAmountButton('${TextConstants.currencySymbol}${((balanceAmount ~/ 50 + 1) * 50).toStringAsFixed(0)}'), // Round up to next 50
+                                  ],
+                                ),
 
-                                  SizedBox(height: ResponsiveLayout.getHeight(12)),
+                                SizedBox(height: ResponsiveLayout.getHeight(12)),
 
-                                  // Here you would use your custom numpad widget
-                                  // CustomNumpad(useCashLayout: true),
-                                  // Build #1.0.29:  Update CustomNumPad code
-                                  // Update CustomNumPad usage in _buildPaymentSection
-                                  CustomNumPad(
-                                    numPadType: NumPadType.payment,
-                                    getPaidAmount: () => amountController.text,
-                                    balanceAmount: balanceAmount,
-                                    onDigitPressed: (value) {
-                                      amountController.text = (amountController.text + value).replaceAll(r'$', '');
+                                // Here you would use your custom numpad widget
+                                // CustomNumpad(useCashLayout: true),
+                                // Build #1.0.29:  Update CustomNumPad code
+                                // Update CustomNumPad usage in _buildPaymentSection
+                                CustomNumPad(
+                                  numPadType: NumPadType.payment,
+                                  isDarkTheme: themeHelper.themeMode == ThemeMode.dark,
+                                  getPaidAmount: () => amountController.text,
+                                  balanceAmount: balanceAmount,
+                                  onDigitPressed: (value) {
+                                    amountController.text = (amountController.text + value).replaceAll(r'$', '');
+                                    setState(() {});
+                                  },
+                                  onClearPressed: () {
+                                    amountController.clear();
+                                    setState(() {});
+                                  },
+                                  onDeletePressed: () {
+                                    if (amountController.text.isNotEmpty) {
+                                      amountController.text = amountController.text.substring(0, amountController.text.length - 1);
                                       setState(() {});
-                                    },
-                                    onClearPressed: () {
-                                      amountController.clear();
-                                      setState(() {});
-                                    },
-                                    onDeletePressed: () {
-                                      if (amountController.text.isNotEmpty) {
-                                        amountController.text = amountController.text.substring(0, amountController.text.length - 1);
-                                        setState(() {});
-                                      }
-                                    },
-                                    onPayPressed: () { //Build #1.0.34: updated code
-                                      String paidAmount = amountController.text;
-                                      String cleanAmount = paidAmount.replaceAll('\$', '').trim();
-                                      double amount = double.tryParse(cleanAmount) ?? 0.0;
+                                    }
+                                  },
+                                  onPayPressed: () { //Build #1.0.34: updated code
+                                    String paidAmount = amountController.text;
+                                    String cleanAmount = paidAmount.replaceAll('${TextConstants.currencySymbol}', '').trim();
+                                    double amount = double.tryParse(cleanAmount) ?? 0.0;
 
-                                      if (amount == 0.0) {
-                                        if (kDebugMode) {
-                                          print("Invalid amount entered");
-                                        }
-                                        return;
+                                    if (amount == 0.0) {
+                                      if (kDebugMode) {
+                                        print("Invalid amount entered");
                                       }
+                                      return;
+                                    }
 
-                                      _callCreatePaymentAPI(); // create payment api call
-                                    },
-                                    isLoading: isLoading, // Pass isLoading
-                                  )
-                                ],
-                              ),
+                                    _callCreatePaymentAPI(); // create payment api call
+                                  },
+                                  isLoading: isLoading, // Pass isLoading
+                                )
+                              ],
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                       SizedBox(width: ResponsiveLayout.getWidth(16)),
 
@@ -1174,6 +1484,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
               flex: 1,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.start,
                     children: [
                       Text(
                         TextConstants.selectPaymentMode,
@@ -1182,13 +1493,13 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      SizedBox(height: ResponsiveLayout.getHeight(10)),
+                      //SizedBox(height: ResponsiveLayout.getHeight(10)),
                       Container(
                         width: ResponsiveLayout.getWidth(224),
                         height: ResponsiveLayout.getHeight(306),
-                        padding: EdgeInsets.all(ResponsiveLayout.getPadding(5)),
+                        padding: EdgeInsets.all(ResponsiveLayout.getPadding(8)),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : Colors.white,
                           borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(5)),
                         ),
                         child: Column(
@@ -1199,19 +1510,19 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                                 selectedPaymentMethod = TextConstants.cash;
                               });
                             }),
-                            SizedBox(height: ResponsiveLayout.getHeight(20)),
+                            SizedBox(height: ResponsiveLayout.getHeight(10)),
                             _buildPaymentModeButton(TextConstants.card, Icons.credit_card, onTap: () {
                           setState(() {
                             selectedPaymentMethod = TextConstants.card;
                           });
                         }),
-                            SizedBox(height: ResponsiveLayout.getHeight(20)),
+                            SizedBox(height: ResponsiveLayout.getHeight(10)),
                             _buildPaymentModeButton(TextConstants.wallet, Icons.account_balance_wallet, onTap: () {
                           setState(() {
                             selectedPaymentMethod = TextConstants.wallet;
                           });
                         }),
-                            SizedBox(height: ResponsiveLayout.getHeight(20)),
+                            SizedBox(height: ResponsiveLayout.getHeight(10)),
                             _buildPaymentModeButton(TextConstants.ebtText, Icons.payment, onTap: () {
                           setState(() {
                             selectedPaymentMethod = TextConstants.ebtText;
@@ -1220,22 +1531,22 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                           ],
                         ),
                       ),
-                      SizedBox(height: ResponsiveLayout.getHeight(15)),
+                      SizedBox(height: ResponsiveLayout.getHeight(20)),
 
                       Container(
                         width: ResponsiveLayout.getWidth(224),
-                        height: ResponsiveLayout.getHeight(202),
-                        padding: EdgeInsets.symmetric(vertical: 5, horizontal: 5),//ResponsiveLayout.getResponsivePadding(all: 5),
+                        height: ResponsiveLayout.getHeight(210),
+                        padding: EdgeInsets.symmetric(vertical: 12, horizontal: 8),//ResponsiveLayout.getResponsivePadding(all: 5),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : Colors.white,
                           borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(5)),
                         ),
                         child: Column(
                           children: [_buildPaymentOptionButton(TextConstants.redeemPoints, Icons.stars),
-                            SizedBox(height: ResponsiveLayout.getHeight(20)),
+                            SizedBox(height: ResponsiveLayout.getHeight(15)),
                             _buildPaymentOptionButton(
                                 TextConstants.manualDiscount, Icons.discount),
-                            SizedBox(height: ResponsiveLayout.getHeight(20)),
+                            SizedBox(height: ResponsiveLayout.getHeight(15)),
                             _buildPaymentOptionButton(
                                 TextConstants.giftReceipt, Icons.card_giftcard),
                           ],
@@ -1254,8 +1565,9 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
       String label,
       String amount,
        {
-        Color amountColor = Colors.black,
+        Color? amountColor = Colors.black,
       }) {
+    final themeHelper = Provider.of<ThemeNotifier>(context);
     var size  = MediaQuery.of(context).size;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1265,16 +1577,17 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
           label,
           style: TextStyle(
             fontSize: ResponsiveLayout.getFontSize(12),
-            color: Colors.black54
+            color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.black54
           ),
         ),
         SizedBox(height: ResponsiveLayout.getHeight(4)),
         Container(
-          width: ResponsiveLayout.getWidth(128),
+          width: MediaQuery.of(context).size.width * 0.145,
           height: ResponsiveLayout.getHeight(43),
-          padding: EdgeInsets.all(ResponsiveLayout.getPadding(5.0)),
+          alignment: Alignment.centerLeft,
+          padding: EdgeInsets.only(left: 10),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground :  Colors.white,
             borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(8)),
           ),
           child: Text(
@@ -1316,24 +1629,25 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     return GestureDetector(
       onTap: () {
         // Remove '$' and ensure the value is numeric
-        String cleanAmount = amount.replaceAll('\$', '');
+        String cleanAmount = amount.replaceAll('${TextConstants.currencySymbol}', '');
         amountController.text = cleanAmount;
         setState(() {});
       },
       child: Container(
         height: ResponsiveLayout.getHeight(43),
-        width: ResponsiveLayout.getWidth(64),
+       width: ResponsiveLayout.getWidth(100),
         alignment: Alignment.center,
         padding: EdgeInsets.all(ResponsiveLayout.getPadding(5.0)),
         decoration: BoxDecoration(
-          color: Color(0xFFBFF1C0),
+          color: Color(0xFFE1F8DC),
           borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(5)),
         ),
         child: Text(
           amount,
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            fontSize: ResponsiveLayout.getFontSize(14),
+            fontSize: ResponsiveLayout.getFontSize(16),
+            color: Color(0xFF518C3A)
           ),
         ),
       ),
@@ -1342,14 +1656,16 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
 
   Widget _buildPaymentModeButton(String label, IconData icon,
       {bool isSelected = false, VoidCallback? onTap}) {
+    final themeHelper = Provider.of<ThemeNotifier>(context);
     return Container(
       width: ResponsiveLayout.getWidth(128),
       height: ResponsiveLayout.getHeight(54),
       padding: ResponsiveLayout.getResponsivePadding(vertical: 10),
+      margin: EdgeInsets.symmetric(vertical: 5),
       decoration: BoxDecoration(
-        color: isSelected ? Colors.red.shade100 : Colors.white,
+        color: isSelected ? Colors.red.shade100 : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground : Colors.white,
         borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(5)),
-        border: isSelected ? Border.all(color: Colors.red.shade300) : Border.all(color: Colors.grey.shade200),
+        border: isSelected ? Border.all(color: Colors.red.shade300) : Border.all(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.borderColor :Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withOpacity(0.1),
@@ -1364,14 +1680,14 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
         children: [
           Icon(
             icon,
-            color: isSelected ? Colors.red : Colors.grey,
+            color: isSelected ? Colors.red : themeHelper.themeMode == ThemeMode.dark ? Color(0xFFE1E1E1) : Colors.grey,
             size: ResponsiveLayout.getIconSize(25),
           ),
           SizedBox(width: ResponsiveLayout.getWidth(8)),
           Text(
             label,
             style: TextStyle(
-              color: isSelected ? Colors.red : Colors.grey,
+              color: isSelected ? Colors.red :themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark :  Colors.grey,
               fontWeight: FontWeight.w500,
               fontSize: ResponsiveLayout.getFontSize(14),
             ),
@@ -1382,16 +1698,17 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
   }
 
   Widget _buildPaymentOptionButton(String label, IconData icon) {
+    final themeHelper = Provider.of<ThemeNotifier>(context);
     return Container(
-      height: ResponsiveLayout.getHeight(45),
-      padding: ResponsiveLayout.getResponsivePadding(
-        vertical: 5,
-        horizontal: 5,
-      ),
+      height: ResponsiveLayout.getHeight(50),
+      // padding: ResponsiveLayout.getResponsivePadding(
+      //   vertical: 8,
+      //   horizontal: 8,
+      // ),
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
+        color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground : Colors.grey.shade100,
         borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(8)),
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.borderColor :Colors.grey.shade300),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -1399,9 +1716,9 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
           Icon(
             icon,
             color: Colors.grey,
-            size: ResponsiveLayout.getIconSize(12),),
+            size: ResponsiveLayout.getIconSize(16),),
           SizedBox(width: ResponsiveLayout.getWidth(8)),
-          Text(label, style: TextStyle(color: Colors.grey, fontSize: ResponsiveLayout.getFontSize(12))),
+          Text(label, style: TextStyle(color: Colors.grey, fontSize: ResponsiveLayout.getFontSize(14))),
         ],
       ),
     );
@@ -1524,8 +1841,46 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
       print("OrderSummaryScreen _preparePrintTicket call print receipt");
     }
     bytes = [];
-
     final ticket =  await _printerSettings.getTicket();
+
+    ///Header
+    ///   Pinaka Logo
+    ///Tax Summary
+    ///   Item
+    ///   tax breakdown
+    ///   gross total
+    ///Footer
+    ///   Thank You, Visit Again
+
+
+    //Pinaka Logo
+    final ByteData data = await rootBundle.load('assets/ic_logo.png');
+    if (data.lengthInBytes > 0) {
+      final Uint8List imageBytes = data.buffer.asUint8List();
+      // decode the bytes into an image
+      final decodedImage = img.decodeImage(imageBytes)!;
+      // Create a black bottom layer
+      // Resize the image to a 130x? thumbnail (maintaining the aspect ratio).
+      img.Image thumbnail = img.copyResize(decodedImage, height: 130);
+      // creates a copy of the original image with set dimensions
+      img.Image originalImg = img.copyResize(decodedImage, width: 380, height: 130);
+      // fills the original image with a white background
+      img.fill(originalImg, color: img.ColorRgb8(255, 255, 255));
+      var padding = (originalImg.width - thumbnail.width) / 2;
+
+      //insert the image inside the frame and center it
+      drawImage(originalImg, thumbnail, dstX: padding.toInt());
+
+      // convert image to grayscale
+      var grayscaleImage = img.grayscale(originalImg);
+
+      bytes += ticket.feed(1);
+      // bytes += generator.imageRaster(img.decodeImage(imageBytes)!, align: PosAlign.center);
+      bytes += ticket.imageRaster(grayscaleImage, align: PosAlign.center);
+      bytes += ticket.feed(1);
+    }
+
+    //Item header
     bytes += ticket.row([
       PosColumn(text: "#", width: 1),
       PosColumn(text: "Description", width:5),
@@ -1541,6 +1896,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
 
     }
 
+    //Product Items
     for(int i = 0; i< orderItems.length; i++) {
 
       var orderItem = orderItems[i];
@@ -1558,6 +1914,81 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
       ]);
       // bytes += ticket.feed(1);
     }
+
+    bytes += ticket.feed(1);
+
+    if (kDebugMode) {
+      print(" >>>>> Printer Order balanceAmount  $balanceAmount ");
+      print(" >>>>> Printer Order tenderAmount $tenderAmount ");
+      print(" >>>>> Printer Order changeAmount $changeAmount ");
+      print(" >>>>> Printer Order paidAmount $paidAmount ");
+
+    }
+    //Breakdown
+    //         balanceAmount = total - discount - merchantDiscount + tax;
+    //         tenderAmount = 0.0; // Reset for new order
+    //         changeAmount = 0.0; // Reset for new order
+    //         paidAmount = 0.0; // Reset for new order
+
+    bytes += ticket.row([
+      PosColumn(text: TextConstants.grossTotal, width: 10),
+      PosColumn(text: total.toStringAsFixed(2), width:2),
+    ]);
+    // bytes += ticket.feed(1);
+    bytes += ticket.row([
+      PosColumn(text: TextConstants.discount, width: 10),
+      PosColumn(text: discount.toStringAsFixed(2), width:2),
+    ]);
+    // bytes += ticket.feed(1);
+    bytes += ticket.row([
+      PosColumn(text: TextConstants.merchantDiscount, width: 10),
+      PosColumn(text: merchantDiscount.toStringAsFixed(2), width:2),
+    ]);
+    // bytes += ticket.feed(1);
+    bytes += ticket.row([
+      PosColumn(text: TextConstants.taxText, width: 10),
+      PosColumn(text: tax.toStringAsFixed(2), width:2),
+    ]);
+    // bytes += ticket.feed(1);
+    //line
+    bytes += ticket.row([
+      PosColumn(text: "-----------------------------------------------", width: 12),
+    ]);
+
+    bytes += ticket.feed(1);
+    //Net Payable
+    bytes += ticket.row([
+      PosColumn(text: TextConstants.netPayable, width: 8),
+      PosColumn(text: balanceAmount.toStringAsFixed(2), width:4),
+    ]);
+    ///Todo: get pay by cash amount
+    // bytes += ticket.feed(1);
+    bytes += ticket.row([
+      PosColumn(text: TextConstants.payByCash, width: 8),
+      PosColumn(text: payByCash.toStringAsFixed(2), width:4),
+    ]);
+    ///Todo: get pay by other amount
+    // bytes += ticket.feed(1);
+    bytes += ticket.row([
+      PosColumn(text: TextConstants.payByOther, width: 8),
+      PosColumn(text: payByOther.toStringAsFixed(2), width:4),
+    ]);
+    // bytes += ticket.feed(1);
+    bytes += ticket.row([
+      PosColumn(text: TextConstants.tenderAmount, width: 8),
+      PosColumn(text: tenderAmount.toStringAsFixed(2), width:4),
+    ]);
+    // bytes += ticket.feed(1);
+    bytes += ticket.row([
+      PosColumn(text: TextConstants.change, width: 10),
+      PosColumn(text: changeAmount.toStringAsFixed(2), width:2),
+    ]);
+    bytes += ticket.feed(1);
+
+    //Footer
+    bytes += ticket.row([
+      PosColumn(text: "Thank You, Visit Again", width: 12),
+    ]);
   }
 
   Future _printTicket() async{
@@ -1676,7 +2107,10 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                 print("OrderPanel - Order #@# $orderId, successfully completed");
               }
 
-              Navigator.of(context).pop(); // dismiss dialog
+              // Build #1.0.104:  Pop the receipt dialog
+              Navigator.of(context).pop();
+              // Build #1.0.104:  Pop back to the previous screen with a refresh signal
+              Navigator.of(context).pop('refresh');
 
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
@@ -1684,7 +2118,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                     TextConstants.orderCompleted,
                     style: const TextStyle(color: Colors.white),
                   ),
-                  backgroundColor: Colors.black,
+                  backgroundColor: Colors.green, // Build #1.0.104: updated to green
                   duration: const Duration(seconds: 3),
                 ),
               );
@@ -1704,6 +2138,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                   duration: const Duration(seconds: 3),
                 ),
               );
+              Navigator.of(context).pop(); // Build #1.0.104: close dialog on error
             }
             subscription?.cancel();
           });
@@ -1747,11 +2182,61 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
               // Navigatorgator.of(context).pop(); // Go back to previous screen
 /// issue with navigation is fixed using below
             // Build #1.0.49: issue fixed -> Use popUntil to dismiss both dialogs and go back
-            Navigator.of(context).popUntil((route) => route.isFirst || route.settings.name == '/previousScreen'); // Adjust route condition as needed
+            // Navigator.of(context).popUntil((route) => route.isFirst || route.settings.name == '/previousScreen'); // Adjust route condition as needed
             //   Navigator.of(context).pop(); // Close the dialog
             //   Navigator.of(context).pop(); // Go back to previous screen
 
               // Additional cleanup logic can be added here
+            ///Todo:
+            ///1. call the order status change to On-Hold
+            ///2. Stop loading and dismiss dialog
+            ///3. Navigator.push to fast key screen
+
+            orderBloc.changeOrderStatus(orderId: orderId!, status: TextConstants.onhold);
+            StreamSubscription? subscription;
+            subscription = orderBloc.changeOrderStatusStream.listen((response) {
+              if (response.status == Status.COMPLETED) {
+                if (kDebugMode) {
+                  print("OrderPanel - Order #@# $orderId, successfully changed to on hold");
+                }
+
+                Navigator.of(context).pop(); // dismiss dialog
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      TextConstants.orderOnHold,
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                    backgroundColor: Colors.orange,
+                    duration: const Duration(seconds: 3),
+                  ),
+                );
+                // On the second screen (Screen 2)
+                // Build #1.0.104: Pop back to previous screen with refresh signal
+                Navigator.of(context).pop('refresh');
+                // Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => FastKeyScreen()),ModalRoute.withName('/'),);
+
+                // Optionally refresh UI or remove tab
+                // fetchOrderItems();
+              } else if (response.status == Status.ERROR) {
+                if (kDebugMode) {
+                  print("OrderPanel - completed failed: ${response.message}");
+                }
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      response.message ?? "Failed to complete order",
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                    backgroundColor: Colors.black,
+                    duration: const Duration(seconds: 3),
+                  ),
+                );
+                Navigator.of(context).pop(); // Build #1.0.104:  close dialog on error
+              }
+              subscription?.cancel();
+            });
           },
         ),
     );

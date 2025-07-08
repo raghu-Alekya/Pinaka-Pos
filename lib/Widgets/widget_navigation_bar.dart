@@ -5,14 +5,18 @@ import 'package:pinaka_pos/Screens/Home/apps_dashboard_screen.dart';
 import 'package:pinaka_pos/Screens/Home/categories_screen.dart';
 import 'package:pinaka_pos/Screens/Home/fast_key_screen.dart';
 import 'package:pinaka_pos/Screens/Home/orders_screen.dart';
+import 'package:provider/provider.dart';
 import 'package:quickalert/models/quickalert_animtype.dart';
 import 'package:quickalert/models/quickalert_type.dart';
 import 'package:quickalert/widgets/quickalert_dialog.dart';
 import 'package:flutter_swipe_button/flutter_swipe_button.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../Helper/Extentions/theme_notifier.dart';
 
 import '../Constants/text.dart';
 import '../Screens/Home/add_screen.dart';
 import '../Screens/Home/Settings/settings_screen.dart';
+import '../Screens/Home/shift_open_close_balance.dart';
 
 class NavigationBar extends StatelessWidget {
   final int selectedSidebarIndex;
@@ -29,6 +33,7 @@ class NavigationBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context); // Build #1.0.6 - Added theme for navigation bar
+    final themeHelper = Provider.of<ThemeNotifier>(context);
     return Container(
       width: isVertical ? MediaQuery.of(context).size.width * 0.07 : null,
       height: isVertical ? null : 100,
@@ -40,16 +45,32 @@ class NavigationBar extends StatelessWidget {
             color: theme.primaryColor,
             borderRadius: BorderRadius.all(Radius.circular(10)),
           ),
-          child: isVertical ? _buildVerticalLayout() : _buildHorizontalLayout(),
+          child: FutureBuilder<String?>( //Build #1.0.78: restrict user don't select any other nav buttons first login
+            future: _getShiftId(),
+            builder: (context, snapshot) {
+              // if (snapshot.connectionState == ConnectionState.waiting) {
+              //   return Center(child: CircularProgressIndicator());
+              // }
+              final shiftId = snapshot.data;
+              return isVertical
+                  ? _buildVerticalLayout(context, shiftId)
+                  : _buildHorizontalLayout(context, shiftId);
+            },
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildVerticalLayout() {
-    int lastSelectedIndex = 0; // Store last selected index before opening Settings
+  Future<String?> _getShiftId() async { //Build #1.0.78
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(TextConstants.shiftId);
+  }
 
-    return LayoutBuilder( //Build #1.0.2 : updated the code for this fix - RenderFlex overflowed by 42 pixels on the bottom
+  Widget _buildVerticalLayout(BuildContext context, String? shiftId) {
+    int lastSelectedIndex = 0;
+    final themeHelper = Provider.of<ThemeNotifier>(context);
+    return LayoutBuilder(
       builder: (context, constraints) {
            if (kDebugMode) {
               print("#### _buildVerticalLayout constraints: $constraints");
@@ -60,7 +81,9 @@ class NavigationBar extends StatelessWidget {
             icon: Icons.flash_on,
             label: TextConstants.fastKeyText,
             isSelected: selectedSidebarIndex == 0,
-            onTap: () { // Build #1.0.6
+            onTap: shiftId == null || shiftId.isEmpty
+                ? () {}
+                : () {
               if (kDebugMode) {
                 print("##### Fast Keys button tapped");
               }
@@ -74,12 +97,15 @@ class NavigationBar extends StatelessWidget {
               );
             },
             isVertical: isVertical,
+            isDisabled: shiftId == null || shiftId.isEmpty,
           ),
           SidebarButton(
             icon: Icons.category,
             label: TextConstants.categoriesText,
             isSelected: selectedSidebarIndex == 1,
-            onTap: () { // Build #1.0.6
+            onTap: shiftId == null || shiftId.isEmpty
+                ? () {}
+                : () {
               if (kDebugMode) {
                 print("##### Categories button tapped");
               }
@@ -93,12 +119,15 @@ class NavigationBar extends StatelessWidget {
               );
             },
             isVertical: isVertical,
+            isDisabled: shiftId == null || shiftId.isEmpty,
           ),
           SidebarButton(
             icon: Icons.add,
             label: TextConstants.addText,
             isSelected: selectedSidebarIndex == 2,
-            onTap: () {
+            onTap: shiftId == null || shiftId.isEmpty
+                ? () {}
+                : () {
               if (kDebugMode) {
                 print("##### AddScreen button tapped");
               }
@@ -108,12 +137,15 @@ class NavigationBar extends StatelessWidget {
               );
             },
             isVertical: isVertical,
+            isDisabled: shiftId == null || shiftId.isEmpty,
           ),
           SidebarButton(
             icon: Icons.shopping_basket,
             label: TextConstants.ordersText,
             isSelected: selectedSidebarIndex == 3,
-            onTap: () { // Build #1.0.8, Naveen added
+            onTap: shiftId == null || shiftId.isEmpty
+                ? () {}
+                : () {
               if (kDebugMode) {
                 print("##### OrdersScreen button tapped");
               }
@@ -127,6 +159,7 @@ class NavigationBar extends StatelessWidget {
               );
             },
             isVertical: isVertical,
+            isDisabled: shiftId == null || shiftId.isEmpty,
           ),
           SidebarButton(
             icon: Icons.apps,
@@ -158,7 +191,9 @@ class NavigationBar extends StatelessWidget {
               icon: Icons.settings,
               label: TextConstants.settingsHeaderText,
               isSelected: selectedSidebarIndex == 5,
-              onTap: () {
+              onTap: shiftId == null || shiftId.isEmpty
+                  ? () {}
+                  : () {
                 if (kDebugMode) {
                   print("##### Settings button tapped");
                 }
@@ -177,6 +212,7 @@ class NavigationBar extends StatelessWidget {
                 });
               },
               isVertical: isVertical,
+              isDisabled: shiftId == null || shiftId.isEmpty,
             ),
             SidebarButton(
               icon: Icons.logout,
@@ -184,23 +220,27 @@ class NavigationBar extends StatelessWidget {
               isSelected: selectedSidebarIndex == 6,
               onTap: () {
                 onSidebarItemSelected(6);
-                ///add a stateless widget to show logout popup dialog
-                print("nav logout called");
-
+                if (kDebugMode) {
+                  print("nav logout called");
+                }
                 QuickAlert.show(
+                  backgroundColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : Colors.white ,
                   context: context,
                   type: QuickAlertType.custom,
                   showCancelBtn: true,
                   showConfirmBtn: true,
                   title: TextConstants.logoutText,
+                  titleColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight,
                   width: 450,
                   text: TextConstants.doYouWantTo,
+                  textColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight,
                   confirmBtnText: TextConstants.logoutText,
                   cancelBtnText: TextConstants.cancelText,
                   headerBackgroundColor: const Color(0xFF2CD9C5),
                   confirmBtnColor: Colors.blue,
                   confirmBtnTextStyle: const TextStyle(color: Colors.white, fontSize: 16),
-                  cancelBtnTextStyle: const TextStyle(color: Colors.grey, fontSize: 16),
+                  cancelBtnTextStyle: TextStyle(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.grey, fontSize: 16),
+
                   customAsset: null,
                   animType: QuickAlertAnimType.scale,
                   barrierDismissible: false,
@@ -213,10 +253,6 @@ class NavigationBar extends StatelessWidget {
                         Icons.double_arrow_rounded,
                         color: Colors.white,
                       ),
-                      child: Text(
-                        TextConstants.swipeToCloseShift,
-                        style: TextStyle(color: Colors.white, fontSize: 16),
-                      ),
                       borderRadius: BorderRadius.circular(25),
                       activeThumbColor: Colors.orangeAccent,
                       activeTrackColor: Colors.orange,
@@ -228,8 +264,18 @@ class NavigationBar extends StatelessWidget {
                         ///Todo: call shift-open-close-balance screen and set the title to "Shift close balanse"
                         ///
                         Navigator.of(context).pop();
-                        // Add your close shift logic here
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ShiftOpenCloseBalanceScreen(),
+                            settings: RouteSettings(arguments: TextConstants.navLogout),  // Build #1.0.70
+                          ),
+                        );
                       },
+                      child: Text(
+                        TextConstants.swipeToCloseShift,
+                        style: TextStyle(color: Colors.white, fontSize: 16),
+                      ),
                     ),
                   ),
                   onConfirmBtnTap: () {
@@ -258,9 +304,8 @@ class NavigationBar extends StatelessWidget {
                 child: ListView(
                   padding: EdgeInsets.only(top: 0),
                   children: dynamicItems,
-                )
+                ),
               ),
-              // Fixed items at the bottom.
               fixedItems,
             ],
           ),
@@ -269,11 +314,9 @@ class NavigationBar extends StatelessWidget {
     );
   }
 
-
-
-  Widget _buildHorizontalLayout() {
-    int lastSelectedIndex = 0; // Store last selected index before opening Settings
-    return LayoutBuilder( //Build #1.0.2 : updated the code for this fix - RenderFlex overflowed by 42 pixels
+  Widget _buildHorizontalLayout(BuildContext context, String? shiftId) {
+    int lastSelectedIndex = 0;
+    return LayoutBuilder(
       builder: (context, constraints) {
         if (kDebugMode) {
           print("#### _buildHorizontalLayout constraints: $constraints");
@@ -284,7 +327,9 @@ class NavigationBar extends StatelessWidget {
             icon: Icons.flash_on,
             label: TextConstants.fastKeyText,
             isSelected: selectedSidebarIndex == 0,
-            onTap: () { // Build #1.0.6
+            onTap: shiftId == null || shiftId.isEmpty
+                ? () {}
+                : () {
               if (kDebugMode) {
                 print("##### Fast Keys button tapped");
               }
@@ -303,17 +348,19 @@ class NavigationBar extends StatelessWidget {
             icon: Icons.category,
             label: TextConstants.categoriesText,
             isSelected: selectedSidebarIndex == 1,
-            onTap: () { // Build #1.0.6
+            onTap: shiftId == null || shiftId.isEmpty
+                ? () {}
+                : () {
               if (kDebugMode) {
                 print("##### Categories button tapped");
               }
               lastSelectedIndex = 1; // Store last selection
               onSidebarItemSelected(1);
-
-              /// CategoriesScreen
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(builder: (context) => CategoriesScreen(lastSelectedIndex: lastSelectedIndex)),
+                MaterialPageRoute(
+                    builder: (context) =>
+                        CategoriesScreen(lastSelectedIndex: lastSelectedIndex)),
               );
             },
             isVertical: false,
@@ -322,7 +369,9 @@ class NavigationBar extends StatelessWidget {
             icon: Icons.add_box_outlined,
             label: TextConstants.addText,
             isSelected: selectedSidebarIndex == 2,
-            onTap: () {
+            onTap: shiftId == null || shiftId.isEmpty
+                ? () {}
+                : () {
               if (kDebugMode) {
                 print("##### AddScreen button tapped");
               }
@@ -339,7 +388,9 @@ class NavigationBar extends StatelessWidget {
             icon: Icons.shopping_basket,
             label: TextConstants.ordersText,
             isSelected: selectedSidebarIndex == 3,
-            onTap: () { // Build #1.0.8, Naveen added
+            onTap: shiftId == null || shiftId.isEmpty
+                ? () {}
+                : () {
               if (kDebugMode) {
                 print("##### OrdersScreen button tapped");
               }
@@ -366,9 +417,7 @@ class NavigationBar extends StatelessWidget {
               onSidebarItemSelected(4);
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(
-                    builder: (context) =>
-                        AppsDashboardScreen()),
+                MaterialPageRoute(builder: (context) => AppsDashboardScreen()),
               );
             },
             isVertical: false,
@@ -383,7 +432,9 @@ class NavigationBar extends StatelessWidget {
             icon: Icons.settings,
             label: TextConstants.settingsHeaderText,
             isSelected: selectedSidebarIndex == 5,
-            onTap: () {
+            onTap: shiftId == null || shiftId.isEmpty
+                ? () {}
+                : () {
               if (kDebugMode) {
                 print("##### Settings button tapped");
               }
@@ -393,9 +444,7 @@ class NavigationBar extends StatelessWidget {
 
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => SettingsScreen(),
-                ),
+                MaterialPageRoute(builder: (context) => SettingsScreen()),
               ).then((_) {
                 // Restore the sidebar selection when coming back
                 onSidebarItemSelected(lastSelectedIndex);
@@ -407,7 +456,74 @@ class NavigationBar extends StatelessWidget {
             icon: Icons.logout,
             label: TextConstants.logoutText,
             isSelected: selectedSidebarIndex == 6,
-            onTap: () => onSidebarItemSelected(6),
+            onTap: shiftId == null || shiftId.isEmpty
+                ? () {}
+                : () {
+              onSidebarItemSelected(6);
+              if (kDebugMode) {
+                print("nav logout called");
+              }
+              QuickAlert.show(
+                context: context,
+                type: QuickAlertType.custom,
+                showCancelBtn: true,
+                showConfirmBtn: true,
+                title: TextConstants.logoutText,
+                width: 450,
+                text: TextConstants.doYouWantTo,
+                confirmBtnText: TextConstants.logoutText,
+                cancelBtnText: TextConstants.cancelText,
+                headerBackgroundColor: const Color(0xFF2CD9C5),
+                confirmBtnColor: Colors.blue,
+                confirmBtnTextStyle:
+                const TextStyle(color: Colors.white, fontSize: 16),
+                cancelBtnTextStyle:
+                const TextStyle(color: Colors.grey, fontSize: 16),
+                customAsset: null,
+                animType: QuickAlertAnimType.scale,
+                barrierDismissible: false,
+                widget: Padding(
+                  padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
+                  child: SwipeButton(
+                    thumb: const Icon(
+                      Icons.double_arrow_rounded,
+                      color: Colors.white,
+                    ),
+                    child: Text(
+                      TextConstants.swipeToCloseShift,
+                      style: TextStyle(color: Colors.white, fontSize: 16),
+                    ),
+                    borderRadius: BorderRadius.circular(25),
+                    activeThumbColor: Colors.orangeAccent,
+                    activeTrackColor: Colors.orange,
+                    onSwipe: () {
+                      if (kDebugMode) {
+                        print("Shift closed");
+                      }
+                      Navigator.of(context).pop();
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ShiftOpenCloseBalanceScreen(),
+                          settings:
+                          RouteSettings(arguments: TextConstants.navLogout),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                onConfirmBtnTap: () {
+                  Navigator.of(context).pop();
+                  Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => LoginScreen()));
+                },
+                onCancelBtnTap: () {
+                  Navigator.of(context).pop();
+                },
+              );
+            },
             isVertical: false,
           ),
           const SizedBox(width: 10),
@@ -418,7 +534,7 @@ class NavigationBar extends StatelessWidget {
           scrollDirection: Axis.horizontal,
           child: Row(
             children: dynamicItems,
-          )
+          ),
         );
 
         return Padding(
@@ -445,6 +561,7 @@ class SidebarButton extends StatelessWidget {
   final bool isSelected;
   final VoidCallback onTap;
   final bool isVertical;
+  final bool isDisabled;
 
   const SidebarButton({
     this.icon,
@@ -452,6 +569,7 @@ class SidebarButton extends StatelessWidget {
     required this.isSelected,
     required this.onTap,
     this.isVertical = true,
+     this.isDisabled = false,
     super.key,
   });
 
@@ -482,15 +600,23 @@ class SidebarButton extends StatelessWidget {
             children: [
               Icon(
                 icon,
-                color: isSelected ? Colors.white : Colors.white70,
+                color: isSelected
+                    ? Colors.white
+                    : isDisabled // Check if onTap is disabled
+                    ? Colors.grey.shade800 // Disabled color
+                    : Colors.white70, // Enabled color
               ),
               const SizedBox(height: 3),
               Text(
                 label,
                 style: TextStyle(
-                  color: isSelected ? Colors.white : Colors.white70,
+                  color: isSelected
+                      ? Colors.white
+                      : isDisabled
+                      ? Colors.grey.shade800
+                      : Colors.white70,
                   fontWeight: FontWeight.bold,
-                  fontSize: 8
+                  fontSize: 8,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -514,14 +640,22 @@ class SidebarButton extends StatelessWidget {
           ),
           child: Icon(
             icon,
-            color: isSelected ? Colors.white : Colors.white,
+            color: isSelected
+                ? Colors.white
+                : isDisabled
+                ? Colors.grey.shade800
+                : Colors.white,
           ),
         ),
         const SizedBox(width: 8),
         Text(
           label,
           style: TextStyle(
-            color: isSelected ? Colors.red : Colors.white,
+            color: isSelected
+                ? Colors.red
+                : isDisabled
+                ? Colors.grey.shade800
+                : Colors.white,
             fontWeight: FontWeight.bold,
           ),
         ),

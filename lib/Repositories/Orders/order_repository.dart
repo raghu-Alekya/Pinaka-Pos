@@ -43,7 +43,7 @@ class OrderRepository {  // Build #1.0.25 - added by naveen
   }
 
   // 2. Update Order Products
-  Future<UpdateOrderResponseModel> updateOrderProducts({required int orderId, required UpdateOrderRequestModel request,}) async {
+  Future<OrderModel> updateOrderProducts({required int orderId, required UpdateOrderRequestModel request,}) async {
     final url = "${UrlHelper.componentVersionUrl}${UrlMethodConstants.orders}/$orderId";
 
     if (kDebugMode) {
@@ -60,27 +60,32 @@ class OrderRepository {  // Build #1.0.25 - added by naveen
     if (response is String) {
       try {
         final responseData = json.decode(response);
-        return UpdateOrderResponseModel.fromJson(responseData);
-      } catch (e) {
-        if (kDebugMode) print("Error parsing update order response: $e");
+        return OrderModel.fromJson(responseData);
+      } catch (e, s) {
+        if (kDebugMode) print("Error parsing update order response: $e, Stack: $s");
         throw Exception("Failed to parse update order response");
       }
     } else if (response is Map<String, dynamic>) {
-      return UpdateOrderResponseModel.fromJson(response);
+      return OrderModel.fromJson(response);
     } else {
       throw Exception("Unexpected response type in update order PUT");
     }
   }
   //Build #1.0.40: getOrders
-  Future<OrdersListModel> getOrders({bool allStatuses = false}) async {
+  Future<OrdersListModel> getOrders({bool allStatuses = false, int pageNumber =1, int pageLimit = 10, String status = "", String orderType = "", String userId = ""}) async {
     //Build #1.0.54: added if allStatuses is true, include all statuses; otherwise, just "processing"
-    final statusString = allStatuses
-        ? TextConstants.allStatus
-        : TextConstants.processing;
+    final statusString = status != "" ? status : (allStatuses
+        ? TextConstants.orderScreenStatus
+        : TextConstants.processing);
+
+    orderType = orderType != "" ? orderType : "";
+
+    //"?page=1&per_page=10&search=&status="
+    var getOrdersParameter = "?auther=$userId&page=$pageNumber&per_page=${pageLimit*2+1}&created_via=$orderType&search=&status=";
     // Encode for URL (spaces become '+', commas become '%2C')
     final encodedStatus = Uri.encodeQueryComponent(statusString);
     final url = "${UrlHelper.componentVersionUrl}${UrlMethodConstants.orders}"
-        "${UrlParameterConstants.getOrdersParameter}$encodedStatus${UrlParameterConstants.getOrdersEndParameter}";
+        "$getOrdersParameter$encodedStatus${UrlParameterConstants.getOrdersEndParameter}";
 
     if (kDebugMode) {
       print("OrderRepository - GET URL: $url");
@@ -113,14 +118,45 @@ class OrderRepository {  // Build #1.0.25 - added by naveen
     } catch (e,s) {
       if (kDebugMode) {
         print("OrderRepository - Error in getOrders: $e");
-        print("Stack trace: $e");
+        print("Stack trace: $s");
       }
       throw Exception("Failed to fetch orders: $e");
     }
   }
 
+  Future<OrderModel> getOrder({required String orderId}) async {
+
+    final url = "${UrlHelper.componentVersionUrl}${UrlMethodConstants.orders}$orderId";
+
+    if (kDebugMode) {
+      print("OrderRepository.getOrder - GET URL: $url");
+    }
+
+    try {
+      final response = await _helper.get(url, true);
+
+      if (kDebugMode) {
+        print("OrderRepository - Raw Response Type: ${response.runtimeType}");
+        print("OrderRepository - Raw Response: ${response.toString()}");
+      }
+      if (response is String) {
+          return OrderModel.fromJson(jsonDecode(response));
+      }
+      // Handle any other unexpected type
+      else {
+        throw Exception("Unexpected response type: ${response.runtimeType}");
+      }
+    } catch (e,s) {
+      if (kDebugMode) {
+        print("OrderRepository - Error in getOrders: $e");
+        print("Stack trace: $s");
+      }
+      throw Exception("Failed to fetch orders");
+    }
+  }
+
   // 3. Apply Coupon to Order
-  Future<UpdateOrderResponseModel> applyCouponToOrder({required int orderId, required ApplyCouponRequestModel request,}) async {
+  Future<OrderModel> applyCouponToOrder({required int orderId, required ApplyCouponRequestModel request,}) async {
     final url = "${UrlHelper.componentVersionUrl}${UrlMethodConstants.orders}/$orderId";
 
     if (kDebugMode) {
@@ -137,13 +173,13 @@ class OrderRepository {  // Build #1.0.25 - added by naveen
     if (response is String) {
       try {
         final responseData = json.decode(response);
-        return UpdateOrderResponseModel.fromJson(responseData);
+        return OrderModel.fromJson(responseData);  //Build #1.0.92: Updated: using OrderModel rather than UpdateOrderResponseModel
       } catch (e) {
         if (kDebugMode) print("Error parsing apply coupon response: $e");
         throw Exception("Failed to parse apply coupon response");
       }
     } else if (response is Map<String, dynamic>) {
-      return UpdateOrderResponseModel.fromJson(response);
+      return OrderModel.fromJson(response);
     } else {
       throw Exception("Unexpected response type in apply coupon POST");
     }
@@ -245,7 +281,7 @@ class OrderRepository {  // Build #1.0.25 - added by naveen
   }
 
   // Build #1.0.53 : Add Payout to Order
-  Future<UpdateOrderResponseModel> addPayout({required int orderId, required AddPayoutRequestModel request}) async {
+  Future<OrderModel> addPayout({required int orderId, required AddPayoutRequestModel request}) async {
     final url = "${UrlHelper.componentVersionUrl}${UrlMethodConstants.orders}/$orderId";
 
     if (kDebugMode) {
@@ -262,50 +298,50 @@ class OrderRepository {  // Build #1.0.25 - added by naveen
     if (response is String) {
       try {
         final responseData = json.decode(response);
-        return UpdateOrderResponseModel.fromJson(responseData);
+        return OrderModel.fromJson(responseData);
       } catch (e) {
         if (kDebugMode) print("Error parsing add payout response: $e");
         throw Exception("Failed to parse add payout response");
       }
     } else if (response is Map<String, dynamic>) {
-      return UpdateOrderResponseModel.fromJson(response);
+      return OrderModel.fromJson(response);
     } else {
       throw Exception("Unexpected response type in add payout POST");
     }
   }
 
   // Build #1.0.53 : Remove Payout from Order
-  Future<UpdateOrderResponseModel> removePayout({required int orderId, required RemovePayoutRequestModel request}) async {
+  Future<OrderModel> removeFeeLine({required int orderId, required RemoveFeeLinesRequestModel request}) async {
     final url = "${UrlHelper.componentVersionUrl}${UrlMethodConstants.orders}/$orderId";
 
     if (kDebugMode) {
-      print("OrderRepository - PUT URL for remove payout: $url");
+      print("OrderRepository - PUT URL for remove fee line: $url");
       print("OrderRepository - Request Body: ${request.toJson()}");
     }
 
     final response = await _helper.put(url, request.toJson(), true);
 
     if (kDebugMode) {
-      print("OrderRepository - Remove Payout Raw Response: $response");
+      print("OrderRepository - Remove FeeLine Raw Response: $response");
     }
 
     if (response is String) {
       try {
         final responseData = json.decode(response);
-        return UpdateOrderResponseModel.fromJson(responseData);
+        return OrderModel.fromJson(responseData);
       } catch (e) {
-        if (kDebugMode) print("Error parsing remove payout response: $e");
-        throw Exception("Failed to parse remove payout response");
+        if (kDebugMode) print("Error parsing remove FeeLine response: $e");
+        throw Exception("Failed to parse remove FeeLine response");
       }
     } else if (response is Map<String, dynamic>) {
-      return UpdateOrderResponseModel.fromJson(response);
+      return OrderModel.fromJson(response);
     } else {
-      throw Exception("Unexpected response type in remove payout PUT");
+      throw Exception("Unexpected response type in remove FeeLine PUT");
     }
   }
 
   // Build #1.0.64: removeCoupon API call
-  Future<UpdateOrderResponseModel> removeCoupon({required int orderId, required RemoveCouponRequestModel request}) async {
+  Future<OrderModel> removeCoupon({required int orderId, required RemoveCouponRequestModel request}) async {
     final url = "${UrlHelper.componentVersionUrl}${UrlMethodConstants.orders}/$orderId";
 
     if (kDebugMode) {
@@ -322,13 +358,13 @@ class OrderRepository {  // Build #1.0.25 - added by naveen
     if (response is String) {
       try {
         final responseData = json.decode(response);
-        return UpdateOrderResponseModel.fromJson(responseData);
+        return OrderModel.fromJson(responseData);
       } catch (e) {
         if (kDebugMode) print("Error parsing remove coupon response: $e");
         throw Exception("Failed to parse remove coupon response");
       }
     } else if (response is Map<String, dynamic>) {
-      return UpdateOrderResponseModel.fromJson(response);
+      return OrderModel.fromJson(response);
     } else {
       throw Exception("Unexpected response type in remove coupon PUT");
     }

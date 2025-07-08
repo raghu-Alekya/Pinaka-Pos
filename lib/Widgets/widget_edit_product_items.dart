@@ -2,8 +2,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:pinaka_pos/Widgets/widget_quantity_input_control.dart';
+import 'package:provider/provider.dart';
 import '../Constants/text.dart';
 import '../Database/db_helper.dart';
+import '../Helper/Extentions/theme_notifier.dart';
 import '../Widgets/widget_custom_num_pad.dart';
 
 class ProductEditScreen extends StatefulWidget {
@@ -44,9 +46,11 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final themeHelper = Provider.of<ThemeNotifier>(context);
     return Center(
       child: Card(
         elevation: 8,
+        color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground : null,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: Container(
           alignment: Alignment.center,
@@ -89,7 +93,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                   height: MediaQuery.of(context).size.height * 0.15,
                   padding: EdgeInsets.all(16.0),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : Colors.white,
                     borderRadius: BorderRadius.circular(10),
                     boxShadow: [
                       BoxShadow(
@@ -109,7 +113,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                         height: 75,
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(5),
-                          border: Border.all(color: Colors.grey.shade300),
+                          border: Border.all(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.borderColor : Colors.grey.shade300),
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(10),
@@ -129,13 +133,15 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                           ),
                           const SizedBox(height: 5),
                           Text(
-                            "Unit Price: \$${widget.orderItem[AppDBConst.itemPrice].toStringAsFixed(2)}",
-                            style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                            "Unit Price: ${TextConstants.currencySymbol}${widget.orderItem[AppDBConst.itemPrice].toStringAsFixed(2)}",
+                            style: TextStyle(fontSize: 12,
+                                //color: Colors.grey.shade700
+                            ),
                           ),
                           const SizedBox(height: 5),
                           Text(
                           //  "Total: \$${(quantity * widget.orderItem[AppDBConst.itemCount] * widget.orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}",
-                            "Total: \$${(quantity * widget.orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}", //Build 1.1.36
+                            "Total: ${TextConstants.currencySymbol}${(quantity * widget.orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}", //Build 1.1.36
                             style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
@@ -167,6 +173,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                 height: MediaQuery.of(context).size.height * 0.5,
                 width: MediaQuery.of(context).size.width /2.65,
                 child: CustomNumPad(
+                  isDarkTheme: themeHelper.themeMode == ThemeMode.dark,
                   onDigitPressed: (digit) {
                     setState(() {
                       int newQty = int.tryParse((controller.text.isEmpty ? "1" : controller.text) + digit) ?? quantity;

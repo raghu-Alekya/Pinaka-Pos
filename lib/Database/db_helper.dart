@@ -30,6 +30,7 @@ class AppDBConst { // Build #1.0.10 - Naveen: Updated DB tables constants
   static const String orderPaymentMethod = 'payment_method'; // e.g., cash, card, UPI
   static const String orderDiscount = 'discount'; // Optional: Discount applied to the order
   static const String merchantDiscount = 'merchant_discount'; // Build #1.0.64 //TODO: we have to handle multiple discount for single order merchant discount's
+  static const String merchantDiscountIds = 'merchant_discount_ids'; //Build #1.0.94
   static const String orderTax = 'tax'; // Optional: Tax applied to the order
   static const String orderShipping = 'shipping'; // Optional: Shipping charges
 
@@ -37,6 +38,8 @@ class AppDBConst { // Build #1.0.10 - Naveen: Updated DB tables constants
   static const String purchasedItemsTable = 'purchased_items_table';
   static const String itemId = 'items_id';
   static const String itemServerId = 'items_server_id'; // For delete edit or update this id is required every time so save API response with this id
+  static const String itemProductId = 'item_product_id'; // Build #1.0.80: for saving product id
+  static const String itemVariationId = 'item_variation_id';
   static const String itemName = 'item_name'; //For Coupons it will be "code": "123456", for payout it will be empty,
   static const String itemSKU = 'item_sku'; // Stock Keeping Unit (unique identifier for the product)
   static const String itemPrice = 'item_price';
@@ -45,6 +48,12 @@ class AppDBConst { // Build #1.0.10 - Naveen: Updated DB tables constants
   static const String itemSumPrice = 'item_sum_price'; // Total price (quantity * price)
   static const String itemType = 'item_type'; // Enum (Product, Coupon, Payout)
   static const String orderIdForeignKey = 'order_id'; // Links to the order this item belongs to
+  static const String itemVariationCustomName = 'item_variation_custom_name'; //  line_item -> product_variation_data -> meta_data -> custom_name
+  static const String itemVariationCount = 'item_variation_count'; // line_item -> product_data -> variations array
+  static const String itemCombo = 'item_combo'; // line_item -> meta_data->value contains (combo)
+  static const String itemSalesPrice = 'item_sales_price'; // It is a Discounted price = line_item -> product_data-> sales price * quantity
+  static const String itemRegularPrice = 'item_regular_price'; //It is a Regular price = line_item -> product_data-> regular price * quantity
+  static const String itemUnitPrice = 'item_unit_price'; // line_item -> product_data-> regular price
 
   // Coupon Items Table: remove if above itemType is not working properly
   static const String couponsItemsTable = 'coupons_items_table';
@@ -73,7 +82,10 @@ class AppDBConst { // Build #1.0.10 - Naveen: Updated DB tables constants
   static const String fastKeyItemImage = 'fast_key_item_image';
   static const String fastKeyItemPrice = 'fast_key_item_price';
   static const String fastKeyItemSKU = 'fast_key_item_sku';
+  static const String fastKeyItemMinAge = 'fast_key_item_min_age'; // for age restriction
   static const String fastKeyItemVariantId = 'fast_key_item_variant_id';
+  static const String fastKeyItemIsVariant = 'fast_key_item_is_variant';
+  static const String fastKeyItemHasVariant = 'fast_key_item_has_variant';
 
   /// Printer Table Added
   static const String printerTable = 'printer_table';
@@ -109,6 +121,24 @@ class AppDBConst { // Build #1.0.10 - Naveen: Updated DB tables constants
   static const String roleTable = 'role_table';
   static const String subscriptionPlanTable = 'subscription_plan_table';
   static const String storeDetailsTable = 'store_details_table';
+  static const String notesDenomTable = 'notes_denom_table'; // Build #1.0.69 : updated assets table based on api response
+  static const String coinDenomTable = 'coin_denom_table';
+  static const String safeDenomTable = 'safe_denom_table';
+  static const String tubesDenomTable = 'tubes_denom_table';
+  static const String maxTubesCount = 'max_tubes_count';
+  static const String safeDropAmount = 'safe_drop_amount';
+  static const String drawerAmount = 'drawer_amount';
+  static const String vendorTable = 'vendor_table';  //Build #1.0.74: Naveen Added
+  static const String vendorPaymentTypesTable = 'vendor_payment_types_table';
+  static const String vendorPaymentPurposeTable = 'vendor_payment_purpose_table';
+  static const String vendorId = 'vendor_id';
+  static const String vendorName = 'vendor_name';
+  static const String paymentType = 'payment_type';
+  static const String paymentPurpose = 'payment_purpose';
+  static const String employeesTable = 'employees_table';
+  static const String employeeId = 'employees_id';
+  static const String employeeDisplayName = 'employees_display_name';
+  static const String orderTypeTable = 'order_type_table';
 
   static const String assetId = 'asset_id';
   static const String baseUrl = 'base_url';
@@ -138,9 +168,9 @@ class DBHelper {
       print("#### DB Path: $path");
     }
     // Uncomment the line below to delete the database during development/testing
-    // await deleteDatabase(path);
-    // final SharedPreferences prefs = await SharedPreferences.getInstance();
-    // await prefs.clear(); // This removes all stored preferences
+    await deleteDatabase(path);
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.clear(); // This removes all stored preferences
 
     return await openDatabase(path, version: 1, onCreate: _createTables);
   }
@@ -176,6 +206,7 @@ CREATE TABLE ${AppDBConst.orderTable} (
   ${AppDBConst.orderPaymentMethod} TEXT, -- Optional: Payment method (e.g., cash, card)
   ${AppDBConst.orderDiscount} REAL DEFAULT 0, -- Optional: Discount applied to the order
   ${AppDBConst.merchantDiscount} REAL DEFAULT 0, -- Optional: Merchant Discount applied to the order
+  ${AppDBConst.merchantDiscountIds} TEXT, -- Optional: Merchant Discount Ids applied to the order 
   ${AppDBConst.orderTax} REAL DEFAULT 0, -- Optional: Tax applied to the order
   ${AppDBConst.orderShipping} REAL DEFAULT 0, -- Optional: Shipping charges
   FOREIGN KEY(${AppDBConst.userId}) REFERENCES ${AppDBConst.userTable}(${AppDBConst.userId}) ON DELETE CASCADE
@@ -187,15 +218,23 @@ CREATE TABLE ${AppDBConst.orderTable} (
     CREATE TABLE ${AppDBConst.purchasedItemsTable} (
       ${AppDBConst.itemId} INTEGER PRIMARY KEY AUTOINCREMENT,
       ${AppDBConst.itemServerId} INTEGER, -- Required: Updated by REST API, can be NULL initially
+      ${AppDBConst.itemProductId} INTEGER,
+      ${AppDBConst.itemVariationId} INTEGER,
       ${AppDBConst.itemName} TEXT NOT NULL,
       ${AppDBConst.itemSKU} TEXT NOT NULL,
       ${AppDBConst.itemPrice} REAL NOT NULL,
       ${AppDBConst.itemImage} TEXT NOT NULL,
       ${AppDBConst.itemCount} INTEGER NOT NULL,
       ${AppDBConst.itemSumPrice} REAL NOT NULL,
+      ${AppDBConst.itemVariationCustomName} TEXT,
+      ${AppDBConst.itemVariationCount} INTEGER,
+      ${AppDBConst.itemCombo} TEXT,
+      ${AppDBConst.itemSalesPrice} REAL,
+      ${AppDBConst.itemRegularPrice} REAL,
+      ${AppDBConst.itemUnitPrice} REAL,
       ${AppDBConst.orderIdForeignKey} INTEGER NOT NULL,
       ${AppDBConst.itemType} TEXT NOT NULL,
-      FOREIGN KEY(${AppDBConst.orderIdForeignKey}) REFERENCES ${AppDBConst.orderTable}(${AppDBConst.orderId}) ON DELETE CASCADE
+      FOREIGN KEY(${AppDBConst.orderIdForeignKey}) REFERENCES ${AppDBConst.orderTable}(${AppDBConst.orderServerId}) ON DELETE CASCADE
     )
     ''');
 
@@ -225,6 +264,9 @@ CREATE TABLE ${AppDBConst.orderTable} (
       ${AppDBConst.fastKeyItemImage} TEXT NOT NULL,
       ${AppDBConst.fastKeyItemPrice} REAL NOT NULL,
       ${AppDBConst.fastKeyItemSKU} TEXT NOT NULL,
+      ${AppDBConst.fastKeyItemMinAge} INTEGER,
+      ${AppDBConst.fastKeyItemIsVariant} INTEGER,
+      ${AppDBConst.fastKeyItemHasVariant} INTEGER,
       ${AppDBConst.fastKeyItemVariantId} TEXT NOT NULL,
       FOREIGN KEY(${AppDBConst.fastKeyIdForeignKey}) REFERENCES ${AppDBConst.fastKeyTable}(${AppDBConst.fastKeyId}) ON DELETE CASCADE
     )
@@ -262,12 +304,16 @@ CREATE TABLE ${AppDBConst.orderTable} (
   ''');
 
     //Build #1.0.54: added Asset Table
+    // ${AppDBConst.assetId} INTEGER PRIMARY KEY AUTOINCREMENT,
     await db.execute('''
     CREATE TABLE ${AppDBConst.assetTable} (
-      ${AppDBConst.assetId} INTEGER PRIMARY KEY AUTOINCREMENT,
+      ${AppDBConst.assetId} INTEGER PRIMARY KEY,
       ${AppDBConst.baseUrl} TEXT NOT NULL,
       ${AppDBConst.currency} TEXT NOT NULL,
-      ${AppDBConst.currencySymbol} TEXT NOT NULL
+      ${AppDBConst.currencySymbol} TEXT NOT NULL,
+      ${AppDBConst.maxTubesCount} TEXT,
+      ${AppDBConst.safeDropAmount} TEXT,
+      ${AppDBConst.drawerAmount} TEXT
     )
     ''');
 
@@ -282,21 +328,11 @@ CREATE TABLE ${AppDBConst.orderTable} (
     )
     ''');
 
-    // Tax Table
+    //Build #1.0.68 : updated Tax Table
     await db.execute('''
     CREATE TABLE ${AppDBConst.taxTable} (
-      id TEXT PRIMARY KEY,
+      slug TEXT PRIMARY KEY,
       name TEXT NOT NULL,
-      class TEXT NOT NULL,
-      rate TEXT NOT NULL,
-      country TEXT NOT NULL,
-      state TEXT NOT NULL,
-      priority TEXT NOT NULL,
-      compound TEXT NOT NULL,
-      shipping TEXT NOT NULL,
-      postcode TEXT NOT NULL,
-      postcode_count INTEGER NOT NULL,
-      city_count INTEGER NOT NULL,
       ${AppDBConst.assetId} INTEGER NOT NULL,
       FOREIGN KEY(${AppDBConst.assetId}) REFERENCES ${AppDBConst.assetTable}(${AppDBConst.assetId}) ON DELETE CASCADE
     )
@@ -360,7 +396,97 @@ CREATE TABLE ${AppDBConst.orderTable} (
       state TEXT NOT NULL,
       country TEXT NOT NULL,
       zip_code TEXT NOT NULL,
-      phone_number INTEGER NOT NULL,
+      phone_number INTEGER, -- Removed NOT NULL constraint
+      ${AppDBConst.assetId} INTEGER NOT NULL,
+      FOREIGN KEY(${AppDBConst.assetId}) REFERENCES ${AppDBConst.assetTable}(${AppDBConst.assetId}) ON DELETE CASCADE
+    )
+    ''');
+
+    await db.execute('''
+    CREATE TABLE ${AppDBConst.notesDenomTable} (
+      denom TEXT PRIMARY KEY,
+      image TEXT,
+      tube_limit INTEGER,
+      symbol TEXT,
+      ${AppDBConst.assetId} INTEGER NOT NULL,
+      FOREIGN KEY(${AppDBConst.assetId}) REFERENCES ${AppDBConst.assetTable}(${AppDBConst.assetId}) ON DELETE CASCADE
+    )
+    ''');
+
+    await db.execute('''
+    CREATE TABLE ${AppDBConst.coinDenomTable} (
+      denom TEXT PRIMARY KEY,
+      image TEXT,
+      tube_limit INTEGER,
+      symbol TEXT,
+      ${AppDBConst.assetId} INTEGER NOT NULL,
+      FOREIGN KEY(${AppDBConst.assetId}) REFERENCES ${AppDBConst.assetTable}(${AppDBConst.assetId}) ON DELETE CASCADE
+    )
+    ''');
+
+    await db.execute('''
+    CREATE TABLE ${AppDBConst.safeDenomTable} (
+      denom TEXT PRIMARY KEY,
+      image TEXT,
+      tube_limit INTEGER,
+      symbol TEXT,
+      ${AppDBConst.assetId} INTEGER NOT NULL,
+      FOREIGN KEY(${AppDBConst.assetId}) REFERENCES ${AppDBConst.assetTable}(${AppDBConst.assetId}) ON DELETE CASCADE
+    )
+    ''');
+
+    await db.execute('''
+    CREATE TABLE ${AppDBConst.tubesDenomTable} (
+      denom TEXT PRIMARY KEY,
+      image TEXT,
+      tube_limit INTEGER,
+      symbol TEXT,
+      ${AppDBConst.assetId} INTEGER NOT NULL,
+      FOREIGN KEY(${AppDBConst.assetId}) REFERENCES ${AppDBConst.assetTable}(${AppDBConst.assetId}) ON DELETE CASCADE
+    )
+    ''');
+
+    //Build #1.0.74: Naveen Added
+    await db.execute('''
+    CREATE TABLE ${AppDBConst.vendorTable} (
+      ${AppDBConst.vendorId} INTEGER PRIMARY KEY,
+      ${AppDBConst.vendorName} TEXT NOT NULL,
+      ${AppDBConst.assetId} INTEGER NOT NULL,
+      FOREIGN KEY(${AppDBConst.assetId}) REFERENCES ${AppDBConst.assetTable}(${AppDBConst.assetId}) ON DELETE CASCADE
+    )
+    ''');
+
+    await db.execute('''
+    CREATE TABLE ${AppDBConst.vendorPaymentTypesTable} (
+      ${AppDBConst.paymentType} TEXT PRIMARY KEY,
+      ${AppDBConst.assetId} INTEGER NOT NULL,
+      FOREIGN KEY(${AppDBConst.assetId}) REFERENCES ${AppDBConst.assetTable}(${AppDBConst.assetId}) ON DELETE CASCADE
+    )
+    ''');
+
+    await db.execute('''
+    CREATE TABLE ${AppDBConst.vendorPaymentPurposeTable} (
+      ${AppDBConst.paymentPurpose} TEXT PRIMARY KEY,
+      ${AppDBConst.assetId} INTEGER NOT NULL,
+      FOREIGN KEY(${AppDBConst.assetId}) REFERENCES ${AppDBConst.assetTable}(${AppDBConst.assetId}) ON DELETE CASCADE
+    )
+    ''');
+
+    // Employees Table
+    await db.execute('''
+    CREATE TABLE ${AppDBConst.employeesTable} (
+      ${AppDBConst.employeeId} TEXT PRIMARY KEY,
+      ${AppDBConst.employeeDisplayName} TEXT NOT NULL,
+      ${AppDBConst.assetId} INTEGER NOT NULL,
+      FOREIGN KEY(${AppDBConst.assetId}) REFERENCES ${AppDBConst.assetTable}(${AppDBConst.assetId}) ON DELETE CASCADE
+    )
+    ''');
+
+    // Order Types Table
+    await db.execute('''
+    CREATE TABLE ${AppDBConst.orderTypeTable} (
+      slug TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
       ${AppDBConst.assetId} INTEGER NOT NULL,
       FOREIGN KEY(${AppDBConst.assetId}) REFERENCES ${AppDBConst.assetTable}(${AppDBConst.assetId}) ON DELETE CASCADE
     )

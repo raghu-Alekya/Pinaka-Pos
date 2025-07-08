@@ -3,17 +3,15 @@ import 'package:flutter_svg/svg.dart';
 import 'package:pinaka_pos/Screens/Home/safe_drop_screen.dart';
 import 'package:pinaka_pos/Screens/Home/shift_history_dashboard_screen.dart';
 import 'package:pinaka_pos/Screens/Home/shift_open_close_balance.dart';
+import 'package:provider/provider.dart';
 import '../../Constants/text.dart';
+import '../../Helper/Extentions/nav_layout_manager.dart';
+import '../../Helper/Extentions/theme_notifier.dart';
+import '../../Preferences/pinaka_preferences.dart';
 import '../../Widgets/widget_topbar.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../Widgets/widget_navigation_bar.dart' as custom_widgets;
-
-// Enum for sidebar position
-enum SidebarPosition { left, right, bottom }
-
-// Enum for order panel position
-enum OrderPanelPosition { left, right }
 
 class AppsDashboardScreen extends StatefulWidget {
   // Build #1.0.6 - Updated Horizontal & Vertical Scrolling
@@ -26,17 +24,14 @@ class AppsDashboardScreen extends StatefulWidget {
   State<AppsDashboardScreen> createState() => _AppsDashboardScreenState();
 }
 
-class _AppsDashboardScreenState extends State<AppsDashboardScreen> {
+class _AppsDashboardScreenState extends State<AppsDashboardScreen> with LayoutSelectionMixin {
   final List<String> items = List.generate(18, (index) => 'Bud Light');
   int _selectedSidebarIndex =
       4; //Build #1.0.2 : By default fast key should be selected after login
   DateTime now = DateTime.now();
   List<int> quantities = [1, 1, 1, 1];
-  SidebarPosition sidebarPosition =
-      SidebarPosition.left; // Default to bottom sidebar
-  //OrderPanelPosition orderPanelPosition = OrderPanelPosition.right; // Default to right
   bool isLoading = true; // Add a loading state
-
+  final PinakaPreferences _preferences = PinakaPreferences(); // Add this
   // Add variables to track which card is being pressed
   int? _pressedCardIndex;
 
@@ -62,15 +57,21 @@ class _AppsDashboardScreenState extends State<AppsDashboardScreen> {
         children: [
           // Top Bar
           TopBar(
-            onModeChanged: () {
+            onModeChanged: () { //Build #1.0.84: Issue fixed: nav mode re-setting
+              String newLayout;
               setState(() {
                 if (sidebarPosition == SidebarPosition.left) {
-                  sidebarPosition = SidebarPosition.right;
+                  newLayout = SharedPreferenceTextConstants.navRightOrderLeft;
                 } else if (sidebarPosition == SidebarPosition.right) {
-                  sidebarPosition = SidebarPosition.bottom;
+                  newLayout = SharedPreferenceTextConstants.navBottomOrderLeft;
                 } else {
-                  sidebarPosition = SidebarPosition.left;
+                  newLayout = SharedPreferenceTextConstants.navLeftOrderRight;
                 }
+
+                //Update the notifier which will trigger _onLayoutChanged
+                PinakaPreferences.layoutSelectionNotifier.value = newLayout;
+                // No need to call saveLayoutSelection here as it's handled in the notifier
+                _preferences.saveLayoutSelection(newLayout);
               });
             },
           ),
@@ -117,7 +118,8 @@ class _AppsDashboardScreenState extends State<AppsDashboardScreen> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => ShiftHistoryDashboardScreen(),
+                                builder: (context) => ShiftHistoryDashboardScreen()  //Build #1.0.74
+                              //  settings: RouteSettings(arguments: TextConstants.navCashier),  // Build #1.0.70
                               ),
                             );
                           },
@@ -181,9 +183,11 @@ class _AppsDashboardScreenState extends State<AppsDashboardScreen> {
     required VoidCallback onTap,
     required int cardIndex,
   }) {
+    final themeHelper = Provider.of<ThemeNotifier>(context);
     return Material(
       elevation: 2,
       borderRadius: BorderRadius.circular(12),
+      color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground : null,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
@@ -192,13 +196,14 @@ class _AppsDashboardScreenState extends State<AppsDashboardScreen> {
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
+            color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground : null,
           ),
           child: Column(
             children: [
               Expanded(
                 child: Container(
                   decoration: BoxDecoration(
-                    color: const Color(0xFFECF7FF),
+                    color: Color(0xFFECF7FF),
                     borderRadius: BorderRadius.only(
                       topLeft: Radius.circular(18),
                       topRight: Radius.circular(18),

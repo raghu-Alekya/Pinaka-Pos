@@ -27,7 +27,7 @@ class ProductVariation { //Build 1.1.36: added for variations api
   final int downloadExpiry;
   final String taxStatus;
   final String taxClass;
-  final String manageStock; // Changed to String to match API response
+  final bool manageStock; //Build #1.0.78: Changed from String to bool to match API response
   final int? stockQuantity;
   final String stockStatus;
   final String backorders;
@@ -125,7 +125,7 @@ class ProductVariation { //Build 1.1.36: added for variations api
       downloadExpiry: json['download_expiry'] as int,
       taxStatus: json['tax_status'] as String,
       taxClass: json['tax_class'] as String,
-      manageStock: json['manage_stock'] as String, // Now a String
+      manageStock: _parseBool(json['manage_stock']), //Build #1.0.78: Updated to use _parseBool
       stockQuantity: json['stock_quantity'] as int?,
       stockStatus: json['stock_status'] as String,
       backorders: json['backorders'] as String,
@@ -190,7 +190,7 @@ class ProductVariation { //Build 1.1.36: added for variations api
       'download_expiry': downloadExpiry,
       'tax_status': taxStatus,
       'tax_class': taxClass,
-      'manage_stock': manageStock,
+      'manage_stock': manageStock, //Build #1.0.78: Now a bool
       'stock_quantity': stockQuantity,
       'stock_status': stockStatus,
       'backorders': backorders,

@@ -1,7 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:provider/provider.dart';
 import '../Constants/text.dart';
+import '../Helper/Extentions/theme_notifier.dart';
 import '../Utilities/shimmer_effect.dart';
 
 class SubCategoryGridWidget extends StatelessWidget {
@@ -47,6 +49,7 @@ class SubCategoryGridWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeHelper = Provider.of<ThemeNotifier>(context);
     return Expanded(
       child: isLoading
           ? ShimmerEffect.rectangular(height: 200)
@@ -65,13 +68,18 @@ class SubCategoryGridWidget extends StatelessWidget {
           return GestureDetector(
             onTap: () => onSubCategoryTapped(index),
             child: Card(
-              color: Colors.white,
+              color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : Colors.white,
               elevation: 4,
               shape: RoundedRectangleBorder( // Build #1.0.27
                 borderRadius: BorderRadius.circular(8),
                 side: isSelected
-                    ? const BorderSide(color: Colors.red, width: 2)
-                    : const BorderSide(color: Colors.black12, width: 1),
+                    ? BorderSide(color: Colors.red, width: 2)
+                    : BorderSide(
+                    color: themeHelper.themeMode == ThemeMode.dark
+                        ? ThemeNotifier.borderColor
+                        : Colors.black12,
+                    width: 1
+                ),
               ),
               child: Padding(
                 padding: const EdgeInsets.all(8.0),
@@ -83,18 +91,18 @@ class SubCategoryGridWidget extends StatelessWidget {
                     Text(
                       subCategory['name'],
                       maxLines: 1,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black,
+                        color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.black,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     Text(
                       subCategory['count'].toString(),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey,
+                        color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.grey,
                       ),
                     ),
                   ],

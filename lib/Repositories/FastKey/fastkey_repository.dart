@@ -68,14 +68,13 @@ class FastKeyRepository {  // Build #1.0.15
 
   // // Build #1.0.19: POST: Delete FastKey
   Future<FastKeyResponse> deleteFastKey(int fastkeyServerId) async {
-    final url = "${UrlHelper.componentVersionUrl}${UrlMethodConstants.fastKeys}${EndUrlConstants.deleteFastKeyEndUrl}";
+    final url = "${UrlHelper.componentVersionUrl}${UrlMethodConstants.fastKeys}${EndUrlConstants.deleteFastKeyEndUrl}/$fastkeyServerId";
 
     if (kDebugMode) {
       print("FastKeyRepository - DELETE URL: $url");
-      print("Request body: {'fastkey_id': $fastkeyServerId}");
     }
 
-    final response = await _helper.post(url, {'fastkey_id': fastkeyServerId}, true);
+    final response = await _helper.get(url, true);///Build #1.0.85: updated to get URL
 
     if (kDebugMode) {
       print("FastKeyRepository - DELETE Raw Response: $response");
@@ -93,6 +92,36 @@ class FastKeyRepository {  // Build #1.0.15
       return FastKeyResponse.fromJson(response);
     } else {
       throw Exception("Unexpected response type in DELETE");
+    }
+  }
+
+  // Build #1.0.89: Added this method for updateFastKey API
+  Future<FastKeyResponse> updateFastKey(FastKeyRequest request) async {
+    final url = "${UrlHelper.componentVersionUrl}${UrlMethodConstants.fastKeys}${EndUrlConstants.updateFastKeyEndUrl}";
+
+    if (kDebugMode) {
+      print("FastKeyRepository - UPDATE URL: $url");
+      print("Request body: ${request.toJson()}");
+    }
+
+    final response = await _helper.post(url, request.toJson(), true);
+
+    if (kDebugMode) {
+      print("FastKeyRepository - UPDATE Raw Response: $response");
+    }
+
+    if (response is String) {
+      try {
+        final responseData = json.decode(response);
+        return FastKeyResponse.fromJson(responseData);
+      } catch (e) {
+        if (kDebugMode) print("Error parsing UPDATE response: $e");
+        throw Exception("Failed to parse FastKey update response");
+      }
+    } else if (response is Map<String, dynamic>) {
+      return FastKeyResponse.fromJson(response);
+    } else {
+      throw Exception("Unexpected response type in UPDATE");
     }
   }
 }

@@ -55,6 +55,12 @@ class PaymentBloc {  // Build #1.0.25 - added by naveen
         print("PaymentBloc - Payment Message: ${response.message}");
       }
 
+      ///Response is coming as below:
+      //{
+      //     "payment_id": 3592,
+      //     "message": "Payment Created Successfully"
+      // }
+
       createPaymentSink.add(APIResponse.completed(response));
     } catch (e) {
       if (e.toString().contains('SocketException')) {

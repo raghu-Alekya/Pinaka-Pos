@@ -1,6 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:pinaka_pos/Widgets/widget_tabs.dart';
 
+import '../../Constants/text.dart';
+import '../../Helper/Extentions/nav_layout_manager.dart';
+import '../../Preferences/pinaka_preferences.dart';
 import '../../Widgets/widget_category_list.dart';
 import '../../Widgets/widget_edit_product_items.dart';
 import '../../Widgets/widget_nested_grid_layout.dart';
@@ -10,11 +13,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../Widgets/widget_navigation_bar.dart' as custom_widgets;
 import '../../Widgets/widget_custom_num_pad.dart';
-
-// Enum for sidebar position
-enum SidebarPosition { left, right, bottom }
-// Enum for order panel position
-enum OrderPanelPosition { left, right }
 
 class EditProductScreen extends StatefulWidget { // Build #1.0.6 - Updated Horizontal & Vertical Scrolling
   final int? lastSelectedIndex;
@@ -30,18 +28,17 @@ class EditProductScreen extends StatefulWidget { // Build #1.0.6 - Updated Horiz
   State<EditProductScreen> createState() => _EditProductScreenState();
 }
 
-class _EditProductScreenState extends State<EditProductScreen> with SingleTickerProviderStateMixin {
+class _EditProductScreenState extends State<EditProductScreen> with SingleTickerProviderStateMixin, LayoutSelectionMixin {
   final List<String> items = List.generate(18, (index) => 'Bud Light');
   int _selectedSidebarIndex = 2; //Build #1.0.2 : By default fast key should be selected after login
   DateTime now = DateTime.now();
   List<int> quantities = [1, 1, 1, 1];
-  SidebarPosition sidebarPosition = SidebarPosition.left; // Default to bottom sidebar
-  OrderPanelPosition orderPanelPosition = OrderPanelPosition.right; // Default to right
   bool isLoading = true; // Add a loading state
   final ValueNotifier<int?> fastKeyTabIdNotifier = ValueNotifier<int?>(null);// Add this
 
   late AnimationController _animationController;
   late Animation<Offset> _slideAnimation;
+  final PinakaPreferences _preferences = PinakaPreferences(); // Add this
 
 
   @override
@@ -93,15 +90,21 @@ class _EditProductScreenState extends State<EditProductScreen> with SingleTicker
         children: [
           // Top Bar
           TopBar(
-            onModeChanged: () {
+            onModeChanged: () { //Build #1.0.84: Issue fixed: nav mode re-setting
+              String newLayout;
               setState(() {
                 if (sidebarPosition == SidebarPosition.left) {
-                  sidebarPosition = SidebarPosition.right;
+                  newLayout = SharedPreferenceTextConstants.navRightOrderLeft;
                 } else if (sidebarPosition == SidebarPosition.right) {
-                  sidebarPosition = SidebarPosition.bottom;
+                  newLayout = SharedPreferenceTextConstants.navBottomOrderLeft;
                 } else {
-                  sidebarPosition = SidebarPosition.left;
+                  newLayout = SharedPreferenceTextConstants.navLeftOrderRight;
                 }
+
+                //Update the notifier which will trigger _onLayoutChanged
+                PinakaPreferences.layoutSelectionNotifier.value = newLayout;
+                // No need to call saveLayoutSelection here as it's handled in the notifier
+                _preferences.saveLayoutSelection(newLayout);
               });
             },
           ),

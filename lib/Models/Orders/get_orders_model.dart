@@ -1,3 +1,7 @@
+import 'package:flutter/foundation.dart';
+
+import 'orders_model.dart';
+
 class OrdersListModel { //Build #1.0.40
   final List<OrderModel> orders;
 
@@ -32,12 +36,12 @@ class OrderModel {
   final Shipping shipping;
   final List<LineItem> lineItems;
   List<FeeLine>? feeLines;    // For payout and discount data
-  List<CouponLine>? couponLines; // For coupon data
+  List<CouponLine> couponLines; // For coupon data
   final List<MetaData> metaData;
   final String? datePaid;
   final String? dateCompleted;
   final String paymentMethod;
-  final String paymentMethodTitle;
+  final String createdVia;
   final String number;
   final String currencySymbol;
 
@@ -63,12 +67,12 @@ class OrderModel {
     required this.shipping,
     required this.lineItems,
     this.feeLines,
-    this.couponLines,
+    required this.couponLines,
     required this.metaData,
     this.datePaid,
     this.dateCompleted,
     required this.paymentMethod,
-    required this.paymentMethodTitle,
+    required this.createdVia,
     required this.number,
     required this.currencySymbol,
   });
@@ -99,7 +103,7 @@ class OrderModel {
           .toList() ??
           [],
       feeLines: (json['fee_lines'] as List<dynamic>?)?.map((e) => FeeLine.fromJson(e as Map<String, dynamic>)).toList(),
-      couponLines: (json['coupon_lines'] as List<dynamic>?)?.map((e) => CouponLine.fromJson(e as Map<String, dynamic>)).toList(),
+      couponLines: (json['coupon_lines'] as List<dynamic>?)?.map((e) => CouponLine.fromJson(e as Map<String, dynamic>)).toList() ?? [],
       metaData: (json['meta_data'] as List<dynamic>?)
           ?.map((item) => MetaData.fromJson(item))
           .toList() ??
@@ -107,7 +111,7 @@ class OrderModel {
       datePaid: json['date_paid'],
       dateCompleted: json['date_completed'],
       paymentMethod: json['payment_method'] ?? '',
-      paymentMethodTitle: json['payment_method_title'] ?? '',
+      createdVia: json['created_via'] ?? '',
       number: json['number'] ?? '',
       currencySymbol: json['currency_symbol'] ?? '₹',
     );
@@ -233,20 +237,41 @@ class Shipping {
 }
 
 class LineItem {
+
   final int id;
   final String name;
+  final int productId;
+  final int variationId;
   final int quantity;
-  final double price;
+  final String taxClass;
+  final String subtotal;
+  final String subtotalTax;
+  final String total;
+  final String totalTax;
+  final List<MetaData> metaData;
   final String? sku;
+  final double price; // Use double to handle both int and double
   final ImageData image;
+  final ProductData productData;
+  final ProductVariationData? productVariationData;
 
   LineItem({
+    required this.productId,
+    required this.variationId,
+    required this.taxClass,
+    required this.subtotal,
+    required this.subtotalTax,
+    required this.total,
+    required this.totalTax,
+    required this.metaData,
     required this.id,
     required this.name,
     required this.quantity,
     required this.price,
     this.sku,
     required this.image,
+    required this.productData,
+    this.productVariationData,
   });
 
   factory LineItem.fromJson(Map<String, dynamic> json) {
@@ -254,9 +279,117 @@ class LineItem {
       id: json['id'] ?? 0,
       name: json['name'] ?? '',
       quantity: json['quantity'] ?? 0,
-      price: (json['price'] is int ? json['price'].toDouble() : json['price']) ?? 0.0,
-      sku: json['sku'],
       image: ImageData.fromJson(json['image'] ?? {}),
+      productData: ProductData.fromJson(json['product_data'] ?? {}),
+      productVariationData: ProductVariationData.fromJson(json['product_variation_data'] ?? {}),
+      productId: json['product_id'] ?? 0,
+      variationId: json['variation_id'] ?? 0,
+      taxClass: json['tax_class'] ?? '',
+      subtotal: json['subtotal'] ?? '0.00',
+      subtotalTax: json['subtotal_tax'] ?? '0.00',
+      total: json['total'] ?? '0.00',
+      totalTax: json['total_tax'] ?? '0.00',
+      metaData: (json['meta_data'] as List<dynamic>?)
+          ?.map((e) => MetaData.fromJson(e))
+          .toList() ??
+          [],
+      sku: json['sku'] ?? '',
+      price: (json['price'] is int
+          ? (json['price'] as int).toDouble() // Convert int to double
+          : json['price'] ?? 0.0), // Use double directly or default to 0.0
+    );
+  }
+}
+
+class Tag {
+  final int id;
+  final String name;
+  final String slug;
+
+  Tag({
+    required this.id,
+    required this.name,
+    required this.slug,
+  });
+
+  factory Tag.fromJson(Map<String, dynamic> json) {
+    return Tag(
+      id: json['id'] ?? 0,
+      name: json['name'] ?? '',
+      slug: json['slug'] ?? '',
+    );
+  }
+}
+
+class ProductData {
+  final int id;
+  final String name;
+  final List<Tag> tags;
+  final List<int>? variations;
+  final String? regularPrice;
+  final String? salePrice;
+  final String? price;
+
+  ProductData({
+    this.regularPrice,
+    this.salePrice,
+    this.price,
+    this.variations,
+    required this.id,
+    required this.name,
+    required this.tags,
+  });
+
+  factory ProductData.fromJson(Map<String, dynamic> json) {
+    if (kDebugMode) {
+      print("get_order_model = ProductData ${json['variations']}");
+    }
+    return ProductData(
+      id: json['id'] ?? 0,
+      name: json['name'] ?? '',
+      tags: (json['tags'] as List<dynamic>?)
+          ?.map((tag) => Tag.fromJson(tag))
+          .toList() ??
+          [],
+      variations: (json['variations'] as List?)?.map((item) => item as int).toList() ?? [],
+      price: json['price'] == "" ? "0" : json['price'] ?? "0",
+      regularPrice: json['regular_price'] == "" ? "0" : json['regular_price'] ?? "0",
+      salePrice: json['sale_price'] == "" ? "0" : json['sale_price'] ?? "0",
+    );
+  }
+}
+
+class ProductVariationData {
+  final int id;
+  final String type;
+  final String sku;
+  final List<MetaData>? metaData;
+  final String? regularPrice;
+  final String? salePrice;
+  final String? price;
+
+  ProductVariationData({
+    this.regularPrice,
+    this.salePrice,
+    this.price,
+    required this.metaData,
+    required this.id,
+    required this.type,
+    required this.sku,
+  });
+
+  factory ProductVariationData.fromJson(Map<String, dynamic> json) {
+    return ProductVariationData(
+      id: json['id'] ?? 0,
+      type: json['type'] ?? '',
+      metaData: (json['meta_data'] as List<dynamic>?)
+          ?.map((item) => MetaData.fromJson(item))
+          .toList() ??
+          [],
+      sku: json['sku'] ?? "",
+      price: json['price'] ?? "",
+      regularPrice: json['regular_price'] ?? "",
+      salePrice: json['sale_price'] ?? "",
     );
   }
 }

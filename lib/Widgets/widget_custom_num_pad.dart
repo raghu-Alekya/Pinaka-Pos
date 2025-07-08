@@ -1,8 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pinaka_pos/Widgets/widget_payment_dialog.dart';
+import 'package:provider/provider.dart';
 
 import '../Constants/text.dart';
+import '../Helper/Extentions/theme_notifier.dart';
 
 enum ActionButtonType { delete, ok, add, pay }
 enum NumPadType { payment, login, age }
@@ -21,6 +23,7 @@ class CustomNumPad extends StatelessWidget {
   final double? balanceAmount; // Build #1.0.29 : Added to compare with paid amount
   final bool? isLoading; // Add isLoading
   final NumPadType numPadType;
+  final bool isDarkTheme;
 
   const CustomNumPad({
     super.key,
@@ -37,6 +40,7 @@ class CustomNumPad extends StatelessWidget {
     this.balanceAmount,
     this.isLoading, // Require isLoading
     this.numPadType = NumPadType.login,
+    this.isDarkTheme = false,
   });
 
   @override
@@ -57,9 +61,11 @@ class CustomNumPad extends StatelessWidget {
 
 
   Widget _buildPaymentPad(BuildContext context, double paddingValue) {
+    final themeHelper = Provider.of<ThemeNotifier>(context);
+    var darkTheme = themeHelper.themeMode == ThemeMode.dark && isDarkTheme;
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: paddingValue),
-      height: MediaQuery.of(context).size.height * 0.4125,
+      //padding: EdgeInsets.symmetric(horizontal: paddingValue),
+      height: MediaQuery.of(context).size.height * 0.4250,
       child: Row(
         children: [
           Expanded(
@@ -71,29 +77,28 @@ class CustomNumPad extends StatelessWidget {
                   double aspectRatio = buttonWidth / buttonHeight;
                   if (aspectRatio <= 0) aspectRatio = 1.0;
 
-                  return Container(
-                    padding: const EdgeInsets.only(bottom: 1),
+                  return SizedBox(
                     child: GridView.count(
                       shrinkWrap: true,
                       padding: EdgeInsets.zero,
                       physics: const NeverScrollableScrollPhysics(),
                       crossAxisCount: 3,
-                      mainAxisSpacing: 12,
+                      mainAxisSpacing: 8,
                       crossAxisSpacing: 12,
                       childAspectRatio: aspectRatio,
                       children: [
-                        _buildKey("7"),
-                        _buildKey("8"),
-                        _buildKey("9"),
-                        _buildKey("4"),
-                        _buildKey("5"),
-                        _buildKey("6"),
-                        _buildKey("1"),
-                        _buildKey("2"),
-                        _buildKey("3"),
-                        _buildKey("00"),
-                        _buildKey("0"),
-                        _buildKey("."),
+                        _buildKey(isDarkTheme :darkTheme, "7"),
+                        _buildKey(isDarkTheme :darkTheme, "8"),
+                        _buildKey(isDarkTheme :darkTheme, "9"),
+                        _buildKey(isDarkTheme :darkTheme, "4"),
+                        _buildKey(isDarkTheme :darkTheme, "5"),
+                        _buildKey(isDarkTheme :darkTheme, "6"),
+                        _buildKey(isDarkTheme :darkTheme, "1"),
+                        _buildKey(isDarkTheme :darkTheme, "2"),
+                        _buildKey(isDarkTheme :darkTheme, "3"),
+                        _buildKey(isDarkTheme :darkTheme, "00"),
+                        _buildKey(isDarkTheme :darkTheme,"0"),
+                        _buildKey(isDarkTheme :darkTheme, "."),
                       ],
                     ),
                   );
@@ -104,10 +109,10 @@ class CustomNumPad extends StatelessWidget {
           Expanded(
             child: Column(
               children: [
-                Expanded(child: _buildBackspaceKey()),
-                const SizedBox(height: 12),
-                Expanded(child: _buildClearKey()),
-                const SizedBox(height: 12),
+                Expanded(child: _buildBackspaceKey(isDarkTheme : darkTheme)),
+                SizedBox(height: 8),
+                Expanded(child: _buildClearKey(isDarkTheme : darkTheme)),
+                SizedBox(height: 8),
                 Expanded(
                   flex: 2,
                   child: _buildPayButton(context),
@@ -122,6 +127,8 @@ class CustomNumPad extends StatelessWidget {
 
 // Age Verification Layout
   Widget _buildAgeVerificationPad(BuildContext context, double paddingValue) {
+    final themeHelper = Provider.of<ThemeNotifier>(context);
+    var darkTheme = themeHelper.themeMode == ThemeMode.dark && isDarkTheme;
     return Container(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -136,15 +143,15 @@ class CustomNumPad extends StatelessWidget {
               crossAxisSpacing: 12,
               childAspectRatio: 2,
               children: [
-                _buildKey("1"),
-                _buildKey("2"),
-                _buildKey("3"),
-                _buildKey("4"),
-                _buildKey("5"),
-                _buildKey("6"),
-                _buildKey("7"),
-                _buildKey("8"),
-                _buildKey("9"),
+                _buildKey("1", isDarkTheme: darkTheme),
+                _buildKey("2", isDarkTheme: darkTheme),
+                _buildKey("3", isDarkTheme: darkTheme),
+                _buildKey("4", isDarkTheme: darkTheme),
+                _buildKey("5", isDarkTheme: darkTheme),
+                _buildKey("6", isDarkTheme: darkTheme),
+                _buildKey("7", isDarkTheme: darkTheme),
+                _buildKey("8", isDarkTheme: darkTheme),
+                _buildKey("9", isDarkTheme: darkTheme),
               ],
             ),
           ),
@@ -154,11 +161,11 @@ class CustomNumPad extends StatelessWidget {
               children: [
                 Expanded(
                   flex: 2,
-                  child: _buildClearKeyForAge(),
+                  child: _buildClearKeyForAge(context),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: _buildKey("0"),
+                  child: _buildKey("0", isDarkTheme: darkTheme),
                 ),
               ],
             ),
@@ -184,6 +191,8 @@ class CustomNumPad extends StatelessWidget {
 
   // Original numpad layout remains unchanged
   Widget _buildLoginPad(BuildContext context, double paddingValue){
+    final themeHelper = Provider.of<ThemeNotifier>(context);
+    var darkTheme = themeHelper.themeMode == ThemeMode.dark && isDarkTheme;
     return GridView.count(
       shrinkWrap: true,
       crossAxisCount: 3,
@@ -193,21 +202,22 @@ class CustomNumPad extends StatelessWidget {
       padding: EdgeInsets.symmetric(horizontal: paddingValue),
       children: [
         ...List.generate(9, (index) {
-          return _buildKey((index + 1).toString());
+          return _buildKey((index + 1).toString(), isDarkTheme :darkTheme);
         }),
         _buildActionKey(
           text: TextConstants.clearText,
           onPressed: onClearPressed,
-          color: Colors.white,
-          textColor: Colors.black,
+          color: darkTheme ? ThemeNotifier.tabsBackground : Colors.white,
+          textColor: darkTheme ? ThemeNotifier.textDark: ThemeNotifier.textLight,
           isAddButton: false, // Build #1.0.53 : Explicitly mark as not Add button
+
         ),
-        _buildKey("0"),
+        _buildKey("0", isDarkTheme: darkTheme),
         _buildActionKey(
           text: _getActionButtonText(),
           onPressed: _getActionButtonCallback(),
-          color: _getActionButtonColor(),
-          textColor: _getActionButtonTextColor(),
+          color: _getActionButtonColor(context),
+          textColor: _getActionButtonTextColor(context),
           isAddButton: true, // Build #1.0.53 : Mark as Add button
         ),
       ],
@@ -337,7 +347,8 @@ class CustomNumPad extends StatelessWidget {
   // }
 
   // New method for Clear key in age verification (with orange border)
-  Widget _buildClearKeyForAge() {
+  Widget _buildClearKeyForAge(BuildContext context) {
+    final themeHelper = Provider.of<ThemeNotifier>(context);
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -346,7 +357,8 @@ class CustomNumPad extends StatelessWidget {
         border: Border.all(color: const Color(0xFFFF6B35), width: 2), // Orange border
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: themeHelper.themeMode == ThemeMode.dark
+                ? ThemeNotifier.shadow_F7 : Colors.black.withOpacity(0.05),
             blurRadius: 2,
             offset: const Offset(0, 0),
           ),
@@ -398,27 +410,31 @@ class CustomNumPad extends StatelessWidget {
   }
 
   // Get Action Button Color
-  Color _getActionButtonColor() {
+  Color _getActionButtonColor(context) {
+    final themeHelper = Provider.of<ThemeNotifier>(context);
     return (actionButtonType == ActionButtonType.ok || actionButtonType == ActionButtonType.add)
-        ? const Color(0xFF1E2745) // OK & Add use same color
+        ? themeHelper.themeMode == ThemeMode.dark ? Colors.white70 : Color(0xFF1E2745) // OK & Add use same color
         : Colors.white;
   }
 
   // Get Action Button Text Color
-  Color _getActionButtonTextColor() {
+  Color _getActionButtonTextColor(context) {
+    final themeHelper = Provider.of<ThemeNotifier>(context);
     return (actionButtonType == ActionButtonType.ok || actionButtonType == ActionButtonType.add)
-        ? Colors.white
+        ? themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground : Colors.white
         : Colors.black;
   }
 
   // Build Numeric Key
-  Widget _buildKey(String value) {
+  Widget _buildKey(String value, {bool isDarkTheme = false}) {
+    //final themeHelper = Provider.of<ThemeNotifier>(context);
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color:  isDarkTheme
+            ? ThemeNotifier.tabsBackground : Colors.white,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFE8E8E8)), // Light grey border
+        border: Border.all(color:isDarkTheme ? ThemeNotifier.borderColor : Color(0xFFE8E8E8)), // Light grey border
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -431,17 +447,17 @@ class CustomNumPad extends StatelessWidget {
         onPressed: () => onDigitPressed(value),
         style: TextButton.styleFrom(
           padding: EdgeInsets.zero,
-          backgroundColor: Colors.white,
+          backgroundColor: isDarkTheme ? ThemeNotifier.tabsBackground : Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
           ),
         ),
         child: Text(
           value,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w400,
-            color: Colors.black,
+            color: isDarkTheme ? ThemeNotifier.textDark : ThemeNotifier.textLight,
           ),
         ),
       ),
@@ -484,18 +500,18 @@ class CustomNumPad extends StatelessWidget {
   }
 
   // New method for backspace key
-  Widget _buildBackspaceKey() {
+  Widget _buildBackspaceKey({bool isDarkTheme = false}) {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.white,
+        //color: Colors.white,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFE8E8E8)), // Light grey border
+        border: Border.all(color:isDarkTheme ? ThemeNotifier.borderColor : Color(0xFFE8E8E8)), // Light grey border
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
             blurRadius: 2,
-            offset: const Offset(0, 1),
+            offset: const Offset(0, 0),
           ),
         ],
       ),
@@ -503,24 +519,24 @@ class CustomNumPad extends StatelessWidget {
         onPressed: onDeletePressed ?? () {},
         style: TextButton.styleFrom(
           padding: EdgeInsets.zero,
-          backgroundColor: Colors.white,
+          backgroundColor: isDarkTheme ? ThemeNotifier.tabsBackground : Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
           ),
         ),
-        child: const Icon(Icons.backspace_outlined, color: Colors.black, size: 20),
+        child: Icon(Icons.backspace_outlined, color: isDarkTheme ? ThemeNotifier.textDark : ThemeNotifier.textLight, size: 20),
       ),
     );
   }
 
   // New method for clear key
-  Widget _buildClearKey() {
+  Widget _buildClearKey({bool isDarkTheme = false}) {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.white,
+       // color: Colors.white,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFE8E8E8)), // Light grey border
+        border: Border.all(color: isDarkTheme ? ThemeNotifier.borderColor : Color(0xFFE8E8E8)), // Light grey border
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -533,17 +549,17 @@ class CustomNumPad extends StatelessWidget {
         onPressed: onClearPressed,
         style: TextButton.styleFrom(
           padding: EdgeInsets.zero,
-          backgroundColor: Colors.white,
+          backgroundColor: isDarkTheme ? ThemeNotifier.tabsBackground : Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
           ),
         ),
-        child: const Text(
+        child: Text(
           'C',
           style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.w400,
-            color: Colors.black,
+            color: isDarkTheme ? ThemeNotifier.textDark : ThemeNotifier.textLight,
           ),
         ),
       ),

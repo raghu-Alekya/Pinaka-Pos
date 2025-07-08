@@ -104,9 +104,13 @@ class FastKeyProduct {
   final int productId;
   final String name;
   final String price;
-  final String image;
+  final String image; // Still a String, as it should be a URL or empty
   final List<String> category;
   final int slNumber;
+  List<Tags>? tags;
+  final String? sku;
+  final bool? isVariant;
+  final bool? hasVariant;
 
   FastKeyProduct({
     required this.productId,
@@ -115,6 +119,10 @@ class FastKeyProduct {
     required this.image,
     required this.category,
     required this.slNumber,
+    this.tags,
+    this.sku,
+    this.isVariant,
+    this.hasVariant,
   });
 
   factory FastKeyProduct.fromJson(Map<String, dynamic> json) {
@@ -127,6 +135,36 @@ class FastKeyProduct {
           ?.map((item) => item.toString())
           .toList() ?? [],
       slNumber: json['sl_number'] ?? 0,
+      tags: json['tags'] != null
+          ? List<Tags>.from(json['tags'].map((x) => Tags.fromJson(x)))
+          : null,
+      sku: json['sku'] ?? '',
+      isVariant: json['is_variant'] ?? false,
+      hasVariant: json['has_variants'] ?? false,
     );
+  }
+}
+
+class Tags {
+  int? id;
+  String? name;
+  String? slug;
+
+  Tags({this.id, this.name, this.slug});
+
+  factory Tags.fromJson(Map<String, dynamic> json) {
+    return Tags(
+      id: json['id'] as int?,
+      name: json['name'] as String?,
+      slug: json['slug'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'slug': slug,
+    };
   }
 }

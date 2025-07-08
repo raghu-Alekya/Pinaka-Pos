@@ -29,6 +29,12 @@ class PrinterSettings {
   List<int>? pendingTask;
   final PrinterDBHelper _printerDBHelper = PrinterDBHelper();
 
+  Future<void> loadPrinter() async{
+    await setSelectedPrinterFromDB();
+    if (kDebugMode) {
+      print("PrinterSettings - loadPrinter called is Printer loaded: ${selectedPrinter?.deviceName ?? ''}");
+    }
+  }
   ///start: custom methods
   Future<Generator> getTicket() async{
     final profile = await CapabilityProfile.load(name: 'XP-N160I');
@@ -44,19 +50,19 @@ class PrinterSettings {
   Future<void> saveSelectedPrinterToDB() async {
     if (kDebugMode) {
       ///Printer Settings saveSelectedPrinter: printer-80, 22339, 1155, PrinterType.usb
-      print(">>>>> Printer Settings before saveSelectedPrinterToDB: ${selectedPrinter?.deviceName}, ${selectedPrinter?.productId}, ${selectedPrinter?.vendorId}, ${selectedPrinter?.typePrinter}");
+      print(">>>>> PrinterSettings before saveSelectedPrinterToDB: ${selectedPrinter?.deviceName}, ${selectedPrinter?.productId}, ${selectedPrinter?.vendorId}, ${selectedPrinter?.typePrinter}");
     }
     int printerId = await _printerDBHelper.addPrinterToDB(selectedPrinter!);
 
     if (kDebugMode) {
       ///Printer Settings saveSelectedPrinter: printer-80, 22339, 1155, PrinterType.usb
-      print(">>>>> Printer Settings after saveSelectedPrinterToDB: at row $printerId, ${selectedPrinter?.deviceName}, ${selectedPrinter?.productId}, ${selectedPrinter?.vendorId}, ${selectedPrinter?.typePrinter}");
+      print(">>>>> PrinterSettings after saveSelectedPrinterToDB: at row $printerId, ${selectedPrinter?.deviceName}, ${selectedPrinter?.productId}, ${selectedPrinter?.vendorId}, ${selectedPrinter?.typePrinter}");
     }
   }
 
   Future<void> setSelectedPrinterFromDB() async {
     if (kDebugMode) {
-      print(">>>>> Printer Settings before setSelectedPrinterFromDB: ${selectedPrinter?.deviceName}, ${selectedPrinter?.productId}, ${selectedPrinter?.vendorId}, ${selectedPrinter?.typePrinter}");
+      print(">>>>> PrinterSettings before setSelectedPrinterFromDB: ${selectedPrinter?.deviceName}, ${selectedPrinter?.productId}, ${selectedPrinter?.vendorId}, ${selectedPrinter?.typePrinter}");
     }
     var printerDB = await _printerDBHelper.getPrinterFromDB();
 
@@ -75,14 +81,15 @@ class PrinterSettings {
 
           print("#### Retrieved printerDevice '${printerDB.first[AppDBConst.printerDeviceName]}' from DB");
       }
-      print(">>>>> Printer Settings after setSelectedPrinterFromDB: ${selectedPrinter?.deviceName}, ${selectedPrinter?.productId}, ${selectedPrinter?.vendorId}, ${selectedPrinter?.typePrinter}");
+      print(">>>>> PrinterSettings after setSelectedPrinterFromDB: ${selectedPrinter?.deviceName}, ${selectedPrinter?.productId}, ${selectedPrinter?.vendorId}, ${selectedPrinter?.typePrinter}");
     }
+    await Future.delayed(Duration(milliseconds: 2000));
   }
 
   void saveSelectedPrinter(){
     if (kDebugMode) {
       ///Printer Settings saveSelectedPrinter: printer-80, 22339, 1155, PrinterType.usb
-      print(">>>>> Printer Settings saveSelectedPrinter: ${selectedPrinter?.deviceName}, ${selectedPrinter?.productId}, ${selectedPrinter?.vendorId}, ${selectedPrinter?.typePrinter}");
+      print(">>>>> PrinterSettings saveSelectedPrinter: ${selectedPrinter?.deviceName}, ${selectedPrinter?.productId}, ${selectedPrinter?.vendorId}, ${selectedPrinter?.typePrinter}");
     }
     var pref = PinakaPreferences();
     pref.saveSelectedPrinter(selectedPrinter!);
@@ -94,7 +101,7 @@ class PrinterSettings {
     var pref = PinakaPreferences();
     selectedPrinter = await pref.getSavedSelectedPrinter();
     if (kDebugMode) {
-      print(">>>>> Printer Settings setSelectedPrinter: ${selectedPrinter?.deviceName}, ${selectedPrinter?.productId}, ${selectedPrinter?.vendorId}, ${selectedPrinter?.typePrinter}");
+      print(">>>>> PrinterSettings setSelectedPrinter: ${selectedPrinter?.deviceName}, ${selectedPrinter?.productId}, ${selectedPrinter?.vendorId}, ${selectedPrinter?.typePrinter}");
     }
   }
 ///end: custom methods
@@ -133,7 +140,7 @@ class PrinterSettings {
         isConnected = true;
         break;
       }
-    saveSelectedPrinterToDB();
+    await saveSelectedPrinterToDB();
     return isConnected;
   }
 

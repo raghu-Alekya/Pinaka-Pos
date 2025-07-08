@@ -39,8 +39,16 @@ class ThemeNotifier with ChangeNotifier { // Build #1.0.6 - Added Theme code & a
   }
 
   static const Color lightBackground = Color(0xFFE0E0E0);
+  static const Color appBarBackground = Color(0xFF201E2B);
   static const Color darkBackground = Color(0xFF121212);
-  static const Color primaryBackground = Color(0xFF1E2745);
+  static const Color greyBackground = Color(0xFF252837);
+  static const Color primaryBackground = Color(0xFF1F1D2B);
+  static const Color secondaryBackground = Color(0xFF252837);
+  static const Color orderPanelBackground = Color(0xFF221E2B);
+  static const Color circularNavBackground = Color(0xFF373A4A);
+  static const Color tabsBackground = Color(0xFF313441);
+  static const Color popUpsBackground = Color(0xFF201E2B);
+  static const Color searchBarBackground = Color(0xFF2D303F);
   static const Color buttonLight = Color(0xFF1E2745);
   static const Color buttonDark = Color(0xFF1EA628);
   static const Color cardLight = Color(0xFFFAFAFA);
@@ -48,6 +56,12 @@ class ThemeNotifier with ChangeNotifier { // Build #1.0.6 - Added Theme code & a
   static const Color textLight = Colors.black;
   static const Color textDark = Colors.white;
   static const Color tabSelection = Color(0xFFFCDFDC);
+  static const Color orderPanelTabSelection = Color(0xFFFFDCD9);
+  static const Color orderPanelSummary = Color(0xFF221E2B);
+  static const Color orderPanelAddButton = Color(0xFF23202C);
+  static const Color orderPanelTabBackground = Color(0xFF313441);
+  static const Color borderColor = Color(0xFF1E1E2A);
+  static const Color paymentEntryContainerColor = Color(0xFF606372);
 
   ///grey scale for shadow
   static const Color shadow_F7 = Color(0xFFFFF7F7);
@@ -101,6 +115,10 @@ class ThemeNotifier with ChangeNotifier { // Build #1.0.6 - Added Theme code & a
       backgroundColor: WidgetStateProperty.all(Colors.white),
       elevation: WidgetStateProperty.all(2),
     ),
+    scrollbarTheme: ScrollbarThemeData(
+      thumbColor: WidgetStateProperty.all(Colors.grey.shade700),
+      trackColor: WidgetStateProperty.all(Colors.grey.shade300),
+    ),
     searchViewTheme: SearchViewThemeData(
       backgroundColor: Colors.white,
       headerTextStyle: const TextStyle(color: Colors.black),
@@ -113,7 +131,8 @@ class ThemeNotifier with ChangeNotifier { // Build #1.0.6 - Added Theme code & a
     brightness: Brightness.dark,
     colorScheme: ColorScheme.dark(),
     primaryColor: primaryBackground,
-    scaffoldBackgroundColor: darkBackground,
+    scaffoldBackgroundColor: greyBackground,
+    dialogBackgroundColor: greyBackground,
     appBarTheme: const AppBarTheme(
       color: primaryBackground,
       titleTextStyle: TextStyle(color: Colors.white, fontSize: 20),
@@ -155,6 +174,10 @@ class ThemeNotifier with ChangeNotifier { // Build #1.0.6 - Added Theme code & a
     searchBarTheme: SearchBarThemeData(
       backgroundColor: WidgetStateProperty.all(Colors.grey[800]),
       elevation: WidgetStateProperty.all(2),
+    ),
+    scrollbarTheme: ScrollbarThemeData(
+      thumbColor: WidgetStateProperty.all(Colors.grey.shade400),
+      trackColor: WidgetStateProperty.all(Colors.grey.shade800),
     ),
     searchViewTheme: SearchViewThemeData(
       backgroundColor: Colors.grey,

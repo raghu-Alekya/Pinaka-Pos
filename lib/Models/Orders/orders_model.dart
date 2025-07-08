@@ -5,6 +5,7 @@ class OrderMetaData {  //Build 1.1.36: Updated
 
   static const String posDeviceId = "pos_device_id";
   static const String posPlacedBy = "pos_placed_by";
+  static const String shiftId     = "shift_id"; //Build #1.0.78: added shift id to order meta data
 
   OrderMetaData({required this.key, required this.value});
 
@@ -129,22 +130,28 @@ class OrderLineItem {
   final int? productId;
   final int? variationId;
   final int quantity;
+  final String? sku; // Build #1.0.80
   final List<OrderMetaData>? metaData;
 
   OrderLineItem({
     this.id,
     this.productId,
     this.variationId,
+    this.sku,
     required this.quantity,
     this.metaData,
   });
 
   Map<String, dynamic> toJson() => {
     if (id != null) 'id': id,
-    'product_id': productId,
-    if (variationId != null) 'variation_id': variationId,
     'quantity': quantity,
-    if (metaData != null)
+    // Only include productId if explicitly provided and not null
+    if (productId != null) 'product_id': productId,
+    if (sku != null) 'sku': sku,
+    // Only include variationId if explicitly provided and not null
+    if (variationId != null) 'variation_id': variationId,
+    // Only include metaData if explicitly provided and not null
+    if (metaData != null && metaData!.isNotEmpty)
       'meta_data': metaData!.map((e) => e.toJson()).toList(),
   };
 }
@@ -253,7 +260,7 @@ class FeeLine {
 
   Map<String, dynamic> toJson() => {
     if (id != null) 'id': id,
-    if (name != null) 'name': name,
+    'name': name, // Build #1.0.92: updated because while deleting payout, discount pass name as null
     if (taxClass != null) 'tax_class': taxClass,
     if (taxStatus != null) 'tax_status': taxStatus,
     if (total != null) 'total': total,
@@ -497,7 +504,7 @@ class UpdateOrderRequestModel {
 
   Map<String, dynamic> toJson() => {
     'line_items': lineItems.map((e) => e.toJson()).toList(),
-    if (couponLines != null)
+    if (couponLines != null && couponLines!.isNotEmpty)  //Build #1.0.68
       'coupon_lines': couponLines!.map((e) => e.toJson()).toList(),
   };
 }
@@ -509,6 +516,7 @@ class UpdateOrderResponseModel {
   final String currency;
   final String discountTotal;
   final String total;
+  final String totalTax;
   final Billing? billing;
   final Shipping? shipping;
   final List<OrderMetaData> metaData;
@@ -525,6 +533,7 @@ class UpdateOrderResponseModel {
     required this.currency,
     required this.discountTotal,
     required this.total,
+    required this.totalTax,
     this.billing,
     this.shipping,
     required this.metaData,
@@ -543,6 +552,7 @@ class UpdateOrderResponseModel {
         currency: json['currency'] ?? '',
         discountTotal: json['discount_total'] ?? '0.00',
         total: json['total'] ?? '0.00',
+        totalTax: json['total_tax'] ?? '0.00',
         billing: json['billing'] != null ? Billing.fromJson(json['billing']) : null,
         shipping: json['shipping'] != null ? Shipping.fromJson(json['shipping']) : null,
         metaData: (json['meta_data'] as List<dynamic>?)
@@ -593,10 +603,10 @@ class AddPayoutRequestModel { // Build #1.0.53 : Added
   };
 }
 
-class RemovePayoutRequestModel { // Build #1.0.53 : Added
+class RemoveFeeLinesRequestModel { // Build #1.0.53 : Added; Build #1.0.73: updated
   final List<FeeLine> feeLines;
 
-  RemovePayoutRequestModel({required this.feeLines});
+  RemoveFeeLinesRequestModel({required this.feeLines});
 
   Map<String, dynamic> toJson() => {
     'fee_lines': feeLines.map((e) => e.toJson()).toList(),

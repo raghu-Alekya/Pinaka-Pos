@@ -45,102 +45,229 @@ class AssetDBHelper { //Build #1.0.54: added
     final db = await database;
     await db.transaction((txn) async {
       try {
-        int assetId = await txn.insert(AppDBConst.assetTable, {
-          AppDBConst.baseUrl: assetResponse.baseUrl,
-          AppDBConst.currency: assetResponse.currency,
-          AppDBConst.currencySymbol: assetResponse.currencySymbol,
-        });
+        final existingAsset = await txn.query(AppDBConst.assetTable, limit: 1);
+        int assetId = 1;
 
-        TextConstants.currencySymbol = assetResponse.currencySymbol;
-
-        if (kDebugMode) {
-        print("#### AssetDBHelper: Inserted asset with ID: $assetId");
-      }
-
-      // Insert Media
-      for (var media in assetResponse.media) {
-        await txn.insert(AppDBConst.mediaTable, {
-          ...media.toMap(),
-          AppDBConst.assetId: assetId,
-        });
-        if (kDebugMode) {
-          print("#### AssetDBHelper: Inserted media with ID: ${media.id}");
-        }
-      }
-
-        // Insert Taxes
-        for (var tax in assetResponse.taxes) {
-          var taxData = tax.toMap();
-          if (kDebugMode) print("#### Inserting tax data: $taxData");
-          try {
-            int rowsAffected = await txn.insert(
-              AppDBConst.taxTable,
-              {
-                ...taxData,
-                AppDBConst.assetId: assetId,
-              },
-              conflictAlgorithm: ConflictAlgorithm.replace,
-            );
-            if (kDebugMode) print("#### Inserted tax with ID: ${tax.id}, Rows affected: $rowsAffected");
-          } catch (e) {
-            if (kDebugMode) print("#### Error inserting tax ID: ${tax.id}, Error: $e");
-            rethrow;
+        if (existingAsset.isNotEmpty) { // Build #1.0.69 : updated code , check assets data exist or not
+          await txn.update(
+            AppDBConst.assetTable,
+            {
+              AppDBConst.baseUrl: assetResponse.baseUrl,
+              AppDBConst.currency: assetResponse.currency,
+              AppDBConst.currencySymbol: assetResponse.currencySymbol,
+              AppDBConst.maxTubesCount: assetResponse.maxTubesCount,
+              AppDBConst.safeDropAmount: assetResponse.safeDropAmount,
+              AppDBConst.drawerAmount: assetResponse.drawerAmount,
+            },
+            where: '${AppDBConst.assetId} = ?',
+            whereArgs: [assetId],
+          );
+          if (kDebugMode) {
+            print("#### AssetDBHelper: Updated asset with ID: $assetId");
+          }
+        } else {
+          await txn.insert(AppDBConst.assetTable, {
+            AppDBConst.assetId: assetId,
+            AppDBConst.baseUrl: assetResponse.baseUrl,
+            AppDBConst.currency: assetResponse.currency,
+            AppDBConst.currencySymbol: assetResponse.currencySymbol,
+            AppDBConst.maxTubesCount: assetResponse.maxTubesCount,
+            AppDBConst.safeDropAmount: assetResponse.safeDropAmount,
+            AppDBConst.drawerAmount: assetResponse.drawerAmount,
+          });
+          if (kDebugMode) {
+            print("#### AssetDBHelper: Inserted asset with ID: $assetId");
           }
         }
 
-      // Insert Coupons
-      for (var coupon in assetResponse.coupons) {
-        await txn.insert(AppDBConst.couponTable, {
-          ...coupon.toMap(),
+        // TextConstants.currencySymbol = assetResponse.currencySymbol;
+
+        await txn.delete(AppDBConst.mediaTable, where: '${AppDBConst.assetId} = ?', whereArgs: [assetId]);
+        await txn.delete(AppDBConst.taxTable, where: '${AppDBConst.assetId} = ?', whereArgs: [assetId]);
+        await txn.delete(AppDBConst.couponTable, where: '${AppDBConst.assetId} = ?', whereArgs: [assetId]);
+        await txn.delete(AppDBConst.orderStatusTable, where: '${AppDBConst.assetId} = ?', whereArgs: [assetId]);
+        await txn.delete(AppDBConst.roleTable, where: '${AppDBConst.assetId} = ?', whereArgs: [assetId]);
+        await txn.delete(AppDBConst.subscriptionPlanTable, where: '${AppDBConst.assetId} = ?', whereArgs: [assetId]);
+        await txn.delete(AppDBConst.storeDetailsTable, where: '${AppDBConst.assetId} = ?', whereArgs: [assetId]);
+        await txn.delete(AppDBConst.notesDenomTable, where: '${AppDBConst.assetId} = ?', whereArgs: [assetId]);
+        await txn.delete(AppDBConst.coinDenomTable, where: '${AppDBConst.assetId} = ?', whereArgs: [assetId]);
+        await txn.delete(AppDBConst.safeDenomTable, where: '${AppDBConst.assetId} = ?', whereArgs: [assetId]);
+        await txn.delete(AppDBConst.tubesDenomTable, where: '${AppDBConst.assetId} = ?', whereArgs: [assetId]);
+        await txn.delete(AppDBConst.vendorTable, where: '${AppDBConst.assetId} = ?', whereArgs: [assetId]);
+        await txn.delete(AppDBConst.vendorPaymentTypesTable, where: '${AppDBConst.assetId} = ?', whereArgs: [assetId]);
+        await txn.delete(AppDBConst.vendorPaymentPurposeTable, where: '${AppDBConst.assetId} = ?', whereArgs: [assetId]);
+        await txn.delete(AppDBConst.employeesTable, where: '${AppDBConst.assetId} = ?', whereArgs: [assetId]);
+        await txn.delete(AppDBConst.orderTypeTable, where: '${AppDBConst.assetId} = ?', whereArgs: [assetId]);
+
+        for (var media in assetResponse.media) {
+          await txn.insert(AppDBConst.mediaTable, {
+            ...media.toMap(),
+            AppDBConst.assetId: assetId,
+          });
+          if (kDebugMode) {
+            print("#### AssetDBHelper: Inserted media with ID: ${media.id}");
+          }
+        }
+
+        for (var tax in assetResponse.taxes) {
+          await txn.insert(
+            AppDBConst.taxTable,
+            {
+              ...tax.toMap(),
+              AppDBConst.assetId: assetId,
+            },
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+          if (kDebugMode) {
+            print("#### AssetDBHelper: Inserted tax with slug: ${tax.slug}");
+          }
+        }
+
+        for (var coupon in assetResponse.coupons) {
+          await txn.insert(AppDBConst.couponTable, {
+            ...coupon.toMap(),
+            AppDBConst.assetId: assetId,
+          });
+          if (kDebugMode) {
+            print("#### AssetDBHelper: Inserted coupon with ID: ${coupon.id}");
+          }
+        }
+
+        for (var status in assetResponse.orderStatuses) {
+          await txn.insert(AppDBConst.orderStatusTable, {
+            ...status.toMap(),
+            AppDBConst.assetId: assetId,
+          });
+          if (kDebugMode) {
+            print("#### AssetDBHelper: Inserted order status with slug: ${status.slug}");
+          }
+        }
+
+        for (var role in assetResponse.roles) {
+          await txn.insert(AppDBConst.roleTable, {
+            ...role.toMap(),
+            AppDBConst.assetId: assetId,
+          });
+          if (kDebugMode) {
+            print("#### AssetDBHelper: Inserted role with slug: ${role.slug}");
+          }
+        }
+
+        await txn.insert(AppDBConst.subscriptionPlanTable, {
+          ...assetResponse.subscriptionPlans.toMap(),
           AppDBConst.assetId: assetId,
         });
         if (kDebugMode) {
-          print("#### AssetDBHelper: Inserted coupon with ID: ${coupon.id}");
+          print("#### AssetDBHelper: Inserted subscription plan");
         }
-      }
 
-      // Insert Order Statuses
-      for (var status in assetResponse.orderStatuses) {
-        await txn.insert(AppDBConst.orderStatusTable, {
-          ...status.toMap(),
+        await txn.insert(AppDBConst.storeDetailsTable, {
+          ...assetResponse.storeDetails.toMap(),
           AppDBConst.assetId: assetId,
         });
         if (kDebugMode) {
-          print("#### AssetDBHelper: Inserted order status with slug: ${status.slug}");
+          print("#### AssetDBHelper: Inserted store details");
         }
-      }
 
-      // Insert Roles
-      for (var role in assetResponse.roles) {
-        await txn.insert(AppDBConst.roleTable, {
-          ...role.toMap(),
-          AppDBConst.assetId: assetId,
-        });
-        if (kDebugMode) {
-          print("#### AssetDBHelper: Inserted role with slug: ${role.slug}");
+        for (var denom in assetResponse.notesDenom) {
+          await txn.insert(AppDBConst.notesDenomTable, {
+            ...denom.toMap(),
+            AppDBConst.assetId: assetId,
+          });
+          if (kDebugMode) {
+            print("#### AssetDBHelper: Inserted notes denom: ${denom.denom}");
+          }
         }
-      }
 
-      // Insert Subscription Plan
-      await txn.insert(AppDBConst.subscriptionPlanTable, {
-        ...assetResponse.subscriptionPlans.toMap(),
-        AppDBConst.assetId: assetId,
-      });
-      if (kDebugMode) {
-        print("#### AssetDBHelper: Inserted subscription plan");
-      }
+        for (var denom in assetResponse.coinDenom) {
+          await txn.insert(AppDBConst.coinDenomTable, {
+            ...denom.toMap(),
+            AppDBConst.assetId: assetId,
+          });
+          if (kDebugMode) {
+            print("#### AssetDBHelper: Inserted coin denom: ${denom.denom}");
+          }
+        }
 
-      // Insert Store Details
-      await txn.insert(AppDBConst.storeDetailsTable, {
-        ...assetResponse.storeDetails.toMap(),
-        AppDBConst.assetId: assetId,
-      });
-      if (kDebugMode) {
-        print("#### AssetDBHelper: Inserted store details");
-      }
-    } catch (e) {
-      if (kDebugMode) print("#### AssetDBHelper: Error saving assets: $e");
-      rethrow;
+        for (var denom in assetResponse.safeDenom) {
+          await txn.insert(AppDBConst.safeDenomTable, {
+            ...denom.toMap(),
+            AppDBConst.assetId: assetId,
+          });
+          if (kDebugMode) {
+            print("#### AssetDBHelper: Inserted safe denom: ${denom.denom}");
+          }
+        }
+
+        for (var denom in assetResponse.tubesDenom) {
+          await txn.insert(AppDBConst.tubesDenomTable, {
+            ...denom.toMap(),
+            AppDBConst.assetId: assetId,
+          });
+          if (kDebugMode) {
+            print("#### AssetDBHelper: Inserted tubes denom: ${denom.denom}");
+          }
+        }
+
+        for (var vendor in assetResponse.vendors) {  //Build #1.0.74: Naveen Added
+          if (vendor.id == 0) {
+            if (kDebugMode) print("#### AssetDBHelper: Skipping vendor with invalid ID: ${vendor.vendorName}");
+            continue;
+          }
+          await txn.insert(AppDBConst.vendorTable, {
+            AppDBConst.vendorId: vendor.id,
+            AppDBConst.vendorName: vendor.vendorName,
+            AppDBConst.assetId: assetId,
+          });
+          if (kDebugMode) {
+            print("#### AssetDBHelper: Inserted vendor with ID: ${vendor.id}");
+          }
+        }
+
+        for (var paymentType in assetResponse.vendorPaymentTypes) {
+          await txn.insert(AppDBConst.vendorPaymentTypesTable, {
+            AppDBConst.paymentType: paymentType,
+            AppDBConst.assetId: assetId,
+          });
+          if (kDebugMode) {
+            print("#### AssetDBHelper: Inserted payment type: $paymentType");
+          }
+        }
+
+        for (var paymentPurpose in assetResponse.vendorPaymentPurpose) {
+          await txn.insert(AppDBConst.vendorPaymentPurposeTable, {
+            AppDBConst.paymentPurpose: paymentPurpose,
+            AppDBConst.assetId: assetId,
+          });
+          if (kDebugMode) {
+            print("#### AssetDBHelper: Inserted payment purpose: $paymentPurpose");
+          }
+        }
+
+        for (var employee in assetResponse.employees) {
+          await txn.insert(AppDBConst.employeesTable, {
+            AppDBConst.employeeId: employee.iD,
+            AppDBConst.employeeDisplayName: employee.displayName,
+            AppDBConst.assetId: assetId,
+          });
+          if (kDebugMode) {
+            print("#### AssetDBHelper: Inserted Employee: $employee");
+          }
+        }
+
+        for (var orderType in assetResponse.orderTypes) {
+          await txn.insert(AppDBConst.orderTypeTable, {
+            ...orderType.toMap(),
+            AppDBConst.assetId: assetId,
+          });
+          if (kDebugMode) {
+            print("#### AssetDBHelper: Inserted orderType with slug: ${orderType.slug}");
+          }
+        }
+
+      } catch (e) {
+        if (kDebugMode) print("#### AssetDBHelper: Error saving assets: $e");
+        rethrow;
       }
     });
   }
@@ -262,6 +389,127 @@ class AssetDBHelper { //Build #1.0.54: added
       print("#### AssetDBHelper: Store details query result: $result");
     }
     return result.isNotEmpty ? StoreDetails.fromJson(result.first) : null;
+  }
+
+  // Build #1.0.69 : added new functions based on new response of assets api
+  Future<List<Denom>> getNotesDenomList() async {
+    if (kDebugMode) {
+      print("#### AssetDBHelper: Fetching notes denom list");
+    }
+    final db = await database;
+    final result = await db.query(
+      AppDBConst.notesDenomTable,
+      orderBy: 'CAST(denom AS REAL) DESC', // Build #1.0.70 - Sort by numeric value in descending order
+    );
+    if (kDebugMode) {
+      print("#### AssetDBHelper: Retrieved ${result.length} notes denom in descending order: ${result.map((e) => e['denom']).toList()}");
+    }
+    return result.map((map) => Denom.fromJson(map)).toList();
+  }
+
+  Future<List<Denom>> getCoinDenomList() async {
+    if (kDebugMode) {
+      print("#### AssetDBHelper: Fetching coin denom list");
+    }
+    final db = await database;
+    final result = await db.query(
+      AppDBConst.coinDenomTable,
+      orderBy: 'CAST(denom AS REAL) DESC', // Build #1.0.70 - Sort by numeric value in descending order
+    );
+    if (kDebugMode) {
+      print("#### AssetDBHelper: Retrieved ${result.length} coin denom in descending order: ${result.map((e) => e['denom']).toList()}");
+    }
+    return result.map((map) => Denom.fromJson(map)).toList();
+  }
+
+  Future<List<Denom>> getSafeDenomList() async {
+    if (kDebugMode) {
+      print("#### AssetDBHelper: Fetching safe denom list");
+    }
+    final db = await database;
+    final result = await db.query(AppDBConst.safeDenomTable);
+    if (kDebugMode) {
+      print("#### AssetDBHelper: Retrieved ${result.length} safe denom");
+    }
+    return result.map((map) => Denom.fromJson(map)).toList();
+  }
+
+  Future<List<Denom>> getTubesDenomList() async {
+    if (kDebugMode) {
+      print("#### AssetDBHelper: Fetching tubes denom list");
+    }
+    final db = await database;
+    final result = await db.query(AppDBConst.tubesDenomTable);
+    if (kDebugMode) {
+      print("#### AssetDBHelper: Retrieved ${result.length} tubes denom");
+    }
+    return result.map((map) => Denom.fromJson(map)).toList();
+  }
+
+  //Build #1.0.74: Naveen Added
+  Future<List<Vendor>> getVendorList() async {
+    if (kDebugMode) {
+      print("#### AssetDBHelper: Fetching vendor list");
+    }
+    final db = await database;
+    final result = await db.query(AppDBConst.vendorTable);
+    if (kDebugMode) print("#### AssetDBHelper: Retrieved ${result.length} vendors: ${result.map((v) => 'ID: ${v[AppDBConst.vendorId]}, Name: ${v[AppDBConst.vendorName]}').toList()}");
+    return result.map((map) => Vendor.fromJson({
+      'id': map[AppDBConst.vendorId],
+      'vendor_name': map[AppDBConst.vendorName],
+    })).toList();
+  }
+
+  Future<List<String>> getVendorPaymentTypesList() async {
+    if (kDebugMode) {
+      print("#### AssetDBHelper: Fetching vendor payment types list");
+    }
+    final db = await database;
+    final result = await db.query(AppDBConst.vendorPaymentTypesTable);
+    if (kDebugMode) {
+      print("#### AssetDBHelper: Retrieved ${result.length} payment types");
+    }
+    return result.map((map) => map[AppDBConst.paymentType] as String).toList();
+  }
+
+  Future<List<String>> getVendorPaymentPurposeList() async {
+    if (kDebugMode) {
+      print("#### AssetDBHelper: Fetching vendor payment purpose list");
+    }
+    final db = await database;
+    final result = await db.query(AppDBConst.vendorPaymentPurposeTable);
+    if (kDebugMode) {
+      print("#### AssetDBHelper: Retrieved ${result.length} payment purposes");
+    }
+    return result.map((map) => map[AppDBConst.paymentPurpose] as String).toList();
+  }
+
+  Future<List<Employees>> getEmployeeList() async {
+    if (kDebugMode) {
+      print("#### AssetDBHelper: Fetching employee list");
+    }
+    final db = await database;
+    final result = await db.query(AppDBConst.employeesTable);
+    if (kDebugMode) {
+      print("#### AssetDBHelper: Retrieved ${result.length} employees");
+    }
+    return result.map((map) => Employees.fromJson({
+      'ID': map[AppDBConst.employeeId],
+      'display_name': map[AppDBConst.employeeDisplayName],
+    })).toList();
+  }
+
+  // Retrieve list of orderType
+  Future<List<OrderType>> getOrderTypeList() async {
+    if (kDebugMode) {
+      print("#### AssetDBHelper: Fetching order type list");
+    }
+    final db = await database;
+    final result = await db.query(AppDBConst.orderTypeTable);
+    if (kDebugMode) {
+      print("#### AssetDBHelper: Retrieved ${result.length} order types");
+    }
+    return result.map((map) => OrderType.fromJson(map)).toList();
   }
 
   // Close the database connection

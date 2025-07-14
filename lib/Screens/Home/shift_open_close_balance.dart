@@ -316,6 +316,7 @@ class _ShiftOpenCloseBalanceScreenState extends State<ShiftOpenCloseBalanceScree
         child: Column(
           children: [
             TopBar(
+              screen: Screen.SHIFT,
               onModeChanged: () { //Build #1.0.84: Issue fixed: nav mode re-setting
                 String newLayout;
                 setState(() {

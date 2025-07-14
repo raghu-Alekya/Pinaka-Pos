@@ -1,3 +1,6 @@
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+// import 'package:image/image.dart' as img;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
@@ -30,6 +33,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool isRetailer = true;
   String layoutSelection = ""; // Default layout
   final StoreValidationRepository _storeValidationRepository = StoreValidationRepository();
+  File? _selectedIcon;
 
   TextEditingController nameController = TextEditingController();
   TextEditingController contactNoController = TextEditingController();
@@ -116,6 +120,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
       print("#### _loadAppThemeMode : $appearance");
     }
   }
+
+  // Build #1.0.108: for image selection
+  Future<void> _pickIcon() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      final imageFile = File(pickedFile.path);
+      final image = await decodeImageFromList(await imageFile.readAsBytes());
+      if (image.width <= 128 && image.height <= 128 && pickedFile.path.endsWith('.png')) {
+        setState(() {
+          _selectedIcon = imageFile;
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Please select a PNG image with max 128x128')),
+        );
+      }
+    }
+  }
+
+  // Build #1.0.108: Added to save action in saveButton onPressed
+  Future<void> _saveReceiptSettings() async {
+    final userData = await UserDbHelper().getUserData();
+    if (userData != null) {
+      Map<String, dynamic> receiptSettings = {
+        TextConstants.userId: userData[AppDBConst.userId],
+        TextConstants.iconPath: _selectedIcon?.path,
+        TextConstants.conHeaderText: headerController.text,
+        TextConstants.conFooterText: footerController.text,
+      };
+      await UserDbHelper().saveReceiptSettings(receiptSettings);
+    }
+  }
+
   @override
   void dispose() {
     nameController.dispose();
@@ -153,6 +191,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             ),
             onPressed: () {
+              _saveReceiptSettings(); // Build #1.0.108: Save Receipt settings into user db table
               Navigator.pop(context);
             },
             child: Text(TextConstants.saveChangesBtnText, style: TextStyle(color: Colors.black)),
@@ -281,6 +320,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  // Build #1.0.108: Modified _buildReceiptSettingSection
   Widget _buildReceiptSettingSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -293,16 +333,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
         SizedBox(height: 16),
         Row(
           children: [
-            Icon(Icons.image, size: 80, color: Colors.white70),
+            GestureDetector(
+              onTap: _pickIcon,
+              child: Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: Colors.grey[800],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: _selectedIcon != null
+                    ? Image.file(_selectedIcon!, fit: BoxFit.cover)
+                    : Icon(Icons.image, color: Colors.white70),
+              ),
+            ),
             SizedBox(width: 10),
             Expanded(
-                child: _buildTextField(
-                    label: TextConstants.companyNameText, controller: companyNameController, hintText: TextConstants.companyNameHintText)),
+              child: _buildTextField(
+                  label: TextConstants.companyNameText,
+                  controller: companyNameController,
+                  hintText: TextConstants.companyNameHintText),
+            ),
           ],
         ),
         _buildTextField(label: TextConstants.gstinText, controller: gstInController, hintText: TextConstants.gstinHintText),
-        _buildTextField(label: TextConstants.headerText, hintText: TextConstants.headerHintText),
-        _buildTextField(label: TextConstants.footerText, hintText: TextConstants.footerHintText),
+        _buildTextField(
+            label: TextConstants.headerText,
+            hintText: TextConstants.headerHintText,
+            controller: headerController),
+        _buildTextField(
+            label: TextConstants.footerText,
+            hintText: TextConstants.footerHintText,
+            controller: footerController),
       ],
     );
   }

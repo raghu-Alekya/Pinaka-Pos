@@ -1371,8 +1371,14 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                                             // );
                                             final serverOrderId = orderHelper.activeOrderId;//order[AppDBConst.orderServerId] as int?;
                                             final dbOrderId = orderHelper.activeOrderId;
-                                            final productId = orderItem[AppDBConst.itemServerId] as int?;
-
+                                            // Build #1.0.108: Fixed : Edit product not working
+                                            // prev we are passing itemServerId rather than itemProductId & based on variation id we have to pass that id
+                                            final productId = orderItem[AppDBConst.itemProductId] as int?;
+                                            final serverVariationId = orderItem[AppDBConst.itemVariationId] as int?;
+                                            // Use productId if serverVariationId is null or 0, otherwise use serverVariationId
+                                            final variationOrProductId = (serverVariationId == null || serverVariationId == 0)
+                                                ? productId
+                                                : serverVariationId;
                                             if (serverOrderId != null && dbOrderId != null && productId != null) {
                                               setState(() => _isLoading = true);
                                               _updateOrderSubscription?.cancel();
@@ -1407,12 +1413,18 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                                                   setState(() => _isLoading = false); //Build #1.0.92: Fixed Issue: Loader in order panel does not stop on edit item
                                                 }
                                               });
+
+                                              if (kDebugMode) { // Build #1.0.108:
+                                                print("##### DEBUG: 4321 , variationOrProductId: $variationOrProductId, productId: $productId, serverVariationId: $serverVariationId");
+                                              }
+
                                               await orderBloc.updateOrderProducts(
                                                 orderId: serverOrderId,
                                                 dbOrderId: dbOrderId,
+                                                isEditQuantity: true,
                                                 lineItems: [
                                                   OrderLineItem(
-                                                    id: productId,
+                                                    productId: variationOrProductId, // Build #1.0.108: we have to pass itemProductId or itemVariationId, otherwise it won't update qty.
                                                     quantity: newQuantity,
                                                     // sku: orderItem[AppDBConst.itemSKU] ?? '',
                                                   ),
@@ -1658,7 +1670,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                                   children: [
                                     SvgPicture.asset("assets/svg/discount_star.svg", height: 12, width: 12),
                                     Text(TextConstants.merchantDiscount, style: TextStyle(color: Colors.blue, fontSize: 10)),
-                                    GestureDetector(
+                                    merchantDiscount.toStringAsFixed(2) == '0.00' ? SizedBox() : GestureDetector(
                                       onTap: () async {
                                         //Passed dbOrderId to removeFeeLines.
                                         // Removed database operations, as they’re now in OrderBloc.removeFeeLines.
@@ -1863,7 +1875,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                           // Build #1.0.104: Navigate to OrderSummaryScreen and listen for result
                           final result = await Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (_) => OrderSummaryScreen()),
+                            MaterialPageRoute(builder: (_) => OrderSummaryScreen(formattedDate: '',formattedTime: '',)),
                           );
                           if (kDebugMode) {
                             print("###### FastKeyScreen: Returned from OrderSummaryScreen with result: $result");

@@ -90,6 +90,7 @@ class _EditProductScreenState extends State<EditProductScreen> with SingleTicker
         children: [
           // Top Bar
           TopBar(
+            screen: Screen.EDIT,
             onModeChanged: () { //Build #1.0.84: Issue fixed: nav mode re-setting
               String newLayout;
               setState(() {

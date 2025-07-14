@@ -51,16 +51,12 @@ class ProductBloc { // Build #1.0.13: Added Product Search Bloc
     productSink.add(APIResponse.loading(TextConstants.loading));
     try {
       List<ProductResponse> products = await _productRepository.fetchProducts(searchQuery: searchQuery);
-
-      if (products.isNotEmpty) {
-        if (kDebugMode) {
-          print("ProductBloc - Fetched ${products.length} products");
-          print("First product: ${products.first.toJson()}");
-        }
-        productSink.add(APIResponse.completed(products));
-      } else {
-        productSink.add(APIResponse.error("No products found"));
+      if (kDebugMode) {
+        print("ProductBloc - Fetched ${products.length} products");
+        print("First product: ${products.first.toJson()}");
       }
+      productSink.add(APIResponse.completed(products));
+
     } catch (e) {
       if (e.toString().contains('SocketException')) {
         productSink.add(APIResponse.error("Network error. Please check your connection."));
@@ -84,19 +80,12 @@ class ProductBloc { // Build #1.0.13: Added Product Search Bloc
     try {
       List<ProductVariation> variations = await _productRepository.fetchProductVariations(productId);
 
-      if (variations.isNotEmpty) {
-        if (kDebugMode) {
-          print("ProductBloc - Fetched ${variations.length} variations for product $productId");
-          print("First variation: ${variations.first.toJson()}");
-        }
-        variationSink.add(APIResponse.completed(variations));
-      } else {
-        if (kDebugMode) {
-          print("ProductBloc - Fetched ${variations.length} variations for product $productId");
-          print("No variations found");
-        }
-        variationSink.add(APIResponse.error("No variations found"));
+      if (kDebugMode) {
+        print("ProductBloc - Fetched ${variations.length} variations for product $productId");
+        print("First variation: ${variations.first.toJson()}");
       }
+      variationSink.add(APIResponse.completed(variations));
+
     } catch (e) {
       if (e.toString().contains('SocketException')) {
         variationSink.add(APIResponse.error("Network error. Please check your connection."));

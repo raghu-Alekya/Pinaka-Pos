@@ -57,6 +57,7 @@ class _AddScreenState extends State<AddScreen> with LayoutSelectionMixin {
         children: [
           // Top Bar
           TopBar(
+            screen: Screen.ADD,
             onModeChanged: () { //Build #1.0.84: Issue fixed: nav mode re-setting
               String newLayout;
               setState(() {

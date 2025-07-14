@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
+import '../Constants/text.dart';
 import '../Models/Auth/login_model.dart';
 import '../Models/Auth/store_validation_model.dart';
 import 'db_helper.dart';
@@ -135,6 +136,44 @@ class UserDbHelper { // Build #1.0.13: Added for user data into db
       if (kDebugMode) print("Error checking store validation status: $e");
       return false;
     }
+  }
+  // Build #1.0.108: Save Receipt Settings
+  Future<void> saveReceiptSettings(Map<String, dynamic> settings) async {
+    final db = await DBHelper.instance.database;
+    await db.update(
+      AppDBConst.userTable,
+      {
+        AppDBConst.receiptIconPath: settings[TextConstants.iconPath],
+        AppDBConst.receiptHeaderText: settings[TextConstants.conHeaderText],
+        AppDBConst.receiptFooterText: settings[TextConstants.conFooterText],
+      },
+      where: '${AppDBConst.userId} = ?',
+      whereArgs: [settings[TextConstants.userId]],
+    );
+    if (kDebugMode) {
+      print("#### Receipt settings saved for user: ${settings[TextConstants.userId]}");
+    }
+  }
+
+  // Build #1.0.108: Get Receipt Settings
+  Future<Map<String, dynamic>?> getReceiptSettings(int userId) async {
+    final db = await DBHelper.instance.database;
+    List<Map<String, dynamic>> result = await db.query(
+      AppDBConst.userTable,
+      columns: [
+        AppDBConst.receiptIconPath,
+        AppDBConst.receiptHeaderText,
+        AppDBConst.receiptFooterText
+      ],
+      where: '${AppDBConst.userId} = ?',
+      whereArgs: [userId],
+      limit: 1,
+    );
+    if (result.isNotEmpty) {
+      if (kDebugMode) print("#### Retrieved receipt settings: ${result.first}");
+      return result.first;
+    }
+    return null;
   }
 
   /// ✅ Logout - Clear User Data

@@ -71,6 +71,11 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
   final TextEditingController _customItemPriceController = TextEditingController();
   final TextEditingController _skuController = TextEditingController();
 
+  // Function to check if the item name is empty
+  bool _isItemNameEmpty() {
+    return _customItemNameController.text.trim().isEmpty;
+  }
+
   @override
   void initState() {
     orderBloc = OrderBloc(OrderRepository()); // Build #1.0.53
@@ -90,6 +95,10 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
     _loadTaxSlabs();
     // Initialize the selected tab index from widget
     _selectedTabIndex = widget.selectedTabIndex;
+    // Add a listener to _customItemNameController to track changes in the text field
+    _customItemNameController.addListener(() {
+      setState(() {});  // Trigger a rebuild when the text changes
+    });
   }
 
   Future<void> _loadTaxSlabs() async {
@@ -796,7 +805,6 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
             color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.paymentEntryContainerColor : Color(0xFFECE9E9), // Custom background color,
             borderRadius: BorderRadius.circular(10),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
           child: Row(
             children: [
               Expanded(
@@ -806,25 +814,29 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
                   textAlign: TextAlign.start,
                   decoration: InputDecoration(
                     border: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 9) ,
                     hintText: TextConstants.generateTheSku,
                     hintStyle: TextStyle(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.grey),
                   ),
                 ),
               ),
-              ElevatedButton(
-                onPressed: _generateSku,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.redAccent,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+              Padding(
+                padding: const EdgeInsets.all(6.0),
+                child: ElevatedButton(
+                  onPressed:  _isItemNameEmpty() ? null : _generateSku, // Disable functionality if item name is empty,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _isItemNameEmpty() ? Colors.grey : Colors.redAccent, // Change color based on button state
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    //minimumSize: const Size(60, 36),
                   ),
-                  //minimumSize: const Size(60, 36),
-                ),
-                child: const Text(
-                  'Generate',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold,),
+                  child: const Text(
+                    TextConstants.generate,
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold,),
+                  ),
                 ),
               )
             ],
@@ -850,10 +862,10 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
         ),
         const SizedBox(height: 5),
         Container(
-          alignment: Alignment.centerLeft,
+          alignment: Alignment.topLeft,
           height: MediaQuery.of(context).size.height / 17,
           width: MediaQuery.of(context).size.width * 0.2,
-          padding: const EdgeInsets.symmetric(horizontal: 10,vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 10,vertical: 0),
           decoration: BoxDecoration(
             border: Border.all(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.borderColor : Colors.grey.shade300),
             borderRadius: BorderRadius.circular(10),
@@ -874,6 +886,11 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
                 child: Text(
                   value,
                   textAlign: TextAlign.start,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Color(0xFF1E2745),
+                  ),
                 ),
               );
             }).toList(),
@@ -886,7 +903,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
               });
             },
             decoration: InputDecoration(
-             // contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical:0), // left + vertical center
+             contentPadding: const EdgeInsets.only(top: 0, bottom: 10), // left + vertical center
               border: InputBorder.none, // No border at all
               enabledBorder: InputBorder.none,
               focusedBorder: InputBorder.none,
@@ -1527,6 +1544,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
         whereArgs: [orderId, _sku],
       );
 
+      ///Todo: do we neeed this condition to check?
       if (existingItems.isNotEmpty) {
         if (kDebugMode) print("Item with SKU $_sku already exists in order $orderId");
         setState(() => _isCustomItemLoading = false);

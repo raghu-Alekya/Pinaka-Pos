@@ -39,7 +39,14 @@ import 'package:thermal_printer/thermal_printer.dart';
 import 'fast_key_screen.dart';
 
 class OrderSummaryScreen extends StatefulWidget {
-  const OrderSummaryScreen({super.key});
+  final String formattedDate;
+  final String formattedTime;
+
+  const OrderSummaryScreen({
+    required this.formattedDate,
+    required this.formattedTime,
+    super.key,
+  });
 
   @override
   State<OrderSummaryScreen> createState() => _OrderSummaryScreenState();
@@ -78,6 +85,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
   String? paymentId; // To store the transaction ID after wallet payment
   late OrderBloc orderBloc;
   bool _showFullSummary = false;
+  String? _amountErrorText;
 
   @override
   void initState() {
@@ -463,6 +471,32 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
   Widget _buildNavigationBar() {
     final themeHelper = Provider.of<ThemeNotifier>(context);
     final theme = Theme.of(context);
+
+    // Determine the date and time to display
+    String displayDate = widget.formattedDate;
+    String displayTime = widget.formattedTime;
+
+    final order = orderHelper.activeOrderId != null
+        ? orderHelper.orders.firstWhere(
+          (o) => o[AppDBConst.orderServerId] == orderHelper.activeOrderId,
+      orElse: () => {},
+    )
+        : {};
+
+    if (order.isNotEmpty && order[AppDBConst.orderDate] != null) {
+      try {
+        final DateTime createdDateTime = DateTime.parse(order[AppDBConst.orderDate].toString());
+        displayDate = DateFormat("EEE, MMM d, yyyy").format(createdDateTime);
+        displayTime = DateFormat('hh:mm a').format(createdDateTime);
+      } catch (e) {
+        if (kDebugMode) {
+          print("Error parsing order creation date: $e");
+        }
+        // Fallback to raw data or default if parsing fails
+        displayDate = order[AppDBConst.orderDate].toString().split(' ').first;
+      }
+    }
+
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
@@ -487,39 +521,51 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             // Back button
-            Container(
-              padding: EdgeInsets.all(ResponsiveLayout.getPadding(5)),
-              decoration: BoxDecoration(
-                color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground :Colors.white,
-                borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(8)),
-                boxShadow: [
-                  BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 2,
-                      spreadRadius: 1),
-                ],
-              ),
-              child: Row(
-                //mainAxisSize: MainAxisSize.min,
-                //mainAxisAlignment: MainAxisAlignment.start,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  // Icon(Icons.chevron_left, size: 20),
-                  BackButton(
-                    style: ButtonStyle(
-                        alignment: Alignment.centerLeft,
-                        iconSize: WidgetStatePropertyAll(ResponsiveLayout.getIconSize(20))
+            InkWell(
+              borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(8)),
+              onTap: () {
+                _showExitPaymentConfirmation(context);
+              },
+              child: Container(
+                width: ResponsiveLayout.getWidth(80),
+                padding: EdgeInsets.all(ResponsiveLayout.getPadding(5)),
+                decoration: BoxDecoration(
+                  color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground :Colors.white,
+                  borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(8)),
+                  boxShadow: [
+                    BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 2,
+                        spreadRadius: 1),
+                  ],
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Container(
+                        alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                       shape: BoxShape.circle,
+                        color: Colors.white,
+                        border: Border.all(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : Colors.black12)
+                      ),
+                        child: Icon(Icons.chevron_left_rounded, size: 18, color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textLight : Colors.black,)),
+                    // BackButton(
+                    //   style: ButtonStyle(
+                    //       alignment: Alignment.centerLeft,
+                    //       iconSize: WidgetStatePropertyAll(ResponsiveLayout.getIconSize(20))
+                    //   ),
+                    //   // onPressed: () {
+                    //   //   _showExitPaymentConfirmation(context);
+                    //   //   },
+                    // ),
+                    const SizedBox(width: 10),
+                    Text(
+                      'Back',
+                      style: TextStyle(fontSize: ResponsiveLayout.getFontSize(15)),
                     ),
-                    onPressed: () {
-                      _showExitPaymentConfirmation(context);
-                      },
-                  ),
-                  //const SizedBox(width: 8),
-                  Text(
-                    'Back',
-                    style: TextStyle(fontSize: ResponsiveLayout.getFontSize(14)),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
             SizedBox(width: ResponsiveLayout.getWidth(16)),
@@ -534,7 +580,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                 Icon(Icons.calendar_month_rounded, size: ResponsiveLayout.getIconSize(14),),
                 SizedBox(width: ResponsiveLayout.getWidth(4)),
                 Text(
-                    DateFormat("EEE, MMM d' ${DateTime.now().year}'").format(DateTime.now()),//'Sunday, 16 March 2025',
+                  displayDate, //'Sunday, 16 March 2025',
                   style: TextStyle(color: theme.secondaryHeaderColor,
                     fontSize: ResponsiveLayout.getFontSize(14),
                   ),
@@ -549,7 +595,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                 Icon(Icons.access_time, size: ResponsiveLayout.getIconSize(14),),
                 SizedBox(width: ResponsiveLayout.getWidth(4)),
                 Text(
-                  DateFormat('hh:mm a').format(DateTime.now()),//'11:41 A.M',
+                  displayTime,//'11:41 A.M',
                   style: TextStyle(
                       color: theme.secondaryHeaderColor, fontWeight: FontWeight.bold, fontSize: ResponsiveLayout.getFontSize(14)),
                     ),
@@ -640,6 +686,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                     radius: const Radius.circular(8),
                     trackVisibility: true,
                     child: ListView.separated(
+                      controller: _scrollController,
                       padding: EdgeInsets.zero,
                       itemCount: orderItems.length,
                       separatorBuilder: (context, index) =>
@@ -669,6 +716,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                 child: AnimatedSize(
                    duration: Duration(milliseconds: 500),
                   curve: Curves.easeInOut,
+                  alignment: Alignment.bottomCenter,
                     child: _showFullSummary
                         ? Container(
                       height: ResponsiveLayout.getHeight(205),
@@ -1286,8 +1334,8 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
       ),
       child: Padding(
         padding: EdgeInsets.only(
-            left: ResponsiveLayout.getPadding(20),
-            right: ResponsiveLayout.getPadding(20),
+            left: ResponsiveLayout.getPadding(18),
+            right: ResponsiveLayout.getPadding(18),
             top: ResponsiveLayout.getPadding(15),
         ),
         child: Row(
@@ -1343,7 +1391,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                             padding: EdgeInsets.only(
                                 left: ResponsiveLayout.getPadding(16),
                               right: ResponsiveLayout.getPadding(16),
-                              top: ResponsiveLayout.getPadding(16),
+                              top: ResponsiveLayout.getPadding(10),
                               //bottom: ResponsiveLayout.getPadding(8),
                             ),
                             decoration: BoxDecoration(
@@ -1377,39 +1425,55 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                                 SizedBox(height: ResponsiveLayout.getHeight(8)),
 
                                   // Amount TextField
-                                Container(
-                                    height: ResponsiveLayout.getHeight(43),
-                                    decoration: BoxDecoration(
-                                      color:themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.paymentEntryContainerColor :  Colors.white,
-                                      borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(6)),
-                                      border: Border.all(color:themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.borderColor : Colors.grey.shade300),
-                                    ),
-                                    child: TextField(
-                                      controller: amountController,//_paymentController,
-                                      readOnly: true,
-                                      textAlign: TextAlign.right,
-                                      enabled: false, // Disables interaction with the TextField
-                                      decoration: InputDecoration(
-                                        contentPadding: EdgeInsets.only(right: ResponsiveLayout.getPadding(16)),
-                                        border: InputBorder.none,
-                                        hintText: '${TextConstants.currencySymbol}0.00',
-                                        hintStyle: TextStyle(
-                                          color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark :Colors.grey[400],///800
-                                          fontSize: ResponsiveLayout.getFontSize(20),
-                                          fontWeight: FontWeight.bold,
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Container(
+                                        height: ResponsiveLayout.getHeight(43),
+                                        decoration: BoxDecoration(
+                                          color:themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.paymentEntryContainerColor :  Colors.white,
+                                          borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(6)),
+                                          border: Border.all(color: _amountErrorText != null
+                                              ? Colors.red
+                                              :themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.borderColor : Colors.grey.shade300),
+                                        ),
+                                        child: TextField(
+                                          controller: amountController,//_paymentController,
+                                          readOnly: true,
+                                          textAlign: TextAlign.right,
+                                          enabled: false, // Disables interaction with the TextField
+                                          decoration: InputDecoration(
+                                            contentPadding: EdgeInsets.only(right: ResponsiveLayout.getPadding(16)),
+                                            border: InputBorder.none,
+                                            hintText: '${TextConstants.currencySymbol}0.00',
+                                            hintStyle: TextStyle(
+                                              color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark :Colors.grey[400],///800
+                                              fontSize: ResponsiveLayout.getFontSize(20),
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          style: TextStyle(
+                                            color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.grey[800],
+                                            fontSize: ResponsiveLayout.getFontSize(20),
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                          keyboardType: TextInputType.none, // Hide default keypad
+                                          onTap: () {
+                                            FocusScope.of(context).unfocus(); // Hide keypad
+                                          },
                                         ),
                                       ),
-                                      style: TextStyle(
-                                        color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.grey[800],
-                                        fontSize: ResponsiveLayout.getFontSize(20),
-                                        fontWeight: FontWeight.bold,
+                                    // Conditionally display the error message
+                                    if (_amountErrorText != null)
+                                      Text(
+                                        _amountErrorText!,
+                                        style: TextStyle(
+                                          color: Colors.red,
+                                          fontSize: ResponsiveLayout.getFontSize(12),
+                                        ),
                                       ),
-                                      keyboardType: TextInputType.none, // Hide default keypad
-                                      onTap: () {
-                                        FocusScope.of(context).unfocus(); // Hide keypad
-                                      },
-                                    ),
-                                  ),
+                                  ],
+                                ),
                                 SizedBox(height: ResponsiveLayout.getHeight(8)),
 
                                 // Quick amount buttons
@@ -1437,10 +1501,21 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                                   getPaidAmount: () => amountController.text,
                                   balanceAmount: balanceAmount,
                                   onDigitPressed: (value) {
+                                    // Clear error when user starts typing
+                                    if (_amountErrorText != null) {
+                                      setState(() {
+                                        _amountErrorText = null;
+                                      });
+                                    }
                                     amountController.text = (amountController.text + value).replaceAll(r'$', '');
                                     setState(() {});
                                   },
                                   onClearPressed: () {
+                                    if (_amountErrorText != null) {
+                                      setState(() {
+                                        _amountErrorText = null;
+                                      });
+                                    }
                                     amountController.clear();
                                     setState(() {});
                                   },
@@ -1455,14 +1530,14 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                                     String cleanAmount = paidAmount.replaceAll('${TextConstants.currencySymbol}', '').trim();
                                     double amount = double.tryParse(cleanAmount) ?? 0.0;
 
-                                    if (amount == 0.0) {
-                                      if (kDebugMode) {
-                                        print("Invalid amount entered");
+                                    setState(() {
+                                      if (amount == 0.0) {
+                                        _amountErrorText = 'Please enter a valid amount.';
+                                      } else {
+                                        _amountErrorText = null;
+                                        _callCreatePaymentAPI(); // create payment api call
                                       }
-                                      return;
-                                    }
-
-                                    _callCreatePaymentAPI(); // create payment api call
+                                    }); // create payment api call
                                   },
                                   isLoading: isLoading, // Pass isLoading
                                 )

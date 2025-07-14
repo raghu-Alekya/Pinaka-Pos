@@ -288,9 +288,10 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
       final int variationCount = apiItem.productData.variations?.length ?? 0;
       final String combo = apiItem.metaData.firstWhere((e) => e.value.contains('Combo'), orElse: () => model.MetaData(id: 0, key: "", value: "")).value.split(' ').first ?? "";
       ///Todo: check if these values should come from product data or product variation data or line item data
-      final double salesPrice = double.parse(apiItem.productData.salePrice ?? "0.0");
-      final double regularPrice = double.parse(apiItem.productData.regularPrice ?? "0.0");
-      final double unitPrice = double.parse(apiItem.productData.price ?? "0.0");
+      // Build #1.0.118: Fix: Use double.tryParse to safely handle invalid or null values
+      final double salesPrice = double.tryParse(apiItem.productData.salePrice ?? "0.0") ?? 0.0;
+      final double regularPrice = double.tryParse(apiItem.productData.regularPrice ?? "0.0") ?? 0.0;
+      final double unitPrice = double.tryParse(apiItem.productData.price ?? "0.0") ?? 0.0;
 
       if (kDebugMode) {
         print("#### DEBUG: updateOrderItems - Processing API item ID: $itemId, name: ${apiItem.name}, price: $itemPrice, quantity: $itemQuantity, sumPrice: $itemSumPrice");

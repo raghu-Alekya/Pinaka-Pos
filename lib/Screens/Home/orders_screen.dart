@@ -914,7 +914,7 @@ import '../../Constants/text.dart';
 import '../../Widgets/widget_navigation_bar.dart' as custom_widgets;
 
 import 'package:quickalert/quickalert.dart';
-
+@Deprecated("This Order Screen No longer any use, please use total_orders_screen") // Build #1.0.118
 class OrdersScreen extends StatefulWidget { //Build #1.0.54: updated
   final int? lastSelectedIndex;
 
@@ -941,6 +941,7 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
   String? _sortColumn;
   bool _isAscending = true;
   StreamSubscription? _fetchOrdersSubscription;
+  late OrderScreenPanel _orderScreenPanel;
 
   ///Filters
   // List<String> _availableStatuses = ["All"];
@@ -977,6 +978,7 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
       formattedDate: '',
       formattedTime: '',
       quantities: quantities,
+      fetchOrders: false,
     );
   }
 
@@ -1222,7 +1224,9 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
     super.didChangeDependencies();
     debugPrint("????? OrdersScreen: didChangeDependencies");
     _fetchOrders();
-    _onOrderRowSelected(-1);///initialise order panel
+    /// no need to call -1 here. we are already calling inside fetch orders status completed,
+    /// Because of this default it is showing -1 order id
+    //_onOrderRowSelected(-1);///initialise order panel
   }
 
   @override
@@ -1265,6 +1269,7 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
         children: [
           // Top Bar
           TopBar(
+            screen: Screen.ORDERS,
             onModeChanged: () { //Build #1.0.84: Issue fixed: nav mode re-setting
               String newLayout;
               setState(() {
@@ -1681,7 +1686,7 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
       ),
     );
   }
-  late OrderScreenPanel _orderScreenPanel;
+  // late OrderScreenPanel _orderScreenPanel;
  // method to handle row selection
   void _onOrderRowSelected(int orderId) async {
     debugPrint("OrdersScreen: _onOrderRowSelected id $orderId");
@@ -1741,6 +1746,7 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
       formattedDate: panelDate,
       formattedTime: panelTime,
       quantities: quantities,
+      fetchOrders: true,
     );
     // _orderScreenPanel.setFormattedDate = panelDate;
     // _orderScreenPanel.setFormattedTime = panelTime;

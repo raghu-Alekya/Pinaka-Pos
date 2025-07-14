@@ -159,7 +159,10 @@ class FastKeyProductBloc {  // Build #1.0.15
         }
       } else {
         ///else just update the data for each fast key
-        var i=0;
+        ///Build #1.0.112 : Fixed -> Duplicating fast key tab items
+        // Avoid relying on index-based updates (i++).
+        // Using productId & fastKey server id to match API response products with database records, ensuring updates are applied to the correct items.
+       // var i=0;
         for(var product in response.products){
           var tagg = product.tags?.firstWhere((element) => element.name == "Age Restricted", orElse: () => Tags());
           var hasAgeRestriction = tagg?.name?.contains("Age Restricted");
@@ -174,7 +177,11 @@ class FastKeyProductBloc {  // Build #1.0.15
             AppDBConst.fastKeyProductId: product.productId,  // Build #1.0.19: Updated parameters
             AppDBConst.fastKeyItemMinAge: int.parse(tagg?.slug ?? "0"),
           };
-          fastKeyDBHelper.updateFastKeyProductItem(i++, updatedTab);
+          await fastKeyDBHelper.updateFastKeyProductItemByProductId(
+            fastKeyId,
+            product.productId,
+            updatedTab,
+          );
         }
       }
 

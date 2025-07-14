@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:pinaka_pos/Constants/misc_features.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
@@ -16,7 +17,10 @@ class AppDBConst { // Build #1.0.10 - Naveen: Updated DB tables constants
   static const String userLastName = 'last_name';
   static const String userNickname = 'nickname';
   static const String userToken = 'token';
-  static const String userOrderCount = 'order_count'; // Tracks total orders by the user
+  static const String userOrderCount = 'order_count'; // Build #1.0.108: Tracks total orders by the user
+  static const String receiptIconPath = 'receipt_icon_path';
+  static const String receiptHeaderText = 'receipt_header_text';
+  static const String receiptFooterText = 'receipt_footer_text';
 
   // Orders Table
   static const String orderTable = 'orders_table';
@@ -167,10 +171,12 @@ class DBHelper {
     if (kDebugMode) {
       print("#### DB Path: $path");
     }
-    // Uncomment the line below to delete the database during development/testing
-    // await deleteDatabase(path);
-    // final SharedPreferences prefs = await SharedPreferences.getInstance();
-    // await prefs.clear(); // This removes all stored preferences
+    ///Todo: Uncomment the line below to delete the database during development/testing
+    if(Misc.enableDBDelete) {
+      await deleteDatabase(path);
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.clear(); // This removes all stored preferences
+    }
 
     return await openDatabase(path, version: 1, onCreate: _createTables);
   }
@@ -188,7 +194,10 @@ class DBHelper {
       ${AppDBConst.userLastName} TEXT,
       ${AppDBConst.userNickname} TEXT,
       ${AppDBConst.userToken} TEXT NOT NULL,
-      ${AppDBConst.userOrderCount} INTEGER DEFAULT 0 -- Optional: Tracks total orders by the user
+      ${AppDBConst.userOrderCount} INTEGER DEFAULT 0, -- Optional: Tracks total orders by the user
+      ${AppDBConst.receiptIconPath} TEXT,
+      ${AppDBConst.receiptHeaderText} TEXT,
+      ${AppDBConst.receiptFooterText} TEXT
     )
     ''');
 

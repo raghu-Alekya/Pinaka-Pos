@@ -57,6 +57,7 @@ class _AppsDashboardScreenState extends State<AppsDashboardScreen> with LayoutSe
         children: [
           // Top Bar
           TopBar(
+            screen: Screen.APPS,
             onModeChanged: () { //Build #1.0.84: Issue fixed: nav mode re-setting
               String newLayout;
               setState(() {

@@ -30,6 +30,7 @@ class ProductResponse { // Build #1.0.13 : Added product search model
   String? permalink;
   String? dateOnSaleFrom;
   String? dateOnSaleTo;
+  List<int>? variations;
 
   ProductResponse({
     this.id,
@@ -61,6 +62,7 @@ class ProductResponse { // Build #1.0.13 : Added product search model
     this.permalink,
     this.dateOnSaleFrom,
     this.dateOnSaleTo,
+    this.variations,
   });
 
   factory ProductResponse.fromJson(Map<String, dynamic> json) {
@@ -106,6 +108,7 @@ class ProductResponse { // Build #1.0.13 : Added product search model
       permalink: json['permalink'] as String?,
       dateOnSaleFrom: json['date_on_sale_from'] as String?,
       dateOnSaleTo: json['date_on_sale_to'] as String?,
+      variations: (json['variations'] as List?)?.map((item) => item as int).toList() ?? [],
     );
   }
 
@@ -156,6 +159,7 @@ class ProductResponse { // Build #1.0.13 : Added product search model
       'permalink': permalink,
       'date_on_sale_from': dateOnSaleFrom,
       'date_on_sale_to': dateOnSaleTo,
+      'variations': variations,
     };
   }
 }

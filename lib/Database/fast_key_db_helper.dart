@@ -198,6 +198,29 @@ class FastKeyDBHelper { // Build #1.0.11 : FastKeyHelper for all fast key relate
     }
   }
 
+  ///Build #1.0.112 : Fixed -> Duplicating fast key tab items
+  // Using productId & fastKey server id to match API response products with database records, ensuring updates are applied to the correct items.
+  // previously we are using above func updateFastKeyProductItem & using fastKeyItemId that is the issue!
+  Future<void> updateFastKeyProductItemByProductId(
+      int fastKeyId, int productId, Map<String, dynamic> updatedData) async {
+    final db = await DBHelper.instance.database;
+
+    final result = await db.update(
+      AppDBConst.fastKeyItemsTable,
+      updatedData,
+      where: '${AppDBConst.fastKeyIdForeignKey} = ? AND ${AppDBConst.fastKeyProductId} = ?',
+      whereArgs: [fastKeyId, productId],
+    );
+
+    if (kDebugMode) {
+      if (result > 0) {
+        print("#### FastKey Item updated for fastKeyId: $fastKeyId, productId: $productId");
+      } else {
+        print("#### FastKey Item not found for fastKeyId: $fastKeyId, productId: $productId");
+      }
+    }
+  }
+
   Future<void> deleteAllFastKeyProductItems(int tabId) async {
     final db = await DBHelper.instance.database;
 

@@ -4,7 +4,6 @@ import 'package:pinaka_pos/Screens/Auth/login_screen.dart';
 import 'package:pinaka_pos/Screens/Home/apps_dashboard_screen.dart';
 import 'package:pinaka_pos/Screens/Home/categories_screen.dart';
 import 'package:pinaka_pos/Screens/Home/fast_key_screen.dart';
-import 'package:pinaka_pos/Screens/Home/orders_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:quickalert/models/quickalert_animtype.dart';
 import 'package:quickalert/models/quickalert_type.dart';
@@ -17,6 +16,7 @@ import '../Constants/text.dart';
 import '../Screens/Home/add_screen.dart';
 import '../Screens/Home/Settings/settings_screen.dart';
 import '../Screens/Home/shift_open_close_balance.dart';
+import '../Screens/Home/total_orders_screen.dart';
 
 class NavigationBar extends StatelessWidget {
   final int selectedSidebarIndex;
@@ -316,6 +316,7 @@ class NavigationBar extends StatelessWidget {
 
   Widget _buildHorizontalLayout(BuildContext context, String? shiftId) {
     int lastSelectedIndex = 0;
+    final themeHelper = Provider.of<ThemeNotifier>(context);
     return LayoutBuilder(
       builder: (context, constraints) {
         if (kDebugMode) {
@@ -366,7 +367,7 @@ class NavigationBar extends StatelessWidget {
             isVertical: false,
           ),
           SidebarButton(
-            icon: Icons.add_box_outlined,
+            icon: Icons.add,
             label: TextConstants.addText,
             isSelected: selectedSidebarIndex == 2,
             onTap: shiftId == null || shiftId.isEmpty
@@ -464,24 +465,28 @@ class NavigationBar extends StatelessWidget {
                 print("nav logout called");
               }
               QuickAlert.show(
+                backgroundColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : Colors.white ,
                 context: context,
                 type: QuickAlertType.custom,
                 showCancelBtn: true,
                 showConfirmBtn: true,
                 title: TextConstants.logoutText,
+                titleColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight,
                 width: 450,
                 text: TextConstants.doYouWantTo,
+                textColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight,
                 confirmBtnText: TextConstants.logoutText,
                 cancelBtnText: TextConstants.cancelText,
                 headerBackgroundColor: const Color(0xFF2CD9C5),
                 confirmBtnColor: Colors.blue,
-                confirmBtnTextStyle:
-                const TextStyle(color: Colors.white, fontSize: 16),
-                cancelBtnTextStyle:
-                const TextStyle(color: Colors.grey, fontSize: 16),
+                confirmBtnTextStyle: const TextStyle(color: Colors.white, fontSize: 16),
+                cancelBtnTextStyle: TextStyle(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.grey, fontSize: 16),
+
                 customAsset: null,
                 animType: QuickAlertAnimType.scale,
                 barrierDismissible: false,
+
+                // Widget for the Close Shift button
                 widget: Padding(
                   padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
                   child: SwipeButton(
@@ -489,37 +494,38 @@ class NavigationBar extends StatelessWidget {
                       Icons.double_arrow_rounded,
                       color: Colors.white,
                     ),
-                    child: Text(
-                      TextConstants.swipeToCloseShift,
-                      style: TextStyle(color: Colors.white, fontSize: 16),
-                    ),
                     borderRadius: BorderRadius.circular(25),
                     activeThumbColor: Colors.orangeAccent,
                     activeTrackColor: Colors.orange,
                     onSwipe: () {
+                      // Close shift functionality
                       if (kDebugMode) {
                         print("Shift closed");
                       }
+                      ///Todo: call shift-open-close-balance screen and set the title to "Shift close balanse"
+                      ///
                       Navigator.of(context).pop();
                       Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (context) => ShiftOpenCloseBalanceScreen(),
-                          settings:
-                          RouteSettings(arguments: TextConstants.navLogout),
+                          settings: RouteSettings(arguments: TextConstants.navLogout),  // Build #1.0.70
                         ),
                       );
                     },
+                    child: Text(
+                      TextConstants.swipeToCloseShift,
+                      style: TextStyle(color: Colors.white, fontSize: 16),
+                    ),
                   ),
                 ),
                 onConfirmBtnTap: () {
+                  /// logout function
                   Navigator.of(context).pop();
-                  Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                          builder: (context) => LoginScreen()));
+                  Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen(),));
                 },
                 onCancelBtnTap: () {
+                  /// cancel
                   Navigator.of(context).pop();
                 },
               );
@@ -533,6 +539,9 @@ class NavigationBar extends StatelessWidget {
         Widget dynamicRow = SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            spacing: 10,
             children: dynamicItems,
           ),
         );
@@ -540,6 +549,7 @@ class NavigationBar extends StatelessWidget {
         return Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 0), // Adjust padding as needed
           child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               // Dynamic part takes the available space.
               Expanded(child: dynamicRow),

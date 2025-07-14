@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image/image.dart' as img;
 import 'package:pinaka_pos/Helper/Extentions/extensions.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:thermal_printer/esc_pos_utils_platform/esc_pos_utils_platform.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:flutter_svg/svg.dart';
@@ -37,12 +38,16 @@ class OrderScreenPanel extends StatefulWidget {
   final String formattedTime;
   final List<int> quantities;
   final VoidCallback? refreshOrderList;
+  final int? activeOrderId; // Build #1.0.118: Added activeOrderId
+  bool fetchOrders;
 
   OrderScreenPanel({
     required this.formattedDate,
     required this.formattedTime,
     required this.quantities,
     this.refreshOrderList,
+    this.activeOrderId,
+    this.fetchOrders = false,
     Key? key,
   }) : super(key: key);
 
@@ -86,10 +91,11 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
 
   }
 
+  // Build #1.0.118: Updated fetchOrdersData to use widget.activeOrderId
   Future<void> fetchOrdersData() async { // Build #1.0.104: created this function for initial load and back button refresh
     setState(() => _isLoading = true); // show loader
     if (kDebugMode) {
-      print("##### fetchOrdersData called");
+      print("##### fetchOrdersData called for activeOrderId: ${widget.activeOrderId}");
     }
     await fetchOrder();
     await fetchOrderItems();
@@ -97,26 +103,29 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
     setState(() => _isLoading = false); // Hide loader
   }
 
+ // Updated didUpdateWidget to check activeOrderId
   @override
   void didUpdateWidget(OrderScreenPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (mounted) {
-      fetchOrder();
-      fetchOrderItems();
-    }
-
-    if (kDebugMode) {
-      print("##### OrderPanel didUpdateWidget");
+    if (mounted && widget.activeOrderId != oldWidget.activeOrderId) {  // Build #1.0.118
+      if (kDebugMode) {
+        print("##### OrderPanel didUpdateWidget: activeOrderId changed from ${oldWidget.activeOrderId} to ${widget.activeOrderId}");
+      }
+      fetchOrdersData();
     }
   }
   var _order;
+  // Build #1.0.118: Update fetchOrder to use widget.activeOrderId
   Future<void> fetchOrder() async {
-    List<Map<String, dynamic>> ordersData = await orderHelper.getOrderById(orderHelper.activeOrderId!);
-    _order = ordersData
-        .firstWhere(
-          (o) => o[AppDBConst.orderServerId] == orderHelper.activeOrderId,
-      orElse: () => {AppDBConst.orderStatus: ''},
-    );
+    if (widget.activeOrderId != null) {
+      List<Map<String, dynamic>> ordersData = await orderHelper.getOrderById(widget.activeOrderId!);
+      _order = ordersData.firstWhere(
+            (o) => o[AppDBConst.orderServerId] == widget.activeOrderId,
+        orElse: () => {AppDBConst.orderStatus: ''},
+      );
+    } else {
+      _order = {AppDBConst.orderStatus: ''};
+    }
   }
 
   // // Build #1.0.10: Fetches the list of order tabs from OrderHelper
@@ -428,15 +437,122 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
     }
   }
 
+  Widget _buildShimmerEffect() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey[300]!,
+      highlightColor: Colors.grey[100]!,
+      child: Container(
+        width: MediaQuery.of(context).size.width * 0.30,
+        padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+        child: Card(
+          elevation: 4,
+          margin: const EdgeInsets.only(top: 10),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Column(
+            children: [
+              // Header shimmer
+              Container(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    Container(
+                      width: 100,
+                      height: 20,
+                      color: Colors.white,
+                    ),
+                    const SizedBox(height: 10),
+                    Container(
+                      width: double.infinity,
+                      height: 15,
+                      color: Colors.white,
+                    ),
+                  ],
+                ),
+              ),
+              // Content shimmer
+              Expanded(
+                child: ListView.builder(
+                  itemCount: 5,
+                  itemBuilder: (_, __) => Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 60,
+                          height: 60,
+                          color: Colors.white,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                width: double.infinity,
+                                height: 10,
+                                color: Colors.white,
+                              ),
+                              const SizedBox(height: 5),
+                              Container(
+                                width: 100,
+                                height: 10,
+                                color: Colors.white,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              // Footer shimmer
+              Container(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      height: 15,
+                      color: Colors.white,
+                    ),
+                    const SizedBox(height: 10),
+                    Container(
+                      width: double.infinity,
+                      height: 40,
+                      color: Colors.white,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
 
     final themeHelper = Provider.of<ThemeNotifier>(context);
-    String displayDate = widget.formattedDate;
-    String displayTime = widget.formattedTime;
     final RightOrderPanel orderScreenPanel = RightOrderPanel(formattedDate: '', formattedTime: '', quantities: []);
-    return Container(
+
+    // If no order is active, display a blank panel.
+    return (!widget.fetchOrders) ? _buildShimmerEffect()
+    //     ? Container(
+    //   width: MediaQuery.of(context).size.width * 0.30,
+    //   padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+    //   child: Card(
+    //     elevation: 4,
+    //     margin: const EdgeInsets.only(top: 10),
+    //     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+    //     child: Container(), // Shows an empty card
+    //   ),
+    // )
+
+    // If an order is active, build the regular order panel.
+        : Container(
       width: MediaQuery.of(context).size.width * 0.30,
       padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
       child: Card(
@@ -1304,7 +1420,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                           // Build #1.0.104: refresh when back to this screen
                           final result = await Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (_) => OrderSummaryScreen()),
+                            MaterialPageRoute(builder: (_) => OrderSummaryScreen(formattedTime: '',formattedDate: '',)),
                           );
                           if (kDebugMode) {
                             print("###### OrderScreenPanel: Returned from OrderSummaryScreen with result: $result");

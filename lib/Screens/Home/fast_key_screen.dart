@@ -802,6 +802,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
             return;
           }
           if (response.status == Status.LOADING) { // Build #1.0.80
+            if (kDebugMode) print("Loading stated in fastkey under _onItemSelected ...");
             const Center(child: CircularProgressIndicator());
           }else if (response.status == Status.COMPLETED) {
          //   setState(() => isAddingItemLoading = false);
@@ -1201,7 +1202,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                   children: [
                     Text(
                       isEditing
-                          ? TextConstants.editCateText
+                          ? TextConstants.editFastKeyNameText
                           : TextConstants.addFastKeyNameText,
                       style: TextStyle(
                         fontSize: 24,
@@ -1803,6 +1804,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
       body: Column(
         children: [
           TopBar(
+            screen: Screen.FASTKEY,
             onModeChanged: () {
               String newLayout;
               setState(() {

@@ -71,6 +71,7 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String addCateText           = "Add Category";
   static const String imgRequiredText       = "Image is required";
   static const String addFastKeyNameText    = "Add Fast key Name";
+  static const String editFastKeyNameText    = "Edit Fast key";
   static const String uploadImage           = "Upload Image";
   static const String nameText              = "Name";
   static const String nameReqText           = "Name is required";
@@ -199,6 +200,7 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String itemPrice             = "Item Price";
   static const String sku                   = "SKU";
   static const String generateTheSku        = "Generate the SKU";
+  static const String generate              = "Generate";
   static const String enterThePrice         = "Enter the Price";
   static const String chooseTaxSlab         = "Choose TAX Slab";
   static const String addPaymentAmount      = "Add Payout Amount";
@@ -278,6 +280,11 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String fastKeyId             = 'fastkey_id';  //Build #1.0.89
   static const String productId             = 'product_id';
 
+  static const String userId                = 'user_id'; //Build #1.0.108
+  static const String iconPath              = 'icon_path';
+  static const String conHeaderText         = 'header_text';
+  static const String conFooterText         = 'footer_text';
+  static const String ageRestricted         = 'Age Restricted';
 
 
   //Build #1.0.54: added

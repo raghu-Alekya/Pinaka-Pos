@@ -31,16 +31,16 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
     super.initState();
     quantity = widget.orderItem[AppDBConst.itemCount];
     controller = TextEditingController(
-        text: quantity == 0 ? "1" : quantity.toString()
+        text: quantity == 0 ? "0" : quantity.toString()
     );
   }
 
   void updateQuantity(int newQuantity) {
-    if(newQuantity == 0 )
-      return;
+    // if(newQuantity == 0 )
+    //   return;
     setState(() {
       quantity = newQuantity;
-      controller.text = quantity == 0 ? "1" : quantity.toString();
+      controller.text = quantity == 0 ? "0" : quantity.toString();
     });
   }
 
@@ -58,11 +58,11 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
           height: MediaQuery.of(context).size.height * 0.9,
           padding: const EdgeInsets.all(5.0),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            //mainAxisSize: MainAxisSize.min,
             children: [
               // Title with close button
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Expanded(
                     child: Text(
@@ -72,25 +72,28 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                     ),
                   ),
                   Container(
+                    width: 50.0,
+                    height: 40.0,
+                    margin: EdgeInsets.only(top: 10, right: 15),
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: Colors.red
                     ),
                     child: IconButton(
-                      icon: Icon(Icons.close,color: Colors.white,),
+                      icon: Icon(Icons.close,color: Colors.white,size: 20,),
                       onPressed: () => Navigator.of(context).pop(),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 5),
 
               // Product information
               Center(
                 child: Container(
                   //width: MediaQuery.of(context).size.width * 0.2,
                   width: MediaQuery.of(context).size.width /3,
-                  height: MediaQuery.of(context).size.height * 0.15,
+                  height: MediaQuery.of(context).size.height * 0.16,
                   padding: EdgeInsets.all(16.0),
                   decoration: BoxDecoration(
                     color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : Colors.white,
@@ -127,18 +130,24 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(
-                            widget.orderItem[AppDBConst.itemName],
-                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                          Container(
+                            width: MediaQuery.of(context).size.width * 0.23,
+                            child: Text(
+                              widget.orderItem[AppDBConst.itemName],
+                              maxLines: 2,
+                              softWrap: true,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
                           ),
-                          const SizedBox(height: 5),
+                          const SizedBox(height: 4),
                           Text(
                             "Unit Price: ${TextConstants.currencySymbol}${widget.orderItem[AppDBConst.itemPrice].toStringAsFixed(2)}",
                             style: TextStyle(fontSize: 12,
                                 //color: Colors.grey.shade700
                             ),
                           ),
-                          const SizedBox(height: 5),
+                          const SizedBox(height: 4),
                           Text(
                           //  "Total: \$${(quantity * widget.orderItem[AppDBConst.itemCount] * widget.orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}",
                             "Total: ${TextConstants.currencySymbol}${(quantity * widget.orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}", //Build 1.1.36
@@ -154,7 +163,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 15),
 
               // Quantity controls -- Using our new stateless widget
               QuantityControl(
@@ -163,10 +172,10 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                 onDecrement: updateQuantity,
                 onIncrement: updateQuantity,
               ),
-              const SizedBox(height: 20,),
+              const SizedBox(height: 15,),
 
               // NumPad
-              Container(
+              SizedBox(
                 //color: Colors.red,
                 //margin: EdgeInsets.all(5.0),
                 //padding: EdgeInsets.all(2.0),
@@ -176,11 +185,11 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                   isDarkTheme: themeHelper.themeMode == ThemeMode.dark,
                   onDigitPressed: (digit) {
                     setState(() {
-                      int newQty = int.tryParse((controller.text.isEmpty ? "1" : controller.text) + digit) ?? quantity;
+                      int newQty = int.tryParse((controller.text.isEmpty ? "0" : controller.text) + digit) ?? quantity;
                       updateQuantity(newQty);
                     });
                   },
-                  onClearPressed: () => updateQuantity(1),
+                  onClearPressed: () => updateQuantity(0),
                   onAddPressed: () {
                     widget.onQuantityUpdated(quantity);
                     Navigator.pop(context);
@@ -188,9 +197,6 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                   actionButtonType: ActionButtonType.add,
                 ),
               ),
-
-              const SizedBox(height: 5,),
-
               // Action buttons
               // Container(
               //   height: MediaQuery.of(context).size.height * 0.070,

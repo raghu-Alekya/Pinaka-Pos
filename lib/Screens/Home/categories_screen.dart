@@ -178,6 +178,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../Blocs/Orders/order_bloc.dart';
 import '../../Blocs/Search/product_search_bloc.dart';
+import '../../Constants/misc_features.dart';
 import '../../Database/db_helper.dart';
 import '../../Helper/Extentions/nav_layout_manager.dart';
 import '../../Models/Orders/orders_model.dart';
@@ -338,7 +339,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
           _selectedSubCategoryIndex = null;
           isLoadingNestedContent = false; // Hide shimmer when data is loaded
         });
-       if (subCategories.isEmpty) {
+        if(Misc.enableCategoryProductWithSubCategoryList || subCategories.isEmpty){
           _loadProductsByCategory(parentId);
         }
         break; // Break after loading subcategories
@@ -485,7 +486,8 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
     final adjustedIndex = index - (showBackButton ? 1 : 0);
     if (adjustedIndex < 0 || adjustedIndex >= categoryProducts.length) return;
 
-    if (!variantAdded) { //Build 1.1.36
+    /// Build #1.0.108: No need if condition same as fast key screen _onItemSelected
+   // if (!variantAdded) { //Build 1.1.36
       // Only add the base product if no variant was added
       final selectedProduct = categoryProducts[adjustedIndex];
       ///Comment below code not we are using only server order id as to check orders, skip checking db order id
@@ -585,11 +587,14 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
             duration: const Duration(seconds: 2),
           ),
         );
+      } finally {
+        _updateOrderSubscription?.cancel(); // Build #1.0.108: Ensure cleanup
+        _updateOrderSubscription = null;
       }
-    } else {
-      // If a variant was added, just refresh the UI
-      _refreshOrderList();
-    }
+    // } else {
+    //   // If a variant was added, just refresh the UI
+    //   _refreshOrderList();
+    // }
   }
 
   void _onNavigationPathTapped(int index) { //Build #1.0.34: fixed code for navigation path issues
@@ -664,6 +669,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
           // Added success toasts for both API and local cases.
           // Preserved debug prints and layout change logic.
           TopBar(
+            screen: Screen.CATEGORY,
             onModeChanged: () {
               String newLayout;
               setState(() {
@@ -857,58 +863,105 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
                         ),
                       Expanded(
                         child:
-                        isShowingSubCategories && subCategories.isNotEmpty ?
-                        // Column(
-                        //   children: [
-                            SubCategoryGridWidget(
-                              isLoading: isLoadingNestedContent,
-                              subCategories: subCategoryListItems,
-                              selectedSubCategoryIndex: _selectedSubCategoryIndex,
-                              onSubCategoryTapped: _onSubCategoryTapped,
-                            )//,
-                            :
-                            NestedGridWidget(
-                              productBloc: productBloc,
-                              orderHelper: orderHelper,
-                              isHorizontal: true,
-                              isLoading: isLoadingNestedContent,
-                              showAddButton: false,
-                              showBackButton: showBackButton,
-                              items: categoryProducts,
-                              selectedItemIndex: selectedItemIndex,
-                              reorderedIndices: reorderedIndices,
-                              onAddButtonPressed: null,
-                              onBackButtonPressed: _onBackToCategories,
-                              onItemTapped: (index, {bool? variantAdded}) => _onItemSelected(index, variantAdded!), //Build #1.0.78: Updated to match the new signature
-                              onReorder: (oldIndex, newIndex) {
-                                if (oldIndex == 0 || newIndex == 0) return;
-                                final adjustedOldIndex = oldIndex - (showBackButton ? 1 : 0);
-                                final adjustedNewIndex = newIndex - (showBackButton ? 1 : 0);
-                                if (adjustedOldIndex < 0 ||
-                                    adjustedNewIndex < 0 ||
-                                    adjustedOldIndex >= categoryProducts.length ||
-                                    adjustedNewIndex >= categoryProducts.length) {
-                                  return;
-                                }
-                                setState(() {
-                                  categoryProducts = List<Map<String, dynamic>>.from(categoryProducts);
-                                  final item = categoryProducts.removeAt(adjustedOldIndex);
-                                  categoryProducts.insert(adjustedNewIndex, item);
-                                  reorderedIndices = List.filled(categoryProducts.length, null);
-                                  reorderedIndices[adjustedNewIndex] = adjustedNewIndex;
-                                  selectedItemIndex = adjustedNewIndex;
-                                });
-                              },
-                              onDeleteItem: (index) {},
-                              onCancelReorder: () {
-                                setState(() {
-                                  reorderedIndices = List.filled(categoryProducts.length, null);
-                                });
-                              },
-                            ),
-                          // ],
-                        // ),
+                        Misc.enableCategoryProductWithSubCategoryList
+                        ? Column(
+                            children: [
+                              SubCategoryGridWidget(
+                                isLoading: isLoadingNestedContent,
+                                subCategories: subCategoryListItems,
+                                selectedSubCategoryIndex: _selectedSubCategoryIndex,
+                                onSubCategoryTapped: _onSubCategoryTapped,
+                              ),
+                              // :
+                              NestedGridWidget(
+                                productBloc: productBloc,
+                                orderHelper: orderHelper,
+                                isHorizontal: true,
+                                isLoading: isLoadingNestedContent,
+                                showAddButton: false,
+                                showBackButton: showBackButton,
+                                items: categoryProducts,
+                                selectedItemIndex: selectedItemIndex,
+                                reorderedIndices: reorderedIndices,
+                                onAddButtonPressed: null,
+                                onBackButtonPressed: _onBackToCategories,
+                                onItemTapped: (index, {bool? variantAdded}) => _onItemSelected(index, variantAdded!), //Build #1.0.78: Updated to match the new signature
+                                onReorder: (oldIndex, newIndex) {
+                                  if (oldIndex == 0 || newIndex == 0) return;
+                                  final adjustedOldIndex = oldIndex - (showBackButton ? 1 : 0);
+                                  final adjustedNewIndex = newIndex - (showBackButton ? 1 : 0);
+                                  if (adjustedOldIndex < 0 ||
+                                      adjustedNewIndex < 0 ||
+                                      adjustedOldIndex >= categoryProducts.length ||
+                                      adjustedNewIndex >= categoryProducts.length) {
+                                    return;
+                                  }
+                                  setState(() {
+                                    categoryProducts = List<Map<String, dynamic>>.from(categoryProducts);
+                                    final item = categoryProducts.removeAt(adjustedOldIndex);
+                                    categoryProducts.insert(adjustedNewIndex, item);
+                                    reorderedIndices = List.filled(categoryProducts.length, null);
+                                    reorderedIndices[adjustedNewIndex] = adjustedNewIndex;
+                                    selectedItemIndex = adjustedNewIndex;
+                                  });
+                                },
+                                onDeleteItem: (index) {},
+                                onCancelReorder: () {
+                                  setState(() {
+                                    reorderedIndices = List.filled(categoryProducts.length, null);
+                                  });
+                                },
+                              ),
+                            ],
+                          )
+                        : (isShowingSubCategories && subCategories.isNotEmpty) ?
 
+                          SubCategoryGridWidget(
+                            isLoading: isLoadingNestedContent,
+                            subCategories: subCategoryListItems,
+                            selectedSubCategoryIndex: _selectedSubCategoryIndex,
+                            onSubCategoryTapped: _onSubCategoryTapped,
+                          )
+                           :
+                          NestedGridWidget(
+                            productBloc: productBloc,
+                            orderHelper: orderHelper,
+                            isHorizontal: true,
+                            isLoading: isLoadingNestedContent,
+                            showAddButton: false,
+                            showBackButton: showBackButton,
+                            items: categoryProducts,
+                            selectedItemIndex: selectedItemIndex,
+                            reorderedIndices: reorderedIndices,
+                            onAddButtonPressed: null,
+                            onBackButtonPressed: _onBackToCategories,
+                            onItemTapped: (index, {bool? variantAdded}) => _onItemSelected(index, variantAdded!), //Build #1.0.78: Updated to match the new signature
+                            onReorder: (oldIndex, newIndex) {
+                              if (oldIndex == 0 || newIndex == 0) return;
+                              final adjustedOldIndex = oldIndex - (showBackButton ? 1 : 0);
+                              final adjustedNewIndex = newIndex - (showBackButton ? 1 : 0);
+                              if (adjustedOldIndex < 0 ||
+                                  adjustedNewIndex < 0 ||
+                                  adjustedOldIndex >= categoryProducts.length ||
+                                  adjustedNewIndex >= categoryProducts.length) {
+                                return;
+                              }
+                              setState(() {
+                                categoryProducts = List<Map<String, dynamic>>.from(categoryProducts);
+                                final item = categoryProducts.removeAt(adjustedOldIndex);
+                                categoryProducts.insert(adjustedNewIndex, item);
+                                reorderedIndices = List.filled(categoryProducts.length, null);
+                                reorderedIndices[adjustedNewIndex] = adjustedNewIndex;
+                                selectedItemIndex = adjustedNewIndex;
+                              });
+                            },
+                            onDeleteItem: (index) {},
+                            onCancelReorder: () {
+                              setState(() {
+                                reorderedIndices = List.filled(categoryProducts.length, null);
+                              });
+                            },
+                          ),
                       ),
                     ],
                   ),

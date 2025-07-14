@@ -8,6 +8,7 @@ import '../../Helper/url_helper.dart';
 import '../../Models/Orders/apply_discount_model.dart';
 import '../../Models/Orders/get_orders_model.dart';
 import '../../Models/Orders/orders_model.dart';
+import '../../Models/Orders/total_orders_count_model.dart';
 
 class OrderRepository {  // Build #1.0.25 - added by naveen
   final APIHelper _helper = APIHelper();
@@ -81,7 +82,7 @@ class OrderRepository {  // Build #1.0.25 - added by naveen
     orderType = orderType != "" ? orderType : "";
 
     //"?page=1&per_page=10&search=&status="
-    var getOrdersParameter = "?auther=$userId&page=$pageNumber&per_page=${pageLimit*2+1}&created_via=$orderType&search=&status=";
+    var getOrdersParameter = "?auther=$userId&page=$pageNumber&per_page=${pageLimit*3+1}&created_via=$orderType&search=&status=";
     // Encode for URL (spaces become '+', commas become '%2C')
     final encodedStatus = Uri.encodeQueryComponent(statusString);
     final url = "${UrlHelper.componentVersionUrl}${UrlMethodConstants.orders}"
@@ -121,6 +122,48 @@ class OrderRepository {  // Build #1.0.25 - added by naveen
         print("Stack trace: $s");
       }
       throw Exception("Failed to fetch orders: $e");
+    }
+  }
+
+  // Build #1.0.118: Fetch Total Orders Count API Call for Orders Screen
+  Future<TotalOrdersResponseModel> fetchTotalOrdersCount({bool allStatuses = false, int pageNumber =1, int pageLimit = 10, String status = "", String orderType = "", String userId = ""}) async {
+
+    final statusString = status != "" ? status : (allStatuses
+        ? TextConstants.orderScreenStatus
+        : TextConstants.processing);
+
+    orderType = orderType != "" ? orderType : "";
+
+    var getOrdersParameter = "?auther=$userId&page=$pageNumber&per_page=$pageLimit&created_via=$orderType&search=&status=";
+    // Encode for URL (spaces become '+', commas become '%2C')
+    final encodedStatus = Uri.encodeQueryComponent(statusString);
+    final url = "${UrlHelper.componentVersionUrl}${UrlMethodConstants.orders}/${UrlMethodConstants.totalOrders}$getOrdersParameter$encodedStatus${UrlParameterConstants.getOrdersEndParameter}";
+
+    if (kDebugMode) {
+      print("OrderRepository - GET URL: $url");
+    }
+
+    try {
+      final response = await _helper.get(url, true);
+
+      if (kDebugMode) {
+        print("OrderRepository - Raw Response Type: ${response.runtimeType}");
+        print("OrderRepository - Raw Response: ${response.toString()}");
+      }
+
+      if (response is String) {
+        final responseData = json.decode(response);
+        return TotalOrdersResponseModel.fromJson(responseData);
+      } else if (response is Map<String, dynamic>) {
+        return TotalOrdersResponseModel.fromJson(response);
+      } else {
+        throw Exception("Unexpected response type in fetch total orders GET");
+      }
+    } catch (e, s) {
+      if (kDebugMode) {
+        print("OrderRepository - Error in fetchTotalOrders: $e, Stack: $s");
+      }
+      throw Exception("Failed to fetch total orders");
     }
   }
 

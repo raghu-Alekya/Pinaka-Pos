@@ -101,6 +101,7 @@ class UrlMethodConstants { // Build #1.0.13
   static const String shifts               = "shifts"; // Build #1.0.70
   static const String safes                = "safes";
   static const String vendorPayments       = "vendor_payments";
+  static const String totalOrders          = "total-orders"; // Build #1.0.118
 }
 
 class UrlParameterConstants { // Build #1.0.13

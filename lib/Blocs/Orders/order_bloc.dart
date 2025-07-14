@@ -9,6 +9,7 @@ import '../../Helper/api_response.dart';
 import '../../Models/Orders/apply_discount_model.dart';
 import '../../Models/Orders/get_orders_model.dart' as model;
 import '../../Models/Orders/orders_model.dart';
+import '../../Models/Orders/total_orders_count_model.dart';
 import '../../Repositories/Orders/order_repository.dart';
 
 class OrderBloc { // Build #1.0.25 - added by naveen
@@ -25,6 +26,7 @@ class OrderBloc { // Build #1.0.25 - added by naveen
   late  StreamController<APIResponse<model.OrderModel>> _addPayoutController;
   late  StreamController<APIResponse<model.OrderModel>> _removePayoutController;
   late StreamController<APIResponse<model.OrderModel>> _removeCouponController;
+  late StreamController<APIResponse<TotalOrdersResponseModel>> _fetchTotalOrdersController;
 
   // Build #1.0.53 : updated code -  Constructor ---
   OrderBloc(this._orderRepository) {
@@ -38,6 +40,7 @@ class OrderBloc { // Build #1.0.25 - added by naveen
     _addPayoutController = StreamController<APIResponse<model.OrderModel>>.broadcast(); //Build #1.0.92: Updated: using OrderModel rather than UpdateOrderResponseModel
     _removePayoutController = StreamController<APIResponse<model.OrderModel>>.broadcast();
     _removeCouponController = StreamController<APIResponse<model.OrderModel>>.broadcast();
+    _fetchTotalOrdersController = StreamController<APIResponse<TotalOrdersResponseModel>>.broadcast();
     if (kDebugMode) {
       print("OrderBloc Initialized with all stream controllers.");
     }
@@ -82,6 +85,9 @@ class OrderBloc { // Build #1.0.25 - added by naveen
    // Remove Coupon
   StreamSink<APIResponse<model.OrderModel>> get removeCouponSink => _removeCouponController.sink;
   Stream<APIResponse<model.OrderModel>> get removeCouponStream => _removeCouponController.stream;
+   //
+  StreamSink<APIResponse<TotalOrdersResponseModel>> get fetchTotalOrdersSink => _fetchTotalOrdersController.sink;
+  Stream<APIResponse<TotalOrdersResponseModel>> get fetchTotalOrdersStream => _fetchTotalOrdersController.stream;
 
   // 1. Create Order
   Future<void> createOrder(List<OrderMetaData> metaData) async {
@@ -134,7 +140,7 @@ class OrderBloc { // Build #1.0.25 - added by naveen
   ///5. Save response in db for line_items
   ///6. stop loading
   ///7. Return
-  Future<void> updateOrderProducts({required int orderId, required int dbOrderId, required List<OrderLineItem> lineItems}) async {
+  Future<void> updateOrderProducts({required int orderId, required int dbOrderId, required List<OrderLineItem> lineItems, bool isEditQuantity = false}) async {
     if (_updateOrderController.isClosed) return;
 
     updateOrderSink.add(APIResponse.loading(TextConstants.loading));
@@ -208,7 +214,9 @@ class OrderBloc { // Build #1.0.25 - added by naveen
           final currentQuantity = existingItem.first[AppDBConst.itemCount] as int;
           itemsToAdd.add(OrderLineItem(
             id: existingItem.first[AppDBConst.itemServerId] as int?,
-            quantity: currentQuantity + item.quantity,
+            // Build #1.0.108: We have to identify is editing product pass updated qty, else if same product adding again currentQuantity + new quantity
+            // otherwise while editing product qty was doubling the value
+            quantity: isEditQuantity ? item.quantity : currentQuantity + item.quantity,
           ));
           if (kDebugMode) {
             print("OrderBloc - Existing item found ID: ${existingItem.first[AppDBConst.itemServerId]}, updated quantity: ${currentQuantity + item.quantity}");
@@ -377,6 +385,35 @@ class OrderBloc { // Build #1.0.25 - added by naveen
     } catch (e, s) {
       fetchOrdersSink.add(APIResponse.error("Order Sync Failed")); //Build #1.0.84
       if (kDebugMode) print("Exception in fetchOrders: $e, Stack: $s");
+    }
+  }
+
+  // Build #1.0.118: Added this function for Get Orders Total with count API call
+  Future<void> fetchTotalOrdersCount({bool allStatuses = false, int pageNumber =1, int pageLimit = 10, String status = "", String orderType = "", String userId = ""}) async {
+    if (_fetchTotalOrdersController.isClosed) return;
+
+    fetchTotalOrdersSink.add(APIResponse.loading(TextConstants.loading));
+    try {
+      final response = await _orderRepository.fetchTotalOrdersCount(allStatuses: allStatuses, pageNumber: pageNumber, pageLimit: pageLimit, status: status, orderType: orderType, userId: userId);
+
+      if (kDebugMode) {
+        print("OrderBloc - Fetched ${response.ordersData.length} total orders, Total Count: ${response.orderTotalCount}");
+        for (var order in response.ordersData) {
+          print("OrderBloc - Order ID: ${order.id}, Status: ${order.status}, Items: ${order.lineItems.length}");
+          for (var item in order.lineItems) {
+            print("OrderBloc - Item ID: ${item.id}, Name: ${item.name}, Quantity: ${item.quantity}, Total: ${item.total}");
+          }
+        }
+      }
+
+      // Convert List<OrderList> to List<get_orders.OrderModel>
+      final orderModels = response.ordersData.map((order) => order.toOrderModel()).toList();
+      OrderHelper orderHelper = OrderHelper();
+      await orderHelper.syncOrdersFromApi(orderModels);
+      fetchTotalOrdersSink.add(APIResponse.completed(response));
+    } catch (e, s) {
+      fetchTotalOrdersSink.add(APIResponse.error(_extractErrorMessage(e)));
+      if (kDebugMode) print("Exception in fetchTotalOrders: $e, Stack: $s");
     }
   }
 
@@ -975,6 +1012,7 @@ class OrderBloc { // Build #1.0.25 - added by naveen
     if (!_addPayoutController.isClosed) _addPayoutController.close();
     if (!_removePayoutController.isClosed) _removePayoutController.close();
     if (!_removeCouponController.isClosed) _removeCouponController.close();
+    if (!_fetchTotalOrdersController.isClosed) _fetchTotalOrdersController.close();
     if (kDebugMode) print("OrderBloc disposed with all controllers");
   }
 }

@@ -95,6 +95,7 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
       body: Column(
         children: [
           TopBar(
+            screen: Screen.SHIFT,
             onModeChanged: () { //Build #1.0.84: Issue fixed: nav mode re-setting
               String newLayout;
               setState(() {

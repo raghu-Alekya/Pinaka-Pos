@@ -233,6 +233,7 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
           Column(
             children: [
               TopBar(
+                screen: Screen.SAFE,
                 onModeChanged: () { //Build #1.0.84: Issue fixed: nav mode re-setting
                   String newLayout;
                   setState(() {

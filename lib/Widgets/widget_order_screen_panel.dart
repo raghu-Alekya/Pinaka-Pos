@@ -19,16 +19,21 @@ import 'package:pinaka_pos/Widgets/widget_alert_popup_dialogs.dart';
 import 'package:provider/provider.dart';
 import '../Blocs/Orders/order_bloc.dart';
 import '../Blocs/Search/product_search_bloc.dart';
+import '../Constants/misc_features.dart';
 import '../Constants/text.dart';
 import '../Database/db_helper.dart';
 import '../Database/order_panel_db_helper.dart';
+import '../Database/printer_db_helper.dart';
+import '../Database/user_db_helper.dart';
 import '../Helper/Extentions/theme_notifier.dart';
 import '../Helper/api_response.dart';
+import '../Utilities/global_utility.dart';
 import '../Models/Orders/orders_model.dart';
 import '../Repositories/Auth/store_validation_repository.dart';
 import '../Repositories/Orders/order_repository.dart';
 import '../Repositories/Search/product_search_repository.dart';
 import '../Screens/Home/Settings/image_utils.dart';
+import '../Screens/Home/Settings/printer_setup_screen.dart';
 import '../Screens/Home/edit_product_screen.dart';
 import '../Utilities/printer_settings.dart';
 import '../Utilities/result_utility.dart';
@@ -71,6 +76,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
 
   bool _showFullSummary = false;
   late ScaffoldMessengerState _scaffoldMessenger;
+  var _printerReceipt;
 
   void _toggleSummary() {
     setState(() {
@@ -88,6 +94,19 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
     super.initState();
    // _getOrderTabs(); //Build #1.0.40: Load existing orders into tabs
     //_fetchOrders(); //Build #1.0.40: Fetch orders on initialization
+    loadPrinterData();
+
+  }
+
+  Future<void> loadPrinterData() async {
+    var printerDB = await PrinterDBHelper().getPrinterFromDB();
+    if(printerDB.isEmpty){
+      if (kDebugMode) {
+        print(">>>>> OrderScreenPanel : printerDB is empty");
+      }
+      return;
+    }
+    _printerReceipt = printerDB.first;
 
   }
 
@@ -261,7 +280,9 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
         });
       }
     }
-    setState(() => _isLoading = false); // Build #1.0.104: hide loader
+    if (mounted) {
+      setState(() => _isLoading = false); // Build #1.0.104: hide loader
+    }
   }
 
   // // Build #1.0.10: Initializes the tab controller and handles tab switching
@@ -427,7 +448,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
   Future<String> getDeviceId() async { // Build #1.0.44 : Get Device Id
     final storeValidationRepository = StoreValidationRepository();
     try {
-      final deviceDetails = await storeValidationRepository.getDeviceDetails();
+      final deviceDetails = await GlobalUtility.getDeviceDetails(); //Build #1.0.126: updated to GlobalUtility
       return deviceDetails['device_id'] ?? 'unknown';
     } catch (e) {
       if (kDebugMode) {
@@ -602,7 +623,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
     if (response.status == Status.COMPLETED) {
       _scaffoldMessenger.showSnackBar(
         SnackBar(
-          content: Text("${isPayout ? 'Payout' : isCoupon ? 'Coupon' : isCustomItem ? 'Custom Item' : 'Item'} removed successfully"),
+          content: Text("${isPayout ? TextConstants.payout : isCoupon ? TextConstants.coupon : isCustomItem ? TextConstants.customItem : 'Item'}" "${TextConstants.removedSuccessfully}"),
           backgroundColor: Colors.green,
           duration: const Duration(seconds: 2),
         ),
@@ -613,7 +634,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
     } else if (response.status == Status.ERROR) {
       _scaffoldMessenger.showSnackBar(
         SnackBar(
-          content: Text(response.message ?? "Failed to remove ${isPayout ? 'payout' : isCoupon ? 'coupon' : isCustomItem ? 'custom item' : 'item'}"),
+          content: Text(response.message ?? "${TextConstants.failedToRemove}" "${isPayout ? TextConstants.payout : isCoupon ? TextConstants.coupon : isCustomItem ? TextConstants.coupon : 'item'}"),
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 2),
         ),
@@ -682,7 +703,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
     double orderDiscount = 0.0;
     double merchantDiscount = 0.0;
     double orderTax = 0.0;
-    num grossTotal = getGrossTotal();
+    num grossTotal = GlobalUtility.getGrossTotal(orderItems);  // Build #1.0.137: GrossTotal calculation form global class for code re usability
     num netTotal = 0.0;
     num netPayable = 0.0;  //Build #1.0.67
 
@@ -698,21 +719,14 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
       merchantDiscount = order[AppDBConst.merchantDiscount] as double? ?? 0.0;
       orderTax = order[AppDBConst.orderTax] as double? ?? 0.0;
 
-      // Calculate net total: Gross Total - Discounts
-      netTotal = grossTotal - orderDiscount;
+    // Build #1.0.138: Calculate net total
+    netTotal = grossTotal - orderDiscount ;
+    ///map total with netPayable
+    netPayable =  order[AppDBConst.orderTotal] as double? ?? 0.0;
 
-      // Apply merchant discount (this is typically a separate discount)
-      netTotal = netTotal - merchantDiscount;
-
-      // Ensure netTotal is not negative
-      if (netTotal < 0) netTotal = 0.0;
-
-      // Calculate net payable: Net Total + Tax
-      netPayable = netTotal + orderTax;
-
-      // Ensure netPayable is not negative
-      if (netPayable < 0) netPayable = 0.0;
-    // }
+    // Build #1.0.138: Ensure no negative values
+    netTotal = netTotal < 0 ? 0.0 : netTotal;
+    netPayable = netPayable < 0 ? 0.0 : netPayable;
 
     if (kDebugMode) {  //Build #1.0.67
       // print("#### ACTIVE ORDER ID: ${orderHelper.activeOrderId}");
@@ -808,14 +822,31 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                         final isCoupon = itemType.contains(TextConstants.couponText);
                         final isCustomItem = itemType.contains(TextConstants.customItemText);
                         final isPayoutOrCouponOrCustomItem = isPayout || isCoupon || isCustomItem;
+                        final isCouponOrPayout = isPayout || isCoupon;
                         /// Get the original name
                         final originalName = orderItem[AppDBConst.itemName]?.toString() ?? '';
                         final variationName = orderItem[AppDBConst.itemVariationCustomName]?.toString() ?? 'N/A';
                         final variationCount = orderItem[AppDBConst.itemVariationCount] ?? 0;
                         final combo = orderItem[AppDBConst.itemCombo] ?? '';
+
+                        /// Build #1.0.134: Item Price will check sales price if it is null/empty, check regular price else unit price
+                        final salesPrice =
+                        (orderItem[AppDBConst.itemSalesPrice] == null || (orderItem[AppDBConst.itemSalesPrice]?.toDouble() ?? 0.0) == 0.0)
+                            ? (orderItem[AppDBConst.itemRegularPrice] == null || (orderItem[AppDBConst.itemRegularPrice]?.toDouble() ?? 0.0) == 0.0)
+                            ? orderItem[AppDBConst.itemUnitPrice]?.toDouble() ?? 0.0
+                            : orderItem[AppDBConst.itemRegularPrice]!.toDouble()
+                            : orderItem[AppDBConst.itemSalesPrice]!.toDouble();
+
+                        final regularPrice =  (orderItem[AppDBConst.itemRegularPrice] == null || (orderItem[AppDBConst.itemRegularPrice]?.toDouble() ?? 0.0) == 0.0)
+                            ? orderItem[AppDBConst.itemUnitPrice]?.toDouble() ?? 0.0
+                            : orderItem[AppDBConst.itemRegularPrice]!.toDouble();
+
+                        final itemTotalPrice = orderItem[AppDBConst.itemSumPrice] ?? '';
+
                         if (kDebugMode) {
                           print("#### originalName: $originalName, itemType: $itemType, isPayoutOrCouponOrCustomItem: $isPayoutOrCouponOrCustomItem");
                           print("#### variationName: $variationName, variationCount: $variationCount, combo: $combo");
+                          print("#### salesPrice: $salesPrice, regularPrice: $regularPrice, itemTotalPrice: $itemTotalPrice");
                         }
                         /// Set display name based on item type
                         String displayName = originalName;
@@ -942,21 +973,25 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                                       ClipRRect( // Build #1.0.13 : updated images from db not static default images
                                         borderRadius: BorderRadius.circular(5),
                                         child: orderItem[AppDBConst.itemImage].toString().startsWith('http')
-                                            ? Image.network(
-                                          orderItem[AppDBConst.itemImage],
+                                            ? SizedBox(
                                           height:MediaQuery.of(context).size.height * 0.075,
                                           width: MediaQuery.of(context).size.height * 0.075,
-                                          fit: BoxFit.cover,
-                                          errorBuilder:
-                                              (context, error, stackTrace) {
-                                            return SvgPicture.asset(
-                                              'assets/svg/password_placeholder.svg',
-                                              height:MediaQuery.of(context).size.height * 0.075,
-                                              width: MediaQuery.of(context).size.height * 0.075,
-                                              fit: BoxFit.cover,
-                                            );
-                                          },
-                                        )
+                                              child: Image.network(
+                                                orderItem[AppDBConst.itemImage],
+                                                height:MediaQuery.of(context).size.height * 0.075,
+                                                width: MediaQuery.of(context).size.height * 0.075,
+                                                fit: BoxFit.cover,
+                                                errorBuilder:
+                                                    (context, error, stackTrace) {
+                                              return SvgPicture.asset(
+                                                'assets/svg/password_placeholder.svg',
+                                                height:MediaQuery.of(context).size.height * 0.075,
+                                                width: MediaQuery.of(context).size.height * 0.075,
+                                                fit: BoxFit.cover,
+                                              );
+                                                                                        },
+                                                                                      ),
+                                            )
                                             : orderItem[AppDBConst.itemImage]
                                             .toString()
                                             .startsWith('assets/')
@@ -1040,15 +1075,15 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                                             // Modified: Show quantity * price only for non-Payout/Coupon items
                                             if (!isPayoutOrCouponOrCustomItem)
                                               Text(
-                                                "${orderItem[AppDBConst.itemCount]} * ${TextConstants.currencySymbol}${orderItem[AppDBConst.itemPrice]}",
+                                                "${TextConstants.currencySymbol} ${regularPrice.toStringAsFixed(2)} * ${orderItem[AppDBConst.itemCount]}", //Build #1.0.134: itemPrice updated
                                                 style:
                                                 TextStyle(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.black54, fontSize: 10),
                                               ),
                                           ],
                                         ),
                                       ),
-                                      if(!isPayout)
-                                        Text("${TextConstants.currencySymbol}${orderItem[AppDBConst.itemPrice]}",
+                                      if(!isCouponOrPayout)
+                                        Text("${TextConstants.currencySymbol}${(regularPrice * orderItem[AppDBConst.itemCount]).toStringAsFixed(2)}", //Build #1.0.134: itemPrice updated
                                           style:
                                           TextStyle(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.blueGrey, fontSize: 14),
                                         ),
@@ -1057,7 +1092,9 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                                         mainAxisAlignment: MainAxisAlignment.center,
                                         children: [
                                           Text(
-                                            "${TextConstants.currencySymbol}${(orderItem[AppDBConst.itemCount] * orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}",
+                                            isCouponOrPayout ?
+                                            "${TextConstants.currencySymbol}${(orderItem[AppDBConst.itemCount] * orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}" :
+                                            "${TextConstants.currencySymbol}${(orderItem[AppDBConst.itemCount] * salesPrice).toStringAsFixed(2)}", //Build #1.0.134: itemTotalPrice updated
                                             style: TextStyle(
                                               fontSize: 14,
                                               fontWeight: FontWeight.bold,
@@ -1115,7 +1152,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(TextConstants.grossTotal, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12), ),
-                              Text("${TextConstants.currencySymbol}${getGrossTotal().toStringAsFixed(2)}", //Build #1.0.68
+                              Text("${TextConstants.currencySymbol}${grossTotal.toStringAsFixed(2)}", //Build #1.0.68
                                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight)),
                             ],
                           ),
@@ -1375,11 +1412,44 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                             _isPayBtnLoading = true;
                           });
 
-                         ///print invoice
-                          await _preparePrintTicket();
-                          await _printTicket();
+                          if (kDebugMode) {
+                            print("OrderScreenPanel - call printer setup screen, $_printerReceipt");
+                          }
+                          if(!Misc.disablePrinter) {
+                            ///prepare receipt
+                            await _preparePrintTicket();
+                            ///print invoice
+                            await _printTicket();
+                          }
                           setState(() => _isPayBtnLoading = false);
-
+                          // if(_printerReceipt == null || (_printerReceipt != null && _printerReceipt[AppDBConst.printerDeviceName] == '')){
+                          //   /// call printer setup screen
+                          //   if (kDebugMode) {
+                          //     print("OrderScreenPanel - call printer setup screen");
+                          //   }
+                          //   Navigator.push(
+                          //       context,
+                          //       MaterialPageRoute(
+                          //         builder: (context) => PrinterSetup(),
+                          //       )).then((result) async {
+                          //     if (result == 'refresh') {
+                          //       await _printerSettings.loadPrinter();
+                          //       await loadPrinterData();
+                          //       setState(() async {
+                          //         // Update state to refresh the UI
+                          //         if (kDebugMode) {
+                          //           print(
+                          //               "OrderScreenPanel - printer setup is done, connected printer is ${_printerSettings.selectedPrinter?.deviceName}");
+                          //         }
+                          //         ///print invoice
+                          //         await _printTicket();
+                          //         setState(() => _isPayBtnLoading = false);
+                          //       });
+                          //     }
+                          //   });
+                          // } else {
+                          //
+                          // }
                         }
                       },
                       style: ElevatedButton.styleFrom(
@@ -1393,7 +1463,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                       child: _isPayBtnLoading  //Build 1.1.36: added loader for pay button in order panel
                           ? CircularProgressIndicator(color: Colors.white)
                           : Text(
-                        "Print Invoice",
+                        TextConstants.printInvoice,
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w500,
@@ -1402,7 +1472,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                     )
                         :
                     ElevatedButton( //Build 1.1.36: on pay tap calling updateOrderProducts api call
-                      onPressed: () async {
+                      onPressed: netPayable <= 0 ? null : () async {
                         if (orderHelper.activeOrderId != null) {
                           setState(() => _isPayBtnLoading = true);
                           // await Navigator.push(
@@ -1474,7 +1544,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                         }
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFFF6B6B), // Coral red color
+                        backgroundColor: netPayable <= 0 ? Colors.grey : const Color(0xFFFF6B6B), // Coral red color
                         foregroundColor: Colors.white,
                         elevation: 0,
                         shape: RoundedRectangleBorder(
@@ -1484,7 +1554,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                       child: _isPayBtnLoading  //Build 1.1.36: added loader for pay button in order panel
                           ? CircularProgressIndicator(color: Colors.white)
                           : Text(
-                        "Pay ${TextConstants.currencySymbol}${netPayable.toStringAsFixed(2)}",
+                        "${TextConstants.pay} ${TextConstants.currencySymbol}${netPayable.toStringAsFixed(2)}",
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w500,
@@ -1525,8 +1595,12 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
   final _printerSettings =  PrinterSettings();
   List<int> bytes = [];
   Future _preparePrintTicket() async{
+    var header = _printerReceipt?[AppDBConst.receiptHeaderText] ?? "";
+    var footer = _printerReceipt?[AppDBConst.receiptFooterText] ?? "";
+
     if (kDebugMode) {
-      print("OrderSummaryScreen _preparePrintTicket call print receipt");
+      print("OrderSummaryScreen _preparePrintTicket call print receipt ---- $header");
+      print("OrderSummaryScreen _preparePrintTicket call print receipt ---- $footer");
     }
     if (_order != null) {
       setState(() {
@@ -1586,6 +1660,12 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
       bytes += ticket.imageRaster(grayscaleImage, align: PosAlign.center);
       bytes += ticket.feed(1);
     }
+///Header
+    bytes += ticket.row([
+      PosColumn(text: "$header", width: 12),
+    ]);
+
+    bytes += ticket.feed(1);
 
     //Item header
     bytes += ticket.row([
@@ -1607,17 +1687,29 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
     for(int i = 0; i< orderItems.length; i++) {
 
       var orderItem = orderItems[i];
+
+      final salesPrice =
+      (orderItem[AppDBConst.itemSalesPrice] == null || (orderItem[AppDBConst.itemSalesPrice]?.toDouble() ?? 0.0) == 0.0)
+          ? (orderItem[AppDBConst.itemRegularPrice] == null || (orderItem[AppDBConst.itemRegularPrice]?.toDouble() ?? 0.0) == 0.0)
+          ? orderItem[AppDBConst.itemUnitPrice]?.toDouble() ?? 0.0
+          : orderItem[AppDBConst.itemRegularPrice]!.toDouble()
+          : orderItem[AppDBConst.itemSalesPrice]!.toDouble();
+
+      final regularPrice =  (orderItem[AppDBConst.itemRegularPrice] == null || (orderItem[AppDBConst.itemRegularPrice]?.toDouble() ?? 0.0) == 0.0)
+          ? orderItem[AppDBConst.itemUnitPrice]?.toDouble() ?? 0.0
+          : orderItem[AppDBConst.itemRegularPrice]!.toDouble();
+
       if (kDebugMode) {
-        print(" >>>>> Adding item ${orderItem[AppDBConst.itemName]} to print");
+        print(" >>>>> Adding item ${orderItem[AppDBConst.itemName]} to print with salesPrice $salesPrice");
       }
 
       bytes += ticket.row([
         PosColumn(text: "${i+1}", width: 1),
         PosColumn(text: "${orderItem[AppDBConst.itemName]}", width:5),
         PosColumn(text: "${orderItem[AppDBConst.itemCount]}", width: 1),
-        PosColumn(text: "${orderItem[AppDBConst.itemPrice]}", width:2),
-        PosColumn(text: "0.0", width: 1),
-        PosColumn(text: "${orderItem[AppDBConst.itemSumPrice]}", width: 2),
+        PosColumn(text: "$salesPrice", width:2),
+        PosColumn(text: "${(regularPrice - salesPrice).toStringAsFixed(2)}", width: 1),
+        PosColumn(text: "${(orderItem[AppDBConst.itemCount] * salesPrice).toStringAsFixed(2)}", width: 2),
       ]);
       // bytes += ticket.feed(1);
     }
@@ -1693,9 +1785,14 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
     bytes += ticket.feed(1);
 
     //Footer
+    // bytes += ticket.row([
+    //   PosColumn(text: "Thank You, Visit Again", width: 12),
+    // ]);
     bytes += ticket.row([
-      PosColumn(text: "Thank You, Visit Again", width: 12),
+      PosColumn(text: "$footer", width: 12),
     ]);
+
+    bytes += ticket.feed(1);
   }
 
   Future _printTicket() async{
@@ -1721,6 +1818,26 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
               duration: const Duration(seconds: 3),
             ),
           );
+          /// call printer setup screen
+          if (kDebugMode) {
+            print("call printer setup screen");
+          }
+          Navigator.push(context, MaterialPageRoute(
+            builder: (context) => PrinterSetup(),
+          )).then((result) {
+            if (result == 'refresh') {
+              _printerSettings.loadPrinter();
+              setState(() {
+                // Update state to refresh the UI
+                if (kDebugMode) {
+                  print("SettingScreen - printer setup is done, connected printer is ${_printerSettings.selectedPrinter?.deviceName}");
+                }
+                if(!Misc.disablePrinter) {
+                  _printTicket();
+                }
+              });
+            }
+          });
         });
         break;
     }
@@ -1751,21 +1868,5 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
         duration: Duration(seconds: 2),
       ),
     );
-  }
-
-  num getGrossTotal() { // CALCULATION UPDATED
-    num grossTotal = 0.0;
-    for (var item in orderItems) {
-      // Skip items that are payouts or coupons for gross total calculation
-      final itemType = item[AppDBConst.itemType]?.toString().toLowerCase() ?? '';
-      final isPayout = itemType.contains(TextConstants.payoutText);
-      final isCoupon = itemType.contains(TextConstants.couponText);
-      if (isPayout || isCoupon) continue; // Skip payouts and coupons
-
-      var subTotal = item[AppDBConst.itemSumPrice] as num? ?? 0.0;
-      grossTotal += subTotal;
-    }
-    total = grossTotal.toDouble();
-    return grossTotal;
   }
 }

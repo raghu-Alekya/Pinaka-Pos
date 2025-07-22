@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:buttons_tabbar/buttons_tabbar.dart';
 import 'package:dotted_line/dotted_line.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_barcode_listener/flutter_barcode_listener.dart';
@@ -18,6 +19,7 @@ import 'package:pinaka_pos/Widgets/widget_alert_popup_dialogs.dart';
 import 'package:pinaka_pos/Widgets/widget_custom_num_pad.dart';
 import 'package:pinaka_pos/Widgets/widget_nested_grid_layout.dart';
 import 'package:pinaka_pos/Widgets/widget_tabs.dart';
+import 'package:pinaka_pos/Widgets/widget_topbar.dart';
 import 'package:pinaka_pos/Widgets/widget_variants_dialog.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
@@ -31,6 +33,7 @@ import '../Database/db_helper.dart';
 import '../Database/order_panel_db_helper.dart';
 import '../Helper/Extentions/theme_notifier.dart';
 import '../Helper/api_response.dart';
+import '../Utilities/global_utility.dart';
 import '../Models/Orders/orders_model.dart';
 import '../Providers/Age/age_verification_provider.dart';
 import '../Repositories/Auth/store_validation_repository.dart';
@@ -74,6 +77,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
   StreamSubscription? _removeCouponSubscription;
   bool _showFullSummary = false;
   late ScaffoldMessengerState _scaffoldMessenger;
+  bool _isFetchingInitialData = false; // Build #1.0.128: Added this flag to track if we're in the middle of initial fetch
 
   void _toggleSummary() {
     setState(() {
@@ -96,6 +100,10 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
     if (kDebugMode) {
       print("##### fetchOrdersData called");
     }
+    setState(() { // Build #1.0.128: Added this flag to track if we're in the middle of initial fetch
+      _isFetchingInitialData = true;
+      _isLoading = true;
+    });
     /// No need _getOrderTabs here calling inside _fetchOrders (because of this before api call db order tabs showing)
    // _getOrderTabs(); //Build #1.0.40: Load existing orders into tabs
     _fetchOrders(); //Build #1.0.40: Fetch orders on initialization
@@ -104,10 +112,17 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
   @override
   void didUpdateWidget(RightOrderPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (mounted) {
-      if(tabs.isNotEmpty){ // Build #1.0.104: Adding this conditions for old orderId's are showing before sync api call
-        _getOrderTabs(); // Build #1.0.10 : Reload tabs when the widget updates (e.g., after item selection)
+   // if (mounted) {
+    //  if(tabs.isNotEmpty){ // Build #1.0.104: Adding this conditions for old orderId's are showing before sync api call
+    //    _getOrderTabs(); // Build #1.0.10 : Reload tabs when the widget updates (e.g., after item selection)
+    //  }
+   // }
+    if (mounted && !_isFetchingInitialData) { // Build #1.0.128: hOnly update if not in initial fetch
+      setState(() => _isLoading = true); // Build #1.0.131: show loader in order panel after selecting item/product
+      if (kDebugMode) {
+        print("##### _isFetchingInitialData : $_isFetchingInitialData");
       }
+      _getOrderTabs();
     }
 
     if (kDebugMode) {
@@ -191,7 +206,9 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
       });
 
       await fetchOrderItems(); // Load items for active order
-      setState(() => _isLoading = false); // Build #1.0.104: Hide loader
+      if(mounted) {
+        setState(() => _isLoading = false); // Build #1.0.104: Hide loader
+      }
     } else {
       if (kDebugMode) {
         print("##### DEBUG: _getOrderTabs - No tabs available");
@@ -206,7 +223,8 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
   }
 
   void _fetchOrders() { //Build #1.0.40: fetch orders items from API sync & updating to UI
-    setState(() => _isLoading = true); // Build #1.0.104: Show loader
+    // updated above
+    // setState(() => _isLoading = true); // Build #1.0.104: Show loader
     _fetchOrdersSubscription = orderBloc.fetchOrdersStream.listen((response) async {
       if (!mounted) return;
 
@@ -214,13 +232,16 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
         if (kDebugMode) {
           print("##### DEBUG: Fetched orders successfully 33333");
         }
-
+        setState(() => _isFetchingInitialData = false); // Build #1.0.128: Initial fetch complete
         _getOrderTabs();
       } else if (response.status == Status.ERROR) {
         if (kDebugMode) {
           print("##### ERROR: Fetch orders failed - ${response.message}");
         }
-        setState(() => _isLoading = false); // Build #1.0.104: Hide loader
+        setState(() {
+          _isLoading = false;
+          _isFetchingInitialData = false; // Build #1.0.128
+        }); // Build #1.0.104: Hide loader
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(response.message ?? "Failed to fetch orders")),
         );
@@ -244,6 +265,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
         if (kDebugMode) {
           print("##### DEBUG: fetchOrderItems - Retrieved ${order.length}");
           print("##### DEBUG: fetchOrderItems - Retrieved items: ${order.first[AppDBConst.orderServerId]}");
+          print("##### DEBUG: fetchOrderItems - Retrieved items: ${order.first[AppDBConst.itemProductId]}");
         }
         List<Map<String, dynamic>> items = await orderHelper.getOrderItems(order.first[AppDBConst.orderServerId]);
 
@@ -314,26 +336,27 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
     if (kDebugMode) {
       print("##### DEBUG: addNewTab - Creating new order");
     }
-    final prefs = await SharedPreferences.getInstance();
-    final shiftId = prefs.getString(TextConstants.shiftId);
-
-    //Build #1.0.78: Validation required : if shift id is empty show toast or alert user to start the shift first
-    if (shiftId == null || shiftId.isEmpty) {
-      if (kDebugMode) print("####### _createOrder() : shiftId -> $shiftId");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Please start your shift before creating an order."),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    }
+    /// Build #1.0.128: No need here , now we are handling from Order repository class
+    // final prefs = await SharedPreferences.getInstance();
+    // final shiftId = prefs.getString(TextConstants.shiftId);
+    //
+    // //Build #1.0.78: Validation required : if shift id is empty show toast or alert user to start the shift first
+    // if (shiftId == null || shiftId.isEmpty) {
+    //   if (kDebugMode) print("####### _createOrder() : shiftId -> $shiftId");
+    //   ScaffoldMessenger.of(context).showSnackBar(
+    //     SnackBar(
+    //       content: Text("Please start your shift before creating an order."),
+    //       backgroundColor: Colors.green,
+    //       duration: const Duration(seconds: 2),
+    //     ),
+    //   );
+    // }
     setState(() => _isLoading = true); // Show loader
-    String deviceId = await getDeviceId();
-    OrderMetaData device = OrderMetaData(key: OrderMetaData.posDeviceId, value: deviceId);
-    OrderMetaData placedBy = OrderMetaData(key: OrderMetaData.posPlacedBy, value: '${orderHelper.activeUserId ?? 1}');
-    OrderMetaData shiftIdValue = OrderMetaData(key: OrderMetaData.shiftId, value: shiftId!);
-    List<OrderMetaData> metaData = [device, placedBy, shiftIdValue];
+    // String deviceId = await getDeviceId();
+    // OrderMetaData device = OrderMetaData(key: OrderMetaData.posDeviceId, value: deviceId);
+    // OrderMetaData placedBy = OrderMetaData(key: OrderMetaData.posPlacedBy, value: '${orderHelper.activeUserId ?? 1}');
+    // OrderMetaData shiftIdValue = OrderMetaData(key: OrderMetaData.shiftId, value: shiftId!);
+    // List<OrderMetaData> metaData = [device, placedBy, shiftIdValue];
 
     _updateOrderSubscription?.cancel();
     _updateOrderSubscription = orderBloc.createOrderStream.listen((response) async {
@@ -379,7 +402,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
       }
     });
 
-    await orderBloc.createOrder(metaData);
+    await orderBloc.createOrder(); // Build #1.0.128
   }
 
   // Scrolls to the last tab to ensure visibility
@@ -447,6 +470,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
               setState(() {
                 orderItems = [];
               });
+               _fetchOrders(); // Build #1.0.128: we have to refresh the orders , if orders are empty , otherwise if you add new item creating with new order and prev order also appear issue.
             }
             _scaffoldMessenger.showSnackBar(
               SnackBar(
@@ -710,7 +734,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
   Future<String> getDeviceId() async { // Build #1.0.44 : Get Device Id
     final storeValidationRepository = StoreValidationRepository();
     try {
-      final deviceDetails = await storeValidationRepository.getDeviceDetails();
+      final deviceDetails = await GlobalUtility.getDeviceDetails(); //Build #1.0.126: updated to GlobalUtility
       return deviceDetails['device_id'] ?? 'unknown';
     } catch (e) {
       if (kDebugMode) {
@@ -798,7 +822,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                 // );
                 final serverOrderId = orderHelper.activeOrderId;//order[AppDBConst.orderServerId] as int?;
                 final dbOrderId = orderHelper.activeOrderId;
-                if (serverOrderId != null && dbOrderId != null && product.id != null) {
+                if (product.id != null) { // Build #1.0.128
                   setState(() => _isLoading = true);
                   _updateOrderSubscription?.cancel();
                   _updateOrderSubscription = orderBloc.updateOrderStream.listen((response) async {
@@ -1141,6 +1165,10 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
 // Current Order UI
   Widget buildCurrentOrder() {
     final theme = Theme.of(context); // Build #1.0.6 - added theme for order panel
+    bool isKeyboardVisible = View.of(context).viewInsets.bottom > 0;
+    if (kDebugMode) {
+      print("keyBoard visible : $isKeyboardVisible");
+    }
     if(_isLoading == true){
       if (kDebugMode) {
         print("###### buildCurrentOrder: _isLoading: $_isLoading");
@@ -1156,7 +1184,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
     double orderDiscount = 0.0;
     double merchantDiscount = 0.0;
     double orderTax = 0.0;
-    num grossTotal = getGrossTotal();
+    num grossTotal = GlobalUtility.getGrossTotal(orderItems);  // Get Items Gross Total
     num netTotal = 0.0;
     num netPayable = 0.0;  //Build #1.0.67
 
@@ -1175,23 +1203,15 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
       merchantDiscount = order[AppDBConst.merchantDiscount] as double? ?? 0.0;
       orderTax = order[AppDBConst.orderTax] as double? ?? 0.0;
 
-      // Calculate net total: Gross Total - Discounts
-      netTotal = grossTotal - orderDiscount;
-
-      // Apply merchant discount (this is typically a separate discount)
-      netTotal = netTotal - merchantDiscount;
-
-      // Ensure netTotal is not negative
-      if (netTotal < 0) netTotal = 0.0;
-
-      // Calculate net payable: Net Total + Tax
-      netPayable = netTotal + orderTax;
-
+      // Build #1.0.138: Calculate net total
+      netTotal = grossTotal - orderDiscount; // Build #1.0.137
       ///map total with netPayable
       netPayable =  order[AppDBConst.orderTotal] as double? ?? 0.0;
 
       // Ensure netPayable is not negative
-      if (netPayable < 0) netPayable = 0.0;
+      // Build #1.0.138: Ensure no negative values
+      netTotal = netTotal < 0 ? 0.0 : netTotal;
+      netPayable = netPayable < 0 ? 0.0 : netPayable;
       if (kDebugMode) {
         print("#### netPayable: $netPayable, orderTotal: ${order[AppDBConst.orderTotal] as double? ?? 0.0}");
       }
@@ -1292,6 +1312,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                         final isCoupon = itemType.contains(TextConstants.couponText);
                         final isCustomItem = itemType.contains(TextConstants.customItemText);
                         final isPayoutOrCouponOrCustomItem = isPayout || isCoupon || isCustomItem;
+                        final isCouponOrPayout = isPayout || isCoupon;
                         /// Get the original name
                         final originalName = orderItem[AppDBConst.itemName]?.toString() ?? '';
                         final variationName = orderItem[AppDBConst.itemVariationCustomName]?.toString() ?? 'N/A';
@@ -1315,6 +1336,19 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                             displayName = '$maskedPart$visiblePart';
                           }
                         }
+
+                        /// Build #1.0.134: Item Price will check sales price if it is null/empty, check regular price else unit price
+                        final salesPrice =
+                        (orderItem[AppDBConst.itemSalesPrice] == null || (orderItem[AppDBConst.itemSalesPrice]?.toDouble() ?? 0.0) == 0.0)
+                            ? (orderItem[AppDBConst.itemRegularPrice] == null || (orderItem[AppDBConst.itemRegularPrice]?.toDouble() ?? 0.0) == 0.0)
+                            ? orderItem[AppDBConst.itemUnitPrice]?.toDouble() ?? 0.0
+                            : orderItem[AppDBConst.itemRegularPrice]!.toDouble()
+                            : orderItem[AppDBConst.itemSalesPrice]!.toDouble();
+
+                        final regularPrice =  (orderItem[AppDBConst.itemRegularPrice] == null || (orderItem[AppDBConst.itemRegularPrice]?.toDouble() ?? 0.0) == 0.0)
+                            ? orderItem[AppDBConst.itemUnitPrice]?.toDouble() ?? 0.0
+                            : orderItem[AppDBConst.itemRegularPrice]!.toDouble();
+
                         return ClipRRect(
                           key: ValueKey(index),
                           borderRadius: BorderRadius.circular(20),
@@ -1472,20 +1506,25 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                                       ClipRRect(
                                         borderRadius: BorderRadius.circular(5),
                                         child: orderItem[AppDBConst.itemImage].toString().startsWith('http')
-                                            ? Image.network(
-                                          orderItem[AppDBConst.itemImage],
-                                          height: MediaQuery.of(context).size.height * 0.075,
-                                          width: MediaQuery.of(context).size.height * 0.075,
-                                          fit: BoxFit.cover,
-                                          errorBuilder: (context, error, stackTrace) {
-                                            return SvgPicture.asset(
-                                              'assets/svg/password_placeholder.svg',
-                                              height: MediaQuery.of(context).size.height * 0.075,
-                                              width: MediaQuery.of(context).size.height * 0.075,
-                                              fit: BoxFit.cover,
-                                            );
-                                          },
-                                        )
+                                            ? SizedBox(
+                                                height: MediaQuery.of(context).size.height * 0.075,
+                                                width: MediaQuery.of(context).size.height * 0.075,
+                                                child: Image.network(
+                                                  orderItem[AppDBConst.itemImage],
+                                                  height: MediaQuery.of(context).size.height * 0.075,
+                                                  width: MediaQuery.of(context).size.height * 0.075,
+                                                  fit: BoxFit.cover,
+                                                  errorBuilder: (context, error,
+                                                      stackTrace) {
+                                                    return SvgPicture.asset(
+                                                      'assets/svg/password_placeholder.svg',
+                                                      height: MediaQuery.of(context).size.height * 0.075,
+                                                      width: MediaQuery.of(context).size.height * 0.075,
+                                                      fit: BoxFit.cover,
+                                                    );
+                                                  },
+                                                ),
+                                              )
                                             : orderItem[AppDBConst.itemImage].toString().startsWith('assets/')
                                             ? SvgPicture.asset(
                                           orderItem[AppDBConst.itemImage],
@@ -1569,15 +1608,15 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                                             ),
                                             if (!isPayoutOrCouponOrCustomItem)
                                               Text(
-                                                "${orderItem[AppDBConst.itemCount]} * ${TextConstants.currencySymbol}${orderItem[AppDBConst.itemPrice].toStringAsFixed(2)}",
+                                                "${TextConstants.currencySymbol} ${regularPrice.toStringAsFixed(2)} * ${orderItem[AppDBConst.itemCount]} ", //Build #1.0.134: updated price * count
                                                 style: TextStyle(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.black87, fontSize: 10, fontWeight: FontWeight.bold),
                                               ),
                                           ],
                                         ),
                                       ),
-                                      if (!isPayout)
+                                      if (!isCouponOrPayout)
                                         Text(
-                                          "${TextConstants.currencySymbol}${orderItem[AppDBConst.itemPrice].toStringAsFixed(2)}",
+                                          "${TextConstants.currencySymbol} ${(regularPrice * orderItem[AppDBConst.itemCount]).toStringAsFixed(2)}",
                                           style: TextStyle(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.blueGrey, fontSize: 14),
                                         ),
                                       SizedBox(width: 20,),
@@ -1585,7 +1624,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                                         mainAxisAlignment: MainAxisAlignment.center,
                                         children: [
                                           Text(
-                                            "${TextConstants.currencySymbol}${(orderItem[AppDBConst.itemCount] * orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}",
+                                            isCouponOrPayout ? "${TextConstants.currencySymbol}${(orderItem[AppDBConst.itemCount] * orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}" : "${TextConstants.currencySymbol}${(orderItem[AppDBConst.itemCount] * salesPrice).toStringAsFixed(2)}",
                                             style: TextStyle(
                                               fontSize: 14,
                                               fontWeight: FontWeight.bold,
@@ -1619,7 +1658,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                     AnimatedSize(
                       duration: Duration(milliseconds: 300),
                       curve: Curves.easeInOut,
-                      child: _showFullSummary
+                      child: (!isKeyboardVisible && _showFullSummary)
                           ? Container(
                         margin: const EdgeInsets.only(top: 8, right: 8, left: 8),
                         decoration: BoxDecoration(
@@ -1642,7 +1681,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(TextConstants.grossTotal, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight), ),
-                                Text("${TextConstants.currencySymbol}${getGrossTotal().toStringAsFixed(2)}", //Build #1.0.68
+                                Text("${TextConstants.currencySymbol}${grossTotal.toStringAsFixed(2)}", //Build #1.0.68
                                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight)),
                               ],
                             ),
@@ -1829,7 +1868,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                     ),
                   if (tabs.isNotEmpty)
                     GestureDetector(
-                      onTap: _toggleSummary,
+                      onTap: isKeyboardVisible ? null : _toggleSummary,
                       child: Container(
                         margin: const EdgeInsets.only(top: 2, right: 8, left: 8),
                         decoration: BoxDecoration(
@@ -1865,7 +1904,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                       width: double.infinity,
                       height: MediaQuery.of(context).size.height * 0.0575,
                       child: ElevatedButton( //Build 1.1.36: on pay tap calling updateOrderProducts api call
-                        onPressed: () async {
+                        onPressed: netPayable <= 0 ? null : () async {
                           setState(() => _isPayBtnLoading = true);
                           // await Navigator.push(
                           //   context,
@@ -1941,7 +1980,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
     //                       }
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFFF6B6B),
+                          backgroundColor: netPayable <= 0 ? Colors.grey : const Color(0xFFFF6B6B),
                           foregroundColor: Colors.white,
                           elevation: 0,
                           shape: RoundedRectangleBorder(
@@ -1977,22 +2016,6 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
       ],
     );
   }
-
-  num getGrossTotal() { // CALCULATION UPDATED
-    num grossTotal = 0.0;
-    for (var item in orderItems) {
-      // Skip items that are payouts or coupons for gross total calculation
-      final itemType = item[AppDBConst.itemType]?.toString().toLowerCase() ?? '';
-      final isPayout = itemType.contains(TextConstants.payoutText);
-      final isCoupon = itemType.contains(TextConstants.couponText);
-      if (isPayout || isCoupon) continue; // Skip payouts and coupons
-
-      var subTotal = item[AppDBConst.itemSumPrice] as num? ?? 0.0;
-      grossTotal += subTotal;
-    }
-    return grossTotal;
-  }
-
 /// //Build #1.0.2 : Added showNumPadDialog if user tap on order layout list item
 
 // New method to show product edit screen (replace the existing showNumPadDialog)

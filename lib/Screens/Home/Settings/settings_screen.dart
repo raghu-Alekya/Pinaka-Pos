@@ -1,3 +1,4 @@
+import 'package:enum_to_string/enum_to_string.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 // import 'package:image/image.dart' as img;
@@ -10,8 +11,11 @@ import 'package:provider/provider.dart';
 
 import '../../../Constants/text.dart';
 import '../../../Database/db_helper.dart';
+import '../../../Database/printer_db_helper.dart';
+import '../../../Database/store_db_helper.dart';
 import '../../../Database/user_db_helper.dart';
 import '../../../Helper/Extentions/theme_notifier.dart';
+import '../../../Utilities/global_utility.dart';
 import '../../../Preferences/pinaka_preferences.dart';
 import '../../../Repositories/Auth/store_validation_repository.dart';
 
@@ -32,8 +36,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String selectedLanguage = "English";
   bool isRetailer = true;
   String layoutSelection = ""; // Default layout
-  final StoreValidationRepository _storeValidationRepository = StoreValidationRepository();
   File? _selectedIcon;
+  String? profilePhotoPath;
+  final PrinterDBHelper printerDBHelper = PrinterDBHelper(); //Build #1.0.122
 
   TextEditingController nameController = TextEditingController();
   TextEditingController contactNoController = TextEditingController();
@@ -50,24 +55,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void initState() {
     super.initState();
     _loadUserDataFromDB();
-    _loadAppThemeMode(); // Appearance light/dark/system
-    _loadSavedLayout();
+    _loadPrinterData(); //Build #1.0.122: Updated code: data loading from db
   }
 
   Future<void> _loadUserDataFromDB() async { // Build #1.0.13 : now user data loads from user table DB
     try {
       final userData = await UserDbHelper().getUserData();
-      final storeData = await UserDbHelper().getStoreValidationData(); //Build #1.0.54: added
-      final deviceDetails = await _storeValidationRepository.getDeviceDetails(); // Fetch device details
+      final storeData = await StoreDbHelper.instance.getStoreValidationData(); //Build #1.0.126: updated to StoreDbHelper
+      final deviceDetails = await GlobalUtility.getDeviceDetails(); //Build #1.0.126: updated to Fetch device details from global class
+
+      if (kDebugMode) {
+        print("#### Loading user data: $userData");
+        print("#### Loading store data: $storeData");
+      }
 
       if (userData != null) {
-        nameController.text       = userData[AppDBConst.userDisplayName] ?? "Unknown Name";
-        emailController.text      = userData[AppDBConst.userEmail] ?? "test@pinaka.com";
-        deviceIdController.text   = deviceDetails['device_id'] ?? "unknown"; // device ID
-
-        if (kDebugMode) {
-          print("#### Loaded user data into controllers: $userData");
-        }
+        setState(() {
+          nameController.text = userData[AppDBConst.userDisplayName] ?? "Unknown Name";
+          emailController.text = userData[AppDBConst.userEmail] ?? "test@pinaka.com";
+          deviceIdController.text = deviceDetails['device_id'] ?? "unknown"; // device ID
+          appearance = userData[AppDBConst.themeMode] == ThemeMode.dark.toString()
+              ? TextConstants.darkText
+              : TextConstants.lightText;
+          layoutSelection = userData[AppDBConst.layoutSelection] ?? SharedPreferenceTextConstants.navLeftOrderRight;
+          profilePhotoPath = userData[AppDBConst.profilePhoto];
+          if (profilePhotoPath != null) {
+            _selectedIcon = File(profilePhotoPath!);
+          }
+        });
       }
 
       if (storeData != null) { //Build #1.0.54: added
@@ -94,65 +109,130 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  //Build #1.0.54: added load saved layout and update notifier
-  Future<void> _loadSavedLayout() async {
-    String? savedLayout = await _preferences.getSavedLayoutSelection();
-    PinakaPreferences.layoutSelectionNotifier.value =
-        savedLayout ?? SharedPreferenceTextConstants.navLeftOrderRight;
-    if (kDebugMode) {
-      print(
-          "#### PinakaPreferences: Initialized with layout: ${PinakaPreferences.layoutSelectionNotifier.value}");
-    }
-
-    setState(() {
-      layoutSelection = PinakaPreferences.layoutSelectionNotifier.value;
-    });
-  }
-
-  Future<void> _loadAppThemeMode() async { // Build #1.0.9 : By default dark theme getting selected on launch even after changing from settings
-    String? savedTheme = await _preferences.getSavedAppThemeMode() ?? ThemeMode.light.toString();
-
-    setState(() {
-      appearance = savedTheme == ThemeMode.dark.toString() ? TextConstants.darkText : TextConstants.lightText;
-    });
-
-    if (kDebugMode) {
-      print("#### _loadAppThemeMode : $appearance");
-    }
-  }
-
-  // Build #1.0.108: for image selection
-  Future<void> _pickIcon() async {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      final imageFile = File(pickedFile.path);
-      final image = await decodeImageFromList(await imageFile.readAsBytes());
-      if (image.width <= 128 && image.height <= 128 && pickedFile.path.endsWith('.png')) {
+  //Build #1.0.122: New method for printer data, data loading from db
+  Future<void> _loadPrinterData() async {
+    try {
+      final printerData = await printerDBHelper.getPrinterFromDB();
+      if (kDebugMode) {
+        print("#### Loaded printer data: $printerData");
+      }
+      if (printerData.isNotEmpty) {
         setState(() {
-          _selectedIcon = imageFile;
+          headerController.text = printerData.first[AppDBConst.receiptHeaderText] ?? "";
+          footerController.text = printerData.first[AppDBConst.receiptFooterText] ?? "";
+          if (printerData.first[AppDBConst.receiptIconPath] != null) {
+            _selectedIcon = File(printerData.first[AppDBConst.receiptIconPath]);
+          }
         });
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Please select a PNG image with max 128x128')),
-        );
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print("#### Error loading printer data: $e");
       }
     }
   }
 
-  // Build #1.0.108: Added to save action in saveButton onPressed
-  Future<void> _saveReceiptSettings() async {
+//Build #1.0.122: Update save settings
+  Future<void> _saveSettings() async {
     final userData = await UserDbHelper().getUserData();
+    if (kDebugMode) {
+      print("#### Saving settings for user: ${userData?[AppDBConst.userId]}");
+    }
     if (userData != null) {
-      Map<String, dynamic> receiptSettings = {
-        TextConstants.userId: userData[AppDBConst.userId],
-        TextConstants.iconPath: _selectedIcon?.path,
-        TextConstants.conHeaderText: headerController.text,
-        TextConstants.conFooterText: footerController.text,
-      };
-      await UserDbHelper().saveReceiptSettings(receiptSettings);
+      // Save user settings
+      await UserDbHelper().saveUserSettings({
+        AppDBConst.themeMode: appearance == TextConstants.darkText ? ThemeMode.dark.toString() : ThemeMode.light.toString(),
+        AppDBConst.layoutSelection: layoutSelection,
+        AppDBConst.profilePhoto: profilePhotoPath,
+      });
+      if (kDebugMode) {
+        print("#### Saved user settings: theme=$appearance, layout=$layoutSelection, photo=$profilePhotoPath");
+      }
+
+      // Get current printer data
+      var printer = _printerSettings.selectedPrinter ?? BluetoothPrinter();
+
+      // Update printer with receipt settings
+      await printerDBHelper.updatePrinterToDB(BluetoothPrinter(
+        deviceName: printer.deviceName ?? '',
+        productId: printer.productId ?? '',
+        vendorId: printer.vendorId ?? '',
+        typePrinter: printer.typePrinter,
+        // Added receipt settings
+        receiptIconPath: _selectedIcon?.path,
+        receiptHeaderText: headerController.text,
+        receiptFooterText: footerController.text,
+      ));
+
+      if (kDebugMode) {
+        print("#### Saved printer settings: header=${headerController.text}, footer=${footerController.text}");
+      }
     }
   }
+
+  // Build #1.0.108: for receipt image selection
+  Future<void> _pickIcon() async {
+    if (kDebugMode) print("### Picking new icon/image");
+    try {
+      final picker = ImagePicker();
+      final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+
+      if (pickedFile != null) {
+        if (kDebugMode) print("### Image selected: ${pickedFile.path}");
+
+        final imageFile = File(pickedFile.path);
+        if (!imageFile.existsSync()) {
+          if (kDebugMode) print("### Error: File doesn't exist at path");
+          return;
+        }
+
+        final image = await decodeImageFromList(await imageFile.readAsBytes());
+        if (image.width <= 128 && image.height <= 128 && pickedFile.path.endsWith('.png')) {
+          setState(() {
+            _selectedIcon = imageFile;
+            if (kDebugMode) print("### Valid PNG image selected (128x128 or smaller)");
+          });
+        } else {
+          if (kDebugMode) print("### Invalid image dimensions or format");
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Please select a PNG image with max 128x128')),
+          );
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) print("### Error picking image: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to select image')),
+      );
+    }
+  }
+
+  //Build #1.0.122: Added this new method to pick profile photo
+  Future<void> _pickProfilePhoto() async {
+    if (kDebugMode) print("### Picking new profile photo");
+    try {
+      final picker = ImagePicker();
+      final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+
+      if (pickedFile != null) {
+        if (kDebugMode) print("### Profile photo selected: ${pickedFile.path}");
+
+        final imageFile = File(pickedFile.path);
+        setState(() {
+          _selectedIcon = imageFile;
+          profilePhotoPath = imageFile.path; // Update profile photo path
+        });
+
+        if (kDebugMode) print("### Profile photo updated successfully");
+      }
+    } catch (e) {
+      if (kDebugMode) print("### Error picking profile photo: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to select profile photo')),
+      );
+    }
+  }
+
 
   @override
   void dispose() {
@@ -190,8 +270,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               backgroundColor: Colors.tealAccent,
               padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             ),
-            onPressed: () {
-              _saveReceiptSettings(); // Build #1.0.108: Save Receipt settings into user db table
+            onPressed: () async {
+              await _saveSettings(); //Build #1.0.122
               Navigator.pop(context);
             },
             child: Text(TextConstants.saveChangesBtnText, style: TextStyle(color: Colors.black)),
@@ -232,8 +312,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _buildDeviceDetailsSection(),
                 Divider(color: Colors.grey[800], thickness: 1),
                 _buildAppearanceSection(themeHelper),
-                Divider(color: Colors.grey[800], thickness: 1),
-                _buildCacheDurationSection(),
+                // Divider(color: Colors.grey[800], thickness: 1),
+                // _buildCacheDurationSection(), //Build #1.0.122: no need
               ],
             ),
           ),
@@ -275,14 +355,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
         SizedBox(height: 16),
         Row(
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(5),
-              child: Container(
-                height: 80,
-                width: 80,
-                color: Colors.grey[800],
-                child: Icon(Icons.perm_identity, color: Colors.white),
-              ),
+            Stack(
+              children: [
+                GestureDetector(
+                  onTap: _pickProfilePhoto, // Changed to use the new function
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(5),
+                    child: Container(
+                      height: 80,
+                      width: 80,
+                      color: Colors.grey[800],
+                      child: profilePhotoPath != null && File(profilePhotoPath!).existsSync()
+                          ? Image.file(File(profilePhotoPath!),
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Icon(Icons.perm_identity, color: Colors.white))
+                          : Icon(Icons.perm_identity, color: Colors.white),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 0,
+                  right: 0,
+                  child: GestureDetector(
+                    onTap: _pickProfilePhoto, // Same function for edit icon
+                    child: Container(
+                      padding: EdgeInsets.all(3),
+                      // decoration: BoxDecoration(
+                      //   color: Colors.white,
+                      //   shape: BoxShape.rectangle,
+                      // ),
+                      child: Icon(Icons.edit, size: 10, color: Colors.white),
+                    ),
+                  ),
+                ),
+              ],
             ),
             SizedBox(width: 10),
             Column(
@@ -335,16 +441,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             GestureDetector(
               onTap: _pickIcon,
-              child: Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: Colors.grey[800],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: _selectedIcon != null
-                    ? Image.file(_selectedIcon!, fit: BoxFit.cover)
-                    : Icon(Icons.image, color: Colors.white70),
+              child: Stack(
+                children: [
+                  Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[800],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: _selectedIcon != null && _selectedIcon!.existsSync()
+                        ? Image.file(_selectedIcon!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Icon(Icons.image, color: Colors.white70))
+                        : Icon(Icons.image, color: Colors.white70),
+                  ),
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: Container(
+                      padding: EdgeInsets.all(3),
+                      // decoration: BoxDecoration(
+                      //   color: Colors.tealAccent,
+                      //   shape: BoxShape.circle,
+                      // ),
+                      child: Icon(Icons.edit, size: 10, color: Colors.white),
+                    ),
+                  ),
+                ],
               ),
             ),
             SizedBox(width: 10),
@@ -373,42 +495,45 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(TextConstants.deviceDetailsText,
-                    style:
-                    TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-                SizedBox(height: 4),
-                Text(TextConstants.idPOSText,
-                    style: TextStyle(fontSize: 14, color: Colors.grey)),
-              ],
-            ),
-            ElevatedButton.icon(
-              onPressed: () {
-                // Handle Copy Token action
-              },
-              icon: Icon(Icons.copy, color: Colors.white),
-              label: Text(TextConstants.copyTokenBtnText, style: TextStyle(color: Colors.white)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.teal,
-              ),
-            ),
-          ],
-        ),
-        SizedBox(height: 16),
+        // Row(
+        //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        //   children: [
+        //     Column(
+        //       crossAxisAlignment: CrossAxisAlignment.start,
+        //       children: [
+        //         Text(TextConstants.deviceDetailsText,
+        //             style:
+        //             TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+        //         SizedBox(height: 4),
+        //         Text(TextConstants.idPOSText,
+        //             style: TextStyle(fontSize: 14, color: Colors.grey)),
+        //       ],
+        //     ),
+        //     ElevatedButton.icon(
+        //       onPressed: () {
+        //         // Handle Copy Token action
+        //         if (kDebugMode) {
+        //           print("Token Copied");
+        //         }
+        //       },
+        //       icon: Icon(Icons.copy, color: Colors.white),
+        //       label: Text(TextConstants.copyTokenBtnText, style: TextStyle(color: Colors.white)),
+        //       style: ElevatedButton.styleFrom(
+        //         backgroundColor: Colors.teal,
+        //       ),
+        //     ),
+        //   ],
+        // ),
+        // SizedBox(height: 16),
         _buildTextField(
             label: TextConstants.deviceIdText,
             controller: deviceIdController,
             isReadOnly: true),
-        SizedBox(height: 16),
-        _buildTextField(label: TextConstants.posNumberText, hintText: TextConstants.posNumberHintText),
-        SizedBox(height: 16),
-        Text(TextConstants.posForText, style: TextStyle(fontSize: 14, color: Colors.white70)),
-        _buildToggleButtons(),
+        // SizedBox(height: 16), //Build #1.0.122: no need
+        // _buildTextField(label: TextConstants.posNumberText, hintText: TextConstants.posNumberHintText),
+        // SizedBox(height: 16),
+        // Text(TextConstants.posForText, style: TextStyle(fontSize: 14, color: Colors.white70)),
+        // _buildToggleButtons(),
         SizedBox(height: 16),
       ],
     );
@@ -502,12 +627,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         //     _buildRadioOption(TextConstants.bothText),
         //   ],
         // ),
-        _buildSwitchOption(TextConstants.quickProAddText, quickProductAdd, (value) {
-          setState(() => quickProductAdd = value);
-        }),
-        _buildSwitchOption(TextConstants.outOfStockMngText, outOfStockManage, (value) {
-          setState(() => outOfStockManage = value);
-        }),
+        // _buildSwitchOption(TextConstants.quickProAddText, quickProductAdd, (value) {
+        //   setState(() => quickProductAdd = value);
+        // }),
+        // _buildSwitchOption(TextConstants.outOfStockMngText, outOfStockManage, (value) {
+        //   setState(() => outOfStockManage = value);
+        // }),
       ],
     );
   }
@@ -521,7 +646,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           groupValue: layoutSelection,
           onChanged: (value) {
             setState(() => layoutSelection = value.toString());
-            _preferences.saveLayoutSelection(value.toString()); // This updates the notifier
+          //  _preferences.saveLayoutSelection(value.toString()); // This updates the notifier
+            if (PinakaPreferences.layoutSelectionNotifier.value != layoutSelection) {
+              PinakaPreferences.layoutSelectionNotifier.value = layoutSelection;
+            }
           },
           fillColor: WidgetStateProperty.resolveWith<Color>((states) {
             if (states.contains(WidgetState.selected)) {
@@ -534,7 +662,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ],
     );
   }
-  var _printerSettings =  PrinterSettings();
+  final _printerSettings =  PrinterSettings();
   Widget _buildPrinterSettingsSection() {
     var name = _printerSettings.selectedPrinter?.deviceName ?? '';
     var connection = _printerSettings.selectedPrinter?.state ?? false;
@@ -746,7 +874,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             readOnly: isReadOnly,
             decoration: InputDecoration(
               hintText: hintText,
-              hintStyle: TextStyle(fontSize: 14, fontWeight: FontWeight.normal, color: Colors.white),
+              hintStyle: TextStyle(fontSize: 14, fontWeight: FontWeight.normal, color: Colors.grey),
               filled: true,
               fillColor: Colors.grey[800],
               border: OutlineInputBorder(
@@ -864,7 +992,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               themeManager.setThemeMode( //Build #1.0.54: updated
                   appearance == TextConstants.lightText ? ThemeMode.light : ThemeMode.dark
               );
-              _preferences.saveAppThemeMode(themeManager.themeMode);
+             // _preferences.saveAppThemeMode(themeManager.themeMode);
             });
           },
           fillColor: WidgetStateProperty.resolveWith<Color>((states) {

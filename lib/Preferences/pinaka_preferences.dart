@@ -18,32 +18,33 @@ class PinakaPreferences { // Build #1.0.7 , Naveen - added PinakaPreferences cod
     layoutSelectionNotifier =  ValueNotifier<String>('');
   }
 
+  /// Build #1.0.122: No need , now we are using DB saving code
   // saveThemeMode
-  Future<void> saveAppThemeMode(ThemeMode mode) async {
-    _prefs.setString(SharedPreferenceTextConstants.themeModeKey, mode.toString() ?? ThemeMode.light.toString() );
-  }
-
-  // Get ThemeMode from SharedPreferences
-  Future<String?> getSavedAppThemeMode() async { // Build #1.0.9 : By default dark theme getting selected on launch even after changing from settings
-    return _prefs.getString(SharedPreferenceTextConstants.themeModeKey);
-  }
+  // Future<void> saveAppThemeMode(ThemeMode mode) async {
+  //   _prefs.setString(SharedPreferenceTextConstants.themeModeKey, mode.toString() ?? ThemeMode.light.toString() );
+  // }
+  //
+  // // Get ThemeMode from SharedPreferences
+  // Future<String?> getSavedAppThemeMode() async { // Build #1.0.9 : By default dark theme getting selected on launch even after changing from settings
+  //   return _prefs.getString(SharedPreferenceTextConstants.themeModeKey);
+  // }
 
   //Build #1.0.54: added in PinakaPreferences class
-  Future<void> saveLayoutSelection(String layout) async {
-    await _prefs.setString(SharedPreferenceTextConstants.layoutSelection, layout);
-    // Only update notifier if the value has changed
-    if (layoutSelectionNotifier.value != layout) {
-      layoutSelectionNotifier.value = layout;
-    }
-    if (kDebugMode) {
-      print("#### PinakaPreferences: Saved layout: $layout");
-    }
-  }
-
-  Future<String?> getSavedLayoutSelection() async {
-    return _prefs.getString(SharedPreferenceTextConstants.layoutSelection) ??
-        SharedPreferenceTextConstants.navLeftOrderRight;
-  }
+  // Future<void> saveLayoutSelection(String layout) async {
+  //   await _prefs.setString(SharedPreferenceTextConstants.layoutSelection, layout);
+  //   // Only update notifier if the value has changed
+  //   if (layoutSelectionNotifier.value != layout) {
+  //     layoutSelectionNotifier.value = layout;
+  //   }
+  //   if (kDebugMode) {
+  //     print("#### PinakaPreferences: Saved layout: $layout");
+  //   }
+  // }
+  //
+  // Future<String?> getSavedLayoutSelection() async {
+  //   return _prefs.getString(SharedPreferenceTextConstants.layoutSelection) ??
+  //       SharedPreferenceTextConstants.navLeftOrderRight;
+  // }
 
   // saveSelectedPrinter
   Future<void> saveSelectedPrinter(BluetoothPrinter selectedPrinter) async {

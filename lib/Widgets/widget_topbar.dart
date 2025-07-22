@@ -203,14 +203,16 @@ class _TopBarState extends State<TopBar> {
         print("TopBar - _onSearchChanged: Debounce timer completed, processing search for '${_searchController.text}'");
       }
 
-      if (_searchController.text.isNotEmpty && _searchController.text != _lastSearchQuery) { // Only fetch products if the query has changed and text is not empty
+      //Build #1.0.134: fixed - shoes getting overlapped with age verification dialog
+      // Only proceed if we have focus and text has actually changed
+      if (_searchFocusNode.hasFocus && _searchController.text.isNotEmpty && _searchController.text != _lastSearchQuery) {
         if (kDebugMode) {
           print("TopBar - _onSearchChanged: Fetching products for new query '${_searchController.text}'");
         }
         _lastSearchQuery = _searchController.text;
         _productBloc.fetchProducts(searchQuery: _searchController.text);
 
-        if (_searchFocusNode.hasFocus && _overlayEntry == null) { // Show overlay only if text field has focus and no overlay exists
+        if (_overlayEntry == null) { // Show overlay only if text field has focus and no overlay exists
           _showSearchResultsOverlay();
         }
       } else if (_searchController.text.isEmpty) {
@@ -223,13 +225,14 @@ class _TopBarState extends State<TopBar> {
 
   void _clearSearch() {
     _searchController.clear();
+    _lastSearchQuery = null;
     _removeOverlay();
     _searchFocusNode.unfocus();
     setState(() {}); // Rebuild to hide clear button
   }
 
   void _showSearchResultsOverlay() {
-    _removeOverlay();
+    if (_overlayEntry != null) return; // Prevent duplicate overlays
 
     final searchFieldBox = _searchFieldKey.currentContext?.findRenderObject() as RenderBox?;
     if (searchFieldBox == null) return;
@@ -291,17 +294,33 @@ class _TopBarState extends State<TopBar> {
                             final product = products[index];
                             return ListTile(
                               leading: product.images != null && product.images!.isNotEmpty
-                                  ? Image.network(
-                                product.images!.first,
-                                width: 40,
-                                height: 40,
-                                fit: BoxFit.cover,
-                              )
-                                  : const Icon(Icons.image),
+                                  ? SizedBox(
+                                      width: 40,
+                                      height: 40,
+                                      child: Image.network(
+                                        product.images!.first,
+                                        width: 40,
+                                        height: 40,
+                                        fit: BoxFit.cover,
+                                          errorBuilder: (context, error, stackTrace) {
+                                            return const Icon(Icons.image, size: 40);
+                                          },
+                                        loadingBuilder: (context, child, loadingProgress) {
+                                          if (loadingProgress == null) return child;
+                                          return const Center(
+                                            child: CircularProgressIndicator(),
+                                          );
+                                        },
+                                      ),
+                                    )
+                                  : const Icon(Icons.image, size: 40,),
                               title: Text(product.name ?? ''),
-                              subtitle: Text('\$${product.price ?? '0.00'}'),
+                              subtitle: Text('${TextConstants.currencySymbol}${product.price ?? '0.00'}'),
                                 onTap: () async {
-
+                                  //Build #1.0.134: fixed - shoes getting overlapped with age verification dialog
+                                  // Immediately remove focus and overlay when an item is tapped
+                                  _searchFocusNode.unfocus();
+                                  _removeOverlay();
                                 var screen = this.widget.screen;
                                  if(screen != Screen.FASTKEY && screen != Screen.CATEGORY && screen != Screen.ADD ) {
                                    if (kDebugMode) {
@@ -317,18 +336,18 @@ class _TopBarState extends State<TopBar> {
                                   // );
                                   final serverOrderId = orderHelper.activeOrderId;//order[AppDBConst.orderServerId] as int?;
                                   final dbOrderId = orderHelper.activeOrderId;
-
-                                  if (dbOrderId == null) {
-                                    if (kDebugMode) print("No active order selected");
-                                    ScaffoldMessenger.of(_context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text("No active order selected"),
-                                        backgroundColor: Colors.red,
-                                        duration: Duration(seconds: 2),
-                                      ),
-                                    );
-                                    return;
-                                  }
+                                /// Build #1.0.128: No need to check this condition here
+                                  // if (dbOrderId == null) {
+                                  //   if (kDebugMode) print("No active order selected");
+                                  //   ScaffoldMessenger.of(_context).showSnackBar(
+                                  //     const SnackBar(
+                                  //       content: Text("No active order selected"),
+                                  //       backgroundColor: Colors.red,
+                                  //       duration: Duration(seconds: 2),
+                                  //     ),
+                                  //   );
+                                  //   return;
+                                  // }
                                   // Build #1.0.108: Fixed Issue: Verify Age and proceed else return
                                   final ageVerificationProvider = AgeVerificationProvider();
                                   final ageRestrictedTag = product.tags?.firstWhere(
@@ -390,7 +409,7 @@ class _TopBarState extends State<TopBar> {
                                                     isAddingItemLoading = true);
                                                 _showLoaderOverlay();
                                                 try {
-                                                  if (serverOrderId != null) {
+                                                //  if (serverOrderId != null) { /// Build #1.0.128: No need to check this condition here
                                                     _updateOrderSubscription
                                                         ?.cancel();
                                                     _updateOrderSubscription =
@@ -494,44 +513,44 @@ class _TopBarState extends State<TopBar> {
                                                         ),
                                                       ],
                                                     );
-                                                  } else {
-                                                    // await orderHelper.addItemToOrder(
-                                                    //   variant["id"],
-                                                    //   variant["name"],
-                                                    //   variant["image"],
-                                                    //   double.tryParse(variant["price"].toString()) ?? 0.0,
-                                                    //   quantity,
-                                                    //   variant["sku"],
-                                                    //   onItemAdded: () {
-                                                    //     Navigator.pop(context);
-                                                    //     _clearSearch();
-                                                    //     widget.onProductSelected?.call(ProductResponse(
-                                                    //       id: variant["id"],
-                                                    //       name: variant["name"],
-                                                    //       price: variant["price"].toString(),
-                                                    //       images: [variant["image"]],
-                                                    //       sku: variant["sku"],
-                                                    //     ));
-                                                    //   },
-                                                    // );
-                                                    setState(() =>
-                                                        isAddingItemLoading =
-                                                            false);
-                                                    _removeOverlay();
-                                                    ScaffoldMessenger.of(
-                                                            _context)
-                                                        .showSnackBar(
-                                                      SnackBar(
-                                                        content: Text(
-                                                            "Variant '${variant['name']}' did not added to order. OrderId not found."),
-                                                        backgroundColor:
-                                                            Colors.green,
-                                                        duration:
-                                                            const Duration(
-                                                                seconds: 2),
-                                                      ),
-                                                    );
-                                                  }
+                                                  // } else { /// Build #1.0.128: No need to check this condition here
+                                                  //   // await orderHelper.addItemToOrder(
+                                                  //   //   variant["id"],
+                                                  //   //   variant["name"],
+                                                  //   //   variant["image"],
+                                                  //   //   double.tryParse(variant["price"].toString()) ?? 0.0,
+                                                  //   //   quantity,
+                                                  //   //   variant["sku"],
+                                                  //   //   onItemAdded: () {
+                                                  //   //     Navigator.pop(context);
+                                                  //   //     _clearSearch();
+                                                  //   //     widget.onProductSelected?.call(ProductResponse(
+                                                  //   //       id: variant["id"],
+                                                  //   //       name: variant["name"],
+                                                  //   //       price: variant["price"].toString(),
+                                                  //   //       images: [variant["image"]],
+                                                  //   //       sku: variant["sku"],
+                                                  //   //     ));
+                                                  //   //   },
+                                                  //   // );
+                                                  //   setState(() =>
+                                                  //       isAddingItemLoading =
+                                                  //           false);
+                                                  //   _removeOverlay();
+                                                  //   ScaffoldMessenger.of(
+                                                  //           _context)
+                                                  //       .showSnackBar(
+                                                  //     SnackBar(
+                                                  //       content: Text(
+                                                  //           "Variant '${variant['name']}' did not added to order. OrderId not found."),
+                                                  //       backgroundColor:
+                                                  //           Colors.green,
+                                                  //       duration:
+                                                  //           const Duration(
+                                                  //               seconds: 2),
+                                                  //     ),
+                                                  //   );
+                                                  // }
                                                 } catch (e, s) {
                                                   if (kDebugMode)
                                                     print(
@@ -559,7 +578,7 @@ class _TopBarState extends State<TopBar> {
                                             setState(() => isAddingItemLoading = true);
                                             _showLoaderOverlay();
                                             try {
-                                              if (serverOrderId != null) {
+                                             // if (serverOrderId != null) { /// Build #1.0.128: No need to check this condition here
                                                 _updateOrderSubscription?.cancel();
                                                 _updateOrderSubscription = _orderBloc.updateOrderStream.listen((response) async {
                                                     if (!mounted) {
@@ -624,36 +643,36 @@ class _TopBarState extends State<TopBar> {
                                                     ),
                                                   ],
                                                 );
-                                              } else {
-                                                //  orderHelper.addItemToOrder(
-                                                //   product.id!,
-                                                //   product.name ?? 'Unknown',
-                                                //   product.images?.isNotEmpty == true ? product.images!.first : '',
-                                                //   double.tryParse(product.price ?? '0.00') ?? 0.0,
-                                                //   1,
-                                                //   product.sku ?? 'SKU${product.name}',
-                                                //   onItemAdded: () {
-                                                //     Navigator.pop(context);
-                                                //     _clearSearch();
-                                                //     widget.onProductSelected?.call(product);
-                                                //   },
-                                                // );
-                                                setState(() =>
-                                                    isAddingItemLoading =
-                                                        false);
-                                                _removeOverlay();
-                                                ScaffoldMessenger.of(_context)
-                                                    .showSnackBar(
-                                                  SnackBar(
-                                                    content: Text(
-                                                        "Product '${product.name}' did not added to order. OrderId not found."),
-                                                    backgroundColor:
-                                                        Colors.green,
-                                                    duration: const Duration(
-                                                        seconds: 2),
-                                                  ),
-                                                );
-                                              }
+                                              // } else { /// Build #1.0.128: No need to check this condition here
+                                              //   //  orderHelper.addItemToOrder(
+                                              //   //   product.id!,
+                                              //   //   product.name ?? 'Unknown',
+                                              //   //   product.images?.isNotEmpty == true ? product.images!.first : '',
+                                              //   //   double.tryParse(product.price ?? '0.00') ?? 0.0,
+                                              //   //   1,
+                                              //   //   product.sku ?? 'SKU${product.name}',
+                                              //   //   onItemAdded: () {
+                                              //   //     Navigator.pop(context);
+                                              //   //     _clearSearch();
+                                              //   //     widget.onProductSelected?.call(product);
+                                              //   //   },
+                                              //   // );
+                                              //   setState(() =>
+                                              //       isAddingItemLoading =
+                                              //           false);
+                                              //   _removeOverlay();
+                                              //   ScaffoldMessenger.of(_context)
+                                              //       .showSnackBar(
+                                              //     SnackBar(
+                                              //       content: Text(
+                                              //           "Product '${product.name}' did not added to order. OrderId not found."),
+                                              //       backgroundColor:
+                                              //           Colors.green,
+                                              //       duration: const Duration(
+                                              //           seconds: 2),
+                                              //     ),
+                                              //   );
+                                              // }
                                             } catch (e, s) {
                                               if (kDebugMode)
                                                 print(
@@ -754,7 +773,7 @@ class _TopBarState extends State<TopBar> {
                                     setState(() => isAddingItemLoading = true);
                                     _showLoaderOverlay();
                                     try {
-                                      if (serverOrderId != null) {
+                                     // if (serverOrderId != null) { /// Build #1.0.128: No need to check this condition here
                                         _updateOrderSubscription?.cancel();
                                         _updateOrderSubscription = _orderBloc.updateOrderStream.listen((response) async {
                                                 if (!mounted) {
@@ -816,36 +835,36 @@ class _TopBarState extends State<TopBar> {
                                             ),
                                           ],
                                         );
-                                      } else {
-                                        //  orderHelper.addItemToOrder(
-                                        //   product.id!,
-                                        //   product.name ?? 'Unknown',
-                                        //   product.images?.isNotEmpty == true ? product.images!.first : '',
-                                        //   double.tryParse(product.price ?? '0.00') ?? 0.0,
-                                        //   1,
-                                        //   product.sku ?? 'SKU${product.name}',
-                                        //   onItemAdded: () {
-                                        //     Navigator.pop(context);
-                                        //     _clearSearch();
-                                        //     widget.onProductSelected?.call(product);
-                                        //   },
-                                        // );
-                                        setState(() =>
-                                        isAddingItemLoading =
-                                        false);
-                                        _removeOverlay();
-                                        ScaffoldMessenger.of(_context)
-                                            .showSnackBar(
-                                          SnackBar(
-                                            content: Text(
-                                                "Product '${product.name}' did not added to order. OrderId not found."),
-                                            backgroundColor:
-                                            Colors.green,
-                                            duration: const Duration(
-                                                seconds: 2),
-                                          ),
-                                        );
-                                      }
+                                      // } else { /// Build #1.0.128: No need to check this condition here
+                                      //   //  orderHelper.addItemToOrder(
+                                      //   //   product.id!,
+                                      //   //   product.name ?? 'Unknown',
+                                      //   //   product.images?.isNotEmpty == true ? product.images!.first : '',
+                                      //   //   double.tryParse(product.price ?? '0.00') ?? 0.0,
+                                      //   //   1,
+                                      //   //   product.sku ?? 'SKU${product.name}',
+                                      //   //   onItemAdded: () {
+                                      //   //     Navigator.pop(context);
+                                      //   //     _clearSearch();
+                                      //   //     widget.onProductSelected?.call(product);
+                                      //   //   },
+                                      //   // );
+                                      //   setState(() =>
+                                      //   isAddingItemLoading =
+                                      //   false);
+                                      //   _removeOverlay();
+                                      //   ScaffoldMessenger.of(_context)
+                                      //       .showSnackBar(
+                                      //     SnackBar(
+                                      //       content: Text(
+                                      //           "Product '${product.name}' did not added to order. OrderId not found."),
+                                      //       backgroundColor:
+                                      //       Colors.green,
+                                      //       duration: const Duration(
+                                      //           seconds: 2),
+                                      //     ),
+                                      //   );
+                                      // }
                                     } catch (e, s) {
                                       if (kDebugMode)
                                         print(

@@ -24,9 +24,18 @@ class FilterChipWidget extends StatelessWidget { // Build #1.0.8, Surya added
       onSelected: onSelected,
       color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground : null,
       itemBuilder: (context) => options.map((option) {
+        final isSelected = option == selectedValue;
+        final textColor = themeHelper.themeMode == ThemeMode.dark
+            ? ThemeNotifier.textDark
+            : Colors.black;
         return PopupMenuItem<String>(
           value: option,
-          child: Text(option),
+          child: Text(option,
+            style: TextStyle(
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+              color: isSelected ? Colors.redAccent : textColor,
+            ),
+          ),
         );
       }).toList(),
       child: Container(

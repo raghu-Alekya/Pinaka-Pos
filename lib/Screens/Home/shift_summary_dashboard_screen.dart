@@ -6,6 +6,8 @@ import '../../Blocs/Auth/shift_bloc.dart';
 import '../../Blocs/Auth/vendor_payment_bloc.dart';
 import '../../Constants/text.dart';
 import '../../Database/assets_db_helper.dart';
+import '../../Database/db_helper.dart';
+import '../../Database/user_db_helper.dart';
 import '../../Helper/Extentions/theme_notifier.dart';
 import '../../Helper/Extentions/nav_layout_manager.dart';
 import '../../Helper/api_response.dart';
@@ -98,7 +100,7 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
             screen: Screen.SHIFT,
             onModeChanged: () { //Build #1.0.84: Issue fixed: nav mode re-setting
               String newLayout;
-              setState(() {
+              setState(() async {
                 if (sidebarPosition == SidebarPosition.left) {
                   newLayout = SharedPreferenceTextConstants.navRightOrderLeft;
                 } else if (sidebarPosition == SidebarPosition.right) {
@@ -110,7 +112,9 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
                 // Update the notifier which will trigger _onLayoutChanged
                 PinakaPreferences.layoutSelectionNotifier.value = newLayout;
                 // No need to call saveLayoutSelection here as it's handled in the notifier
-                _preferences.saveLayoutSelection(newLayout);
+                // _preferences.saveLayoutSelection(newLayout);
+                //Build #1.0.122: update layout mode change selection to DB
+                await UserDbHelper().saveUserSettings({AppDBConst.layoutSelection: newLayout}, modeChange: true);
               });
             },
           ),
@@ -239,7 +243,7 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
           ),
         ),
         Text(
-          'back',
+          TextConstants.back,
           style: TextStyle(
             color: themeHelper.themeMode == ThemeMode.dark
                 ? ThemeNotifier.textDark : Colors.black87,
@@ -254,11 +258,11 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
   Widget _buildTimeTrackingSection(Shift shift) {
     return Row(
       children: [
-        _buildTimeCard('Start Time', DateTimeHelper.extractTime(shift.startTime)),
+        _buildTimeCard(TextConstants.startTime, DateTimeHelper.extractTime(shift.startTime)),
         SizedBox(width: MediaQuery.of(context).size.width * 0.0075),
-        _buildTimeCard('Duration', DateTimeHelper.calculateDuration(shift.startTime, shift.endTime)),
+        _buildTimeCard(TextConstants.duration, DateTimeHelper.calculateDuration(shift.startTime, shift.endTime)),
         SizedBox(width: MediaQuery.of(context).size.width * 0.0075),
-        _buildTimeCard('End Time', shift.endTime.isEmpty ? '' : DateTimeHelper.extractTime(shift.endTime)),
+        _buildTimeCard(TextConstants.endTime, shift.endTime.isEmpty ? '' : DateTimeHelper.extractTime(shift.endTime)),
       ],
     );
   }
@@ -308,13 +312,13 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
   Widget _buildFinancialSummaryCards(Shift shift) {
     return Row(
       children: [
-        _buildSummaryCard('Opening Amount', '${TextConstants.currencySymbol}${shift.openingBalance}', Color(0xFF8BB6E8)),
+        _buildSummaryCard(TextConstants.openingAmount, '${TextConstants.currencySymbol}${shift.openingBalance}', Color(0xFF8BB6E8)),
         SizedBox(width: MediaQuery.of(context).size.width * 0.015),
-        _buildSummaryCard('Total Transactions', '${shift.totalSales}', Color(0xFF9BC5E8)),
+        _buildSummaryCard(TextConstants.totalTransactions, '${shift.totalSales}', Color(0xFF9BC5E8)),
         SizedBox(width: MediaQuery.of(context).size.width * 0.015),
-        _buildSummaryCard('Sale Amount', '${TextConstants.currencySymbol}${shift.totalSaleAmount}', Color(0xFF7BC4A4)),
+        _buildSummaryCard(TextConstants.saleAmount, '${TextConstants.currencySymbol}${shift.totalSaleAmount}', Color(0xFF7BC4A4)),
         SizedBox(width: MediaQuery.of(context).size.width * 0.015),
-        _buildSummaryCard('Closing Amount', '${TextConstants.currencySymbol}${shift.closingBalance}', Color(0xFFB8D4B8)),
+        _buildSummaryCard(TextConstants.closingAmount, '${TextConstants.currencySymbol}${shift.closingBalance}', Color(0xFFB8D4B8)),
       ],
     );
   }
@@ -391,7 +395,7 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Safe Drop',
+                  TextConstants.safeDrop,
                   style: TextStyle(
                     color: themeHelper.themeMode == ThemeMode.dark
                         ? ThemeNotifier.textDark : Colors.black87,
@@ -414,7 +418,7 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
           // Safe Drop List
           Expanded(
             child: shift.safeDrops.isEmpty
-                ? Center(child: Text('No safe drops found'))
+                ? Center(child: Text(TextConstants.safeDropNotFound))
                 : ListView.builder(
               padding: EdgeInsets.zero,
               itemCount: shift.safeDrops.length,
@@ -450,7 +454,7 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
                           ),
                           SizedBox(height: MediaQuery.of(context).size.height * 0.004),
                           Text(
-                            'Amount',
+                            TextConstants.amount,
                             style: TextStyle(
                               color: themeHelper.themeMode == ThemeMode.dark
                                   ? Colors.white70 : Colors.grey.shade600,
@@ -473,7 +477,7 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
                           ),
                           SizedBox(height: MediaQuery.of(context).size.height * 0.004),
                           Text(
-                            'Time',
+                            TextConstants.time,
                             style: TextStyle(
                               color: themeHelper.themeMode == ThemeMode.dark
                                   ? Colors.white70 : Colors.grey.shade600,
@@ -525,7 +529,7 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     Text(
-                      'Vendor Payouts',
+                      TextConstants.vendorPayouts,
                       style: TextStyle(
                         color: themeHelper.themeMode == ThemeMode.dark
                             ? ThemeNotifier.textDark : Colors.black,
@@ -578,7 +582,7 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
                         ),
                         SizedBox(width: MediaQuery.of(context).size.width * 0.003),
                         Text(
-                          'Add',
+                          TextConstants.addText,
                           style: TextStyle(
                             color: shift.shiftStatus == 'closed' ? Colors.grey : themeHelper.themeMode == ThemeMode.dark
                                 ? ThemeNotifier.textDark : Colors.black87,
@@ -595,11 +599,11 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
           ),
           Expanded(
             child: shift.vendorPayouts.isEmpty
-                ? Center(child: Text('No vendor payouts found'))
+                ? Center(child: Text(TextConstants.vendorPayoutNotFound))
                 : SingleChildScrollView(
               scrollDirection: Axis.vertical,
               child: DataTable(
-                columnSpacing: MediaQuery.of(context).size.width * 0.07,
+                columnSpacing: 30,
                 horizontalMargin: MediaQuery.of(context).size.width * 0.015,
                 headingRowHeight: MediaQuery.of(context).size.height * 0.085,
                 headingRowColor: WidgetStateProperty.all(
@@ -612,7 +616,7 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
                 columns: [
                   DataColumn(
                     label: Text(
-                      'Amount',
+                      TextConstants.amount,
                       style: TextStyle(
                         color: Colors.grey.shade500,
                         fontSize: 14,
@@ -622,7 +626,7 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
                   ),
                   DataColumn(
                     label: Text(
-                      'Vendor',
+                      TextConstants.vendor,
                       style: TextStyle(
                         color: Colors.grey.shade500,
                         fontSize: 14,
@@ -632,7 +636,7 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
                   ),
                   DataColumn(
                     label: Text(
-                      'Note',
+                      TextConstants.note,
                       style: TextStyle(
                         color: Colors.grey.shade500,
                         fontSize: 14,
@@ -642,7 +646,7 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
                   ),
                   DataColumn(
                     label: Text(
-                      'Purpose',
+                     TextConstants.purpose,
                       style: TextStyle(
                         color: Colors.grey.shade500,
                         fontSize: 14,
@@ -693,17 +697,48 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
                           ),
                         ),
                       ),
-                      DataCell(
-                        Text(
-                          item.note.isEmpty ? 'No note' : item.note,
-                          style: TextStyle(
+                    DataCell(
+                      ConstrainedBox(
+                      constraints: BoxConstraints(
+                      maxWidth: MediaQuery.of(context).size.width * 0.25,
+                  ),
+                        child: Tooltip(
+                          message: item.note.isEmpty ? 'No note' : item.note,
+                          decoration: BoxDecoration(
                             color: themeHelper.themeMode == ThemeMode.dark
-                                ? ThemeNotifier.textDark : Colors.black87,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
+                                ? ThemeNotifier.searchBarBackground
+                                : Colors.grey,
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.2),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          textStyle: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w400,
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          margin: const EdgeInsets.all(8),
+                          child: Text(
+                            item.note.isEmpty ? 'No note' : item.note,
+                            style: TextStyle(
+                              color: themeHelper.themeMode == ThemeMode.dark
+                                  ? ThemeNotifier.textDark : ThemeNotifier.textLight,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 2,
+                            softWrap: true,
                           ),
                         ),
                       ),
+                    ),
                       DataCell(
                         Text(
                           item.serviceType,

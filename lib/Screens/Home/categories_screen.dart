@@ -180,7 +180,9 @@ import '../../Blocs/Orders/order_bloc.dart';
 import '../../Blocs/Search/product_search_bloc.dart';
 import '../../Constants/misc_features.dart';
 import '../../Database/db_helper.dart';
+import '../../Database/user_db_helper.dart';
 import '../../Helper/Extentions/nav_layout_manager.dart';
+import '../../Utilities/global_utility.dart';
 import '../../Models/Orders/orders_model.dart';
 import '../../Preferences/pinaka_preferences.dart';
 import '../../Repositories/Orders/order_repository.dart';
@@ -307,6 +309,9 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
 
   // Load top-level categories (parentId = 0) once
   Future<void> _loadTopLevelCategories() async { // Build #1.0.27
+    setState(() {
+      isLoadingNestedContent = true; //Build #1.0.126: Added this line to show shimmer from starting
+    });
     _categoryBloc.fetchCategories(0);
     await for (var response in _categoryBloc.categoriesStream) {
       if (response.status == Status.COMPLETED && response.data != null) {
@@ -326,9 +331,9 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
 
   // Load subcategories for a specific parent category
   Future<void> _loadSubCategories(int parentId) async {
-    setState(() {
-      isLoadingNestedContent = true; // Add this line to show shimmer
-    });
+    // setState(() {
+    //   isLoadingNestedContent = true; // no need from here above _loadTopLevelCategories added
+    // });
     _categoryBloc.fetchCategories(parentId);
     await for (var response in _categoryBloc.categoriesStream) {
       if (response.status == Status.COMPLETED && response.data != null) {
@@ -497,21 +502,21 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
       // );
       final serverOrderId = orderHelper.activeOrderId;//order[AppDBConst.orderServerId] as int?;
       final dbOrderId = orderHelper.activeOrderId;
-
-      if (dbOrderId == null) { //Build #1.0.78
-        if (kDebugMode) print("No active order selected");
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("No active order selected"),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 2),
-          ),
-        );
-        return;
-      }
+      ///Build #1.0.128: No need to check this condition
+      // if (dbOrderId == null) { //Build #1.0.78
+      //   if (kDebugMode) print("No active order selected");
+      //   ScaffoldMessenger.of(context).showSnackBar(
+      //     const SnackBar(
+      //       content: Text("No active order selected"),
+      //       backgroundColor: Colors.red,
+      //       duration: Duration(seconds: 2),
+      //     ),
+      //   );
+      //   return;
+      // }
 
       try {
-        if (serverOrderId != null) { //Build #1.0.78: if server id is available use API call and save to db else save to db
+       // if (serverOrderId != null) { //Build #1.0.78: if server id is available use API call and save to db else save to db
           _updateOrderSubscription?.cancel();
           StreamSubscription? subscription;
 
@@ -557,26 +562,26 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
               ),
             ],
           );
-        } else {
-          // await orderHelper.addItemToOrder(
-          //   selectedProduct[AppDBConst.fastKeyProductId],
-          //   selectedProduct[AppDBConst.fastKeyItemName],
-          //   selectedProduct[AppDBConst.fastKeyItemImage],
-          //   double.tryParse(selectedProduct[AppDBConst.fastKeyItemPrice].toString()) ?? 0.0,
-          //   1,
-          //   selectedProduct[AppDBConst.fastKeyItemSKU],
-          //   onItemAdded: _refreshOrderList,
-          // );
-        //  setState(() => isAddingItemLoading = false);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text("Item '${selectedProduct[AppDBConst.fastKeyItemName]}' did not added to order. OrderId not found."),
-              backgroundColor: Colors.green,
-              duration: const Duration(seconds: 2),
-            ),
-          );
-          _refreshOrderList();
-        }
+        // } else { ///Build #1.0.128: No need
+        //   // await orderHelper.addItemToOrder(
+        //   //   selectedProduct[AppDBConst.fastKeyProductId],
+        //   //   selectedProduct[AppDBConst.fastKeyItemName],
+        //   //   selectedProduct[AppDBConst.fastKeyItemImage],
+        //   //   double.tryParse(selectedProduct[AppDBConst.fastKeyItemPrice].toString()) ?? 0.0,
+        //   //   1,
+        //   //   selectedProduct[AppDBConst.fastKeyItemSKU],
+        //   //   onItemAdded: _refreshOrderList,
+        //   // );
+        // //  setState(() => isAddingItemLoading = false);
+        //   ScaffoldMessenger.of(context).showSnackBar(
+        //     SnackBar(
+        //       content: Text("Item '${selectedProduct[AppDBConst.fastKeyItemName]}' did not added to order. OrderId not found."),
+        //       backgroundColor: Colors.green,
+        //       duration: const Duration(seconds: 2),
+        //     ),
+        //   );
+        //   _refreshOrderList();
+        // }
       } catch (e) {
         if (kDebugMode) print("Exception in _onItemSelected: $e");
        // setState(() => isAddingItemLoading = false);
@@ -672,7 +677,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
             screen: Screen.CATEGORY,
             onModeChanged: () {
               String newLayout;
-              setState(() {
+              setState(() async {
                 if (sidebarPosition == SidebarPosition.left) {
                   newLayout = SharedPreferenceTextConstants.navRightOrderLeft;
                 } else if (sidebarPosition == SidebarPosition.right) {
@@ -684,7 +689,9 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
                 //Build #1.0.54: Update the notifier which will trigger _onLayoutChanged
                 PinakaPreferences.layoutSelectionNotifier.value = newLayout;
                 // No need to call saveLayoutSelection here as it's handled in the notifier
-                _preferences.saveLayoutSelection(newLayout);
+               // _preferences.saveLayoutSelection(newLayout);
+                //Build #1.0.122: update layout mode change selection to DB
+                await UserDbHelper().saveUserSettings({AppDBConst.layoutSelection: newLayout}, modeChange: true);
               });
             },
             onProductSelected: (product) async {
@@ -701,45 +708,45 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
               // );
               final serverOrderId = orderHelper.activeOrderId;//order[AppDBConst.orderServerId] as int?;
               final dbOrderId = orderHelper.activeOrderId;
-
-              if (dbOrderId == null) {
-                if (kDebugMode) print("No active order selected");
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text("No active order selected"),
-                    backgroundColor: Colors.red,
-                    duration: Duration(seconds: 2),
-                  ),
-                );
-                return;
-              }
+              ///Build #1.0.128: No need to check this condition
+              // if (dbOrderId == null) {
+              //   if (kDebugMode) print("No active order selected");
+              //   ScaffoldMessenger.of(context).showSnackBar(
+              //     const SnackBar(
+              //       content: Text("No active order selected"),
+              //       backgroundColor: Colors.red,
+              //       duration: Duration(seconds: 2),
+              //     ),
+              //   );
+              //   return;
+              // }
 
               try {
-                if (serverOrderId != null) {  //Build #1.0.78:
+               // if (serverOrderId != null) {  ///Build #1.0.128: No need
                     if (kDebugMode) {
                       print("###### serverOrderId: $serverOrderId");
                     }
                     _refreshOrderList(); // Build #1.0.80: Fix: refresh the order items in order panel after search item selected
-                } else {
-                  // await orderHelper.addItemToOrder(
-                  //   product.id,
-                  //   product.name ?? 'Unknown',
-                  //   product.images?.isNotEmpty == true ? product.images!.first : '',
-                  //   price,
-                  //   1,
-                  //   product.sku ?? '',
-                  //   onItemAdded: _refreshOrderList,
-                  // );
-                //  setState(() => isAddingItemLoading = false);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text("Item '${product.name}' did not added to order. OrderId not found."),
-                      backgroundColor: Colors.green,
-                      duration: const Duration(seconds: 2),
-                    ),
-                  );
-                  _refreshOrderList();
-                }
+                // } else {
+                //   // await orderHelper.addItemToOrder(
+                //   //   product.id,
+                //   //   product.name ?? 'Unknown',
+                //   //   product.images?.isNotEmpty == true ? product.images!.first : '',
+                //   //   price,
+                //   //   1,
+                //   //   product.sku ?? '',
+                //   //   onItemAdded: _refreshOrderList,
+                //   // );
+                // //  setState(() => isAddingItemLoading = false);
+                //   ScaffoldMessenger.of(context).showSnackBar(
+                //     SnackBar(
+                //       content: Text("Item '${product.name}' did not added to order. OrderId not found."),
+                //       backgroundColor: Colors.green,
+                //       duration: const Duration(seconds: 2),
+                //     ),
+                //   );
+                //   _refreshOrderList();
+                // }
               } catch (e, s) {
                 if (kDebugMode) print("Exception in onProductSelected: $e, Stack: $s");
               //  setState(() => isAddingItemLoading = false);
@@ -911,6 +918,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
                                     reorderedIndices = List.filled(categoryProducts.length, null);
                                   });
                                 },
+                                showDeleteButton: false,
                               ),
                             ],
                           )
@@ -961,6 +969,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
                                 reorderedIndices = List.filled(categoryProducts.length, null);
                               });
                             },
+                            showDeleteButton: false,
                           ),
                       ),
                     ],

@@ -10,7 +10,8 @@ class LoginResponse {
   String? firstName;
   String? lastName;
   String? displayName;
- // String? role; // New field added
+  String? role; //Build #1.0.122: Updated
+  String? avatar;
 
   LoginResponse({
     this.success,
@@ -24,7 +25,8 @@ class LoginResponse {
     this.firstName,
     this.lastName,
     this.displayName,
-   // this.role,
+    this.role,
+    this.avatar,
   });
 
   LoginResponse.fromJson(Map<String, dynamic> json) {
@@ -39,7 +41,8 @@ class LoginResponse {
     firstName = json['data']?['firstName'];
     lastName = json['data']?['lastName'];
     displayName = json['data']?['displayName'];
-  //  role = json['data']?['role']; // Mapping the new field
+    role = json['data']?['role'];
+    avatar = json['data']?['avatar'];
   }
 
   Map<String, dynamic> toJson() {
@@ -56,7 +59,8 @@ class LoginResponse {
         'firstName': firstName,
         'lastName': lastName,
         'displayName': displayName,
-      //  'role': role, // Adding the new field to JSON
+        'role': role,
+        'avatar': avatar,
       }
     };
   }

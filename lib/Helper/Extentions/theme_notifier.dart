@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../Database/db_helper.dart';
+import '../../Database/user_db_helper.dart';
 import '../../Models/Theme/theme_model.dart';
 import '../../Preferences/pinaka_preferences.dart';
 
@@ -18,7 +20,9 @@ class ThemeNotifier with ChangeNotifier { // Build #1.0.6 - Added Theme code & a
   }
 
   Future<void> _loadThemeMode() async {
-    String? savedTheme = await _preferences.getSavedAppThemeMode() ?? ThemeMode.light.toString();
+    final userData = await UserDbHelper().getUserData();
+    var savedThemeData = userData?[AppDBConst.themeMode]; //Build #1.0.122: using from DB
+    String? savedTheme = savedThemeData ?? ThemeMode.light.toString();
     _themeMode = _mapStringToThemeMode(savedTheme);
     notifyListeners();
   }
@@ -27,7 +31,9 @@ class ThemeNotifier with ChangeNotifier { // Build #1.0.6 - Added Theme code & a
     if (mode == ThemeMode.system) return; //Build #1.0.54: added prevent system theme
     _themeMode = mode;
     notifyListeners();
-    await _preferences.saveAppThemeMode(mode); // Build #1.0.7
+    /// Build #1.0.122 : no need to saveUserSettings here, while onTap saveChanges we are doing
+   // await UserDbHelper().saveUserSettings({AppDBConst.themeMode: mode}, themeChange: true); //Build #1.0.122: using from DB
+    // await _preferences.saveAppThemeMode(mode); // Build #1.0.7
   }
 
   // Convert String? to ThemeMode

@@ -10,6 +10,7 @@ import 'package:syncfusion_flutter_datepicker/datepicker.dart';
 import '../../Blocs/Orders/order_bloc.dart';
 import '../../Database/assets_db_helper.dart';
 import '../../Database/order_panel_db_helper.dart';
+import '../../Database/user_db_helper.dart';
 import '../../Helper/Extentions/nav_layout_manager.dart';
 import '../../Helper/Extentions/theme_notifier.dart';
 import '../../Preferences/pinaka_preferences.dart';
@@ -121,7 +122,7 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
       if (response.status == Status.COMPLETED) {
         debugPrint("OrdersScreen: Successfully fetched ${response.data!.ordersData.length} orders, Total Count: ${response.data!.orderTotalCount}");
         setState(() {
-          _orders = response.data!.ordersData.map((order) => order.toOrderModel()).toList();
+          _orders = response.data!.ordersData; //Build #1.0.134
           _totalOrdersCount = response.data!.orderTotalCount;
           isLoading = false;
 
@@ -153,6 +154,15 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
     var selectedUserId = _filterUsers.firstWhere((element) => element.displayName == _selectedUserFilter).iD ?? "";
     var selectedOrderType = _filterOrderType.firstWhere((element) => element.name == _selectedOrderTypeFilter).slug ?? "";
 
+    //Build #1.0.134: Format dates without milliseconds
+    DateFormat format = DateFormat('yyyy-MM-ddThh:mm:ss');
+    String? startDateFormatted = '';//_startDate?.toString().split('.')[0];
+    String? endDateFormatted = '';//_endDate?.toString().split('.')[0];
+    if(_startDate != null){
+      startDateFormatted = format.format(_startDate!);
+      endDateFormatted = format.format(_endDate!);
+    }
+
     _orderBloc.fetchTotalOrdersCount(
       allStatuses: true,
       pageNumber: _currentPage,
@@ -160,6 +170,8 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
       status: selectedStatus,
       orderType: selectedOrderType,
       userId: selectedUserId,
+      startDate: startDateFormatted ?? '', //after=2025-07-22 01:08:35&  != 2025-07-1T17:28:09
+      endDate: endDateFormatted ?? '', //before=2025-07-20 01:08:35&  != 2025-07-22T17:28:09
     );
   }
 
@@ -281,12 +293,26 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
   void _onDateRangeSelectionChanged(DateRangePickerSelectionChangedArgs args) {
     if (args.value is PickerDateRange) {
       final PickerDateRange range = args.value;
-      setState(() {
-        _startDate = range.startDate;
-        _endDate = range.endDate ?? range.startDate;
+      final currentTime = DateTime.now(); // Get current time
+      setState(() { //Build #1.0.134: integrated date filter
+        _startDate = range.startDate != null
+            ? DateTime(range.startDate!.year, range.startDate!.month, range.startDate!.day, currentTime.hour, currentTime.minute, currentTime.second)
+            : null;
+        _endDate = range.endDate != null
+            ? DateTime(range.endDate!.year, range.endDate!.month, range.endDate!.day, currentTime.hour, currentTime.minute, currentTime.second)
+            : range.startDate != null
+            ? DateTime(range.startDate!.year, range.startDate!.month, range.startDate!.day, currentTime.hour, currentTime.minute, currentTime.second)
+            : null;
         _isDateRangeApplied = _startDate != null && _endDate != null;
         _currentPage = 1;
-        _fetchOrders(); // Fetch new data with updated date range
+
+      //  if(_isDateRangeApplied) {
+          debugPrint("#### _isDateRangeApplied: $_isDateRangeApplied");
+          debugPrint("Start Date: $_startDate");
+          debugPrint("End Date: $_endDate");
+          // Fetch new data with updated date range
+          _fetchOrders();
+     //   }
         debugPrint("OrdersScreen: Date range selected from $_startDate to $_endDate");
       });
     }
@@ -369,7 +395,7 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
             screen: Screen.ORDERS,
             onModeChanged: () { //Build #1.0.84: Issue fixed: nav mode re-setting
               String newLayout;
-              setState(() {
+              setState(() async {
                 if (sidebarPosition == SidebarPosition.left) {
                   newLayout = SharedPreferenceTextConstants.navRightOrderLeft;
                 } else if (sidebarPosition == SidebarPosition.right) {
@@ -381,7 +407,9 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
                 // Update the notifier which will trigger _onLayoutChanged
                 PinakaPreferences.layoutSelectionNotifier.value = newLayout;
                 // No need to call saveLayoutSelection here as it's handled in the notifier
-                _preferences.saveLayoutSelection(newLayout);
+                //_preferences.saveLayoutSelection(newLayout);
+                //Build #1.0.122: update layout mode change selection to DB
+                await UserDbHelper().saveUserSettings({AppDBConst.layoutSelection: newLayout}, modeChange: true);
               });
             },
           ),
@@ -612,7 +640,7 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
                                       _buildSortableColumn("Order Type", 'orderType'),
                                       _buildSortableColumn("Date", 'date'),
                                       _buildSortableColumn("Time", 'time'),
-                                      _buildSortableColumn("Sales Amount", 'sales_amount'),
+                                      _buildSortableColumn("Total", 'sales_amount'), //Build #1.0.134: changed to "Total"
                                       _buildSortableColumn("Status", 'status'),
                                       //_buildHeaderCell(""),
                                     ],

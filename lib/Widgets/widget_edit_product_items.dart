@@ -25,11 +25,16 @@ class ProductEditScreen extends StatefulWidget {
 class _ProductEditScreenState extends State<ProductEditScreen> {
   late TextEditingController controller;
   late int quantity;
-
+  late var _regularPrice;
   @override
   void initState() {
     super.initState();
     quantity = widget.orderItem[AppDBConst.itemCount];
+    var orderItem = widget.orderItem;
+
+    _regularPrice =  (orderItem[AppDBConst.itemRegularPrice] == null || (orderItem[AppDBConst.itemRegularPrice]?.toDouble() ?? 0.0) == 0.0)
+        ? orderItem[AppDBConst.itemUnitPrice]?.toDouble() ?? 0.0
+        : orderItem[AppDBConst.itemRegularPrice]!.toDouble();
     controller = TextEditingController(
         text: quantity == 0 ? "0" : quantity.toString()
     );
@@ -142,7 +147,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            "Unit Price: ${TextConstants.currencySymbol}${widget.orderItem[AppDBConst.itemPrice].toStringAsFixed(2)}",
+                            "Unit Price: ${TextConstants.currencySymbol}${(_regularPrice).toStringAsFixed(2)}",
                             style: TextStyle(fontSize: 12,
                                 //color: Colors.grey.shade700
                             ),
@@ -150,7 +155,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
                           const SizedBox(height: 4),
                           Text(
                           //  "Total: \$${(quantity * widget.orderItem[AppDBConst.itemCount] * widget.orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}",
-                            "Total: ${TextConstants.currencySymbol}${(quantity * widget.orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}", //Build 1.1.36
+                            "Total: ${TextConstants.currencySymbol}${(quantity * _regularPrice).toStringAsFixed(2)}", //Build 1.1.36
                             style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
@@ -237,15 +242,17 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
 
   Widget _buildProductImage() {
     if (widget.orderItem[AppDBConst.itemImage].toString().startsWith('http')) {
-      return Image.network(
-        widget.orderItem[AppDBConst.itemImage],
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          return SvgPicture.asset(
-            'assets/svg/password_placeholder.svg',
-            fit: BoxFit.cover,
-          );
-        },
+      return SizedBox(
+        child: Image.network(
+          widget.orderItem[AppDBConst.itemImage],
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return SvgPicture.asset(
+              'assets/svg/password_placeholder.svg',
+              fit: BoxFit.cover,
+            );
+          },
+        ),
       );
     } else if (widget.orderItem[AppDBConst.itemImage].toString().startsWith('assets/')) {
       return SvgPicture.asset(

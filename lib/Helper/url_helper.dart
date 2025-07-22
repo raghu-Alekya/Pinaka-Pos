@@ -1,7 +1,7 @@
-import 'dart:ffi';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import '../Database/assets_db_helper.dart';
+import '../Database/store_db_helper.dart';
 
 class UrlHelper {
   static const Map<String, String> environment = {
@@ -36,7 +36,7 @@ class UrlHelper {
       if (kDebugMode) {
         print("#### UrlHelper: No base URL in database, falling back to DEV: $_dev");
       }
-      _baseUrl = _dev; // Fallback to dev URL if database is empty
+      _baseUrl = await StoreDbHelper.instance.getStoreBaseUrl(); //Build #1.0.126: Fallback to dev URL if database is empty
     }
     if (kDebugMode) {
       print("#### UrlHelper: Base URL set to: $_baseUrl");
@@ -84,7 +84,7 @@ class UrlHelper {
 
   static const  String assets = "assets/public";
 
-  static const String validateMerchant = "https://mg.techkumard.com/wp-json/custom/v1/validate-marchent";  //Build #1.0.42
+  static const String validateMerchant =  "https://mg.techkumard.com/wp-json/custom/v1/validate-marchent";  //Build #1.0.42
 
 }
 

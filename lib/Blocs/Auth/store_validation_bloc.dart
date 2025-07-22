@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import '../../Constants/text.dart';
 import '../../Helper/Extentions/exceptions.dart';
 import '../../Helper/api_response.dart';
+import '../../Utilities/global_utility.dart';
 import '../../Models/Auth/store_validation_model.dart';
 import '../../Repositories/Auth/store_validation_repository.dart';
 
@@ -34,7 +35,7 @@ class StoreValidationBloc { //Build #1.0.42: Added by Naveen
 
     validationSink.add(APIResponse.loading(TextConstants.loading));
     try {
-      final deviceDetails = await _repository.getDeviceDetails();
+      final deviceDetails = await GlobalUtility.getDeviceDetails(); //Build #1.0.126: Updated code - using from global class
       final response = await _repository.validateStore(
         username: username,
         password: password,

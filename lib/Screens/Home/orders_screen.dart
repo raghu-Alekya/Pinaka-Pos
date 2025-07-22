@@ -897,6 +897,7 @@ import 'package:syncfusion_flutter_datepicker/datepicker.dart';
 import '../../Blocs/Orders/order_bloc.dart';
 import '../../Database/assets_db_helper.dart';
 import '../../Database/order_panel_db_helper.dart';
+import '../../Database/user_db_helper.dart';
 import '../../Helper/Extentions/nav_layout_manager.dart';
 import '../../Helper/Extentions/theme_notifier.dart';
 import '../../Preferences/pinaka_preferences.dart';
@@ -1182,7 +1183,7 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
   void _clearFilters() {
     setState(() {
       _selectedStatusFilter = "All";
-      _selectedUserFilter = "User 1";
+      _selectedUserFilter = "All";
       _selectedPaymentMethodFilter = "All";
       _selectedOrderTypeFilter = "All";
       _salesAmountRange = RangeValues(_minSalesAmount, _maxSalesAmount);
@@ -1261,7 +1262,7 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
 
     // Update isFilterApplied check
     bool isFilterApplied = _selectedStatusFilter != "All" ||
-        _selectedOrderTypeFilter != "All";
+        _selectedOrderTypeFilter != "All" || _selectedUserFilter != "All";
     bool isRangeFilterApplied = _salesAmountRange.start > _minSalesAmount ||
         _salesAmountRange.end < _maxSalesAmount;
     return Scaffold(
@@ -1272,7 +1273,7 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
             screen: Screen.ORDERS,
             onModeChanged: () { //Build #1.0.84: Issue fixed: nav mode re-setting
               String newLayout;
-              setState(() {
+              setState(() async {
                 if (sidebarPosition == SidebarPosition.left) {
                   newLayout = SharedPreferenceTextConstants.navRightOrderLeft;
                 } else if (sidebarPosition == SidebarPosition.right) {
@@ -1284,7 +1285,9 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
                 // Update the notifier which will trigger _onLayoutChanged
                 PinakaPreferences.layoutSelectionNotifier.value = newLayout;
                 // No need to call saveLayoutSelection here as it's handled in the notifier
-                _preferences.saveLayoutSelection(newLayout);
+               // _preferences.saveLayoutSelection(newLayout);
+                //Build #1.0.122: update layout mode change selection to DB
+                await UserDbHelper().saveUserSettings({AppDBConst.layoutSelection: newLayout}, modeChange: true);
               });
             },
           ),
@@ -1465,7 +1468,7 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
                             ),
                           ),
                           // Clear Filters
-                          if (isFilterApplied || isRangeFilterApplied || _isDateRangeApplied)
+                          if (isFilterApplied || isRangeFilterApplied || _isDateRangeApplied )
                             Container(
                               margin:EdgeInsets.symmetric(vertical: 5),
                               child: IconButton(

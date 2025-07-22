@@ -945,19 +945,23 @@ class CategoryList extends StatelessWidget {
         errorBuilder: (context, error, stackTrace) => const Icon(Icons.image, size: 40),
       );
     } else if (imagePath.startsWith("http")) {
-      return Image.network(
-        imagePath,
+      return SizedBox(
         width: 40,
         height: 40,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          return Container(
-            width: 40,
-            height: 40,
-            color: Colors.grey.shade300,
-            child: const Icon(Icons.broken_image, color: Colors.grey),
-          );
-        },
+        child: Image.network(
+          imagePath,
+          width: 40,
+          height: 40,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              width: 40,
+              height: 40,
+              color: Colors.grey.shade300,
+              child: const Icon(Icons.broken_image, color: Colors.grey),
+            );
+          },
+        ),
       );
     } else {
       return Image.file(

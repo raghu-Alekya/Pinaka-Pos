@@ -66,6 +66,12 @@ class PrinterSettings {
     }
     var printerDB = await _printerDBHelper.getPrinterFromDB();
 
+    if(printerDB.isEmpty){
+      if (kDebugMode) {
+        print(">>>>> PrinterSettings : printerDB is empty");
+      }
+      return;
+    }
     BluetoothPrinter printer = BluetoothPrinter();
 
     printer.deviceName = printerDB.first[AppDBConst.printerDeviceName];
@@ -76,10 +82,10 @@ class PrinterSettings {
     selectedPrinter = printer;
 
     if (kDebugMode) {
-      print("printer from db is ${printerDB.length}");
+      print(">>>>> PrinterSettings printer from db is ${printerDB.length}");
       if(printerDB.isNotEmpty){
 
-          print("#### Retrieved printerDevice '${printerDB.first[AppDBConst.printerDeviceName]}' from DB");
+          print(">>>>> PrinterSettings Retrieved printerDevice '${printerDB.first[AppDBConst.printerDeviceName]}' from DB");
       }
       print(">>>>> PrinterSettings after setSelectedPrinterFromDB: ${selectedPrinter?.deviceName}, ${selectedPrinter?.productId}, ${selectedPrinter?.vendorId}, ${selectedPrinter?.typePrinter}");
     }
@@ -204,6 +210,9 @@ class BluetoothPrinter {
   String? vendorId;
   String? productId;
   bool? isBle;
+  String? receiptIconPath;
+  String? receiptHeaderText;
+  String? receiptFooterText;
 
   PrinterType typePrinter;
   bool? state;
@@ -216,6 +225,10 @@ class BluetoothPrinter {
         this.vendorId,
         this.productId,
         this.typePrinter = PrinterType.usb,
-        this.isBle = false});
+        this.isBle = false,
+        this.receiptIconPath, //Build #1.0.122: updated
+        this.receiptHeaderText,
+        this.receiptFooterText,
+      });
 }
 

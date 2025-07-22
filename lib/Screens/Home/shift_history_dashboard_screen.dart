@@ -61,7 +61,7 @@ class _ShiftHistoryDashboardScreenState extends State<ShiftHistoryDashboardScree
             screen: Screen.SHIFT,
             onModeChanged: () { //Build #1.0.84: Issue fixed: nav mode re-setting
               String newLayout;
-              setState(() {
+              setState(() async {
                 if (sidebarPosition == SidebarPosition.left) {
                   newLayout = SharedPreferenceTextConstants.navRightOrderLeft;
                 } else if (sidebarPosition == SidebarPosition.right) {
@@ -73,7 +73,9 @@ class _ShiftHistoryDashboardScreenState extends State<ShiftHistoryDashboardScree
                 // Update the notifier which will trigger _onLayoutChanged
                 PinakaPreferences.layoutSelectionNotifier.value = newLayout;
                 // No need to call saveLayoutSelection here as it's handled in the notifier
-                _preferences.saveLayoutSelection(newLayout);
+               // _preferences.saveLayoutSelection(newLayout);
+                //Build #1.0.122: update layout mode change selection to DB
+                await UserDbHelper().saveUserSettings({AppDBConst.layoutSelection: newLayout}, modeChange: true);
               });
             },
           ),

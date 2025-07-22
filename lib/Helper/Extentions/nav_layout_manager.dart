@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../Constants/text.dart';
+import '../../Database/db_helper.dart';
+import '../../Database/user_db_helper.dart';
 import '../../Preferences/pinaka_preferences.dart';
 
 enum SidebarPosition { left, right, bottom }
@@ -26,7 +28,8 @@ mixin LayoutSelectionMixin<T extends StatefulWidget> on State<T> { //Build #1.0.
   }
 
   Future<void> _loadLayoutSelection() async {
-    String? savedLayout = await _preferences.getSavedLayoutSelection();
+    final userData = await UserDbHelper().getUserData();
+    var savedLayout = userData?[AppDBConst.layoutSelection]; //Build #1.0.122: using from DB
     if (kDebugMode) {
       print("#### LayoutSelectionMixin: _loadLayoutSelection - Loaded layout: $savedLayout");
     }
@@ -37,7 +40,9 @@ mixin LayoutSelectionMixin<T extends StatefulWidget> on State<T> { //Build #1.0.
     } else {
       // Set default only if nothing is saved
       String defaultLayout = SharedPreferenceTextConstants.navLeftOrderRight;
-      await _preferences.saveLayoutSelection(defaultLayout);
+    //  await _preferences.saveLayoutSelection(defaultLayout);
+      //Build #1.0.122 : update layout mode change selection to DB
+      await UserDbHelper().saveUserSettings({AppDBConst.layoutSelection: defaultLayout}, modeChange: false);
       _updateLayoutFromPreference(defaultLayout);
     }
     _isInitialLoad = false;

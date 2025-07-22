@@ -208,6 +208,7 @@ import '../../Database/order_panel_db_helper.dart';
 import '../../Helper/Extentions/nav_layout_manager.dart';
 import '../../Helper/Extentions/theme_notifier.dart';
 import '../../Helper/auto_search.dart';
+import '../../Utilities/global_utility.dart';
 import '../../Models/FastKey/fastkey_product_model.dart';
 import '../../Models/Orders/orders_model.dart';
 import '../../Models/Search/product_by_sku_model.dart' as SKU;
@@ -777,22 +778,22 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
     // );
     final serverOrderId = orderHelper.activeOrderId;//order[AppDBConst.orderServerId] as int?;
     final dbOrderId = orderHelper.activeOrderId;
-
-    if (dbOrderId == null) { //Build #1.0.78
-      if (kDebugMode) print("No active order selected");
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("No active order selected"),
-          backgroundColor: Colors.red,
-          duration: Duration(seconds: 2),
-        ),
-      );
-      return;
-    }
+    /// Build #1.0.128: No need to check this condition
+    // if (dbOrderId == null) { //Build #1.0.78
+    //   if (kDebugMode) print("No active order selected");
+    //   ScaffoldMessenger.of(context).showSnackBar(
+    //     const SnackBar(
+    //       content: Text("No active order selected"),
+    //       backgroundColor: Colors.red,
+    //       duration: Duration(seconds: 2),
+    //     ),
+    //   );
+    //   return;
+    // }
 
     try {
       // For API orders
-      if (serverOrderId != null) {
+    //  if (serverOrderId != null) { // Build #1.0.128: No need
         _updateOrderSubscription?.cancel();
         StreamSubscription? subscription;
       //  setState(() => isAddingItemLoading = true);
@@ -841,28 +842,28 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
             ),
           ],
         );
-      } else {
-        // For local orders
-        // await orderHelper.addItemToOrder(
-        //   int.parse(selectedProduct[AppDBConst.fastKeyProductId]),
-        //   selectedProduct[AppDBConst.fastKeyItemName],
-        //   selectedProduct[AppDBConst.fastKeyItemImage],
-        //   double.tryParse(selectedProduct[AppDBConst.fastKeyItemPrice].toString()) ?? 0.0,
-        //   1,
-        //   selectedProduct[AppDBConst.fastKeyItemSKU],
-        //   serverOrderId ?? 0,
-        //   onItemAdded: _createOrder,
-        // );
-     //   setState(() => isAddingItemLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Item '${selectedProduct[AppDBConst.fastKeyItemName]}'did not added to order. OrderId not found."),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
-          ),
-        );
-        _refreshOrderList();
-      }
+     //  } else { // Build #1.0.128: No need
+     //    // For local orders
+     //    // await orderHelper.addItemToOrder(
+     //    //   int.parse(selectedProduct[AppDBConst.fastKeyProductId]),
+     //    //   selectedProduct[AppDBConst.fastKeyItemName],
+     //    //   selectedProduct[AppDBConst.fastKeyItemImage],
+     //    //   double.tryParse(selectedProduct[AppDBConst.fastKeyItemPrice].toString()) ?? 0.0,
+     //    //   1,
+     //    //   selectedProduct[AppDBConst.fastKeyItemSKU],
+     //    //   serverOrderId ?? 0,
+     //    //   onItemAdded: _createOrder,
+     //    // );
+     // //   setState(() => isAddingItemLoading = false);
+     //    ScaffoldMessenger.of(context).showSnackBar(
+     //      SnackBar(
+     //        content: Text("Item '${selectedProduct[AppDBConst.fastKeyItemName]}'did not added to order. OrderId not found."),
+     //        backgroundColor: Colors.green,
+     //        duration: const Duration(seconds: 2),
+     //      ),
+     //    );
+     //    _refreshOrderList();
+     //  }
     } catch (e, s) {
       if (kDebugMode) print("Exception in _onItemSelected: $e, Stack: $s");
     //  setState(() => isAddingItemLoading = false);
@@ -876,18 +877,6 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
     }
   }
 
-  Future<String> getDeviceId() async { //Build #1.0.78: Get Device Id
-    final storeValidationRepository = StoreValidationRepository();
-    try {
-      final deviceDetails = await storeValidationRepository.getDeviceDetails();
-      return deviceDetails['device_id'] ?? 'unknown';
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error fetching device ID: $e');
-      }
-      return 'unknown';
-    }
-  }
   //Build #1.0.78: Explanation:
   // Removed commented-out stream listener code and integrated it directly.
   // Database update (updateServerOrderIDInDB) is assumed to be handled in OrderBloc.createOrder (already updated).
@@ -918,7 +907,9 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
         _refreshOrderList();
         return;
       }
-      String deviceId = await getDeviceId();
+
+      final deviceDetails = await GlobalUtility.getDeviceDetails(); //Build #1.0.126: using from GlobalUtility
+      String deviceId = deviceDetails['device_id'] ?? 'unknown';
       OrderMetaData device = OrderMetaData(key: OrderMetaData.posDeviceId, value: deviceId); // TODO: Implement dynamic device ID
       OrderMetaData placedBy = OrderMetaData(key: OrderMetaData.posPlacedBy, value: '${userId ?? 1}');
       OrderMetaData shiftIdValue = OrderMetaData(key: OrderMetaData.shiftId, value: shiftId!);
@@ -955,7 +946,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
         }
       });
 
-      await orderBloc.createOrder(metaData);
+      await orderBloc.createOrder(); // Build #1.0.128
     } catch (e) {
       if (kDebugMode) print("Exception in _createOrder: $e");
       ScaffoldMessenger.of(context).showSnackBar(
@@ -969,7 +960,9 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
   }
 
   void _refreshOrderList() {
-    setState(() {});
+    setState(() { // Build #1.0.128
+      if (kDebugMode) print("_refreshOrderList called");
+    });
   }
 
   Future<void> _showAddItemDialog() async {
@@ -1660,19 +1653,23 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
     } else if (imagePath.startsWith('assets/')) {
       return Image.asset(imagePath, height: 80, width: 80, fit: BoxFit.cover);
     } else if (imagePath.startsWith("http")) {
-      return Image.network(
-        imagePath,
+      return SizedBox(
         width: 75,
         height: 75,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          return Container(
-            width: 75,
-            height: 75,
-            color: Colors.grey.shade300,
-            child: const Icon(Icons.broken_image, color: Colors.grey),
-          );
-        },
+        child: Image.network(
+          imagePath,
+          width: 75,
+          height: 75,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              width: 75,
+              height: 75,
+              color: Colors.grey.shade300,
+              child: const Icon(Icons.broken_image, color: Colors.grey),
+            );
+          },
+        ),
       );
     } else {
       return Image.file(
@@ -1807,7 +1804,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
             screen: Screen.FASTKEY,
             onModeChanged: () {
               String newLayout;
-              setState(() {
+              setState(() async {
                 if (sidebarPosition == SidebarPosition.left) {
                   newLayout = SharedPreferenceTextConstants.navRightOrderLeft;
                 } else if (sidebarPosition == SidebarPosition.right) {
@@ -1819,7 +1816,9 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                 // Update the notifier which will trigger _onLayoutChanged
                 PinakaPreferences.layoutSelectionNotifier.value = newLayout;
                 // No need to call saveLayoutSelection here as it's handled in the notifier
-                _preferences.saveLayoutSelection(newLayout);
+             //   _preferences.saveLayoutSelection(newLayout);
+                //Build #1.0.122: update layout mode change selection to DB
+                await UserDbHelper().saveUserSettings({AppDBConst.layoutSelection: newLayout}, modeChange: true);
               });
             },
             onProductSelected: (product) async {
@@ -1835,45 +1834,45 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
               //       (order) => order[AppDBConst.orderId] == orderHelper.activeOrderId,
               //   orElse: () => {},
               // );
-              final serverOrderId = orderHelper.activeOrderId;//order[AppDBConst.orderServerId] as int?;
-              final dbOrderId = orderHelper.activeOrderId;
-
-              if (dbOrderId == null) {
-                if (kDebugMode) print("No active order selected");
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text("No active order selected"),
-                    backgroundColor: Colors.red,
-                    duration: Duration(seconds: 2),
-                  ),
-                );
-                return;
-              }
+              // final serverOrderId = orderHelper.activeOrderId;//order[AppDBConst.orderServerId] as int?;
+              // final dbOrderId = orderHelper.activeOrderId;
+              ///Build #1.0.128: No need to check this condition
+              // if (dbOrderId == null) {
+              //   if (kDebugMode) print("No active order selected");
+              //   ScaffoldMessenger.of(context).showSnackBar(
+              //     const SnackBar(
+              //       content: Text("No active order selected"),
+              //       backgroundColor: Colors.red,
+              //       duration: Duration(seconds: 2),
+              //     ),
+              //   );
+              //   return;
+              // }
 
               try {
-                if (serverOrderId != null) {
+              //  if (serverOrderId != null) { ///Build #1.0.128: No need to check this condition
                   if (kDebugMode) print("#### FastKey serverOrderId");
                       _refreshOrderList();
-                } else {
-                  // await orderHelper.addItemToOrder(
-                  //   product.id,
-                  //   product.name ?? 'Unknown',
-                  //   product.images?.isNotEmpty == true ? product.images!.first : '',
-                  //   price,
-                  //   1,
-                  //   product.sku ?? '',
-                  //   onItemAdded: _createOrder,
-                  // );
-                //  setState(() => isAddingItemLoading = false);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text("Item '${product.name}' did not added to order. OrderId not found."),
-                      backgroundColor: Colors.green,
-                      duration: const Duration(seconds: 2),
-                    ),
-                  );
-                  _refreshOrderList();
-                }
+                // } else {
+                //   // await orderHelper.addItemToOrder(
+                //   //   product.id,
+                //   //   product.name ?? 'Unknown',
+                //   //   product.images?.isNotEmpty == true ? product.images!.first : '',
+                //   //   price,
+                //   //   1,
+                //   //   product.sku ?? '',
+                //   //   onItemAdded: _createOrder,
+                //   // );
+                // //  setState(() => isAddingItemLoading = false);
+                //   ScaffoldMessenger.of(context).showSnackBar(
+                //     SnackBar(
+                //       content: Text("Item '${product.name}' did not added to order. OrderId not found."),
+                //       backgroundColor: Colors.green,
+                //       duration: const Duration(seconds: 2),
+                //     ),
+                //   );
+                //   _refreshOrderList();
+                // }
                 await fastKeyDBHelper.saveActiveFastKeyTab(_fastKeyTabId ?? fastKeyTabs[_selectedCategoryIndex ?? 0].fastkeyServerId);
               } catch (e, s) {
                 if (kDebugMode) print("Exception in onProductSelected: $e, Stack: $s");

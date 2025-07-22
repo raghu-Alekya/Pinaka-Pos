@@ -7,6 +7,7 @@ import '../../Blocs/Auth/login_bloc.dart';
 import '../../Blocs/Auth/store_validation_bloc.dart';
 import '../../Constants/text.dart';
 import '../../Database/db_helper.dart';
+import '../../Database/store_db_helper.dart';
 import '../../Database/user_db_helper.dart';
 import '../../Helper/Extentions/theme_notifier.dart';
 import '../../Helper/api_response.dart';
@@ -187,7 +188,7 @@ class _StoreIdScreenState extends State<StoreIdScreen> {
                     if (response.status == Status.COMPLETED) {
                       if (response.data!.success) {
                         // Save validation data and navigate
-                        _userDbHelper.saveStoreValidationData(response.data!).then((_) {
+                        StoreDbHelper.instance.saveStoreValidationData(response.data!).then((_) {  //Build #1.0.126: updated to StoreDbHelper
                           Navigator.pushReplacement(
                             context,
                             MaterialPageRoute(builder: (context) => const LoginScreen()),

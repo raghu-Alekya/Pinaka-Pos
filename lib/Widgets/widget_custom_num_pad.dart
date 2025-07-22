@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pinaka_pos/Widgets/widget_payment_dialog.dart';
 import 'package:provider/provider.dart';
+import '../Helper/Extentions/nav_layout_manager.dart';
 
 import '../Constants/text.dart';
 import '../Helper/Extentions/theme_notifier.dart';
@@ -24,6 +25,7 @@ class CustomNumPad extends StatelessWidget {
   final bool? isLoading; // Add isLoading
   final NumPadType numPadType;
   final bool isDarkTheme;
+  final bool isBottomNav;
 
   const CustomNumPad({
     super.key,
@@ -41,6 +43,7 @@ class CustomNumPad extends StatelessWidget {
     this.isLoading, // Require isLoading
     this.numPadType = NumPadType.login,
     this.isDarkTheme = false,
+    this.isBottomNav = false,
   });
 
   @override
@@ -195,7 +198,7 @@ class CustomNumPad extends StatelessWidget {
     var darkTheme = themeHelper.themeMode == ThemeMode.dark && isDarkTheme;
     return GridView.count(
       shrinkWrap: true,
-      crossAxisCount: 3,
+      crossAxisCount: isBottomNav ? 4 : 3,
       mainAxisSpacing: 12,
       crossAxisSpacing: 12,
       childAspectRatio: 2,
@@ -229,10 +232,11 @@ class CustomNumPad extends StatelessWidget {
   // Remove _buildPayButton, _showPartialPaymentDialog, _showPaymentDialog, _showReceiptDialog
  // Build #1.0.34: Update _buildPayButton to only call onPayPressed
   Widget _buildPayButton(BuildContext context) {
+    final bool isEnabled = onPayPressed != null;
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: const Color(0xFFFF4444),
+        color: isEnabled ? const Color(0xFFFF4444) : Colors.grey,
         borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(

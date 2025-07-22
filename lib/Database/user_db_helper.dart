@@ -1,13 +1,26 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart';
 import '../Constants/text.dart';
 import '../Models/Auth/login_model.dart';
-import '../Models/Auth/store_validation_model.dart';
+import '../Preferences/pinaka_preferences.dart';
 import 'db_helper.dart';
 
-class UserDbHelper { // Build #1.0.13: Added for user data into db
+class UserDbHelper { //Build #1.0.126: Updated for user data into db
+/// DOUBT -> NO PROBLEM IF WE USE "_instance"
+/// RE-Search: Singleton pattern - `UserDbHelper()` returns the same instance every time.
+/// No new object is created, only the existing static instance is reused.
+/// EX: IF WE USE/CALL LIKE THIS WAY !
+// final UserDbHelper _userDbHelper = UserDbHelper();
+// await _userDbHelper.getUserData();
+/// or use below in this call
+// static final UserDbHelper instance = UserDbHelper._internal();
+//   factory UserDbHelper() => instance;
+/// then call using
+// UserDbHelper.instance.getUserData();
   static final UserDbHelper _instance = UserDbHelper._internal();
   factory UserDbHelper() => _instance;
+
 
   UserDbHelper._internal() {
     if (kDebugMode) {
@@ -15,38 +28,122 @@ class UserDbHelper { // Build #1.0.13: Added for user data into db
     }
   }
 
-  /// ✅ Save User Data in DB
+  /// Saves or updates user data in the database
+  /// Updates if user exists, inserts if new
   Future<void> saveUserData(LoginResponse loginResponse) async {
     final db = await DBHelper.instance.database;
 
+    //Build #1.0.126: Checking if user already exists
+    final existingUser = await db.query(
+      AppDBConst.userTable,
+      where: '${AppDBConst.userId} = ?',
+      whereArgs: [loginResponse.id],
+    );
+
     Map<String, dynamic> userMap = {
       AppDBConst.userId: loginResponse.id,
-     // AppDBConst.userRole: loginResponse.role, // need to add
+      AppDBConst.userRole: loginResponse.role,
       AppDBConst.userDisplayName: loginResponse.displayName,
       AppDBConst.userEmail: loginResponse.email,
       AppDBConst.userFirstName: loginResponse.firstName,
       AppDBConst.userLastName: loginResponse.lastName,
       AppDBConst.userNickname: loginResponse.nicename,
-      AppDBConst.userToken: loginResponse.token
+      AppDBConst.userToken: loginResponse.token,
+      AppDBConst.profilePhoto: loginResponse.avatar,
     };
 
-    await db.insert(
-      AppDBConst.userTable,
-      userMap,
-      conflictAlgorithm: ConflictAlgorithm.replace, // 🔹 Ensures latest data is stored
-    );
+    if (existingUser.isNotEmpty) {
+      // Preserve existing themeMode and layoutSelection
+      userMap[AppDBConst.themeMode] = existingUser.first[AppDBConst.themeMode] ?? ThemeMode.light.toString();
+      userMap[AppDBConst.layoutSelection] = existingUser.first[AppDBConst.layoutSelection] ?? SharedPreferenceTextConstants.navLeftOrderRight;
 
-    if (kDebugMode) {
-      print("#### User data saved: $userMap");
+      //Build #1.0.126: Updating existing user
+      await db.update(
+        AppDBConst.userTable,
+        userMap,
+        where: '${AppDBConst.userId} = ?',
+        whereArgs: [loginResponse.id],
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+      if (kDebugMode) {
+        print("#### User data updated for userId: ${loginResponse.id}, preserved theme: ${userMap[AppDBConst.themeMode]}, layout: ${userMap[AppDBConst.layoutSelection]}, data: $userMap");
+      }
+    } else {
+      // Set default values for new user
+      userMap[AppDBConst.themeMode] = ThemeMode.light.toString();
+      userMap[AppDBConst.layoutSelection] = SharedPreferenceTextConstants.navLeftOrderRight;
+
+      //Build #1.0.126: Inserting new user
+      await db.insert(
+        AppDBConst.userTable,
+        userMap,
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+      if (kDebugMode) {
+        print("#### New user data inserted for userId: ${loginResponse.id}, data: $userMap");
+      }
     }
   }
 
-  /// ✅ Get User Data
+  /// Saves or updates user settings
+  Future<void> saveUserSettings(Map<String, dynamic> settings, {bool modeChange = false, bool themeChange = false}) async {
+    if (kDebugMode) {
+      print("#### Starting saveUserSettings with modeChange: $modeChange, themeChange: $themeChange");
+    }
+
+    //Build #1.0.122 : Using layoutSelectionNotifier for UI updates
+    if (PinakaPreferences.layoutSelectionNotifier.value != settings[AppDBConst.layoutSelection]) {
+      PinakaPreferences.layoutSelectionNotifier.value = settings[AppDBConst.layoutSelection];
+    }
+
+    final userData = await getUserData();
+    var userId = userData?[AppDBConst.userId];
+    final db = await DBHelper.instance.database;
+
+    if(!modeChange) {
+      await db.update(
+        AppDBConst.userTable,
+        {
+          AppDBConst.themeMode: settings[AppDBConst.themeMode],
+          AppDBConst.layoutSelection: settings[AppDBConst.layoutSelection],
+          AppDBConst.profilePhoto: settings[AppDBConst.profilePhoto],
+        },
+        where: '${AppDBConst.userId} = ?',
+        whereArgs: [userId],
+      );
+
+    }else if(themeChange) {
+      await db.update(
+        AppDBConst.userTable,
+        {
+          AppDBConst.themeMode: settings[AppDBConst.themeMode],
+        },
+        where: '${AppDBConst.userId} = ?',
+        whereArgs: [userId],
+      );
+
+    } else {
+      await db.update(
+        AppDBConst.userTable,
+        {
+          AppDBConst.layoutSelection: settings[AppDBConst.layoutSelection],
+        },
+        where: '${AppDBConst.userId} = ?',
+        whereArgs: [userId],
+      );
+    }
+
+    if (kDebugMode) {
+      print("#### Updated user settings: ${settings[AppDBConst.themeMode]}, ${settings[AppDBConst.layoutSelection]}");
+    }
+  }
+
+  /// Retrieves user data from database
   Future<Map<String, dynamic>?> getUserData() async {
     final db = await DBHelper.instance.database;
     List<Map<String, dynamic>> result = await db.query(
       AppDBConst.userTable,
-      orderBy: "${AppDBConst.userId} DESC", // 🔹 Get the latest user entry
+      orderBy: "${AppDBConst.userId} DESC",
       limit: 1,
     );
 
@@ -54,136 +151,31 @@ class UserDbHelper { // Build #1.0.13: Added for user data into db
       if (kDebugMode) print("#### Retrieved user data: ${result.first}");
       return result.first;
     }
+    if (kDebugMode) print("#### No user data found in database");
     return null;
   }
 
-  /// ✅ Check if User is Logged In
+  /// Checks if user is logged in by verifying token existence
   Future<bool> isUserLoggedIn() async {
     try {
       final userData = await getUserData();
-      return userData != null &&
+      final isLoggedIn = userData != null &&
           userData[AppDBConst.userToken] != null &&
           userData[AppDBConst.userToken].toString().isNotEmpty;
+      if (kDebugMode) print("#### User login status: $isLoggedIn");
+      return isLoggedIn;
     } catch (e) {
-      if (kDebugMode) print("Error checking user login status: $e");
+      if (kDebugMode) print("#### Error checking user login status: $e");
       return false;
     }
   }
 
-  //Build #1.0.42: Save Store Validation Data
-  Future<void> saveStoreValidationData(StoreValidationResponse response) async {
-    final db = await DBHelper.instance.database;
-
-    Map<String, dynamic> validationMap = {
-      AppDBConst.storeId: response.storeId,
-      AppDBConst.storeUserId: response.userId,
-      AppDBConst.username: response.username,
-      AppDBConst.email: response.email,
-      AppDBConst.subscriptionType: response.subscriptionType,
-      AppDBConst.storeName: response.storeName,
-      AppDBConst.expirationDate: response.expirationDate,
-      AppDBConst.storeBaseUrl: response.storeBaseUrl,
-      AppDBConst.storeAddress: response.storeAddress, //Build #1.0.54: updated
-      AppDBConst.storePhone: response.storePhone,
-      AppDBConst.storeInfo: response.storeInfo,
-      AppDBConst.licenseKey: response.licenseKey,
-      AppDBConst.licenseStatus: response.licenseStatus,
-    };
-
-    await db.insert(
-      AppDBConst.storeValidationTable,
-      validationMap,
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
-
-    if (kDebugMode) {
-      print("#### Store validation data saved: $validationMap");
-    }
-  }
-
-  //Build #1.0.42: Get Store Validation Data
-  Future<Map<String, dynamic>?> getStoreValidationData() async {
-    final db = await DBHelper.instance.database;
-    List<Map<String, dynamic>> result = await db.query(
-      AppDBConst.storeValidationTable,
-      orderBy: "${AppDBConst.storeValidationId} DESC",
-      limit: 1,
-    );
-
-    if (result.isNotEmpty) {
-      if (kDebugMode) print("#### Retrieved store validation data: ${result.first}");
-      return result.first;
-    }
-    return null;
-  }
-
-  //Build #1.0.42: Check if Store Validation is Valid
-  Future<bool> isStoreValidationValid() async {
-    try {
-      final validationData = await getStoreValidationData();
-      if (validationData == null) return false;
-
-      final expirationDateStr = validationData[AppDBConst.expirationDate];
-      final licenseStatus = validationData[AppDBConst.licenseStatus];
-
-      if (expirationDateStr == null || licenseStatus != 'Active') return false;
-
-      final expirationDate = DateTime.parse(expirationDateStr);
-      final now = DateTime.now();
-
-      return expirationDate.isAfter(now);
-    } catch (e) {
-      if (kDebugMode) print("Error checking store validation status: $e");
-      return false;
-    }
-  }
-  // Build #1.0.108: Save Receipt Settings
-  Future<void> saveReceiptSettings(Map<String, dynamic> settings) async {
-    final db = await DBHelper.instance.database;
-    await db.update(
-      AppDBConst.userTable,
-      {
-        AppDBConst.receiptIconPath: settings[TextConstants.iconPath],
-        AppDBConst.receiptHeaderText: settings[TextConstants.conHeaderText],
-        AppDBConst.receiptFooterText: settings[TextConstants.conFooterText],
-      },
-      where: '${AppDBConst.userId} = ?',
-      whereArgs: [settings[TextConstants.userId]],
-    );
-    if (kDebugMode) {
-      print("#### Receipt settings saved for user: ${settings[TextConstants.userId]}");
-    }
-  }
-
-  // Build #1.0.108: Get Receipt Settings
-  Future<Map<String, dynamic>?> getReceiptSettings(int userId) async {
-    final db = await DBHelper.instance.database;
-    List<Map<String, dynamic>> result = await db.query(
-      AppDBConst.userTable,
-      columns: [
-        AppDBConst.receiptIconPath,
-        AppDBConst.receiptHeaderText,
-        AppDBConst.receiptFooterText
-      ],
-      where: '${AppDBConst.userId} = ?',
-      whereArgs: [userId],
-      limit: 1,
-    );
-    if (result.isNotEmpty) {
-      if (kDebugMode) print("#### Retrieved receipt settings: ${result.first}");
-      return result.first;
-    }
-    return null;
-  }
-
-  /// ✅ Logout - Clear User Data
+  /// Clears user data during logout
   Future<void> logout() async {
     final db = await DBHelper.instance.database;
-    await db.delete(AppDBConst.userTable); // 🔹 Clears user table
-    await db.delete(AppDBConst.storeValidationTable);
-
+    await db.delete(AppDBConst.userTable);
     if (kDebugMode) {
-      print("#### User logged out, data cleared!");
+      print("#### User data cleared during logout");
     }
   }
 }

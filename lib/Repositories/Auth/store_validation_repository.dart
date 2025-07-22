@@ -53,32 +53,4 @@ class StoreValidationRepository {  //Build #1.0.42: Added by Naveen
     }
   }
 
-  Future<Map<String, String>> getDeviceDetails() async {
-    final deviceInfo = DeviceInfoPlugin();
-    String deviceId = '';
-    String model = '';
-    String imei = '';
-
-    try {
-      if (Platform.isAndroid) {
-        final androidInfo = await deviceInfo.androidInfo;
-        deviceId = androidInfo.id ?? 'unknown';
-        model = androidInfo.model ?? 'unknown';
-       // imei = androidInfo.id ?? 'unknown'; // IMEI requires additional permissions
-      } else if (Platform.isIOS) {
-        final iosInfo = await deviceInfo.iosInfo;
-        deviceId = iosInfo.identifierForVendor ?? 'unknown';
-        model = iosInfo.model ?? 'unknown';
-       // imei = 'unknown'; // iOS doesn't provide IMEI
-      }
-    } catch (e) {
-      if (kDebugMode) print("Error getting device details: $e");
-    }
-
-    return {
-      'device_id': deviceId,
-      'model': model,
-      'imei': imei,
-    };
-  }
 }

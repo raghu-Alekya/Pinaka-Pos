@@ -36,7 +36,7 @@ class NavigationBar extends StatelessWidget {
     final themeHelper = Provider.of<ThemeNotifier>(context);
     return Container(
       width: isVertical ? MediaQuery.of(context).size.width * 0.07 : null,
-      height: isVertical ? null : 100,
+      height: isVertical ? null : MediaQuery.of(context).size.height * 0.125,
       color: theme.scaffoldBackgroundColor,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(5, 10, 5, 10),

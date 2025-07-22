@@ -274,9 +274,9 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
 
     for (var apiItem in apiItems) {
       final itemId = apiItem.id.toString();
-      final double itemPrice = apiItem.price ?? 0.0;
+      final double itemPrice = apiItem.productData.regularPrice == '' ?  double.parse(apiItem.productData.price ?? '0.0') : double.parse(apiItem.productData.regularPrice ?? '0.0');
       final int itemQuantity = apiItem.quantity ?? 0;
-      final double itemSumPrice = itemPrice * itemQuantity;
+      final double itemSumPrice = double.parse(apiItem.total); //Build #1.0.134: updated item sum price using from api response
 
       if (kDebugMode) {
          print("         salesPrice: ${apiItem.productData.salePrice ?? "0.0"}, "
@@ -312,9 +312,12 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
             AppDBConst.itemSalesPrice: salesPrice,
             AppDBConst.itemRegularPrice: regularPrice,
             AppDBConst.itemUnitPrice: unitPrice,
+            AppDBConst.itemProductId: apiItem.productId, //Build #1.0.128: Update - missed to update productId & variationId
+            AppDBConst.itemVariationId: apiItem.variationId,
+           // AppDBConst.itemType: isCustomItem ? ItemType.customProduct.value :  ItemType.product.value,
           },
-          where: '${AppDBConst.itemId} = ?',
-          whereArgs: [existingItem[AppDBConst.itemId]],
+          where: '${AppDBConst.itemServerId} = ?',
+          whereArgs: [existingItem[AppDBConst.itemServerId]], //Build #1.0.128: use itemServerId instead of itemId
         );
         if (kDebugMode) {
           print("#### DEBUG: Updated item ID: $itemId for order $orderId");
@@ -339,13 +342,15 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
           AppDBConst.itemCount: itemQuantity,
           AppDBConst.itemSumPrice: itemSumPrice,
           AppDBConst.orderIdForeignKey: orderId,
-          AppDBConst.itemType: isCustomItem ? ItemType.customProduct.value : '', // Added: Add item_type
+          AppDBConst.itemType: isCustomItem ? ItemType.customProduct.value :  ItemType.product.value, //Build #1.0.128: Updated - missed to enum type
           AppDBConst.itemVariationCustomName: variationName,
           AppDBConst.itemVariationCount: variationCount,
           AppDBConst.itemCombo: combo,
           AppDBConst.itemSalesPrice: salesPrice,
           AppDBConst.itemRegularPrice: regularPrice, // Build #1.0.80: added
           AppDBConst.itemUnitPrice: unitPrice,
+          AppDBConst.itemProductId: apiItem.productId, //Build #1.0.128: Updated - missed to add productId & variationId
+          AppDBConst.itemVariationId: apiItem.variationId,
         });
         if (kDebugMode) {
           print("#### DEBUG: Inserted new item ID: $itemId for order $orderId");
@@ -356,11 +361,11 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
     for (var item in existingItemsMap.values) {
       await db.delete(
         AppDBConst.purchasedItemsTable,
-        where: '${AppDBConst.itemId} = ?',
-        whereArgs: [item[AppDBConst.itemId]],
+        where: '${AppDBConst.itemServerId} = ?', //Build #1.0.128: Updated - itemId to itemServerId
+        whereArgs: [item[AppDBConst.itemServerId]],
       );
       if (kDebugMode) {
-        print("#### DEBUG: Deleted obsolete item ID: ${item[AppDBConst.itemId]} for order $orderId");
+        print("#### DEBUG: Deleted obsolete item ID: ${item[AppDBConst.itemServerId]} for order $orderId");
       }
     }
 
@@ -501,7 +506,7 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
         whereArgs: [item[AppDBConst.itemServerId]],
       );
       if (kDebugMode) {
-        print("#### DEBUG: Deleted obsolete payout item ID: ${item[AppDBConst.itemId]} for order $orderId");
+        print("#### DEBUG: Deleted obsolete payout item ID: ${item[AppDBConst.itemServerId]} for order $orderId");
       }
     }
   }
@@ -519,7 +524,7 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
     );
 
     final existingItemsMap = {
-      for (var item in existingItems) item[AppDBConst.itemId].toString(): item,
+      for (var item in existingItems) item[AppDBConst.itemServerId].toString(): item,
     };
 
     if (kDebugMode) {
@@ -548,8 +553,8 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
             AppDBConst.itemImage: 'assets/svg/coupon.svg',
             AppDBConst.itemSKU: '',
           },
-          where: '${AppDBConst.itemId} = ?',
-          whereArgs: [existingItem[AppDBConst.itemId]],
+          where: '${AppDBConst.itemServerId} = ?', //Build #1.0.128: Updated - itemId to itemServerId
+          whereArgs: [existingItem[AppDBConst.itemServerId]],
         );
         if (kDebugMode) {
           print("#### DEBUG: Updated coupon item ID: $itemId for order $orderId");
@@ -577,11 +582,11 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
     for (var item in existingItemsMap.values) {
       await db.delete(
         AppDBConst.purchasedItemsTable,
-        where: '${AppDBConst.itemId} = ?',
-        whereArgs: [item[AppDBConst.itemId]],
+        where: '${AppDBConst.itemServerId} = ?', //Build #1.0.128: Updated - itemId to itemServerId
+        whereArgs: [item[AppDBConst.itemServerId]],
       );
       if (kDebugMode) {
-        print("#### DEBUG: Deleted obsolete coupon item ID: ${item[AppDBConst.itemId]} for order $orderId");
+        print("#### DEBUG: Deleted obsolete coupon item ID: ${item[AppDBConst.itemServerId]} for order $orderId");
       }
     }
  }
@@ -741,9 +746,10 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
         VoidCallback? onItemAdded, String? type ,int? productId = -1, int? variationId = -1,
         String? variationName, int? variationCount, String? combo, double? salesPrice, double? regularPrice, double? unitPrice,
       }) async {
-    if (orderId == null) {
-      await createOrder();
-    }
+    ///Build #1.0.128: No need here , we are already doing createOrder in orderBloc of updateOrderProducts
+    // if (orderId == null) {
+    //   await createOrder();
+    // }
     //Build #1.0.68: For default product pass enum item type was product
   //  type = ItemType.product.value;
 
@@ -854,7 +860,7 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
     }
   }
 
-  @deprecated
+  @Deprecated("Removed from current version, please use Rest API to update")
   //Build 1.1.36: required this func for issue of Edit item not updating count in order panel
   Future<void> updateItemQuantity(int itemId, int newQuantity) async {
     final db = await DBHelper.instance.database;

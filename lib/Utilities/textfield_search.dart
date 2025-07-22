@@ -351,14 +351,18 @@ class TextFieldSearchState extends State<TextFieldSearch> {
             },
             child: ListTile(
               leading: product.images != null && product.images!.isNotEmpty
-                  ? Image.network(
-                      product.images!.first,
-                      width: 50,
-                      height: 50,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) =>
-                      const Icon(Icons.broken_image),
-                    )
+                  ? SizedBox(
+                     width: 50,
+                     height: 50,
+                    child: Image.network(
+                        product.images!.first,
+                        width: 50,
+                        height: 50,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) =>
+                        const Icon(Icons.broken_image),
+                      ),
+                  )
                   : const Icon(Icons.image),
                 visualDensity: VisualDensity(vertical: -1),
                 dense: true,

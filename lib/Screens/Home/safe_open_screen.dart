@@ -9,6 +9,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../Blocs/Auth/shift_bloc.dart';
 import '../../Constants/text.dart';
 import '../../Database/assets_db_helper.dart';
+import '../../Database/db_helper.dart';
+import '../../Database/user_db_helper.dart';
 import '../../Helper/Extentions/nav_layout_manager.dart';
 import '../../Helper/Extentions/theme_notifier.dart';
 import '../../Helper/api_response.dart';
@@ -258,7 +260,7 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMix
             screen: Screen.SAFE,
             onModeChanged: () { //Build #1.0.84: Issue fixed: nav mode re-setting
               String newLayout;
-              setState(() {
+              setState(() async {
                 if (sidebarPosition == SidebarPosition.left) {
                   newLayout = SharedPreferenceTextConstants.navRightOrderLeft;
                 } else if (sidebarPosition == SidebarPosition.right) {
@@ -270,7 +272,9 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMix
                 // Update the notifier which will trigger _onLayoutChanged
                 PinakaPreferences.layoutSelectionNotifier.value = newLayout;
                 // No need to call saveLayoutSelection here as it's handled in the notifier
-                _preferences.saveLayoutSelection(newLayout);
+               // _preferences.saveLayoutSelection(newLayout);
+                //Build #1.0.122: update layout mode change selection to DB
+                await UserDbHelper().saveUserSettings({AppDBConst.layoutSelection: newLayout}, modeChange: true);
               });
             },
           ),
@@ -338,16 +342,11 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMix
                                       height: MediaQuery.of(context).size.height * 0.06,
                                       width: MediaQuery.of(context).size.width * 0.1,
                                       child: ElevatedButton(  // Build #1.0.70: updated code
-                                        onPressed: _isSubmitting
-                                            ? null
-                                            : () async {
+                                        onPressed: () async { // Build #1.0. 140: fixed - after submit tap dialog come after 2, 3 sec issue
                                           if (kDebugMode) {
                                             print("Submit button pressed, setting _isSubmitting to true");
                                           }
                                           setState(() => _isSubmitting = true);
-
-                                          //Build #1.0.78: Add 2-second delay for loader on submit button
-                                          await Future.delayed(const Duration(seconds: 2));
 
                                           try {
                                             final prefs = await SharedPreferences.getInstance();
@@ -391,7 +390,7 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMix
                                                   final prefs = await SharedPreferences.getInstance();
                                                   await prefs.setString(TextConstants.shiftId, response.data!.shiftId.toString());
                                                 }
-
+                                                setState(() => _isSubmitting = false); // Build #1.0. 140: hide loader
                                                 // Show dialog only once
                                                 // Build #1.0.70: Show appropriate dialog based on status
                                                 bool? result;
@@ -445,15 +444,9 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMix
                                               }
                                             });
                                           } catch (e) {
+                                            setState(() => _isSubmitting = false); // Build #1.0. 140: hide loader
                                             if (kDebugMode) {
                                               print("Error during submit: $e");
-                                            }
-                                          } finally {
-                                            if (mounted) {
-                                              setState(() => _isSubmitting = false);
-                                              if (kDebugMode) {
-                                                print("Submit operation completed, setting _isSubmitting to false");
-                                              }
                                             }
                                           }
                                         },

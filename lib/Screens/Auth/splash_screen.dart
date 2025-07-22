@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:pinaka_pos/Screens/Auth/store_id_screen.dart';
+import '../../Database/store_db_helper.dart';
 import '../../Database/user_db_helper.dart';
 import 'login_screen.dart';
 
@@ -40,7 +41,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
   Future<void> _checkValidationAndNavigate() async {
     await Future.delayed(const Duration(seconds: 1)); // Keep splash delay
-    bool isValid = await _userDbHelper.isStoreValidationValid();
+    bool isValid = await StoreDbHelper.instance.isStoreValidationValid(); //Build #1.0.126: updated to StoreDbHelper
     if (isValid && mounted) {
       Navigator.pushReplacement(
         context,

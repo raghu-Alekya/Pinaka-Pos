@@ -773,6 +773,7 @@ class NestedGridWidget extends StatelessWidget {
   final Function(int, {bool variantAdded}) onItemTapped; // Update the callback to accept a named parameter
   final Function(int, int) onReorder;
   final Function(int) onDeleteItem;
+  final bool showDeleteButton;
   final Function() onCancelReorder;
   final ProductBloc? productBloc; //Build 1.1.36
   final OrderBloc? orderBloc;
@@ -792,6 +793,7 @@ class NestedGridWidget extends StatelessWidget {
     required this.onItemTapped,
     required this.onReorder,
     required this.onDeleteItem,
+    this.showDeleteButton = true,
     required this.onCancelReorder,
     this.productBloc,
     this.orderBloc,
@@ -800,19 +802,23 @@ class NestedGridWidget extends StatelessWidget {
 
   Widget _buildImage(String imagePath) {
     final imageWidget = imagePath.startsWith("http")
-      ? Image.network(
-        imagePath,
-        width: 75,
-        height: 75,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          return Container(
-            width: 75,
-            height: 75,
-            color: Colors.grey.shade300,
-            child: const Icon(Icons.broken_image, color: Colors.grey),
-          );
-        },
+      ? SizedBox(
+           width: 75,
+           height: 75,
+        child: Image.network(
+          imagePath,
+          width: 75,
+          height: 75,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return Container(
+              width: 75,
+              height: 75,
+              color: Colors.grey.shade300,
+              child: const Icon(Icons.broken_image, color: Colors.grey),
+            );
+          },
+        ),
       )
       : Image.file(
         File(imagePath),
@@ -1072,6 +1078,7 @@ class NestedGridWidget extends StatelessWidget {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
+                              if (showDeleteButton)
                               IconButton(
                                 icon: const Icon(Icons.delete, color: Colors.red, size: 20),
                                 onPressed: () => onDeleteItem(itemIndex),

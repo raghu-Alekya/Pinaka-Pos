@@ -20,7 +20,7 @@ class PaymentDialog extends StatefulWidget {
   final VoidCallback? onVoid; // Callback for cancelling payment
   final VoidCallback? onPrint; // Callback for printing receipt
   final VoidCallback? onNextPayment; // Callback for proceeding to next payment
-  final VoidCallback? onDone; // Callback for completing the payment flow
+  final Function(String)? onDone; // Callback for completing the payment flow
   final VoidCallback? onNoReceipt; // Callback when user doesn't want receipt
   final VoidCallback? onExitCancel; // Callback for canceling exit
   final VoidCallback? onExitConfirm; // Callback for confirming exit
@@ -72,6 +72,7 @@ class PaymentDialog extends StatefulWidget {
 class _PaymentDialogState extends State<PaymentDialog> {
   String _selectedOption = 'Print'; // Default selected receipt option
   final TextEditingController _contactController = TextEditingController(); // For email/phone input
+  String? _validationError; // To hold validation error messages
   String capitalize(String s) => s[0].toUpperCase() + s.substring(1); //Build #1.0.34: added for "Cash" in success popup dialog
   bool _isVoidCancelLoading = false; // Build #1.0.49: Track loading for void cancel
   bool _isVoidConfirmLoading = false; // Track loading for void confirm
@@ -87,54 +88,56 @@ class _PaymentDialogState extends State<PaymentDialog> {
         borderRadius: BorderRadius.circular(20), // Rounded corners for dialog
       ),
       backgroundColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.popUpsBackground : null,
-      child: Container(
-        padding: const EdgeInsets.all(30), // Padding inside dialog
-        width: 750, // Fixed width for dialog
-        child: Column(
-          mainAxisSize: MainAxisSize.min, // Keep dialog as small as possible
-          crossAxisAlignment: CrossAxisAlignment.center, // Center content horizontally
-          children: [
-            _buildStatusIcon(), // Display appropriate status icon
-            const SizedBox(height: 24), // Vertical spacing
-            _buildTitle(), // Display appropriate title based on status
-            const SizedBox(height: 32),
-            if (widget.status == PaymentStatus.voidConfirmation)  // Build #1.0.49: added void confirm dialog code
-              Text(
-                TextConstants.voidConfirmText,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 24,
-                  color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.grey[800],
-                  height: 1.5,
+      child: SingleChildScrollView(
+        child: Container(
+          padding: const EdgeInsets.all(30), // Padding inside dialog
+          width: 750, // Fixed width for dialog
+          child: Column(
+            mainAxisSize: MainAxisSize.min, // Keep dialog as small as possible
+            crossAxisAlignment: CrossAxisAlignment.center, // Center content horizontally
+            children: [
+              _buildStatusIcon(), // Display appropriate status icon
+              const SizedBox(height: 24), // Vertical spacing
+              _buildTitle(), // Display appropriate title based on status
+              const SizedBox(height: 32),
+              if (widget.status == PaymentStatus.voidConfirmation)  // Build #1.0.49: added void confirm dialog code
+                Text(
+                  TextConstants.voidConfirmText,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 24,
+                    color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.grey[800],
+                    height: 1.5,
+                  ),
+                )// Vertical spacing
+              else if (widget.status == PaymentStatus.exitConfirmation)
+                Text(
+                  TextConstants.exitConfirmText,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 24,
+                    color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.grey[800],
+                    height: 1.5, // Line height
+                  ),
+                )
+              else
+                _buildPaymentInfo(), // Show payment details or receipt options
+              const SizedBox(height: 20), // Vertical spacing
+              if (widget.status == PaymentStatus.partial) //Build #1.0.34: Show only for partial payment - code updated as per new UI
+                Text(
+                  TextConstants.partialPaymentText,
+                  textAlign: TextAlign.center,
+                  softWrap: true,
+                  style: TextStyle(
+                    color: Colors.blueGrey[700],
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              )// Vertical spacing
-            else if (widget.status == PaymentStatus.exitConfirmation)
-              Text(
-                TextConstants.exitConfirmText,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 24,
-                  color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.grey[800],
-                  height: 1.5, // Line height
-                ),
-              )
-            else
-              _buildPaymentInfo(), // Show payment details or receipt options
-            const SizedBox(height: 20), // Vertical spacing
-            if (widget.status == PaymentStatus.partial) //Build #1.0.34: Show only for partial payment - code updated as per new UI
-              Text(
-                TextConstants.partialPaymentText,
-                textAlign: TextAlign.center,
-                softWrap: true,
-                style: TextStyle(
-                  color: Colors.blueGrey[700],
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            const SizedBox(height: 32), // Vertical spacing
-            _buildActionButtons(), // Display appropriate action buttons
-          ],
+              const SizedBox(height: 32), // Vertical spacing
+              _buildActionButtons(), // Display appropriate action buttons
+            ],
+          ),
         ),
       ),
     );
@@ -307,7 +310,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
                   ),
                 ),
                 Text(
-                  '\$${widget.amount!.toStringAsFixed(2)}',
+                  '${TextConstants.currencySymbol}${widget.amount!.toStringAsFixed(2)}',
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
@@ -345,7 +348,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
                     ),
                   ),
                   Text(
-                    '\$${widget.changeAmount!.toStringAsFixed(2)}',
+                    '${TextConstants.currencySymbol}${widget.changeAmount!.toStringAsFixed(2)}',
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w800,
@@ -462,11 +465,11 @@ class _PaymentDialogState extends State<PaymentDialog> {
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: Colors.grey[300]!),
+                    borderSide: BorderSide(color: _validationError != null ? Colors.red : Colors.grey[300]!),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: Colors.grey[400]!),
+                    borderSide: BorderSide(color: _validationError != null ? Colors.red : Colors.grey[400]!),
                   ),
                   hintText: TextConstants.enterEmailOrPhone, // Placeholder text
                   hintStyle: TextStyle(
@@ -481,9 +484,26 @@ class _PaymentDialogState extends State<PaymentDialog> {
                   fontWeight: FontWeight.w500, // Medium weight
                   color: Colors.blueGrey[800],
                 ),
+                onChanged: (_) {
+                  // Clear error when user starts typing
+                  if (_validationError != null) {
+                    setState(() {
+                      _validationError = null;
+                    });
+                  }
+                },
               ),
             ),
           ),
+          // Display validation error if it exists
+          if (_validationError != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8.0),
+              child: Text(
+                _validationError!,
+                style: const TextStyle(color: Colors.red, fontSize: 14),
+              ),
+            ),
           const SizedBox(height: 24), // Vertical spacing
           Center(
             child: SizedBox(
@@ -517,20 +537,39 @@ class _PaymentDialogState extends State<PaymentDialog> {
                     child: _buildButton(
                       TextConstants.done, // "Done" button
                           () {
-                        if (kDebugMode) {
-                          print("DEBUG: Done button pressed, selectedOption: $_selectedOption");
+                            final contactInfo = _contactController.text.trim();
+                            bool isValid = true;
+                            // Validate only if Email or SMS is selected
+                            if (_selectedOption == TextConstants.email || _selectedOption == TextConstants.sms) {
+                              if (contactInfo.isEmpty) {
+                                setState(() {
+                                  _validationError = 'Please enter a valid ${_selectedOption.toLowerCase()}.';
+                                });
+                                isValid = false;
+                              }
+                            }
+                         // If valid, proceed with the action
+                        if (isValid) {
+                          if (kDebugMode) {
+                            print(
+                                "DEBUG: Done button pressed, selectedOption: $_selectedOption");
+                          }
+                          setState(() {
+                            _isDoneLoading = true; // Show loader on button
+                          });
+                          if (_selectedOption == TextConstants.print) {
+                            widget.onPrint
+                                ?.call(); // Call print callback if selected
+                          } else if (_selectedOption == TextConstants.email) {
+                            widget.onEmail?.call(
+                                _contactController.text); // Email receipt
+                          } else if (_selectedOption == TextConstants.sms) {
+                            widget.onSMS
+                                ?.call(_contactController.text); // SMS receipt
+                          }
+                          widget.onDone
+                              ?.call(_selectedOption); // Call done callback
                         }
-                        setState(() {
-                          _isDoneLoading = true; // Show loader on button
-                        });
-                        if (_selectedOption == TextConstants.print) {
-                          widget.onPrint?.call(); // Call print callback if selected
-                        } else if (_selectedOption == TextConstants.email) {
-                          widget.onEmail?.call(_contactController.text); // Email receipt
-                        } else if (_selectedOption == TextConstants.sms) {
-                          widget.onSMS?.call(_contactController.text); // SMS receipt
-                        }
-                        widget.onDone?.call(); // Call done callback
                       },
                       backgroundColor: const Color(0xFF1BA672),
                       isLoading: _isDoneLoading, // Pass loading state

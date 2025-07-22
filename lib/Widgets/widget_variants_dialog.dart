@@ -148,51 +148,52 @@ class _VariantsDialogState extends State<VariantsDialog> with SingleTickerProvid
                           borderRadius: BorderRadius.circular(12),
                         ),
                         height: 400, // Fixed height for the grid
-                        child: Padding(
-                          padding: const EdgeInsets.only(left: 3, right: 3),
-                          child: Scrollbar(
+                        child: Scrollbar(
+                          controller: _scrollController,
+                          scrollbarOrientation: ScrollbarOrientation.right,
+                          thumbVisibility: true,
+                          thickness: 8.0,
+                          interactive: false,
+                          radius: const Radius.circular(8),
+                          trackVisibility: true,
+                          child: GridView.builder( //Build 1.1.36: updated variations dialog UI because previous ui getting only horizontal infinite list
+                            shrinkWrap: true,
                             controller: _scrollController,
-                            scrollbarOrientation: ScrollbarOrientation.right,
-                            thumbVisibility: true,
-                            thickness: 8.0,
-                            interactive: false,
-                            radius: const Radius.circular(8),
-                            trackVisibility: true,
-                            child: GridView.builder( //Build 1.1.36: updated variations dialog UI because previous ui getting only horizontal infinite list
-                              shrinkWrap: true,
-                              controller: _scrollController,
-                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 3, // 3 items per row
-                                crossAxisSpacing: 16,
-                                mainAxisSpacing: 16,
-                                childAspectRatio: 0.78, // Adjusted for better layout
-                              ),
-                              itemCount: widget.variations.length,
-                              itemBuilder: (context, index) {
-                                final variant = widget.variations[index];
-                                final quantity = variantQuantities[index] ?? 0;
-                                return Container(
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    border: Border.all(
-                                      color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.borderColor : Colors.grey.shade300,
-                                      width: 1,
-                                    ),
-                                    borderRadius: BorderRadius.circular(12),
-                                    color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground :Colors.white,
-                                    boxShadow: const [
-                                      BoxShadow(
-                                        color: Colors.black12,
-                                        blurRadius: 2,
-                                        spreadRadius: 2,
-                                        offset: Offset(0, 0),
-                                      ),
-                                    ],
+                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 3, // 3 items per row
+                              crossAxisSpacing: 16,
+                              mainAxisSpacing: 16,
+                              childAspectRatio: 0.78, // Adjusted for better layout
+                            ),
+                            itemCount: widget.variations.length,
+                            itemBuilder: (context, index) {
+                              final variant = widget.variations[index];
+                              final quantity = variantQuantities[index] ?? 0;
+                              return Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                    color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.borderColor : Colors.grey.shade300,
+                                    width: 1,
                                   ),
-                                  child: Column(
-                                    children: [
-                                      ClipRRect(
-                                        borderRadius: BorderRadius.circular(8),
+                                  borderRadius: BorderRadius.circular(12),
+                                  color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground :Colors.white,
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Colors.black12,
+                                      blurRadius: 2,
+                                      spreadRadius: 2,
+                                      offset: Offset(0, 0),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: SizedBox(
+                                        height: 140,
+                                        width: double.infinity,
                                         child: Image.network(
                                           variant["image"],
                                           height: 140,
@@ -207,94 +208,94 @@ class _VariantsDialogState extends State<VariantsDialog> with SingleTickerProvid
                                           },
                                         ),
                                       ),
-                                      const SizedBox(height: 8),
-                                      Text(
-                                        variant["name"],
-                                        textAlign: TextAlign.center,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
-                                        ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      variant["name"],
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
                                       ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        "${TextConstants.currencySymbol}${variant["price"]}",
-                                        style: const TextStyle(
-                                          color: Colors.green,
-                                          fontSize: 16,
-                                        ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      "${TextConstants.currencySymbol}${variant["price"]}",
+                                      style: const TextStyle(
+                                        color: Colors.green,
+                                        fontSize: 16,
                                       ),
-                                      const SizedBox(height: 10),
-                                      quantity > 0
-                                          ? QuantityControl(
-                                        controller: TextEditingController(text: quantity.toString()),
-                                        quantity: quantity,
-                                        onDecrement: (newQuantity) {
-                                          setState(() {
-                                            // Reset all quantities to 0
-                                            variantQuantities.forEach((key, _) { //Build #1.0.74: fixed -  multiple products adding
-                                              variantQuantities[key] = 0;
-                                            });
-                                            // Set the selected variant to new quantity
-                                            variantQuantities[index] = newQuantity;
+                                    ),
+                                    const SizedBox(height: 10),
+                                    quantity > 0
+                                        ? QuantityControl(
+                                      controller: TextEditingController(text: quantity.toString()),
+                                      quantity: quantity,
+                                      onDecrement: (newQuantity) {
+                                        setState(() {
+                                          // Reset all quantities to 0
+                                          variantQuantities.forEach((key, _) { //Build #1.0.74: fixed -  multiple products adding
+                                            variantQuantities[key] = 0;
                                           });
-                                          if (kDebugMode) {
-                                            print("VariantsDialog - Quantity decremented to $newQuantity for variant ${variant['name']}");
-                                          }
-                                        },
-                                        onIncrement: (newQuantity) {
-                                          setState(() {
-                                            // Reset all quantities to 0
-                                            variantQuantities.forEach((key, _) { //Build #1.0.74: fixed - multiple products adding
-                                              variantQuantities[key] = 0;
-                                            });
-                                            // Set the selected variant to new quantity
-                                            variantQuantities[index] = newQuantity;
+                                          // Set the selected variant to new quantity
+                                          variantQuantities[index] = newQuantity;
+                                        });
+                                        if (kDebugMode) {
+                                          print("VariantsDialog - Quantity decremented to $newQuantity for variant ${variant['name']}");
+                                        }
+                                      },
+                                      onIncrement: (newQuantity) {
+                                        setState(() {
+                                          // Reset all quantities to 0
+                                          variantQuantities.forEach((key, _) { //Build #1.0.74: fixed - multiple products adding
+                                            variantQuantities[key] = 0;
                                           });
-                                          if (kDebugMode) {
-                                            print("VariantsDialog - Quantity incremented to $newQuantity for variant ${variant['name']}");
-                                          }
-                                        },
-                                      )
-                                          : SizedBox(
-                                        width: double.infinity,
-                                        child: OutlinedButton(
-                                          onPressed: () {
+                                          // Set the selected variant to new quantity
+                                          variantQuantities[index] = newQuantity;
+                                        });
+                                        if (kDebugMode) {
+                                          print("VariantsDialog - Quantity incremented to $newQuantity for variant ${variant['name']}");
+                                        }
+                                      },
+                                    )
+                                        : SizedBox(
+                                      width: double.infinity,
+                                      child: OutlinedButton(
+                                        onPressed: () {
 
-                                            setState(() {
-                                              // Reset all quantities to 0
-                                              variantQuantities.forEach((key, _) {
-                                                variantQuantities[key] = 0;
-                                              });
-                                              // Set the selected variant to 1
-                                              variantQuantities[index] = 1;
+                                          setState(() {
+                                            // Reset all quantities to 0
+                                            variantQuantities.forEach((key, _) {
+                                              variantQuantities[key] = 0;
                                             });
-                                            if (kDebugMode) {
-                                              print("VariantsDialog - Selected variant: ${variant['name']}, ID: ${variant['id']}");
-                                            }
-                                          },
-                                          style: OutlinedButton.styleFrom(
-                                            minimumSize: const Size(double.infinity, 50),
-                                            side: const BorderSide(color: Color(0xFF1BA672)),
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.circular(8),
-                                            ),
+                                            // Set the selected variant to 1
+                                            variantQuantities[index] = 1;
+                                          });
+                                          if (kDebugMode) {
+                                            print("VariantsDialog - Selected variant: ${variant['name']}, ID: ${variant['id']}");
+                                          }
+                                        },
+                                        style: OutlinedButton.styleFrom(
+                                          minimumSize: const Size(double.infinity, 50),
+                                          side: const BorderSide(color: Color(0xFF1BA672)),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(8),
                                           ),
-                                          child: const Text(
-                                            TextConstants.addText,
-                                            style: TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                              color: Color(0xFF1BA672),
-                                            ),
+                                        ),
+                                        child: const Text(
+                                          TextConstants.addText,
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF1BA672),
                                           ),
                                         ),
                                       ),
-                                    ],
-                                  ),
-                                );
-                              },
-                            ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
                           ),
                         ),
                       ),

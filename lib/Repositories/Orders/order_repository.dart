@@ -2,21 +2,46 @@
 import 'dart:convert';
 import 'dart:ffi';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../Constants/text.dart';
+import '../../Database/db_helper.dart';
+import '../../Database/user_db_helper.dart';
 import '../../Helper/api_helper.dart';
 import '../../Helper/url_helper.dart';
 import '../../Models/Orders/apply_discount_model.dart';
 import '../../Models/Orders/get_orders_model.dart';
 import '../../Models/Orders/orders_model.dart';
 import '../../Models/Orders/total_orders_count_model.dart';
+import '../../Utilities/global_utility.dart';
 
 class OrderRepository {  // Build #1.0.25 - added by naveen
   final APIHelper _helper = APIHelper();
 
   // 1. Create Order
-  Future<CreateOrderResponseModel> createOrder(CreateOrderRequestModel request) async {
+  Future<CreateOrderResponseModel> createOrder() async {
     final url = "${UrlHelper.componentVersionUrl}${UrlMethodConstants.orders}";
 
+    ///Build #1.0.128: metadata directly using from here , no need to add every class
+    // Create metadata if no request is provided
+    List<OrderMetaData> metaData;
+    final prefs = await SharedPreferences.getInstance();
+    final shiftId = prefs.getString(TextConstants.shiftId);
+    if (shiftId == null || shiftId.isEmpty) {
+    throw Exception("Please start your shift before creating an order");
+    }
+
+    final deviceDetails = await GlobalUtility.getDeviceDetails();
+    String deviceId = deviceDetails['device_id'] ?? 'unknown';
+    final userData = await UserDbHelper().getUserData();
+    int userId = userData?[AppDBConst.userId] as int;
+
+    metaData = [
+    OrderMetaData(key: OrderMetaData.posDeviceId, value: deviceId),
+    OrderMetaData(key: OrderMetaData.posPlacedBy, value: '$userId'),
+    OrderMetaData(key: OrderMetaData.shiftId, value: shiftId),
+    ];
+
+    final request = CreateOrderRequestModel(metaData: metaData);
     if (kDebugMode) {
       print("OrderRepository - POST URL: $url");
       print("OrderRepository - Request Body: ${request.toJson()}");
@@ -126,7 +151,7 @@ class OrderRepository {  // Build #1.0.25 - added by naveen
   }
 
   // Build #1.0.118: Fetch Total Orders Count API Call for Orders Screen
-  Future<TotalOrdersResponseModel> fetchTotalOrdersCount({bool allStatuses = false, int pageNumber =1, int pageLimit = 10, String status = "", String orderType = "", String userId = ""}) async {
+  Future<TotalOrdersResponseModel> fetchTotalOrdersCount({bool allStatuses = false, int pageNumber =1, int pageLimit = 10, String status = "", String orderType = "", String userId = "", String startDate = "", String endDate = ""}) async {
 
     final statusString = status != "" ? status : (allStatuses
         ? TextConstants.orderScreenStatus
@@ -134,7 +159,7 @@ class OrderRepository {  // Build #1.0.25 - added by naveen
 
     orderType = orderType != "" ? orderType : "";
 
-    var getOrdersParameter = "?auther=$userId&page=$pageNumber&per_page=$pageLimit&created_via=$orderType&search=&status=";
+    var getOrdersParameter = "?auther=$userId&page=$pageNumber&per_page=$pageLimit&created_via=$orderType&after=$startDate&before=$endDate&search=&status="; //Build #1.0.134: updated new parameters startDate, endDate
     // Encode for URL (spaces become '+', commas become '%2C')
     final encodedStatus = Uri.encodeQueryComponent(statusString);
     final url = "${UrlHelper.componentVersionUrl}${UrlMethodConstants.orders}/${UrlMethodConstants.totalOrders}$getOrdersParameter$encodedStatus${UrlParameterConstants.getOrdersEndParameter}";

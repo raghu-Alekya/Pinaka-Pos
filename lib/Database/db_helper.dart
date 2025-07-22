@@ -1,8 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:pinaka_pos/Constants/misc_features.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+// import 'package:sqflite_common/sqlite_api.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 class AppDBConst { // Build #1.0.10 - Naveen: Updated DB tables constants
   static const String dbName = 'pinaka.db'; // Database name
@@ -18,9 +22,9 @@ class AppDBConst { // Build #1.0.10 - Naveen: Updated DB tables constants
   static const String userNickname = 'nickname';
   static const String userToken = 'token';
   static const String userOrderCount = 'order_count'; // Build #1.0.108: Tracks total orders by the user
-  static const String receiptIconPath = 'receipt_icon_path';
-  static const String receiptHeaderText = 'receipt_header_text';
-  static const String receiptFooterText = 'receipt_footer_text';
+  static const String profilePhoto = 'profile_photo'; //Build #1.0.122 : Added new column's
+  static const String themeMode = 'theme_mode';
+  static const String layoutSelection = 'layout_selection';
 
   // Orders Table
   static const String orderTable = 'orders_table';
@@ -98,6 +102,9 @@ class AppDBConst { // Build #1.0.10 - Naveen: Updated DB tables constants
   static const String printerProductId = 'product_id';
   static const String printerVendorId = 'vendor_id';
   static const String printerType = 'type_printer';
+  static const String receiptIconPath = 'receipt_icon_path'; //Build #1.0.122 : Added new column's
+  static const String receiptHeaderText = 'receipt_header_text';
+  static const String receiptFooterText = 'receipt_footer_text';
 
   //Build #1.0.42: Added Store Validation Table
   static const String storeValidationTable = 'store_validation_table';
@@ -165,6 +172,26 @@ class DBHelper {
 
   // Initialize the database
   Future<Database> _initDB(String filePath) async {
+
+    if(Platform.isWindows){
+      // Init ffi loader if needed.
+      sqfliteFfiInit();
+      var databaseFactory = databaseFactoryFfi;
+      final dbPath = await databaseFactory.getDatabasesPath();
+      final path = join(dbPath, filePath);
+
+      if (kDebugMode) {
+        print("#### DB Path: $path");
+      }
+      ///Todo: Uncomment the line below to delete the database during development/testing
+      if(Misc.enableDBDelete) {
+        await databaseFactory.deleteDatabase(path);
+        final SharedPreferences prefs = await SharedPreferences.getInstance();
+        await prefs.clear(); // This removes all stored preferences
+      }
+      return await databaseFactory.openDatabase(path, options: OpenDatabaseOptions(version: 1, onCreate: _createTables));
+    }
+
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, filePath);
 
@@ -195,9 +222,9 @@ class DBHelper {
       ${AppDBConst.userNickname} TEXT,
       ${AppDBConst.userToken} TEXT NOT NULL,
       ${AppDBConst.userOrderCount} INTEGER DEFAULT 0, -- Optional: Tracks total orders by the user
-      ${AppDBConst.receiptIconPath} TEXT,
-      ${AppDBConst.receiptHeaderText} TEXT,
-      ${AppDBConst.receiptFooterText} TEXT
+      ${AppDBConst.profilePhoto} TEXT,
+      ${AppDBConst.themeMode} TEXT,
+      ${AppDBConst.layoutSelection} TEXT
     )
     ''');
 
@@ -288,7 +315,10 @@ CREATE TABLE ${AppDBConst.orderTable} (
       ${AppDBConst.printerDeviceName} TEXT NOT NULL,
       ${AppDBConst.printerProductId} TEXT NOT NULL,
       ${AppDBConst.printerVendorId} TEXT NOT NULL,
-      ${AppDBConst.printerType} TEXT NOT NULL
+      ${AppDBConst.printerType} TEXT NOT NULL,
+      ${AppDBConst.receiptIconPath} TEXT,
+      ${AppDBConst.receiptHeaderText} TEXT,
+      ${AppDBConst.receiptFooterText} TEXT
     )
     ''');
 

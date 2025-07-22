@@ -4,7 +4,9 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:pinaka_pos/Helper/Extentions/theme_notifier.dart';
 import 'package:pinaka_pos/Utilities/printer_settings.dart';
+import 'package:provider/provider.dart';
 import 'package:thermal_printer/esc_pos_utils_platform/esc_pos_utils_platform.dart';
 import 'package:thermal_printer/thermal_printer.dart';
 import 'package:image/image.dart' as img;
@@ -341,13 +343,22 @@ class _PrinterSetupState extends State<PrinterSetup> {
 
   @override
   Widget build(BuildContext context) {
+    final themeHelper = Provider.of<ThemeNotifier>(context);
     return MaterialApp(
       home: Scaffold(
+        backgroundColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textDark,
         appBar: AppBar(
           title: const Text('Select a device to connect'),
+          foregroundColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textLight : ThemeNotifier.textDark,
+          backgroundColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.cardLight : ThemeNotifier.cardDark,
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back, color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textLight : ThemeNotifier.textDark,),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
         ),
         body: Center(
           child: Container(
+            color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textDark,
             height: double.infinity,
             constraints: const BoxConstraints(maxWidth: 400),
             child: SingleChildScrollView(

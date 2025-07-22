@@ -22,27 +22,39 @@ class SubCategoryGridWidget extends StatelessWidget {
 
   Widget _buildImage(String imagePath) {
     if (imagePath.startsWith('assets/') && imagePath.endsWith('.svg')) {
-      return SvgPicture.asset(
-        imagePath,
+      return SizedBox(
         height: 40,
         width: 40,
-        placeholderBuilder: (context) => const Icon(Icons.image, size: 40),
+        child: SvgPicture.asset(
+          imagePath,
+          height: 40,
+          width: 40,
+          placeholderBuilder: (context) => const Icon(Icons.image, size: 40),
+        ),
       );
     } else if (imagePath.startsWith('assets/')) {
-      return Image.asset(
-        imagePath,
+      return SizedBox(
         height: 40,
         width: 40,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => const Icon(Icons.image, size: 40),
+        child: Image.asset(
+          imagePath,
+          height: 40,
+          width: 40,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => const Icon(Icons.image, size: 40),
+        ),
       );
     } else {
-      return Image.network(
-        imagePath,
+      return SizedBox(
         height: 40,
         width: 40,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => const Icon(Icons.image, size: 40),
+        child: Image.network(
+          imagePath,
+          height: 40,
+          width: 40,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => const Icon(Icons.image, size: 40),
+        ),
       );
     }
   }
@@ -53,6 +65,16 @@ class SubCategoryGridWidget extends StatelessWidget {
     return Expanded(
       child: isLoading
           ? ShimmerEffect.rectangular(height: 200)
+          : subCategories.isEmpty
+          ? const Center(
+        child: Text(TextConstants.noSubcategoriesAvailable,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+            color: Colors.grey,
+          ),
+        ),
+      )
           : GridView.builder(
         padding: const EdgeInsets.all(16),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(

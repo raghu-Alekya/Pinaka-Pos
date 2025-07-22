@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../Helper/Extentions/nav_layout_manager.dart';
 
 // Import your custom numpad
 import '../Blocs/Assets/asset_bloc.dart';
@@ -32,7 +33,7 @@ class AppScreenTabWidget extends StatefulWidget {
   State<AppScreenTabWidget> createState() => _AppScreenTabWidgetState();
 }
 
-class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
+class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSelectionMixin {
   // Tab selection
   bool _isPayoutLoading = false;
   bool _isCouponLoading = false;
@@ -331,6 +332,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
             onAddPressed: _handleAddDiscount,
             isLoading: _isDiscountLoading,
             isDarkTheme: true,
+            isBottomNav: sidebarPosition == SidebarPosition.bottom,
           ),
         ),
       ],
@@ -401,6 +403,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
             onAddPressed: _handleAddCoupon,
             isLoading: _isCouponLoading,
             isDarkTheme: true,
+            isBottomNav: sidebarPosition == SidebarPosition.bottom,
           ),
         ),
       ],
@@ -732,6 +735,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
           },
           isLoading: _isCustomItemLoading,
           isDarkTheme: true,
+          isBottomNav: sidebarPosition == SidebarPosition.bottom,
         ),
       ),
     );
@@ -1009,6 +1013,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
             onAddPressed: _handleAddPayout,
             isLoading: _isPayoutLoading,
             isDarkTheme: themeHelper.themeMode == ThemeMode.dark,
+            isBottomNav: sidebarPosition == SidebarPosition.bottom,
           ),
         ),
       ],
@@ -1169,9 +1174,16 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
     String discountValue = _discountValue.replaceAll('%', '').replaceAll('\$', '');
     if (discountValue.isEmpty || discountValue == "0" || double.tryParse(discountValue) == null) {
       if (kDebugMode) print("Invalid discount value: $discountValue");
+      ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
+        const SnackBar(
+          content: Text("Please enter a valid Discount"),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 2),
+        ),
+      );
       return;
     }
-
+    final orderId = OrderHelper().activeOrderId;  //Build #1.0.134: get activeOrderId
     if (orderId == null) {
       if (kDebugMode) print("No active order selected");
       ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
@@ -1200,17 +1212,28 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
       if (orderData.isEmpty) {
         if (kDebugMode) print("Order $orderId not found in database");
         setState(() => _isDiscountLoading = false);
+        ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar( // Build #1.0.128:  updated missed condition
+          const SnackBar(
+            content: Text("Order not found"),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 2),
+          ),
+        );
         return;
       }
 
       final serverOrderId = orderData.first[AppDBConst.orderServerId] as int?;
-      double currentOrderTotal = orderData.first[AppDBConst.orderTotal] as double? ?? 0.0;
-      if (kDebugMode) print("Fetched order total for order $orderId: $currentOrderTotal");
+      /// Build #1.0.131: Issue Fixed: now correctly calculates order total after adding percentage discounts in add screen.
+      /// For example, a 2% discount on ₹137 is now shown as ₹134.26 instead of ₹134.15.
+      double currentOrderTotalWithTax = orderData.first[AppDBConst.orderTotal] as double? ?? 0.0;
+      double currentOrderTax = orderData.first[AppDBConst.orderTax] as double? ?? 0.0;
+      double mainOrderTotal = currentOrderTotalWithTax - currentOrderTax;
+      if (kDebugMode) print("Fetched order total for order $orderId: OrderTotalWithTax - $currentOrderTotalWithTax,  OrderTax - $currentOrderTax, MainOrderTotal WithOut Tax - $mainOrderTotal");
 
       // Calculate discount based on current order total
       double discountAmount = double.parse(discountValue);
       if (_isPercentageSelected) {
-        discountAmount = (discountAmount / 100) * currentOrderTotal;
+        discountAmount = (discountAmount / 100) * mainOrderTotal; // Build #1.0.131
         if (kDebugMode) print("Calculated discount amount from percentage: $discountAmount");
       }
 
@@ -1308,11 +1331,19 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
 
 // Handle adding the coupon
   void _handleAddCoupon() async {
-    if (_couponCode.isEmpty) {
+    if (_couponCode.isEmpty || _couponCode == "0") {
       if (kDebugMode) print("### _couponCode is empty");
+      ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
+        const SnackBar(
+          content: Text("Please enter a valid Coupon Code"),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 2),
+        ),
+      );
       return;
     }
 
+    final orderId = OrderHelper().activeOrderId;  //Build #1.0.134: get activeOrderId
     if (orderId == null) {
       if (kDebugMode) print("No active order selected");
       ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
@@ -1330,7 +1361,27 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
     });
 
     try {
+
       final db = await DBHelper.instance.database;
+
+      final orderData = await db.query( // Build #1.0.128: updated missed condition
+        AppDBConst.orderTable,
+        where: '${AppDBConst.orderServerId} = ?',
+        whereArgs: [orderId],
+      );
+
+      if (orderData.isEmpty) {
+        if (kDebugMode) print("Order $orderId not found in database");
+        setState(() => _isCouponLoading = false);
+        ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
+          const SnackBar(
+            content: Text("Order not found"),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 2),
+          ),
+        );
+        return;
+      }
 
       // Check for existing coupon with the same couponCode
       final existingCoupons = await db.query(
@@ -1500,114 +1551,116 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
       );
       return;
     }
-    if (orderId == null) {
-      if (kDebugMode) print("No active order selected");
-      ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
-        const SnackBar(
-          content: Text("No active order selected"),
-          backgroundColor: Colors.red,
-          duration: Duration(seconds: 2),
-        ),
-      );
-      return;
-    }
+    /// Build #1.0.128: No need to check this condition here
+    // if (orderId == null) {
+    //   if (kDebugMode) print("No active order selected");
+    //   ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
+    //     const SnackBar(
+    //       content: Text("No active order selected"),
+    //       backgroundColor: Colors.red,
+    //       duration: Duration(seconds: 2),
+    //     ),
+    //   );
+    //   return;
+    // }
 
     setState(() => _isCustomItemLoading = true);
 
     try {
-      final db = await DBHelper.instance.database;
-      final orderData = await db.query(
-        AppDBConst.orderTable,
-        where: '${AppDBConst.orderServerId} = ?',
-        whereArgs: [orderId],
-      );
+      // final db = await DBHelper.instance.database;
+      // final orderData = await db.query(
+      //   AppDBConst.orderTable,
+      //   where: '${AppDBConst.orderServerId} = ?',
+      //   whereArgs: [orderId],
+      // );
 
-      if (orderData.isEmpty) {
-        if (kDebugMode) print("Order $orderId not found in database");
-        setState(() => _isCustomItemLoading = false);
-        ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
-          const SnackBar(
-            content: Text("Order not found"),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 2),
-          ),
-        );
-        return;
-      }
+      // if (orderData.isEmpty) {
+      //   if (kDebugMode) print("Order $orderId not found in database");
+      //   setState(() => _isCustomItemLoading = false);
+      //   ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
+      //     const SnackBar(
+      //       content: Text("Order not found"),
+      //       backgroundColor: Colors.red,
+      //       duration: Duration(seconds: 2),
+      //     ),
+      //   );
+      //   return;
+      // }
 
-      final serverOrderId = orderData.first[AppDBConst.orderServerId] as int?;
-
+    //  final serverOrderId = orderData.first[AppDBConst.orderServerId] as int?;
+      final serverOrderId = OrderHelper().activeOrderId;
       //Build #1.0.78: Check for existing item with same SKU
-      final existingItems = await db.query(
-        AppDBConst.purchasedItemsTable,
-        where: '${AppDBConst.orderIdForeignKey} = ? AND ${AppDBConst.itemSKU} = ?',
-        whereArgs: [orderId, _sku],
-      );
+      // final existingItems = await db.query(
+      //   AppDBConst.purchasedItemsTable,
+      //   where: '${AppDBConst.orderIdForeignKey} = ? AND ${AppDBConst.itemSKU} = ?',
+      //   whereArgs: [orderId, _sku],
+      // );
+      //
+      // ///Todo: do we neeed this condition to check?
+      /// Build #1.0.128: We don't need this, why because - after api call we are clearing sku value, user cant add custom item with same sku
+      // if (existingItems.isNotEmpty) {
+      //   if (kDebugMode) print("Item with SKU $_sku already exists in order $orderId");
+      //   setState(() => _isCustomItemLoading = false);
+      //   ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
+      //     const SnackBar(
+      //       content: Text("Item with this SKU already added to the order"),
+      //       backgroundColor: Colors.orange,
+      //       duration: Duration(seconds: 2),
+      //     ),
+      //   );
+      //   return;
+      // }
 
-      ///Todo: do we neeed this condition to check?
-      if (existingItems.isNotEmpty) {
-        if (kDebugMode) print("Item with SKU $_sku already exists in order $orderId");
-        setState(() => _isCustomItemLoading = false);
-        ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
-          const SnackBar(
-            content: Text("Item with this SKU already added to the order"),
-            backgroundColor: Colors.orange,
-            duration: Duration(seconds: 2),
-          ),
-        );
-        return;
-      }
-
-      if (serverOrderId == null) {
-        /// For non-API orders, insert locally
-        // await db.insert(AppDBConst.purchasedItemsTable, {
-        //   AppDBConst.orderIdForeignKey: orderId!,
-        //   AppDBConst.itemName: _customItemName,
-        //   AppDBConst.itemSKU: _sku,
-        //   AppDBConst.itemPrice: double.parse(_customItemPrice),
-        //   AppDBConst.itemCount: 1,
-        //   AppDBConst.itemSumPrice: double.parse(_customItemPrice),
-        //   AppDBConst.itemImage: 'assets/svg/custom_item.svg',
-        //   AppDBConst.itemType: ItemType.customProduct.value,
-        // });
-        // final items = await _orderHelper.getOrderItems(orderId!);
-        // final orderTotal = items.fold(0.0, (sum, item) => sum + (item[AppDBConst.itemSumPrice] as num).toDouble());
-        // await db.update(
-        //   AppDBConst.orderTable,
-        //   {AppDBConst.orderTotal: orderTotal},
-        //   where: '${AppDBConst.orderServerId} = ?',
-        //   whereArgs: [orderId],
-        // );
-        // setState(() {
-        //   _customItemName = "";
-        //   _customItemPrice = "";
-        //   _sku = "";
-        //   _selectedTaxSlab = _taxSlabOptions.isNotEmpty ? _taxSlabOptions.first : "";
-        //   _customItemNameController.clear();
-        //   _customItemPriceController.clear();
-        //   _skuController.clear();
-        //   _isCustomItemLoading = false;
-        // });
-        // ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
-        //   SnackBar(
-        //     content: Text("Custom item '$_customItemName' added at \$$_customItemPrice"),
-        //     backgroundColor: Colors.green,
-        //     duration: const Duration(seconds: 2),
-        //   ),
-        // );
-        // await _orderHelper.loadData();
-        // await _loadOrderData();
-        // widget.refreshOrderList?.call();
-        ///Show error instead adding to local DB and return
-        ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
-          SnackBar(
-            content: Text("Custom item '$_customItemName' did not add to Order, as of Order id is not found."),
-            backgroundColor: Colors.orange,
-            duration: const Duration(seconds: 2),
-          ),
-        );
-        return;
-      }
+      // if (serverOrderId == null) {  /// Build #1.0.128: No need to check this condition here
+      //   /// For non-API orders, insert locally
+      //   // await db.insert(AppDBConst.purchasedItemsTable, {
+      //   //   AppDBConst.orderIdForeignKey: orderId!,
+      //   //   AppDBConst.itemName: _customItemName,
+      //   //   AppDBConst.itemSKU: _sku,
+      //   //   AppDBConst.itemPrice: double.parse(_customItemPrice),
+      //   //   AppDBConst.itemCount: 1,
+      //   //   AppDBConst.itemSumPrice: double.parse(_customItemPrice),
+      //   //   AppDBConst.itemImage: 'assets/svg/custom_item.svg',
+      //   //   AppDBConst.itemType: ItemType.customProduct.value,
+      //   // });
+      //   // final items = await _orderHelper.getOrderItems(orderId!);
+      //   // final orderTotal = items.fold(0.0, (sum, item) => sum + (item[AppDBConst.itemSumPrice] as num).toDouble());
+      //   // await db.update(
+      //   //   AppDBConst.orderTable,
+      //   //   {AppDBConst.orderTotal: orderTotal},
+      //   //   where: '${AppDBConst.orderServerId} = ?',
+      //   //   whereArgs: [orderId],
+      //   // );
+      //   // setState(() {
+      //   //   _customItemName = "";
+      //   //   _customItemPrice = "";
+      //   //   _sku = "";
+      //   //   _selectedTaxSlab = _taxSlabOptions.isNotEmpty ? _taxSlabOptions.first : "";
+      //   //   _customItemNameController.clear();
+      //   //   _customItemPriceController.clear();
+      //   //   _skuController.clear();
+      //   //   _isCustomItemLoading = false;
+      //   // });
+      //   // ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
+      //   //   SnackBar(
+      //   //     content: Text("Custom item '$_customItemName' added at \$$_customItemPrice"),
+      //   //     backgroundColor: Colors.green,
+      //   //     duration: const Duration(seconds: 2),
+      //   //   ),
+      //   // );
+      //   // await _orderHelper.loadData();
+      //   // await _loadOrderData();
+      //   // widget.refreshOrderList?.call();
+      //   ///Show error instead adding to local DB and return
+      //   ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
+      //     SnackBar(
+      //       content: Text("Custom item '$_customItemName' did not add to Order, as of Order id is not found."),
+      //       backgroundColor: Colors.orange,
+      //       duration: const Duration(seconds: 2),
+      //     ),
+      //   );
+      //   return;
+      // }
 
       // API-first approach
       List<Tax> taxes = await _assetDBHelper.getTaxList();
@@ -1701,7 +1754,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
 
           await orderBloc.updateOrderProducts(
             orderId: serverOrderId,
-            dbOrderId: orderId!,
+            dbOrderId: orderId,  // Build #1.0.128
             lineItems: [
               OrderLineItem(
                 productId: response.data!.id,
@@ -1752,9 +1805,17 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> {
   void _handleAddPayout() async {
     if (_payoutAmount.isEmpty || _payoutAmount == "0" || double.tryParse(_payoutAmount) == null) {
       if (kDebugMode) print("Invalid payout amount: $_payoutAmount");
+        ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
+          const SnackBar(
+            content: Text("Please enter a valid Payout Amount"),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 2),
+          ),
+        );
       return;
     }
 
+    final orderId = OrderHelper().activeOrderId; //Build #1.0.134: get activeOrderId
     if (orderId == null) {
       if (kDebugMode) print("No active order selected");
       ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(

@@ -16,9 +16,11 @@ import 'package:image/image.dart' as img;
 
 import '../../Blocs/Orders/order_bloc.dart';
 import '../../Blocs/Payment/payment_bloc.dart';
+import '../../Constants/misc_features.dart';
 import '../../Constants/text.dart';
 import '../../Database/db_helper.dart';
 import '../../Database/order_panel_db_helper.dart';
+import '../../Database/printer_db_helper.dart';
 import '../../Database/user_db_helper.dart';
 import '../../Helper/Extentions/theme_notifier.dart';
 import '../../Helper/api_response.dart';
@@ -26,6 +28,7 @@ import '../../Models/Payment/payment_model.dart';
 import '../../Models/Payment/void_payment_model.dart';
 import '../../Repositories/Orders/order_repository.dart';
 import '../../Repositories/Payment/payment_repository.dart';
+import '../../Utilities/global_utility.dart';
 import '../../Utilities/responsive_layout.dart';
 import '../../Utilities/result_utility.dart';
 import '../../Widgets/widget_custom_num_pad.dart';
@@ -67,6 +70,8 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
   int vendorId = 1; // Hardcoded as per requirement
   String serviceType = "default"; // Hardcoded as per requirement
   double total = 0.0;
+  double orderTotal = 0.0;  // Build #1.0.137
+  double grossTotal = 0.0;
   double balanceAmount = 0.0;
   double tenderAmount = 0.0; // Build #1.0.33 : added new variables
   double paidAmount = 0.0;
@@ -421,7 +426,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                       radius: ResponsiveLayout.getRadius(18),
                       backgroundColor: Colors.deepPurple,
                       child: Text(
-                          (userDisplayName ?? "Unknown").substring(0,1),//"A", /// use initial for the login user
+                          (userDisplayName ?? TextConstants.unknown).substring(0,1),//"A", /// use initial for the login user
                         style: TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
@@ -441,7 +446,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                               fontSize: ResponsiveLayout.getFontSize(14)),
                         ),
                         Text(
-                          userRole ?? "Unknown" ,//'I am Cashier', /// use user role
+                          userRole ?? TextConstants.unknown ,//'I am Cashier', /// use user role
                           style: TextStyle(color: Colors.grey, fontSize: 12),
                         ),
                       ],
@@ -561,7 +566,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                     // ),
                     const SizedBox(width: 10),
                     Text(
-                      'Back',
+                      TextConstants.back,
                       style: TextStyle(fontSize: ResponsiveLayout.getFontSize(15)),
                     ),
                   ],
@@ -714,9 +719,8 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                 //padding: EdgeInsets.all(5),
                 margin: EdgeInsets.only(top: ResponsiveLayout.getPadding(10)),
                 child: AnimatedSize(
-                   duration: Duration(milliseconds: 500),
+                   duration: Duration(milliseconds: 300),
                   curve: Curves.easeInOut,
-                  alignment: Alignment.bottomCenter,
                     child: _showFullSummary
                         ? Container(
                       height: ResponsiveLayout.getHeight(205),
@@ -735,7 +739,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                         //mainAxisSize: MainAxisSize.min,
                       children: [
                         // Order calculations
-                        _buildOrderCalculation(TextConstants.grossTotal, '${TextConstants.currencySymbol}${getSubTotal().toStringAsFixed(2)}',
+                        _buildOrderCalculation(TextConstants.grossTotal, '${TextConstants.currencySymbol}${grossTotal.toStringAsFixed(2)}',
                             isTotal: true),
                         _buildOrderCalculation(TextConstants.discount, '-${TextConstants.currencySymbol}${discount.toStringAsFixed(2)}',
                             isDiscount: true),
@@ -793,8 +797,8 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                         children: [
                           Text(
                             _showFullSummary
-                                ? 'Net Payable : ${TextConstants.currencySymbol}${balanceAmount.toStringAsFixed(2)}'
-                                : 'Net Payable : ${TextConstants.currencySymbol}${balanceAmount.toStringAsFixed(2)}',
+                                ? ' ${TextConstants.netPayable} : ${TextConstants.currencySymbol}${balanceAmount.toStringAsFixed(2)}'
+                                : '${TextConstants.netPayable} ${TextConstants.currencySymbol}${balanceAmount.toStringAsFixed(2)}',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
@@ -848,6 +852,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
           discount = (orderData.first[AppDBConst.orderDiscount] as num?)?.toDouble() ?? 0.0; // Fetch discount
           merchantDiscount = (orderData.first[AppDBConst.merchantDiscount] as num?)?.toDouble() ?? 0.0; // Build #1.0.80
           tax = (orderData.first[AppDBConst.orderTax] as num?)?.toDouble() ?? 0.0;
+          orderTotal = (orderData.first[AppDBConst.orderTotal] as num?)?.toDouble() ?? 0.0; // Build #1.0.80
           if (kDebugMode) {
             print("Fetched orderServerId: $orderId, Discount: $discount for activeOrderId: ${orderHelper.activeOrderId}, Time: $orderDateTime");
           }
@@ -875,7 +880,8 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
 
       setState(() {
         orderItems = items;
-        balanceAmount = total - discount - merchantDiscount + tax; // Build #1.0.80: Update balance calculation
+        grossTotal = GlobalUtility.getGrossTotal(orderItems);  // Build #1.0.138: GrossTotal calculation form global class for code re usability
+        balanceAmount = orderTotal; // Build #1.0.138: using orderTotal from API value #No need our calculation here
         tenderAmount = 0.0; // Reset for new order
         changeAmount = 0.0; // Reset for new order
         paidAmount = 0.0; // Reset for new order
@@ -899,11 +905,25 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     final isCoupon = itemType.contains(TextConstants.couponText);
     final isCustomItem = itemType.contains(TextConstants.customItemText);
     final isPayoutOrCouponOrCustomItem = isPayout || isCoupon || isCustomItem;
+    final isCouponOrPayout = isPayout || isCoupon;
     final themeHelper = Provider.of<ThemeNotifier>(context);
 
     final variationName = orderItem[AppDBConst.itemVariationCustomName]?.toString() ?? 'N/A';
     final variationCount = orderItem[AppDBConst.itemVariationCount] ?? 0;
     final combo = orderItem[AppDBConst.itemCombo] ?? '';
+
+    /// Build #1.0.140: Item Price will check sales price if it is null/empty, check regular price else unit price
+    final salesPrice =
+    (orderItem[AppDBConst.itemSalesPrice] == null || (orderItem[AppDBConst.itemSalesPrice]?.toDouble() ?? 0.0) == 0.0)
+        ? (orderItem[AppDBConst.itemRegularPrice] == null || (orderItem[AppDBConst.itemRegularPrice]?.toDouble() ?? 0.0) == 0.0)
+        ? orderItem[AppDBConst.itemUnitPrice]?.toDouble() ?? 0.0
+        : orderItem[AppDBConst.itemRegularPrice]!.toDouble()
+        : orderItem[AppDBConst.itemSalesPrice]!.toDouble();
+
+    final regularPrice =  (orderItem[AppDBConst.itemRegularPrice] == null || (orderItem[AppDBConst.itemRegularPrice]?.toDouble() ?? 0.0) == 0.0)
+        ? orderItem[AppDBConst.itemUnitPrice]?.toDouble() ?? 0.0
+        : orderItem[AppDBConst.itemRegularPrice]!.toDouble();
+
     if (kDebugMode) {
       print("#### itemType: $itemType, isPayoutOrCouponOrCustomItem: $isPayoutOrCouponOrCustomItem");
       print("#### variationName: $variationName, variationCount: $variationCount, combo: $combo");
@@ -1095,21 +1115,24 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
               child: ClipRRect( // Build #1.0.13 : updated images from db not static default images
                 borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(10)),
                 child: orderItem[AppDBConst.itemImage].toString().startsWith('http')
-                    ? Image.network(
-                  orderItem[AppDBConst.itemImage],
-                  height: ResponsiveLayout.getHeight(30),
-                  width: ResponsiveLayout.getWidth(30),
-                  fit: BoxFit.cover,
-                  errorBuilder:
-                      (context, error, stackTrace) {
-                    return SvgPicture.asset(
-                      'assets/svg/password_placeholder.svg',
-                      height: ResponsiveLayout.getHeight(30),
-                      width: ResponsiveLayout.getWidth(30),
-                      fit: BoxFit.cover,
-                    );
-                  },
-                )
+                    ? SizedBox(
+                        height: ResponsiveLayout.getHeight(30),
+                        width: ResponsiveLayout.getWidth(30),
+                        child: Image.network(
+                          orderItem[AppDBConst.itemImage],
+                          height: ResponsiveLayout.getHeight(30),
+                          width: ResponsiveLayout.getWidth(30),
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return SvgPicture.asset(
+                        'assets/svg/password_placeholder.svg',
+                        height: ResponsiveLayout.getHeight(30),
+                        width: ResponsiveLayout.getWidth(30),
+                        fit: BoxFit.cover,
+                      );
+                                        },
+                                      ),
+                    )
                     : orderItem[AppDBConst.itemImage]
                     .toString()
                     .startsWith('assets/')
@@ -1196,7 +1219,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                   ),
                   if (!isPayoutOrCouponOrCustomItem)
                   Text(
-                    "${orderItem[AppDBConst.itemCount]} * ${TextConstants.currencySymbol}${orderItem[AppDBConst.itemPrice].toStringAsFixed(2)}", // Build #1.0.12: now item count will update in order panel
+                    "${TextConstants.currencySymbol} ${regularPrice.toStringAsFixed(2)} * ${orderItem[AppDBConst.itemCount]}", // Build #1.0.12: now item count will update in order panel
                     style: TextStyle(
                       color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.black87,
                       fontSize: ResponsiveLayout.getFontSize(10),
@@ -1206,9 +1229,10 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
               ),
             ),
             // Regular Price
-            if (!isPayout)
+
+            if (!isCouponOrPayout)
               Text(
-                "${TextConstants.currencySymbol}${orderItem[AppDBConst.itemPrice].toStringAsFixed(2)}",
+                "${TextConstants.currencySymbol}${regularPrice.toStringAsFixed(2) * orderItem[AppDBConst.itemCount]}",
                 style: TextStyle(
                     color: themeHelper.themeMode == ThemeMode.dark
                         ? ThemeNotifier.textDark
@@ -1218,7 +1242,9 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
             SizedBox(width: 20,),
             //  Sale Price
             Text(
-              "${TextConstants.currencySymbol}${(orderItem[AppDBConst.itemCount] * orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}",
+              isCouponOrPayout ?
+              "${TextConstants.currencySymbol}${(orderItem[AppDBConst.itemCount] * orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}" :
+              "${TextConstants.currencySymbol}${(orderItem[AppDBConst.itemCount] * salesPrice).toStringAsFixed(2)}",
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: ResponsiveLayout.getFontSize(16),
@@ -1241,7 +1267,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     } else if (label == TextConstants.change) {
       amount = '${TextConstants.currencySymbol}${changeAmount.toStringAsFixed(2)}';
     } else if (label == TextConstants.total) {
-      amount = '${TextConstants.currencySymbol}${(getSubTotal() - discount).toStringAsFixed(2)}'; // Adjust total with discount
+      amount = '${TextConstants.currencySymbol}${(grossTotal - discount).toStringAsFixed(2)}'; // Adjust total with discount
     } else if (label == TextConstants.payByCash) {
       amount = '${TextConstants.currencySymbol}${payByCash.toStringAsFixed(2)}'; //Build #1.0.99: updated from api
     }else if (label == TextConstants.payByOther) {
@@ -1344,291 +1370,295 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
           children: [
             Expanded(
               flex: 3,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                //mainAxisAlignment: MainAxisAlignment.spaceEvenly,/// if not required remove it
-                children: [
-                  // Payment amount display row
-                  // Update _buildAmountDisplay in _buildPaymentSection
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    mainAxisSize: MainAxisSize.min,
-                    spacing: ResponsiveLayout.getWidth(12), ///20.0
-                    children: [
-                      _buildAmountDisplay(
-                        TextConstants.balanceAmount,
-                        '${TextConstants.currencySymbol}${balanceAmount.toStringAsFixed(2)}',//'${TextConstants.currencySymbol}${getSubTotal()}',
-                        amountColor: Colors.red,
-                      ),
-                      _buildAmountDisplay(
-                        TextConstants.tenderAmount,
-                        '${TextConstants.currencySymbol}${tenderAmount.toStringAsFixed(2)}', // Build #1.0.33
-                        amountColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : null
-                      ),
-                      _buildAmountDisplay(
-                        TextConstants.change,
-                        '${TextConstants.currencySymbol}${changeAmount.toStringAsFixed(2)}', // Build #1.0.33 :
-                        amountColor: Colors.green,
-                      ),
-                    ],
-                  ),
-
-                  SizedBox(height: ResponsiveLayout.getHeight(12)),
-
-                  // Payment methods
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    mainAxisSize: MainAxisSize.max,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Cash payment section
-                          Container(
-                           width: MediaQuery.of(context).size.width * 0.455,
-                            height: MediaQuery.of(context).size.height * 0.675,
-                            padding: EdgeInsets.only(
-                                left: ResponsiveLayout.getPadding(16),
-                              right: ResponsiveLayout.getPadding(16),
-                              top: ResponsiveLayout.getPadding(10),
-                              //bottom: ResponsiveLayout.getPadding(8),
-                            ),
-                            decoration: BoxDecoration(
-                              color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : Colors.white,
-                              borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(8)),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Label container
-                                Container(
-                                  height: ResponsiveLayout.getHeight(36),
-                                  width: double.infinity,
-                                  padding: EdgeInsets.only(
-                                      top: ResponsiveLayout.getPadding(7),
-                                      left: ResponsiveLayout.getPadding(7)
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.tabsBackground : Colors.red[50],
-                                    borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(6)),
-                                  ),
-                                  child: Text(
-                                    TextConstants.cashPayment,
-                                    style: TextStyle(
-                                      color: Colors.red,
-                                      fontWeight: FontWeight.w500,
-                                      fontSize: ResponsiveLayout.getFontSize(12),
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  //mainAxisAlignment: MainAxisAlignment.spaceEvenly,/// if not required remove it
+                  children: [
+                    // Payment amount display row
+                    // Update _buildAmountDisplay in _buildPaymentSection
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      mainAxisSize: MainAxisSize.min,
+                      spacing: ResponsiveLayout.getWidth(12), ///20.0
+                      children: [
+                        _buildAmountDisplay(
+                          TextConstants.balanceAmount,
+                          '${TextConstants.currencySymbol}${balanceAmount.toStringAsFixed(2)}',//'${TextConstants.currencySymbol}${getSubTotal()}',
+                          amountColor: Colors.red,
+                        ),
+                        _buildAmountDisplay(
+                          TextConstants.tenderAmount,
+                          '${TextConstants.currencySymbol}${tenderAmount.toStringAsFixed(2)}', // Build #1.0.33
+                          amountColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : null
+                        ),
+                        _buildAmountDisplay(
+                          TextConstants.change,
+                          '${TextConstants.currencySymbol}${changeAmount.toStringAsFixed(2)}', // Build #1.0.33 :
+                          amountColor: Colors.green,
+                        ),
+                      ],
+                    ),
+                
+                    SizedBox(height: ResponsiveLayout.getHeight(12)),
+                
+                    // Payment methods
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      mainAxisSize: MainAxisSize.max,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Cash payment section
+                            Container(
+                             width: MediaQuery.of(context).size.width * 0.455,
+                              height: MediaQuery.of(context).size.height * 0.675,
+                              padding: EdgeInsets.only(
+                                  left: ResponsiveLayout.getPadding(16),
+                                right: ResponsiveLayout.getPadding(16),
+                                top: ResponsiveLayout.getPadding(10),
+                                //bottom: ResponsiveLayout.getPadding(8),
+                              ),
+                              decoration: BoxDecoration(
+                                color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : Colors.white,
+                                borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(8)),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Label container
+                                  Container(
+                                    height: ResponsiveLayout.getHeight(36),
+                                    width: double.infinity,
+                                    padding: EdgeInsets.only(
+                                        top: ResponsiveLayout.getPadding(7),
+                                        left: ResponsiveLayout.getPadding(7)
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.tabsBackground : Colors.red[50],
+                                      borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(6)),
+                                    ),
+                                    child: Text(
+                                      TextConstants.cashPayment,
+                                      style: TextStyle(
+                                        color: Colors.red,
+                                        fontWeight: FontWeight.w500,
+                                        fontSize: ResponsiveLayout.getFontSize(12),
+                                      ),
                                     ),
                                   ),
-                                ),
-                                SizedBox(height: ResponsiveLayout.getHeight(8)),
-
-                                  // Amount TextField
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Container(
-                                        height: ResponsiveLayout.getHeight(43),
-                                        decoration: BoxDecoration(
-                                          color:themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.paymentEntryContainerColor :  Colors.white,
-                                          borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(6)),
-                                          border: Border.all(color: _amountErrorText != null
-                                              ? Colors.red
-                                              :themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.borderColor : Colors.grey.shade300),
-                                        ),
-                                        child: TextField(
-                                          controller: amountController,//_paymentController,
-                                          readOnly: true,
-                                          textAlign: TextAlign.right,
-                                          enabled: false, // Disables interaction with the TextField
-                                          decoration: InputDecoration(
-                                            contentPadding: EdgeInsets.only(right: ResponsiveLayout.getPadding(16)),
-                                            border: InputBorder.none,
-                                            hintText: '${TextConstants.currencySymbol}0.00',
-                                            hintStyle: TextStyle(
-                                              color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark :Colors.grey[400],///800
+                                  SizedBox(height: ResponsiveLayout.getHeight(8)),
+                
+                                    // Amount TextField
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Container(
+                                          height: ResponsiveLayout.getHeight(43),
+                                          decoration: BoxDecoration(
+                                            color:themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.paymentEntryContainerColor :  Colors.white,
+                                            borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(6)),
+                                            border: Border.all(color: _amountErrorText != null
+                                                ? Colors.red
+                                                :themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.borderColor : Colors.grey.shade300),
+                                          ),
+                                          child: TextField(
+                                            controller: amountController,//_paymentController,
+                                            readOnly: true,
+                                            textAlign: TextAlign.right,
+                                            enabled: false, // Disables interaction with the TextField
+                                            decoration: InputDecoration(
+                                              contentPadding: EdgeInsets.only(right: ResponsiveLayout.getPadding(16)),
+                                              border: InputBorder.none,
+                                              hintText: '${TextConstants.currencySymbol}0.00',
+                                              hintStyle: TextStyle(
+                                                color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark :Colors.grey[400],///800
+                                                fontSize: ResponsiveLayout.getFontSize(20),
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            style: TextStyle(
+                                              color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.grey[800],
                                               fontSize: ResponsiveLayout.getFontSize(20),
                                               fontWeight: FontWeight.bold,
                                             ),
+                                            keyboardType: TextInputType.none, // Hide default keypad
+                                            onTap: () {
+                                              FocusScope.of(context).unfocus(); // Hide keypad
+                                            },
                                           ),
+                                        ),
+                                      // Conditionally display the error message
+                                      if (_amountErrorText != null)
+                                        Text(
+                                          _amountErrorText!,
                                           style: TextStyle(
-                                            color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.grey[800],
-                                            fontSize: ResponsiveLayout.getFontSize(20),
-                                            fontWeight: FontWeight.bold,
+                                            color: Colors.red,
+                                            fontSize: ResponsiveLayout.getFontSize(12),
                                           ),
-                                          keyboardType: TextInputType.none, // Hide default keypad
-                                          onTap: () {
-                                            FocusScope.of(context).unfocus(); // Hide keypad
-                                          },
                                         ),
-                                      ),
-                                    // Conditionally display the error message
-                                    if (_amountErrorText != null)
-                                      Text(
-                                        _amountErrorText!,
-                                        style: TextStyle(
-                                          color: Colors.red,
-                                          fontSize: ResponsiveLayout.getFontSize(12),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                                SizedBox(height: ResponsiveLayout.getHeight(8)),
-
-                                // Quick amount buttons
-                                // Update the Row in _buildPaymentSection to use dynamic quick amounts
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    _buildQuickAmountButton('${TextConstants.currencySymbol}${balanceAmount.toStringAsFixed(0)}'), // Match balance amount
-                                    _buildQuickAmountButton('${TextConstants.currencySymbol}${(balanceAmount + 2).toStringAsFixed(0)}'), // Slightly above
-                                    _buildQuickAmountButton('${TextConstants.currencySymbol}${(balanceAmount + 12).toStringAsFixed(0)}'), // More above
-                                    _buildQuickAmountButton('${TextConstants.currencySymbol}${((balanceAmount ~/ 10 + 1) * 10).toStringAsFixed(0)}'), // Round up to next 10
-                                    _buildQuickAmountButton('${TextConstants.currencySymbol}${((balanceAmount ~/ 50 + 1) * 50).toStringAsFixed(0)}'), // Round up to next 50
-                                  ],
-                                ),
-
-                                SizedBox(height: ResponsiveLayout.getHeight(12)),
-
-                                // Here you would use your custom numpad widget
-                                // CustomNumpad(useCashLayout: true),
-                                // Build #1.0.29:  Update CustomNumPad code
-                                // Update CustomNumPad usage in _buildPaymentSection
-                                CustomNumPad(
-                                  numPadType: NumPadType.payment,
-                                  isDarkTheme: themeHelper.themeMode == ThemeMode.dark,
-                                  getPaidAmount: () => amountController.text,
-                                  balanceAmount: balanceAmount,
-                                  onDigitPressed: (value) {
-                                    // Clear error when user starts typing
-                                    if (_amountErrorText != null) {
-                                      setState(() {
-                                        _amountErrorText = null;
-                                      });
-                                    }
-                                    amountController.text = (amountController.text + value).replaceAll(r'$', '');
-                                    setState(() {});
-                                  },
-                                  onClearPressed: () {
-                                    if (_amountErrorText != null) {
-                                      setState(() {
-                                        _amountErrorText = null;
-                                      });
-                                    }
-                                    amountController.clear();
-                                    setState(() {});
-                                  },
-                                  onDeletePressed: () {
-                                    if (amountController.text.isNotEmpty) {
-                                      amountController.text = amountController.text.substring(0, amountController.text.length - 1);
-                                      setState(() {});
-                                    }
-                                  },
-                                  onPayPressed: () { //Build #1.0.34: updated code
-                                    String paidAmount = amountController.text;
-                                    String cleanAmount = paidAmount.replaceAll('${TextConstants.currencySymbol}', '').trim();
-                                    double amount = double.tryParse(cleanAmount) ?? 0.0;
-
-                                    setState(() {
-                                      if (amount == 0.0) {
-                                        _amountErrorText = 'Please enter a valid amount.';
-                                      } else {
-                                        _amountErrorText = null;
-                                        _callCreatePaymentAPI(); // create payment api call
+                                    ],
+                                  ),
+                                  SizedBox(height: ResponsiveLayout.getHeight(8)),
+                
+                                  // Quick amount buttons
+                                  // Update the Row in _buildPaymentSection to use dynamic quick amounts
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      _buildQuickAmountButton('${TextConstants.currencySymbol}${balanceAmount.toStringAsFixed(0)}'), // Match balance amount
+                                      _buildQuickAmountButton('${TextConstants.currencySymbol}${(balanceAmount + 2).toStringAsFixed(0)}'), // Slightly above
+                                      _buildQuickAmountButton('${TextConstants.currencySymbol}${(balanceAmount + 12).toStringAsFixed(0)}'), // More above
+                                      _buildQuickAmountButton('${TextConstants.currencySymbol}${((balanceAmount ~/ 10 + 1) * 10).toStringAsFixed(0)}'), // Round up to next 10
+                                      _buildQuickAmountButton('${TextConstants.currencySymbol}${((balanceAmount ~/ 50 + 1) * 50).toStringAsFixed(0)}'), // Round up to next 50
+                                    ],
+                                  ),
+                
+                                  SizedBox(height: ResponsiveLayout.getHeight(12)),
+                
+                                  // Here you would use your custom numpad widget
+                                  // CustomNumpad(useCashLayout: true),
+                                  // Build #1.0.29:  Update CustomNumPad code
+                                  // Update CustomNumPad usage in _buildPaymentSection
+                                  CustomNumPad(
+                                    numPadType: NumPadType.payment,
+                                    isDarkTheme: themeHelper.themeMode == ThemeMode.dark,
+                                    getPaidAmount: () => amountController.text,
+                                    balanceAmount: balanceAmount,
+                                    onDigitPressed: (value) {
+                                      // Clear error when user starts typing
+                                      if (_amountErrorText != null) {
+                                        setState(() {
+                                          _amountErrorText = null;
+                                        });
                                       }
-                                    }); // create payment api call
-                                  },
-                                  isLoading: isLoading, // Pass isLoading
-                                )
-                              ],
+                                      amountController.text = (amountController.text + value).replaceAll(r'$', '');
+                                      setState(() {});
+                                    },
+                                    onClearPressed: () {
+                                      if (_amountErrorText != null) {
+                                        setState(() {
+                                          _amountErrorText = null;
+                                        });
+                                      }
+                                      amountController.clear();
+                                      setState(() {});
+                                    },
+                                    onDeletePressed: () {
+                                      if (amountController.text.isNotEmpty) {
+                                        amountController.text = amountController.text.substring(0, amountController.text.length - 1);
+                                        setState(() {});
+                                      }
+                                    },
+                                    onPayPressed:balanceAmount <= 0 ? null : () { //Build #1.0.34: updated code
+                                      String paidAmount = amountController.text;
+                                      String cleanAmount = paidAmount.replaceAll('${TextConstants.currencySymbol}', '').trim();
+                                      double amount = double.tryParse(cleanAmount) ?? 0.0;
+                
+                                      setState(() {
+                                        if (amount == 0.0) {
+                                          _amountErrorText = TextConstants.amountValidation;
+                                        } else {
+                                          _amountErrorText = null;
+                                          _callCreatePaymentAPI(); // create payment api call
+                                        }
+                                      }); // create payment api call
+                                    },
+                                    isLoading: isLoading, // Pass isLoading
+                                  )
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(width: ResponsiveLayout.getWidth(16)),
-
-                      // Payment mode selection
-
-                    ],
-                  ),
-                ],
+                          ],
+                        ),
+                        SizedBox(width: ResponsiveLayout.getWidth(16)),
+                
+                        // Payment mode selection
+                
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
             Expanded(
               flex: 1,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      Text(
-                        TextConstants.selectPaymentMode,
-                        style: TextStyle(
-                          fontSize: ResponsiveLayout.getFontSize(16),
-                          fontWeight: FontWeight.bold,
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: [
+                        Text(
+                          TextConstants.selectPaymentMode,
+                          style: TextStyle(
+                            fontSize: ResponsiveLayout.getFontSize(16),
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-                      //SizedBox(height: ResponsiveLayout.getHeight(10)),
-                      Container(
-                        width: ResponsiveLayout.getWidth(224),
-                        height: ResponsiveLayout.getHeight(306),
-                        padding: EdgeInsets.all(ResponsiveLayout.getPadding(8)),
-                        decoration: BoxDecoration(
-                          color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : Colors.white,
-                          borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(5)),
+                        //SizedBox(height: ResponsiveLayout.getHeight(10)),
+                        Container(
+                          width: ResponsiveLayout.getWidth(224),
+                          height: ResponsiveLayout.getHeight(306),
+                          padding: EdgeInsets.all(ResponsiveLayout.getPadding(8)),
+                          decoration: BoxDecoration(
+                            color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : Colors.white,
+                            borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(5)),
+                          ),
+                          child: Column(
+                            children: [
+                              _buildPaymentModeButton(TextConstants.cash, Icons.money,
+                                  isSelected:  selectedPaymentMethod == TextConstants.cash, onTap: () {
+                                setState(() {
+                                  selectedPaymentMethod = TextConstants.cash;
+                                });
+                              }),
+                              SizedBox(height: ResponsiveLayout.getHeight(10)),
+                              _buildPaymentModeButton(TextConstants.card, Icons.credit_card, onTap: () {
+                            setState(() {
+                              selectedPaymentMethod = TextConstants.card;
+                            });
+                          }),
+                              SizedBox(height: ResponsiveLayout.getHeight(10)),
+                              _buildPaymentModeButton(TextConstants.wallet, Icons.account_balance_wallet, onTap: () {
+                            setState(() {
+                              selectedPaymentMethod = TextConstants.wallet;
+                            });
+                          }),
+                              SizedBox(height: ResponsiveLayout.getHeight(10)),
+                              _buildPaymentModeButton(TextConstants.ebtText, Icons.payment, onTap: () {
+                            setState(() {
+                              selectedPaymentMethod = TextConstants.ebtText;
+                            });
+                          }),
+                            ],
+                          ),
                         ),
-                        child: Column(
-                          children: [
-                            _buildPaymentModeButton(TextConstants.cash, Icons.money,
-                                isSelected:  selectedPaymentMethod == TextConstants.cash, onTap: () {
-                              setState(() {
-                                selectedPaymentMethod = TextConstants.cash;
-                              });
-                            }),
-                            SizedBox(height: ResponsiveLayout.getHeight(10)),
-                            _buildPaymentModeButton(TextConstants.card, Icons.credit_card, onTap: () {
-                          setState(() {
-                            selectedPaymentMethod = TextConstants.card;
-                          });
-                        }),
-                            SizedBox(height: ResponsiveLayout.getHeight(10)),
-                            _buildPaymentModeButton(TextConstants.wallet, Icons.account_balance_wallet, onTap: () {
-                          setState(() {
-                            selectedPaymentMethod = TextConstants.wallet;
-                          });
-                        }),
-                            SizedBox(height: ResponsiveLayout.getHeight(10)),
-                            _buildPaymentModeButton(TextConstants.ebtText, Icons.payment, onTap: () {
-                          setState(() {
-                            selectedPaymentMethod = TextConstants.ebtText;
-                          });
-                        }),
-                          ],
+                        SizedBox(height: ResponsiveLayout.getHeight(20)),
+                  
+                        Container(
+                          width: ResponsiveLayout.getWidth(224),
+                          height: ResponsiveLayout.getHeight(210),
+                          padding: EdgeInsets.symmetric(vertical: 12, horizontal: 8),//ResponsiveLayout.getResponsivePadding(all: 5),
+                          decoration: BoxDecoration(
+                            color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : Colors.white,
+                            borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(5)),
+                          ),
+                          child: Column(
+                            children: [_buildPaymentOptionButton(TextConstants.redeemPoints, Icons.stars),
+                              SizedBox(height: ResponsiveLayout.getHeight(15)),
+                              _buildPaymentOptionButton(
+                                  TextConstants.manualDiscount, Icons.discount),
+                              SizedBox(height: ResponsiveLayout.getHeight(15)),
+                              _buildPaymentOptionButton(
+                                  TextConstants.giftReceipt, Icons.card_giftcard),
+                            ],
+                          ),
                         ),
-                      ),
-                      SizedBox(height: ResponsiveLayout.getHeight(20)),
-
-                      Container(
-                        width: ResponsiveLayout.getWidth(224),
-                        height: ResponsiveLayout.getHeight(210),
-                        padding: EdgeInsets.symmetric(vertical: 12, horizontal: 8),//ResponsiveLayout.getResponsivePadding(all: 5),
-                        decoration: BoxDecoration(
-                          color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : Colors.white,
-                          borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(5)),
-                        ),
-                        child: Column(
-                          children: [_buildPaymentOptionButton(TextConstants.redeemPoints, Icons.stars),
-                            SizedBox(height: ResponsiveLayout.getHeight(15)),
-                            _buildPaymentOptionButton(
-                                TextConstants.manualDiscount, Icons.discount),
-                            SizedBox(height: ResponsiveLayout.getHeight(15)),
-                            _buildPaymentOptionButton(
-                                TextConstants.giftReceipt, Icons.card_giftcard),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+                ),
                 ),
           ],
         ),
@@ -1825,18 +1855,20 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
         if (kDebugMode) {
           print("Void successful: ${response.data!.message}");
         }
-
+        Navigator.of(context).pop(); //Build #1.0.134: FIRST POP THE CONFIRM DIALOG
+        Navigator.of(context).pop(); // Dismiss void dialog
+        Navigator.of(context).pop('refresh'); // Pop back to previous screen with refresh
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
               response.data!.message ?? "",
               style: const TextStyle(color: Colors.white),
             ),
-            backgroundColor: Colors.black,
+            backgroundColor: Colors.green,
             duration: const Duration(seconds: 3),
           ),
         );
-        Navigator.of(context).popUntil((route) => route.isFirst || route.settings.name == '/previousScreen');
+       // Navigator.of(context).popUntil((route) => route.isFirst || route.settings.name == '/previousScreen');
       } else if (response.status == Status.ERROR) {
 
         if (kDebugMode) {
@@ -1870,7 +1902,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
         status: PaymentStatus.partial,
         mode: PaymentMode.cash,
         amount: amount,
-        onVoid: () => _showVoidExitConfirmation(context),
+        onVoid: () => showVoidExitConfirmation(context, true),/// pass true to change order status to pending, as this is partial payment , voided by user
         onNextPayment: () {
           if (kDebugMode) {
             print("Proceeding to next payment");
@@ -1898,23 +1930,42 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
         mode: PaymentMode.cash,
         amount: amount,
         changeAmount: showChange ? changeAmount : null,
-        onVoid: () => _showVoidExitConfirmation(context),
+        onVoid: () => showVoidExitConfirmation(context,false), /// pass false as this order is completed but canceled by user, change status to canceled by backend
         onPrint: () {
           if (kDebugMode) {
             print("Print receipt for amount: $amount");
           }
           Navigator.of(context).pop();
           _showReceiptDialog(context, amount);
-          _preparePrintTicket();
+          if(!Misc.disablePrinter) {
+            _preparePrintTicket();
+          }
         },
       ),
     );
+  }
+
+  Future<Map<String, dynamic>?> loadPrinterData() async {
+    var printerDB = await PrinterDBHelper().getPrinterFromDB();
+    if(printerDB.isEmpty){
+      if (kDebugMode) {
+        print(">>>>> OrderSummaryScreen : printerDB is empty");
+      }
+      return null;
+    }
+    return printerDB.first;
+
   }
 
   Future _preparePrintTicket() async{
     if (kDebugMode) {
       print("OrderSummaryScreen _preparePrintTicket call print receipt");
     }
+    ///load header and footer
+    var printerData  = await loadPrinterData();
+    var header = printerData?[AppDBConst.receiptHeaderText] ?? "";
+    var footer = printerData?[AppDBConst.receiptFooterText] ?? "";
+
     bytes = [];
     final ticket =  await _printerSettings.getTicket();
 
@@ -1954,6 +2005,12 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
       bytes += ticket.imageRaster(grayscaleImage, align: PosAlign.center);
       bytes += ticket.feed(1);
     }
+    //Header
+    bytes += ticket.row([
+      PosColumn(text: "$header", width: 12),
+    ]);
+
+    bytes += ticket.feed(1);
 
     //Item header
     bytes += ticket.row([
@@ -1975,17 +2032,29 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     for(int i = 0; i< orderItems.length; i++) {
 
       var orderItem = orderItems[i];
+
+      final salesPrice =
+      (orderItem[AppDBConst.itemSalesPrice] == null || (orderItem[AppDBConst.itemSalesPrice]?.toDouble() ?? 0.0) == 0.0)
+          ? (orderItem[AppDBConst.itemRegularPrice] == null || (orderItem[AppDBConst.itemRegularPrice]?.toDouble() ?? 0.0) == 0.0)
+          ? orderItem[AppDBConst.itemUnitPrice]?.toDouble() ?? 0.0
+          : orderItem[AppDBConst.itemRegularPrice]!.toDouble()
+          : orderItem[AppDBConst.itemSalesPrice]!.toDouble();
+
+      final regularPrice =  (orderItem[AppDBConst.itemRegularPrice] == null || (orderItem[AppDBConst.itemRegularPrice]?.toDouble() ?? 0.0) == 0.0)
+          ? orderItem[AppDBConst.itemUnitPrice]?.toDouble() ?? 0.0
+          : orderItem[AppDBConst.itemRegularPrice]!.toDouble();
+
       if (kDebugMode) {
-        print(" >>>>> Adding item ${orderItem[AppDBConst.itemName]} to print");
+        print(" >>>>> Adding item ${orderItem[AppDBConst.itemName]} to print with salesPrice $salesPrice");
       }
 
       bytes += ticket.row([
         PosColumn(text: "${i+1}", width: 1),
         PosColumn(text: "${orderItem[AppDBConst.itemName]}", width:5),
         PosColumn(text: "${orderItem[AppDBConst.itemCount]}", width: 1),
-        PosColumn(text: "${orderItem[AppDBConst.itemPrice]}", width:2),
-        PosColumn(text: "0.0", width: 1),
-        PosColumn(text: "${orderItem[AppDBConst.itemSumPrice]}", width: 2),
+        PosColumn(text: "$salesPrice", width:2),
+        PosColumn(text: "${(regularPrice - salesPrice).toStringAsFixed(2)}", width: 1),
+        PosColumn(text: "${(orderItem[AppDBConst.itemCount] * salesPrice).toStringAsFixed(2)}", width: 2),
       ]);
       // bytes += ticket.feed(1);
     }
@@ -2061,9 +2130,15 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     bytes += ticket.feed(1);
 
     //Footer
+    // bytes += ticket.row([
+    //   PosColumn(text: "Thank You, Visit Again", width: 12),
+    // ]);
+
     bytes += ticket.row([
-      PosColumn(text: "Thank You, Visit Again", width: 12),
+      PosColumn(text: "$footer", width: 12),
     ]);
+
+    bytes += ticket.feed(1);
   }
 
   Future _printTicket() async{
@@ -2089,6 +2164,26 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
               duration: const Duration(seconds: 3),
             ),
           );
+          /// call printer setup screen
+          if (kDebugMode) {
+            print("call printer setup screen");
+          }
+          Navigator.push(context, MaterialPageRoute(
+            builder: (context) => PrinterSetup(),
+          )).then((result) {
+            if (result == 'refresh') {
+              _printerSettings.loadPrinter();
+              setState(() {
+                // Update state to refresh the UI
+                if (kDebugMode) {
+                  print("OrderSummaryScreen - printer setup is done, connected printer is ${_printerSettings.selectedPrinter?.deviceName}");
+                }
+                if(!Misc.disablePrinter) {
+                  _printTicket();
+                }
+              });
+            }
+          });
         });
         break;
     }
@@ -2140,6 +2235,26 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
               duration: const Duration(seconds: 3),
             ),
           );
+          /// call printer setup screen
+          if (kDebugMode) {
+            print("call printer setup screen");
+          }
+          Navigator.push(context, MaterialPageRoute(
+            builder: (context) => PrinterSetup(),
+          )).then((result) {
+            if (result == 'refresh') {
+              _printerSettings.loadPrinter();
+              setState(() {
+                // Update state to refresh the UI
+                if (kDebugMode) {
+                  print("SettingScreen - printer setup is done, connected printer is ${_printerSettings.selectedPrinter?.deviceName}");
+                }
+                if(!Misc.disablePrinter) {
+                  _printTicket();
+                }
+              });
+            }
+          });
         });
         break;
     }
@@ -2159,149 +2274,155 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
         onEmail: (email) {},
         onSMS: (phone) {},
         onNoReceipt: () {
-          Navigator.of(context).pop();
+          changeStatusToCompletedAndExit(false);
         },
-        onDone: () {
-          setState(() {
-            changeAmount = 0.0; // Reset change after returning
-            if (balanceAmount == 0) tenderAmount = 0.0; // Reset tender if order is fully paid
-          });
-          // Navigator.of(context).pop();
-          if (kDebugMode) {
-            print("OrderSummaryScreen _showReceiptDialog Done call print reciept");
-          }
-          // _printCustomTest();
-          _printTicket();
-          ///ToDO: Change the status of order to 'completed' here
-          // Build #1.0.49: Added Call Order Status Update API code
-          orderBloc.changeOrderStatus(orderId: orderId!, status: TextConstants.completed);
-          StreamSubscription? subscription;
-          subscription = orderBloc.changeOrderStatusStream.listen((response) {
-            if (response.status == Status.COMPLETED) {
-              if (kDebugMode) {
-                print("OrderPanel - Order #@# $orderId, successfully completed");
-              }
-
-              // Build #1.0.104:  Pop the receipt dialog
-              Navigator.of(context).pop();
-              // Build #1.0.104:  Pop back to the previous screen with a refresh signal
-              Navigator.of(context).pop('refresh');
-
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    TextConstants.orderCompleted,
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                  backgroundColor: Colors.green, // Build #1.0.104: updated to green
-                  duration: const Duration(seconds: 3),
-                ),
-              );
-              // Optionally refresh UI or remove tab
-             // fetchOrderItems();
-            } else if (response.status == Status.ERROR) {
-              if (kDebugMode) {
-                print("OrderPanel - completed failed: ${response.message}");
-              }
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    response.message ?? "Failed to complete order",
-                    style: const TextStyle(color: Colors.red),
-                  ),
-                  backgroundColor: Colors.black,
-                  duration: const Duration(seconds: 3),
-                ),
-              );
-              Navigator.of(context).pop(); // Build #1.0.104: close dialog on error
-            }
-            subscription?.cancel();
-          });
+        onDone: (selectedOption) {
+          changeStatusToCompletedAndExit(true, selectedOption: selectedOption);
+          /// send an email
         },
       ),
     );
   }
 
+  ///Use this function to change status to complete the order after payment
+  ///it is used called by no receipt and print receipt on order payment completed - print button tap
+  void changeStatusToCompletedAndExit(bool isReceipt, {String selectedOption = TextConstants.print}){
+    setState(() {
+      changeAmount = 0.0; // Reset change after returning
+      if (balanceAmount == 0) tenderAmount = 0.0; // Reset tender if order is fully paid
+    });
+
+    if (kDebugMode) {
+      print("OrderSummaryScreen _showReceiptDialog Done call print receipt = $isReceipt");
+    }
+
+    if (selectedOption == TextConstants.print) {
+      // Call print callback if selected
+      if (isReceipt) {
+        if(!Misc.disablePrinter) {
+          _printTicket();
+        }
+        if (kDebugMode) {
+          print("printing the ticket --- $isReceipt");
+        }
+      }
+    } else if (selectedOption == TextConstants.email) {  // Email receipt
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(TextConstants.emailConfiguration),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+
+    } else if (selectedOption == TextConstants.sms) {// SMS receipt
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(TextConstants.smsConfiguration),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+
+    ///ToDO: Change the status of order to 'completed' here
+    // Build #1.0.49: Added Call Order Status Update API code
+    orderBloc.changeOrderStatus(orderId: orderId!, status: TextConstants.completed);
+    StreamSubscription? subscription;
+    subscription = orderBloc.changeOrderStatusStream.listen((response) {
+      if (response.status == Status.COMPLETED) {
+        if (kDebugMode) {
+          print("OrderPanel - Order #@# $orderId, successfully completed");
+        }
+        if (!isReceipt) { //Build #1.0.134: IF USER TAP ON "NO RECEIPT" -> POP THE DIALOG & POP THE SCREEN
+          // Build #1.0.104:  Pop the receipt dialog
+          Navigator.of(context).pop();
+          // Build #1.0.104:  Pop back to the previous screen with a refresh signal
+          Navigator.of(context).pop('refresh');
+        }else{ //Build #1.0.134: IF USER TAP ON "DONE" -> POP THE PRINTER SCREEN & THE DIALOG & POP THE SCREEN
+          // Navigator.of(context).pop();
+          // Build #1.0.104:  Pop the receipt dialog
+          Navigator.of(context).pop();
+          // Build #1.0.104:  Pop back to the previous screen with a refresh signal
+          Navigator.of(context).pop('refresh');
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              TextConstants.orderCompleted,
+              style: const TextStyle(color: Colors.white),
+            ),
+            backgroundColor: Colors.green, // Build #1.0.104: updated to green
+            duration: const Duration(seconds: 3),
+          ),
+        );
+        // Optionally refresh UI or remove tab
+        // fetchOrderItems();
+      } else if (response.status == Status.ERROR) {
+        if (kDebugMode) {
+          print("OrderPanel - completed failed: ${response.message}");
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              response.message ?? "Failed to complete order",
+              style: const TextStyle(color: Colors.red),
+            ),
+            backgroundColor: Colors.black,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+        Navigator.of(context).pop(); // Build #1.0.104: close dialog on error
+      }
+      subscription?.cancel();
+    });
+  }
+
   // Build #1.0.49: _showVoidExitConfirmation
-  void _showVoidExitConfirmation(BuildContext context) {
+  void showVoidExitConfirmation(BuildContext context, bool isPartial) {
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => PaymentDialog.voidConfirmation(
         onVoidCancel: () {
           Navigator.of(context).pop(); // Dismiss the confirm dialog
-          Navigator.of(context).pop(); // Dismiss the main dialog
+          // Navigator.of(context).pop();// Dismiss the main dialog
+          // Navigator.of(context).pop('refresh');
         },
         onVoidConfirm: () {
-          _handleVoidPayment(context); // Call void payment logic
-        },
-      ),
-    );
-  }
-
-  void _showExitPaymentConfirmation(BuildContext context) {
-    showDialog(
-      context: context,
-      barrierDismissible: false, // User must choose an option
-      builder: (context) => PaymentDialog(
-           status: PaymentStatus.exitConfirmation,
-
-          onExitCancel: () {
-            Navigator.of(context).pop(); // Close the dialog
-          },
-          onExitConfirm: () {
-            // Delay navigation to avoid calling during build
-/// below code is not required use it for testing only
-              // Navigator.of(context).pop(); // Close the dialog
-              // Future.delayed(Duration(milliseconds: 100));
-              // Navigatorgator.of(context).pop(); // Go back to previous screen
-/// issue with navigation is fixed using below
-            // Build #1.0.49: issue fixed -> Use popUntil to dismiss both dialogs and go back
-            // Navigator.of(context).popUntil((route) => route.isFirst || route.settings.name == '/previousScreen'); // Adjust route condition as needed
-            //   Navigator.of(context).pop(); // Close the dialog
-            //   Navigator.of(context).pop(); // Go back to previous screen
-
-              // Additional cleanup logic can be added here
-            ///Todo:
-            ///1. call the order status change to On-Hold
-            ///2. Stop loading and dismiss dialog
-            ///3. Navigator.push to fast key screen
-
-            orderBloc.changeOrderStatus(orderId: orderId!, status: TextConstants.onhold);
+          ///Added changes for patial payment
+          /// change order status to pending if partial payment and void is selected
+          ///else do void the complete order which will set order status to canceled from backend
+          if(isPartial){
+            orderBloc.changeOrderStatus(orderId: orderId!, status: TextConstants.pending);
             StreamSubscription? subscription;
             subscription = orderBloc.changeOrderStatusStream.listen((response) {
               if (response.status == Status.COMPLETED) {
                 if (kDebugMode) {
-                  print("OrderPanel - Order #@# $orderId, successfully changed to on hold");
+                  print("OrderPanel - Order #$orderId successfully changed to pending");
                 }
-
-                Navigator.of(context).pop(); // dismiss dialog
+                Navigator.of(context).pop(); //Build #1.0.134: FIRST POP THE CONFIRM DIALOG
+                Navigator.of(context).pop(); // Dismiss void dialog
+                Navigator.of(context).pop('refresh'); // Pop back to previous screen with refresh
 
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
-                      TextConstants.orderOnHold,
+                      TextConstants.pending,
                       style: const TextStyle(color: Colors.white),
                     ),
-                    backgroundColor: Colors.orange,
+                    backgroundColor: Colors.yellow,
                     duration: const Duration(seconds: 3),
                   ),
                 );
-                // On the second screen (Screen 2)
-                // Build #1.0.104: Pop back to previous screen with refresh signal
-                Navigator.of(context).pop('refresh');
-                // Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => FastKeyScreen()),ModalRoute.withName('/'),);
-
-                // Optionally refresh UI or remove tab
-                // fetchOrderItems();
               } else if (response.status == Status.ERROR) {
                 if (kDebugMode) {
-                  print("OrderPanel - completed failed: ${response.message}");
+                  print("OrderPanel - pending failed: ${response.message}");
                 }
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
-                      response.message ?? "Failed to complete order",
+                      response.message ?? "Failed to set order to pending",
                       style: const TextStyle(color: Colors.red),
                     ),
                     backgroundColor: Colors.black,
@@ -2312,18 +2433,66 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
               }
               subscription?.cancel();
             });
-          },
-        ),
+          } else {
+          _handleVoidPayment(context); // Call void payment logic
+            }
+        },
+      ),
     );
   }
 
-  num getSubTotal(){
-    num total = 0;
-    for (var item in orderItems) {
-      // var orderId = item[AppDBConst.itemId];
-      var subTotal = item[AppDBConst.itemSumPrice];
-      total = (total + subTotal);
-    }
-    return total;
+  void _showExitPaymentConfirmation(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false, // User must choose an option
+      builder: (context) => PaymentDialog( //Build #1.0.134: updated code
+        status: PaymentStatus.exitConfirmation,
+        onExitCancel: () {
+          Navigator.of(context).pop(); // Close the dialog
+        },
+        onExitConfirm: () {
+          // Set order status to on-hold
+          orderBloc.changeOrderStatus(orderId: orderId!, status: TextConstants.onhold);
+          StreamSubscription? subscription;
+          subscription = orderBloc.changeOrderStatusStream.listen((response) {
+            if (response.status == Status.COMPLETED) {
+              if (kDebugMode) {
+                print("OrderPanel - Order #$orderId successfully changed to on hold");
+              }
+
+              Navigator.of(context).pop(); // Dismiss dialog
+              Navigator.of(context).pop('refresh'); // Pop back to FastKeyScreen with refresh
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    TextConstants.orderOnHold,
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  backgroundColor: Colors.orange,
+                  duration: const Duration(seconds: 3),
+                ),
+              );
+            } else if (response.status == Status.ERROR) {
+              if (kDebugMode) {
+                print("OrderPanel - on-hold failed: ${response.message}");
+              }
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    response.message ?? "Failed to set order to on-hold",
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                  backgroundColor: Colors.black,
+                  duration: const Duration(seconds: 3),
+                ),
+              );
+              Navigator.of(context).pop(); // Close dialog on error
+            }
+            subscription?.cancel();
+          });
+        },
+      ),
+    );
   }
 }

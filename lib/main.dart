@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:pinaka_pos/Screens/Home/fast_key_screen.dart';
 import 'package:provider/provider.dart';
 import 'Database/db_helper.dart';
 import 'Helper/Extentions/theme_notifier.dart';

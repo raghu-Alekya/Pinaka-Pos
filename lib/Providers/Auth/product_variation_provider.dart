@@ -66,26 +66,26 @@ class VariationPopup {
                       // );
                       final serverOrderId = orderHelper.activeOrderId;//order[AppDBConst.orderServerId] as int?;
                       final dbOrderId = orderHelper.activeOrderId;
-
-                      if (dbOrderId == null) {
-                        if (kDebugMode) {
-                          print("No active order selected");
-                        }
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text("No active order selected"),
-                            backgroundColor: Colors.red,
-                            duration: Duration(seconds: 2),
-                          ),
-                        );
-                        return;
-                      }
+                      ///Build #1.0.128: No need to check this condition
+                      // if (dbOrderId == null) {
+                      //   if (kDebugMode) {
+                      //     print("No active order selected");
+                      //   }
+                      //   ScaffoldMessenger.of(context).showSnackBar(
+                      //     const SnackBar(
+                      //       content: Text("No active order selected"),
+                      //       backgroundColor: Colors.red,
+                      //       duration: Duration(seconds: 2),
+                      //     ),
+                      //   );
+                      //   return;
+                      // }
 
                       _isAddingItemLoading = true;
                       _showLoaderOverlay(context);
 
                       try {
-                        if (serverOrderId != null) {
+                       // if (serverOrderId != null) { //Build #1.0.128: No need to check this condition
                           _updateOrderSubscription?.cancel();
 
                           _updateOrderSubscription = _orderBloc.updateOrderStream.listen(
@@ -142,31 +142,31 @@ class VariationPopup {
                               ),
                             ],
                           );
-                        } else {
-                          // await orderHelper.addItemToOrder(
-                          //   variant["id"],
-                          //   variant["name"],
-                          //   variant["image"],
-                          //   double.tryParse(variant["price"].toString()) ?? 0.0,
-                          //   quantity,
-                          //   '',
-                          //   onItemAdded: () {
-                          //   //  Navigator.pop(context);
-                          //     onProductSelected?.call(isVariant: true);
-                          //   },
-                          // );
-                          _isAddingItemLoading = false;
-                          _removeLoaderOverlay();
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text("Variant '${variant['name']}' did not added to order. OrderId not found."),
-                                backgroundColor: Colors.green,
-                                duration: const Duration(seconds: 2),
-                              ),
-                            );
-                          }
-                        }
+                        // } else { ///Build #1.0.128: No need
+                        //   // await orderHelper.addItemToOrder(
+                        //   //   variant["id"],
+                        //   //   variant["name"],
+                        //   //   variant["image"],
+                        //   //   double.tryParse(variant["price"].toString()) ?? 0.0,
+                        //   //   quantity,
+                        //   //   '',
+                        //   //   onItemAdded: () {
+                        //   //   //  Navigator.pop(context);
+                        //   //     onProductSelected?.call(isVariant: true);
+                        //   //   },
+                        //   // );
+                        //   _isAddingItemLoading = false;
+                        //   _removeLoaderOverlay();
+                        //   if (context.mounted) {
+                        //     ScaffoldMessenger.of(context).showSnackBar(
+                        //       SnackBar(
+                        //         content: Text("Variant '${variant['name']}' did not added to order. OrderId not found."),
+                        //         backgroundColor: Colors.green,
+                        //         duration: const Duration(seconds: 2),
+                        //       ),
+                        //     );
+                        //   }
+                        // }
                       } catch (e,s) {
                         if (kDebugMode) {
                           print("Exception adding variant: $e, Stack: $s");

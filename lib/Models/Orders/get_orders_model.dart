@@ -102,7 +102,13 @@ class OrderModel {
           ?.map((item) => LineItem.fromJson(item))
           .toList() ??
           [],
-      feeLines: (json['fee_lines'] as List<dynamic>?)?.map((e) => FeeLine.fromJson(e as Map<String, dynamic>)).toList(),
+      feeLines: (json['fee_lines'] is List) //Build #1.0.134: updated
+          ? (json['fee_lines'] as List<dynamic>?)?.map((e) => FeeLine.fromJson(e as Map<String, dynamic>)).toList()
+          : (json['fee_lines'] is Map)
+          ? (json['fee_lines'] as Map<String, dynamic>).values
+          .map((e) => FeeLine.fromJson(e as Map<String, dynamic>))
+          .toList()
+          : null,
       couponLines: (json['coupon_lines'] as List<dynamic>?)?.map((e) => CouponLine.fromJson(e as Map<String, dynamic>)).toList() ?? [],
       metaData: (json['meta_data'] as List<dynamic>?)
           ?.map((item) => MetaData.fromJson(item))

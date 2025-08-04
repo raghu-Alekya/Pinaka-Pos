@@ -20,7 +20,7 @@ version: 1.0.141+1
 
 environment:
 #  sdk: ^3.6.2
-  sdk: ">=3.6.2 <3.7.0"
+  sdk: ">=3.6.2 <4.0.0"
   flutter: ">=3.27.4 <3.29.0"
 
 # Dependencies specify other packages that your package needs in order to work.
@@ -33,7 +33,7 @@ dependencies:
   flutter:
     sdk: flutter
 
-  sqflite_common_ffi: 2.3.4+4
+  sqflite_common_ffi:
   http: ^0.13.5
   path_provider: ^2.1.5
   connectivity_plus: ^5.0.2

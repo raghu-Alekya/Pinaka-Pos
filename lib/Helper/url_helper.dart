@@ -11,7 +11,10 @@ class UrlHelper {
     _AndroidApiKey : "ANDROID"
   };
 //Hosts
-  static const String _dev = "https://pinakapos.techkumard.com"; // Build #1.1.36: Base URL without /wp-json/
+  static const String _dev =
+       "https://merchantretail.alektasolutions.com";
+     //  "https://pinakapos.techkumard.com"; // Build #1.1.36: Base URL without /wp-json/
+
   static const  String _uat = "http://uatapi.pinaka.com/";
   static const  String _prod = "http://api.pinaka.com/";
 
@@ -84,7 +87,9 @@ class UrlHelper {
 
   static const  String assets = "assets/public";
 
-  static const String validateMerchant =  "https://mg.techkumard.com/wp-json/custom/v1/validate-marchent";  //Build #1.0.42
+  static const String validateMerchant =
+      "https://test.alekyatechsolutions.com/wp-json/custom/v1/validate-marchent";
+      //"https://mg.techkumard.com/wp-json/custom/v1/validate-marchent";  //Build #1.0.42
 
 }
 

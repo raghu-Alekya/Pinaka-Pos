@@ -35,12 +35,8 @@ class LoginBloc { // Build #1.0.8
       LoginResponse loginResponse = LoginResponse.fromJson(json.decode(token));
 
       if (loginResponse.token != null && loginResponse.success == true) {
-        // Save user data in SQLite if not already exists
-        final existingUser = await _userDbHelper.getUserData();
-        if (existingUser == null ||
-            existingUser[AppDBConst.userToken] != loginResponse.token) {
-          await _userDbHelper.saveUserData(loginResponse); // Build #1.0.13: Saving Login Response in DB adn using from DB
-        }
+        // Build #1.0.148: Always save/update the new login data
+        await _userDbHelper.saveUserData(loginResponse);
         loginSink.add(APIResponse.completed(loginResponse));
       } else {
         // Show the exact error message from API

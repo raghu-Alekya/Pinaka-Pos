@@ -146,7 +146,7 @@ class FastKeyDBHelper { // Build #1.0.11 : FastKeyHelper for all fast key relate
   }
 
   Future<int> addFastKeyItem(int tabId, String name, String image,  String price, int productId,
-      {String? sku, String? variantId, int? slNumber, int? minAge}) async {
+      {String? sku, String? variantId, int? slNumber, int? minAge, bool? hasVariant}) async {
     final db = await DBHelper.instance.database;
     final itemId = await db.insert(AppDBConst.fastKeyItemsTable, {
       AppDBConst.fastKeyIdForeignKey: tabId,
@@ -158,6 +158,7 @@ class FastKeyDBHelper { // Build #1.0.11 : FastKeyHelper for all fast key relate
       AppDBConst.fastKeyProductId: productId, // Build #1.0.19: Updated req elements
       AppDBConst.fastKeySlNumber: slNumber,
       AppDBConst.fastKeyItemMinAge: minAge, // Build #1.0.19: Updated req elements
+      AppDBConst.fastKeyItemHasVariant: hasVariant, // Build #1.0.157: save hasVariant into DB
     },
       conflictAlgorithm: ConflictAlgorithm.ignore, // Build #1.0.80: Ignore duplicates
     );

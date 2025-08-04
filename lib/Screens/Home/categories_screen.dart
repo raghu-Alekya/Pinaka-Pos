@@ -385,6 +385,8 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
               'fast_key_item_sku': product.sku ?? '', // Ensure SKU
               ///Todo: add minAge in category product item
               'fast_key_item_min_age': int.parse(tagg?.slug ?? "0"),
+              'variations': product.variations, // Build #1.0.157: pass variations & type values to nested grid
+              'type': product.type,
             };
           }
           categoryProducts = uniqueProducts.values.toList();
@@ -484,6 +486,8 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
 
     // fix for parent product also adding along with variant product , we have to restrict that like categories screen
     if(variantAdded == true){
+      // Build #1.0.148: we have to show loader until product adds into order panel, then hide
+      Navigator.pop(context); // Hide Loader / VariationPopup dialog
       _refreshOrderList(); // refresh UI
       return;
     }
@@ -529,6 +533,8 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
             if (response.status == Status.LOADING) { // Build #1.0.80
               const Center(child: CircularProgressIndicator());
             }else if (response.status == Status.COMPLETED) {
+              // Build #1.0.148: we have to show loader until product adds into order panel, then hide
+              Navigator.pop(context); // Hide Loader / VariationPopup dialog
               if (kDebugMode) print("Item added to order $dbOrderId via API");
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
@@ -543,7 +549,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
               if (kDebugMode) print("Failed to add item to order: ${response.message}");
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text(response.message ?? "Failed to add item"),
+                  content: Text(TextConstants.failedToAddItemToOrder), // Build #1.0.144
                   backgroundColor: Colors.red,
                   duration: const Duration(seconds: 2),
                 ),
@@ -587,7 +593,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
        // setState(() => isAddingItemLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Error adding item: $e"),
+            content: Text(TextConstants.errorAddingItem), // Build #1.0.144
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 2),
           ),
@@ -752,7 +758,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
               //  setState(() => isAddingItemLoading = false);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text("Error adding item"),
+                    content: Text(TextConstants.errorAddingItem), // Build #1.0.144
                     backgroundColor: Colors.red,
                     duration: const Duration(seconds: 2),
                   ),

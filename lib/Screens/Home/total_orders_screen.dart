@@ -143,7 +143,11 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
           isLoading = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(response.message ?? "Failed to fetch orders")),
+          SnackBar(
+            content: Text(TextConstants.failedToFetchOrders), // Build #1.0.149 : added to constant & added background to red
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 2),
+          ),
         );
       } else if (response.status == Status.LOADING) {
         setState(() => isLoading = true);
@@ -367,6 +371,13 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
     _fetchOrders();
     _onOrderRowSelected(-1);///initialise order panel
   }
+ // Build #1.0.143: Fixed Issue : After return from order summary screen , total order screen not refreshing with updated response
+ void _refreshOrderList() {
+   if (kDebugMode) print("_refreshOrderList called");
+  //  setState(() {
+   _fetchOrders();
+  //  });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -449,6 +460,7 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
                     formattedTime: '',
                     quantities: quantities,
                     activeOrderId: orderHelper.activeOrderId,
+                    refreshOrderList: _refreshOrderList, // Build #1.0.143: Fixed Issue : After return from order summary screen , total order screen not refreshing with updated response
                   ),
 
 
@@ -787,6 +799,7 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
                     formattedTime: '',
                     quantities: quantities,
                     activeOrderId: orderHelper.activeOrderId,
+                    refreshOrderList: _refreshOrderList, // Build #1.0.143: Fixed Issue : After return from order summary screen , total order screen not refreshing with updated response
                   ),
 
 

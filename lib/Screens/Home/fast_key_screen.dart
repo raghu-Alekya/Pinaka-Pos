@@ -473,7 +473,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
       }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(response.message ?? "Failed to create FastKey tab"),
+          content: Text(TextConstants.failedToCreateFastKey), // Build #1.0.144
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 2),
         ),
@@ -679,7 +679,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
         }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(response.message ?? "Failed to add item"),
+            content: Text(TextConstants.failedToAddItemToFastKey), // Build #1.0.144
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 2),
           ),
@@ -734,7 +734,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
         }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(response.data?.message ?? "Failed to delete product"),
+            content: Text(TextConstants.failedToDeleteProductFromFastKey), // Build #1.0.144
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 2),
           ),
@@ -761,6 +761,8 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
 
     //Build #1.0.78: fix for parent product also adding along with variant product , we have to restrict that like categories screen
     if(variantAdded == true){
+      // Build #1.0.148: we have to show loader until product adds into order panel, then hide
+      Navigator.pop(context); // Hide Loader / VariationPopup dialog
       _refreshOrderList(); // refresh UI
       return;
     }
@@ -806,6 +808,8 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
             if (kDebugMode) print("Loading stated in fastkey under _onItemSelected ...");
             const Center(child: CircularProgressIndicator());
           }else if (response.status == Status.COMPLETED) {
+            // Build #1.0.148: we have to show loader until product adds into order panel, then hide
+            Navigator.pop(context); // Hide Loader / VariationPopup dialog
          //   setState(() => isAddingItemLoading = false);
             if (kDebugMode) print("Item added to order $dbOrderId via API");
             ScaffoldMessenger.of(context).showSnackBar(
@@ -821,7 +825,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
             if (kDebugMode) print("Failed to add item to order: ${response.message}");
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(response.message ?? "Failed to add item"),
+                content: Text(TextConstants.failedToAddItemToOrder), // Build #1.0.144
                 backgroundColor: Colors.red,
                 duration: const Duration(seconds: 2),
               ),
@@ -869,7 +873,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
     //  setState(() => isAddingItemLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Error adding item."),
+          content: Text(TextConstants.errorAddingItem), // Build #1.0.144
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 2),
         ),
@@ -889,15 +893,14 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
       if (kDebugMode) {
         print("Fast Key screen createOrder - Orders in DB $orders");
       }
-      final prefs = await SharedPreferences.getInstance();
-      final shiftId = prefs.getString(TextConstants.shiftId);
+      int? shiftId = await UserDbHelper().getUserShiftId();
 
       //Build #1.0.78: Validation required : if shift id is empty show toast or alert user to start the shift first
-      if (shiftId == null || shiftId.isEmpty) {
+      if (shiftId == null) {
         if (kDebugMode) print("####### _createOrder() : shiftId -> $shiftId");
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Please start your shift before creating an order."),
+            content: Text(TextConstants.pleaseStartShiftBeforeCreatingOrder), // Build #1.0.144
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 2),
           ),
@@ -912,7 +915,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
       String deviceId = deviceDetails['device_id'] ?? 'unknown';
       OrderMetaData device = OrderMetaData(key: OrderMetaData.posDeviceId, value: deviceId); // TODO: Implement dynamic device ID
       OrderMetaData placedBy = OrderMetaData(key: OrderMetaData.posPlacedBy, value: '${userId ?? 1}');
-      OrderMetaData shiftIdValue = OrderMetaData(key: OrderMetaData.shiftId, value: shiftId!);
+      OrderMetaData shiftIdValue = OrderMetaData(key: OrderMetaData.shiftId, value: shiftId.toString()); // Build #1.0.149
       List<OrderMetaData> metaData = [device, placedBy, shiftIdValue];
 
       StreamSubscription? subscription;
@@ -926,7 +929,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
           if (kDebugMode) print("Order created successfully with server ID: ${response.data!.id}");
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text("Order created successfully"),
+              content: Text(TextConstants.orderCreatedSuccessfully), // Build #1.0.144
               backgroundColor: Colors.green,
               duration: const Duration(seconds: 2),
             ),
@@ -937,7 +940,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
           if (kDebugMode) print("Failed to create order: ${response.message}");
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(response.message ?? "Failed to create order"),
+              content: Text(TextConstants.failedToCreateOrder), // Build #1.0.144
               backgroundColor: Colors.red,
               duration: const Duration(seconds: 2),
             ),
@@ -951,7 +954,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
       if (kDebugMode) print("Exception in _createOrder: $e");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Error creating order: $e"),
+          content: Text(TextConstants.errorCreatingOrder), // Build #1.0.144
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 2),
         ),
@@ -1051,7 +1054,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                                             )
                                                 : const Icon(Icons.image),
                                             title: Text(product.name ?? 'No Name'),
-                                            subtitle: Text('${TextConstants.currencySymbol}${product.price ?? '0.00'}'),
+                                            subtitle: Text('${TextConstants.currencySymbol}${double.tryParse(product.price.toString())?.toStringAsFixed(2) ?? "0.00"}'),
                                             onTap: () {
                                               setStateDialog(() {
                                                 var tag = product.tags?.firstWhere((element) => element.name == "Age Restricted", orElse: () => SKU.Tags());
@@ -1460,7 +1463,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                                   }
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
-                                      content: Text(response.data?.message ?? "Failed to update FastKey tab"),
+                                      content: Text(TextConstants.failedToUpdateFastKey), // Build #1.0.144
                                       backgroundColor: Colors.red,
                                       duration: const Duration(seconds: 2),
                                     ),
@@ -1672,7 +1675,13 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
         ),
       );
     } else {
-      return Image.file(
+      return Platform.isWindows
+        ? Image.asset(
+        'assets/default.png',
+        height: 75,
+        width: 75,
+      )
+        :Image.file(
         File(imagePath),
         height: 80,
         width: 80,
@@ -1879,7 +1888,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
               //  setState(() => isAddingItemLoading = false);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text("Error adding item"),
+                    content: Text(TextConstants.errorAddingItem), // Build #1.0.144
                     backgroundColor: Colors.red,
                     duration: const Duration(seconds: 2),
                   ),

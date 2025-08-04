@@ -226,9 +226,10 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
       _isApiLoading = true;
     });
 
-    final prefs = await SharedPreferences.getInstance();
-    final shiftId = prefs.getString(TextConstants.shiftId);
-
+    int? shiftId = await UserDbHelper().getUserShiftId(); // Build #1.0.149 : using from db
+    if (shiftId == null) {
+      if (kDebugMode) print("####### _handleAdd() : shiftId -> $shiftId");
+    }
     // Prepare SafeDropRequest
     final denominations = _denomControllers.entries.map((entry) {
       final denom = num.parse(entry.key);
@@ -244,7 +245,7 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
       safeDropDenominations: denominations,
       totalCash: totalCash,
       totalNotes: totalNotes,
-      shiftId: int.parse(shiftId ?? '')
+      shiftId: shiftId ?? 0,
     );
 
     if (kDebugMode) print("#### SafeDropScreen: Sending safe drop request: ${request.toJson()}");
@@ -639,7 +640,7 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
   String _calculateTotalForNote(String denomination, TextEditingController controller) {
     final count = int.tryParse(controller.text) ?? 0;
     final total = count * int.parse(denomination);
-    return '${TextConstants.currencySymbol}${total.toString()}';
+    return '${TextConstants.currencySymbol}${total.toStringAsFixed(2)}';
   }
 
   //Build #1.0.74: Added Naveen

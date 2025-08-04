@@ -374,7 +374,7 @@ class _ShiftHistoryDashboardScreenState extends State<ShiftHistoryDashboardScree
                               },
                             );
                           case Status.ERROR:
-                            return Center(child: Text('Error: ${snapshot.data!.message}'));
+                            return Center(child: Text(TextConstants.failedToFetchShifts)); // Build #1.0.144
                           default:
                             return SizedBox();
                         }

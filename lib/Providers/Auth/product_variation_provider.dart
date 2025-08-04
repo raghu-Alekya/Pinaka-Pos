@@ -39,10 +39,7 @@ class VariationPopup {
           StreamBuilder<APIResponse<List<ProductVariation>>>(
             stream: _productBloc.variationStream,
             builder: (context, snapshot) {
-              if (!snapshot.hasData) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (snapshot.data!.status == Status.LOADING) {
+              if (!snapshot.hasData || snapshot.data!.status == Status.LOADING) { // Build #1.0.148: updated condition , no need two if's
                 return const Center(child: CircularProgressIndicator());
               }
               if (snapshot.data!.status == Status.COMPLETED) {
@@ -191,7 +188,7 @@ class VariationPopup {
                   }
                   onProductSelected?.call(isVariant: false);
                 //  Navigator.pop(context);
-                  return const SizedBox.shrink();
+                  return const Center(child: CircularProgressIndicator()); // Build #1.0.148: Fixed issue - when we select a product to add in the order panel, we are getting a delay after selecting the product.
                 }
               }
               if (kDebugMode) {
@@ -199,7 +196,7 @@ class VariationPopup {
               }
               onProductSelected?.call(isVariant: false);
             //  Navigator.pop(context);
-              return const SizedBox.shrink();
+              return const Center(child: CircularProgressIndicator()); // Build #1.0.148: Fixed issue - when we select a product to add in the order panel, we are getting a delay after selecting the product.
             },
           ),
           if (_isAddingItemLoading)

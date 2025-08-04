@@ -24,9 +24,8 @@ class OrderRepository {  // Build #1.0.25 - added by naveen
     ///Build #1.0.128: metadata directly using from here , no need to add every class
     // Create metadata if no request is provided
     List<OrderMetaData> metaData;
-    final prefs = await SharedPreferences.getInstance();
-    final shiftId = prefs.getString(TextConstants.shiftId);
-    if (shiftId == null || shiftId.isEmpty) {
+    int? shiftId = await UserDbHelper().getUserShiftId(); // Build #1.0.149
+    if (shiftId == null) {
     throw Exception("Please start your shift before creating an order");
     }
 
@@ -38,7 +37,7 @@ class OrderRepository {  // Build #1.0.25 - added by naveen
     metaData = [
     OrderMetaData(key: OrderMetaData.posDeviceId, value: deviceId),
     OrderMetaData(key: OrderMetaData.posPlacedBy, value: '$userId'),
-    OrderMetaData(key: OrderMetaData.shiftId, value: shiftId),
+    OrderMetaData(key: OrderMetaData.shiftId, value: shiftId.toString()),
     ];
 
     final request = CreateOrderRequestModel(metaData: metaData);
@@ -107,7 +106,7 @@ class OrderRepository {  // Build #1.0.25 - added by naveen
     orderType = orderType != "" ? orderType : "";
 
     //"?page=1&per_page=10&search=&status="
-    var getOrdersParameter = "?auther=$userId&page=$pageNumber&per_page=${pageLimit*3+1}&created_via=$orderType&search=&status=";
+    var getOrdersParameter = "?author=$userId&page=$pageNumber&per_page=${pageLimit*3+1}&created_via=$orderType&search=&status=";
     // Encode for URL (spaces become '+', commas become '%2C')
     final encodedStatus = Uri.encodeQueryComponent(statusString);
     final url = "${UrlHelper.componentVersionUrl}${UrlMethodConstants.orders}"
@@ -159,7 +158,7 @@ class OrderRepository {  // Build #1.0.25 - added by naveen
 
     orderType = orderType != "" ? orderType : "";
 
-    var getOrdersParameter = "?auther=$userId&page=$pageNumber&per_page=$pageLimit&created_via=$orderType&after=$startDate&before=$endDate&search=&status="; //Build #1.0.134: updated new parameters startDate, endDate
+    var getOrdersParameter = "?author=$userId&page=$pageNumber&per_page=$pageLimit&created_via=$orderType&after=$startDate&before=$endDate&search=&status="; //Build #1.0.134: updated new parameters startDate, endDate
     // Encode for URL (spaces become '+', commas become '%2C')
     final encodedStatus = Uri.encodeQueryComponent(statusString);
     final url = "${UrlHelper.componentVersionUrl}${UrlMethodConstants.orders}/${UrlMethodConstants.totalOrders}$getOrdersParameter$encodedStatus${UrlParameterConstants.getOrdersEndParameter}";
@@ -175,20 +174,35 @@ class OrderRepository {  // Build #1.0.25 - added by naveen
         print("OrderRepository - Raw Response Type: ${response.runtimeType}");
         print("OrderRepository - Raw Response: ${response.toString()}");
       }
-
+      /// Build #1.0.149
+      /// The issue was passing a `String` (raw JSON) to `TotalOrdersResponseModel.fromJson` instead of a `Map<String, dynamic>` due to improper response handling.
+      /// Updated code ensuring the `String` response is decoded with `json.decode` before processing in `fetchTotalOrdersCount`.
+      /// Ensure response is decoded if it's a String
+      dynamic responseData;
       if (response is String) {
-        final responseData = json.decode(response);
-        return TotalOrdersResponseModel.fromJson(responseData);
+        try {
+          responseData = json.decode(response);
+          if (responseData is! Map<String, dynamic>) {
+            throw Exception("Decoded response is not a Map<String, dynamic>: ${responseData.runtimeType}");
+          }
+        } catch (e, s) {
+          if (kDebugMode) {
+            print("OrderRepository - Error decoding response: $e, Stack: $s");
+          }
+          throw Exception("Failed to decode total orders response");
+        }
       } else if (response is Map<String, dynamic>) {
-        return TotalOrdersResponseModel.fromJson(response);
+        responseData = response;
       } else {
-        throw Exception("Unexpected response type in fetch total orders GET");
+        throw Exception("Unexpected response type: ${response.runtimeType}");
       }
+
+      return TotalOrdersResponseModel.fromJson(responseData);
     } catch (e, s) {
       if (kDebugMode) {
         print("OrderRepository - Error in fetchTotalOrders: $e, Stack: $s");
       }
-      throw Exception("Failed to fetch total orders");
+      throw Exception("Failed to fetch total orders: $e");
     }
   }
 

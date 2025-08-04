@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:pinaka_pos/Screens/Auth/login_screen.dart';
 import 'package:pinaka_pos/Screens/Home/apps_dashboard_screen.dart';
 import 'package:pinaka_pos/Screens/Home/categories_screen.dart';
@@ -10,6 +11,7 @@ import 'package:quickalert/models/quickalert_type.dart';
 import 'package:quickalert/widgets/quickalert_dialog.dart';
 import 'package:flutter_swipe_button/flutter_swipe_button.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../Database/user_db_helper.dart';
 import '../Helper/Extentions/theme_notifier.dart';
 
 import '../Constants/text.dart';
@@ -17,6 +19,7 @@ import '../Screens/Home/add_screen.dart';
 import '../Screens/Home/Settings/settings_screen.dart';
 import '../Screens/Home/shift_open_close_balance.dart';
 import '../Screens/Home/total_orders_screen.dart';
+import '../Utilities/svg_images_utility.dart';
 
 class NavigationBar extends StatelessWidget {
   final int selectedSidebarIndex;
@@ -63,8 +66,8 @@ class NavigationBar extends StatelessWidget {
   }
 
   Future<String?> _getShiftId() async { //Build #1.0.78
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(TextConstants.shiftId);
+    int? shiftId = await UserDbHelper().getUserShiftId();  // Build #1.0.149
+    return shiftId.toString();
   }
 
   Widget _buildVerticalLayout(BuildContext context, String? shiftId) {
@@ -78,7 +81,7 @@ class NavigationBar extends StatelessWidget {
         // Dynamic items (scrollable if needed)
         List<Widget> dynamicItems = [
           SidebarButton(
-            icon: Icons.flash_on,
+            svgAsset: selectedSidebarIndex == 0 ? SvgUtils.fastKeySelectedIcon : SvgUtils.fastKeyIcon, // Build #1.0.148: Fixed Issue: Menu Bar Icons not matching with latest Figma Design , now using from assets/svg/navigation/
             label: TextConstants.fastKeyText,
             isSelected: selectedSidebarIndex == 0,
             onTap: shiftId == null || shiftId.isEmpty
@@ -99,8 +102,9 @@ class NavigationBar extends StatelessWidget {
             isVertical: isVertical,
             isDisabled: shiftId == null || shiftId.isEmpty,
           ),
+          const SizedBox(height: 10),
           SidebarButton(
-            icon: Icons.category,
+            svgAsset: SvgUtils.categoriesIcon,
             label: TextConstants.categoriesText,
             isSelected: selectedSidebarIndex == 1,
             onTap: shiftId == null || shiftId.isEmpty
@@ -121,8 +125,9 @@ class NavigationBar extends StatelessWidget {
             isVertical: isVertical,
             isDisabled: shiftId == null || shiftId.isEmpty,
           ),
+          const SizedBox(height: 10),
           SidebarButton(
-            icon: Icons.add,
+            svgAsset: SvgUtils.addIcon,
             label: TextConstants.addText,
             isSelected: selectedSidebarIndex == 2,
             onTap: shiftId == null || shiftId.isEmpty
@@ -139,8 +144,9 @@ class NavigationBar extends StatelessWidget {
             isVertical: isVertical,
             isDisabled: shiftId == null || shiftId.isEmpty,
           ),
+          const SizedBox(height: 10),
           SidebarButton(
-            icon: Icons.shopping_basket,
+            svgAsset: SvgUtils.ordersIcon,
             label: TextConstants.ordersText,
             isSelected: selectedSidebarIndex == 3,
             onTap: shiftId == null || shiftId.isEmpty
@@ -161,8 +167,9 @@ class NavigationBar extends StatelessWidget {
             isVertical: isVertical,
             isDisabled: shiftId == null || shiftId.isEmpty,
           ),
+          const SizedBox(height: 10),
           SidebarButton(
-            icon: Icons.apps,
+            svgAsset: SvgUtils.appsIcon,
             label: TextConstants.appsText,
             isSelected: selectedSidebarIndex == 4,
             onTap: () {
@@ -188,7 +195,7 @@ class NavigationBar extends StatelessWidget {
           children: [
             const Divider(color: Colors.black54),
             SidebarButton(
-              icon: Icons.settings,
+              svgAsset: SvgUtils.settingsIcon,
               label: TextConstants.settingsHeaderText,
               isSelected: selectedSidebarIndex == 5,
               onTap: shiftId == null || shiftId.isEmpty
@@ -214,8 +221,9 @@ class NavigationBar extends StatelessWidget {
               isVertical: isVertical,
               isDisabled: shiftId == null || shiftId.isEmpty,
             ),
+            const SizedBox(height: 10),
             SidebarButton(
-              icon: Icons.logout,
+              svgAsset: SvgUtils.logoutIcon,
               label: TextConstants.logoutText,
               isSelected: selectedSidebarIndex == 6,
               onTap: () {
@@ -325,7 +333,7 @@ class NavigationBar extends StatelessWidget {
         // Dynamic items (scrollable horizontally if needed)
         List<Widget> dynamicItems = [
           SidebarButton(
-            icon: Icons.flash_on,
+            svgAsset: selectedSidebarIndex == 0 ? SvgUtils.fastKeySelectedIcon : SvgUtils.fastKeyIcon, // Build #1.0.148: Fixed Issue: Menu Bar Icons not matching with latest Figma Design , now using from assets/svg/navigation/
             label: TextConstants.fastKeyText,
             isSelected: selectedSidebarIndex == 0,
             onTap: shiftId == null || shiftId.isEmpty
@@ -345,8 +353,9 @@ class NavigationBar extends StatelessWidget {
             },
             isVertical: false, //Build #1.0.54: updated
           ),
+          const SizedBox(height: 10),
           SidebarButton(
-            icon: Icons.category,
+            svgAsset: SvgUtils.categoriesIcon,
             label: TextConstants.categoriesText,
             isSelected: selectedSidebarIndex == 1,
             onTap: shiftId == null || shiftId.isEmpty
@@ -366,8 +375,9 @@ class NavigationBar extends StatelessWidget {
             },
             isVertical: false,
           ),
+          const SizedBox(height: 10),
           SidebarButton(
-            icon: Icons.add,
+            svgAsset: SvgUtils.addIcon,
             label: TextConstants.addText,
             isSelected: selectedSidebarIndex == 2,
             onTap: shiftId == null || shiftId.isEmpty
@@ -385,8 +395,9 @@ class NavigationBar extends StatelessWidget {
             },
             isVertical: false,
           ),
+          const SizedBox(height: 10),
           SidebarButton(
-            icon: Icons.shopping_basket,
+            svgAsset: SvgUtils.ordersIcon,
             label: TextConstants.ordersText,
             isSelected: selectedSidebarIndex == 3,
             onTap: shiftId == null || shiftId.isEmpty
@@ -406,8 +417,9 @@ class NavigationBar extends StatelessWidget {
             },
             isVertical: false,
           ),
+          const SizedBox(height: 10),
           SidebarButton(
-            icon: Icons.apps,
+            svgAsset: SvgUtils.appsIcon,
             label: TextConstants.appsText,
             isSelected: selectedSidebarIndex == 4,
             onTap: () {
@@ -430,7 +442,7 @@ class NavigationBar extends StatelessWidget {
         List<Widget> fixedItems = [
           const VerticalDivider(color: Colors.black54),
           SidebarButton(
-            icon: Icons.settings,
+            svgAsset: SvgUtils.settingsIcon,
             label: TextConstants.settingsHeaderText,
             isSelected: selectedSidebarIndex == 5,
             onTap: shiftId == null || shiftId.isEmpty
@@ -453,8 +465,9 @@ class NavigationBar extends StatelessWidget {
             },
             isVertical: false,
           ),
+          const SizedBox(height: 10),
           SidebarButton(
-            icon: Icons.logout,
+            svgAsset: SvgUtils.logoutIcon,
             label: TextConstants.logoutText,
             isSelected: selectedSidebarIndex == 6,
             onTap: shiftId == null || shiftId.isEmpty
@@ -567,6 +580,7 @@ class NavigationBar extends StatelessWidget {
 
 class SidebarButton extends StatelessWidget {
   final IconData? icon;
+  final String? svgAsset;
   final String label;
   final bool isSelected;
   final VoidCallback onTap;
@@ -575,11 +589,12 @@ class SidebarButton extends StatelessWidget {
 
   const SidebarButton({
     this.icon,
+    this.svgAsset,
     required this.label,
     required this.isSelected,
     required this.onTap,
     this.isVertical = true,
-     this.isDisabled = false,
+    this.isDisabled = false,
     super.key,
   });
 
@@ -599,7 +614,7 @@ class SidebarButton extends StatelessWidget {
       children: [
         Container(
           width: MediaQuery.of(context).size.width * 0.05,
-          padding: const EdgeInsets.all(10.0),
+          padding: const EdgeInsets.only(top: 10.0,bottom: 10, left: 2,right: 2),
           decoration: BoxDecoration(
             shape: BoxShape.rectangle,
             color: isSelected ? Colors.red : Colors.transparent,
@@ -608,15 +623,28 @@ class SidebarButton extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
+              svgAsset != null
+                  ? SvgPicture.asset( // Build #1.0.148: Fixed Issue: Menu Bar Icons not matching with latest Figma Design , now using from assets/svg/navigation/
+                svgAsset!,
+                colorFilter: ColorFilter.mode(
+                  isSelected
+                      ? Colors.white
+                      : isDisabled
+                      ? Colors.grey.shade800
+                      : Colors.white70,
+                  BlendMode.srcIn,
+                ),
+                height: 20,
+              )
+                  : Icon(
                 icon,
                 color: isSelected
                     ? Colors.white
-                    : isDisabled // Check if onTap is disabled
-                    ? Colors.grey.shade800 // Disabled color
-                    : Colors.white70, // Enabled color
+                    : isDisabled
+                    ? Colors.grey.shade800
+                    : Colors.white70,
               ),
-              const SizedBox(height: 3),
+              const SizedBox(height: 7),
               Text(
                 label,
                 style: TextStyle(
@@ -626,7 +654,7 @@ class SidebarButton extends StatelessWidget {
                       ? Colors.grey.shade800
                       : Colors.white70,
                   fontWeight: FontWeight.bold,
-                  fontSize: 8,
+                  fontSize: 9,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -648,7 +676,20 @@ class SidebarButton extends StatelessWidget {
             color: isSelected ? Colors.red : Colors.transparent,
             borderRadius: const BorderRadius.all(Radius.circular(8)),
           ),
-          child: Icon(
+          child: svgAsset != null
+              ? SvgPicture.asset( // Build #1.0.148: Fixed Issue: Menu Bar Icons not matching with latest Figma Design , now using from assets/svg/navigation/
+            svgAsset!,
+            colorFilter: ColorFilter.mode(
+              isSelected
+                  ? Colors.white
+                  : isDisabled
+                  ? Colors.grey.shade800
+                  : Colors.white70,
+              BlendMode.srcIn,
+            ),
+            height: 28,
+          )
+              : Icon(
             icon,
             color: isSelected
                 ? Colors.white
@@ -657,7 +698,7 @@ class SidebarButton extends StatelessWidget {
                 : Colors.white,
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 10),
         Text(
           label,
           style: TextStyle(
@@ -667,6 +708,7 @@ class SidebarButton extends StatelessWidget {
                 ? Colors.grey.shade800
                 : Colors.white,
             fontWeight: FontWeight.bold,
+            fontSize: 14,
           ),
         ),
       ],

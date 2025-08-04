@@ -68,7 +68,8 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
 
   bool _isLoading = false;
   bool _isPayBtnLoading = false;
-  late OrderBloc orderBloc;
+  bool _initialFetchDone = false; // Build #1.0.143: Track initial fetch of fetchOrdersData
+ // late OrderBloc orderBloc;
   StreamSubscription? _updateOrderSubscription;
   StreamSubscription? _fetchOrdersSubscription;
   final ProductBloc productBloc = ProductBloc(ProductRepository()); // Build #1.0.44 : Added for barcode scanning
@@ -89,8 +90,9 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
     if (kDebugMode) {
       print("##### OrderPanel initState");
     }
-    orderBloc = OrderBloc(OrderRepository());
+  //  orderBloc = OrderBloc(OrderRepository()); // Build #1.0.143: no need
     fetchOrdersData(); // Build #1.0.104
+    _initialFetchDone = true; // Build #1.0.143: Track initial fetch of fetchOrdersData, after return from order summary screen we are updating order screen panel in didUpdateWidget, added this flag for multiple re-calls of fetchOrdersData()
     super.initState();
    // _getOrderTabs(); //Build #1.0.40: Load existing orders into tabs
     //_fetchOrders(); //Build #1.0.40: Fetch orders on initialization
@@ -126,6 +128,13 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
   @override
   void didUpdateWidget(OrderScreenPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
+   // Build #1.0.143: Fixed Issue : After return from order summary screen , order screen panel not refreshing with updated response
+    if (!_initialFetchDone && widget.fetchOrders) {
+      if (kDebugMode) {
+        print("##### widget.fetchOrders : ${widget.fetchOrders}");
+      }
+      fetchOrdersData();
+    }
     if (mounted && widget.activeOrderId != oldWidget.activeOrderId) {  // Build #1.0.118
       if (kDebugMode) {
         print("##### OrderPanel didUpdateWidget: activeOrderId changed from ${oldWidget.activeOrderId} to ${widget.activeOrderId}");
@@ -435,9 +444,9 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
   @override
   void dispose() {
     _updateOrderSubscription?.cancel(); // Cancel the subscription
-    orderBloc.dispose(); // Dispose the bloc if needed
+   // orderBloc.dispose(); // Dispose the bloc if needed // Build #1.0.143: No need
     _fetchOrdersSubscription?.cancel();
-    orderBloc.dispose();
+   // orderBloc.dispose();
     productBloc.dispose();
     _tabController?.dispose();
     _productBySkuSubscription?.cancel(); // Build #1.0.44 : Added Cancel product subscription
@@ -721,6 +730,9 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
 
     // Build #1.0.138: Calculate net total
     netTotal = grossTotal - orderDiscount ;
+
+    //Build #1.0.146: Apply merchant discount (this is typically a separate discount)
+    netTotal = netTotal - merchantDiscount;
     ///map total with netPayable
     netPayable =  order[AppDBConst.orderTotal] as double? ?? 0.0;
 
@@ -974,18 +986,18 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                                         borderRadius: BorderRadius.circular(5),
                                         child: orderItem[AppDBConst.itemImage].toString().startsWith('http')
                                             ? SizedBox(
-                                          height:MediaQuery.of(context).size.height * 0.075,
+                                          height:MediaQuery.of(context).size.height * 0.08,
                                           width: MediaQuery.of(context).size.height * 0.075,
                                               child: Image.network(
                                                 orderItem[AppDBConst.itemImage],
-                                                height:MediaQuery.of(context).size.height * 0.075,
+                                                height:MediaQuery.of(context).size.height * 0.08,
                                                 width: MediaQuery.of(context).size.height * 0.075,
                                                 fit: BoxFit.cover,
                                                 errorBuilder:
                                                     (context, error, stackTrace) {
                                               return SvgPicture.asset(
                                                 'assets/svg/password_placeholder.svg',
-                                                height:MediaQuery.of(context).size.height * 0.075,
+                                                height:MediaQuery.of(context).size.height * 0.08,
                                                 width: MediaQuery.of(context).size.height * 0.075,
                                                 fit: BoxFit.cover,
                                               );
@@ -997,20 +1009,20 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                                             .startsWith('assets/')
                                             ? SvgPicture.asset(
                                           orderItem[AppDBConst.itemImage],
-                                          height:MediaQuery.of(context).size.height * 0.075,
+                                          height:MediaQuery.of(context).size.height * 0.08,
                                           width: MediaQuery.of(context).size.height * 0.075,
                                           fit: BoxFit.cover,
                                         )
                                             : Image.file(
                                           File(orderItem[AppDBConst.itemImage]),
-                                          height:MediaQuery.of(context).size.height * 0.075,
+                                          height:MediaQuery.of(context).size.height * 0.08,
                                           width: MediaQuery.of(context).size.height * 0.075,
                                           fit: BoxFit.cover,
                                           errorBuilder:
                                               (context, error, stackTrace) {
                                             return SvgPicture.asset(
                                               'assets/svg/password_placeholder.svg',
-                                              height:MediaQuery.of(context).size.height * 0.075,
+                                              height:MediaQuery.of(context).size.height * 0.08,
                                               width: MediaQuery.of(context).size.height * 0.075,
                                               fit: BoxFit.cover,
                                             );
@@ -1475,6 +1487,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                       onPressed: netPayable <= 0 ? null : () async {
                         if (orderHelper.activeOrderId != null) {
                           setState(() => _isPayBtnLoading = true);
+                          _initialFetchDone = false; // Build #1.0.143: Track initial fetch of fetchOrdersData
                           // await Navigator.push(
                           //   context,
                           //   MaterialPageRoute(builder: (context) => OrderSummaryScreen()),
@@ -1500,9 +1513,9 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                             if (kDebugMode) {
                               print("###### OrderScreenPanel: Refresh signal received, reinitializing entire screen");
                             }
-                            setState(() {
-                              fetchOrdersData(); // call
-                            });
+
+                            // Build #1.0.143: Fixed Issue : After return from order summary screen , total order screen not refreshing with updated response
+                            widget.refreshOrderList?.call();
                           }
                           setState(() => _isPayBtnLoading = false);
                       ///No need to update here now, may cause empty items added to order
@@ -1735,7 +1748,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
     ]);
     // bytes += ticket.feed(1);
     bytes += ticket.row([
-      PosColumn(text: TextConstants.discount, width: 10),
+      PosColumn(text: TextConstants.discountText, width: 10), // Build #1.0.148
       PosColumn(text: discount.toStringAsFixed(2), width:2),
     ]);
     // bytes += ticket.feed(1);

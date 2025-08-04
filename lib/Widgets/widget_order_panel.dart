@@ -1205,6 +1205,10 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
 
       // Build #1.0.138: Calculate net total
       netTotal = grossTotal - orderDiscount; // Build #1.0.137
+
+      //Build #1.0.146: Apply merchant discount (this is typically a separate discount)
+      netTotal = netTotal - merchantDiscount;
+
       ///map total with netPayable
       netPayable =  order[AppDBConst.orderTotal] as double? ?? 0.0;
 
@@ -1350,12 +1354,14 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                             : orderItem[AppDBConst.itemRegularPrice]!.toDouble();
 
                         return ClipRRect(
-                          key: ValueKey(index),
+                        // Build #1.0.151: FIXED - change ensures that sliding an item in one order does not affect the Slidable state of items at the same index in other orders.
+                        key: ValueKey('${orderHelper.activeOrderId}_$index'), // Updated key to include order ID
                           borderRadius: BorderRadius.circular(20),
                           child: SizedBox(
                             height: MediaQuery.of(context).size.height * 0.12,
                             child: Slidable(
-                              key: ValueKey(index),
+                              // Build #1.0.151: FIXED - change ensures that sliding an item in one order does not affect the Slidable state of items at the same index in other orders.
+                              key: ValueKey('${orderHelper.activeOrderId}_$index'), // Updated key to include order ID
                               closeOnScroll: true,
                               direction: Axis.horizontal,
                               endActionPane: ActionPane(
@@ -1507,19 +1513,19 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                                         borderRadius: BorderRadius.circular(5),
                                         child: orderItem[AppDBConst.itemImage].toString().startsWith('http')
                                             ? SizedBox(
-                                                height: MediaQuery.of(context).size.height * 0.075,
+                                                height: MediaQuery.of(context).size.height * 0.08,
                                                 width: MediaQuery.of(context).size.height * 0.075,
                                                 child: Image.network(
                                                   orderItem[AppDBConst.itemImage],
-                                                  height: MediaQuery.of(context).size.height * 0.075,
+                                                  height: MediaQuery.of(context).size.height * 0.08,
                                                   width: MediaQuery.of(context).size.height * 0.075,
                                                   fit: BoxFit.cover,
                                                   errorBuilder: (context, error,
                                                       stackTrace) {
                                                     return SvgPicture.asset(
                                                       'assets/svg/password_placeholder.svg',
-                                                      height: MediaQuery.of(context).size.height * 0.075,
-                                                      width: MediaQuery.of(context).size.height * 0.075,
+                                                      height: MediaQuery.of(context).size.height * 0.08,
+                                                      width: MediaQuery.of(context).size.height * 0.08,
                                                       fit: BoxFit.cover,
                                                     );
                                                   },
@@ -1528,19 +1534,19 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                                             : orderItem[AppDBConst.itemImage].toString().startsWith('assets/')
                                             ? SvgPicture.asset(
                                           orderItem[AppDBConst.itemImage],
-                                          height: MediaQuery.of(context).size.height * 0.075,
+                                          height: MediaQuery.of(context).size.height * 0.08,
                                           width: MediaQuery.of(context).size.height * 0.075,
                                           fit: BoxFit.cover,
                                         )
                                             : Image.file(
                                           File(orderItem[AppDBConst.itemImage]),
-                                          height: MediaQuery.of(context).size.height * 0.075,
+                                          height: MediaQuery.of(context).size.height * 0.08,
                                           width: MediaQuery.of(context).size.height * 0.075,
                                           fit: BoxFit.cover,
                                           errorBuilder: (context, error, stackTrace) {
                                             return SvgPicture.asset(
                                               'assets/svg/password_placeholder.svg',
-                                              height: MediaQuery.of(context).size.height * 0.075,
+                                              height: MediaQuery.of(context).size.height * 0.08,
                                               width: MediaQuery.of(context).size.height * 0.075,
                                               fit: BoxFit.cover,
                                             );
@@ -1624,7 +1630,9 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                                         mainAxisAlignment: MainAxisAlignment.center,
                                         children: [
                                           Text(
-                                            isCouponOrPayout ? "${TextConstants.currencySymbol}${(orderItem[AppDBConst.itemCount] * orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}" : "${TextConstants.currencySymbol}${(orderItem[AppDBConst.itemCount] * salesPrice).toStringAsFixed(2)}",
+                                            isCouponOrPayout
+                                                ? "${TextConstants.currencySymbol}${(orderItem[AppDBConst.itemCount] * orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}"
+                                                : "${TextConstants.currencySymbol}${(orderItem[AppDBConst.itemCount] * salesPrice).toStringAsFixed(2)}",
                                             style: TextStyle(
                                               fontSize: 14,
                                               fontWeight: FontWeight.bold,

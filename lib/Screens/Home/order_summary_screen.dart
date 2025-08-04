@@ -131,6 +131,8 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
         isSummaryLoading = true; // Show loader
       });
       paymentBloc.getPaymentsByOrderId(orderId!);
+      // Build #1.0.151: Fixed - too much of loading in order summary screen of order panel
+      _paymentListSubscription?.cancel(); // Cancel any existing subscription
       _paymentListSubscription = paymentBloc.paymentsListStream.listen((response) {
         if (response.status == Status.COMPLETED) {
           if (kDebugMode) {
@@ -173,6 +175,10 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     setState(() {
       payByCash = cashTotal;
       payByOther = otherTotal;
+      // Build #1.0.151: Fixed - Partial Payment Not Reflected After Voiding in On-Hold Order
+      // Update balanceAmount / tenderAmount after getPaymentsByOrderId api call, because payByCash 'amount' avlue getting from this api only
+      balanceAmount = orderTotal - payByCash - payByOther;
+      tenderAmount = payByCash + payByOther;
     });
   }
 
@@ -207,7 +213,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
       return;
     }
 
-    String cleanAmount = amountController.text.replaceAll('${TextConstants.currencySymbol}', '').trim();
+    String cleanAmount = amountController.text.replaceAll(TextConstants.currencySymbol, '').trim();
     final double amount = double.tryParse(cleanAmount) ?? 0.0;
     if (amount == 0.0) {
       if (kDebugMode) {
@@ -741,7 +747,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                         // Order calculations
                         _buildOrderCalculation(TextConstants.grossTotal, '${TextConstants.currencySymbol}${grossTotal.toStringAsFixed(2)}',
                             isTotal: true),
-                        _buildOrderCalculation(TextConstants.discount, '-${TextConstants.currencySymbol}${discount.toStringAsFixed(2)}',
+                        _buildOrderCalculation(TextConstants.discountText, '-${TextConstants.currencySymbol}${discount.toStringAsFixed(2)}',
                             isDiscount: true),
                         _buildOrderCalculation(TextConstants.merchantDiscount, '-${TextConstants.currencySymbol}${merchantDiscount.toStringAsFixed(2)}'),
                         _buildOrderCalculation(TextConstants.taxText, '${TextConstants.currencySymbol}${tax.toStringAsFixed(2)}'), // Build #1.0.80: updated tax dynamically
@@ -876,6 +882,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
       if (kDebugMode) {
         print("##### fetchOrderItems :$items");
         print("Calculated balance amount: $total");
+        print("##### DEBUG 1001 orderTotal: $orderTotal, payByCash: $payByCash");
       }
 
       setState(() {
@@ -1101,13 +1108,13 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
         horizontal: 12,
       ),
       child: SizedBox(
-        height: MediaQuery.of(context).size.height * 0.08,
+        height: MediaQuery.of(context).size.height * 0.085,
         child: Row(
           children: [
             // Product image
             Container(
               width: ResponsiveLayout.getWidth(50),
-              height: ResponsiveLayout.getHeight(50),
+              height: ResponsiveLayout.getHeight(100),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(8)),
                 color:  Colors.grey.shade200,
@@ -1116,17 +1123,17 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                 borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(10)),
                 child: orderItem[AppDBConst.itemImage].toString().startsWith('http')
                     ? SizedBox(
-                        height: ResponsiveLayout.getHeight(30),
+                        height: ResponsiveLayout.getHeight(40),
                         width: ResponsiveLayout.getWidth(30),
                         child: Image.network(
                           orderItem[AppDBConst.itemImage],
-                          height: ResponsiveLayout.getHeight(30),
+                          height: ResponsiveLayout.getHeight(40),
                           width: ResponsiveLayout.getWidth(30),
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) {
                             return SvgPicture.asset(
                         'assets/svg/password_placeholder.svg',
-                        height: ResponsiveLayout.getHeight(30),
+                        height: ResponsiveLayout.getHeight(40),
                         width: ResponsiveLayout.getWidth(30),
                         fit: BoxFit.cover,
                       );
@@ -1138,20 +1145,20 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                     .startsWith('assets/')
                     ? SvgPicture.asset(
                   orderItem[AppDBConst.itemImage],
-                  height: ResponsiveLayout.getHeight(30),
+                  height: ResponsiveLayout.getHeight(40),
                   width: ResponsiveLayout.getWidth(30),
                   fit: BoxFit.cover,
                 )
                     : Image.file(
                   File(orderItem[AppDBConst.itemImage]),
-                  height: ResponsiveLayout.getHeight(30),
+                  height: ResponsiveLayout.getHeight(40),
                   width: ResponsiveLayout.getWidth(30),
                   fit: BoxFit.cover,
                   errorBuilder:
                       (context, error, stackTrace) {
                     return SvgPicture.asset(
                       'assets/svg/password_placeholder.svg',
-                      height: ResponsiveLayout.getHeight(30),
+                      height: ResponsiveLayout.getHeight(40),
                       width: ResponsiveLayout.getWidth(30),
                       fit: BoxFit.cover,
                     );
@@ -1232,7 +1239,8 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
 
             if (!isCouponOrPayout)
               Text(
-                "${TextConstants.currencySymbol}${regularPrice.toStringAsFixed(2) * orderItem[AppDBConst.itemCount]}",
+                "${TextConstants.currencySymbol} ${(regularPrice * orderItem[AppDBConst.itemCount]).toStringAsFixed(2)}",
+                // "${TextConstants.currencySymbol}${regularPrice.toStringAsFixed(2) * orderItem[AppDBConst.itemCount]}",
                 style: TextStyle(
                     color: themeHelper.themeMode == ThemeMode.dark
                         ? ThemeNotifier.textDark
@@ -1242,9 +1250,9 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
             SizedBox(width: 20,),
             //  Sale Price
             Text(
-              isCouponOrPayout ?
-              "${TextConstants.currencySymbol}${(orderItem[AppDBConst.itemCount] * orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}" :
-              "${TextConstants.currencySymbol}${(orderItem[AppDBConst.itemCount] * salesPrice).toStringAsFixed(2)}",
+              isCouponOrPayout
+                  ? "${TextConstants.currencySymbol}${(orderItem[AppDBConst.itemCount] * orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}"
+                  : "${TextConstants.currencySymbol}${(orderItem[AppDBConst.itemCount] * salesPrice).toStringAsFixed(2)}",
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: ResponsiveLayout.getFontSize(16),
@@ -1272,7 +1280,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
       amount = '${TextConstants.currencySymbol}${payByCash.toStringAsFixed(2)}'; //Build #1.0.99: updated from api
     }else if (label == TextConstants.payByOther) {
       amount = '${TextConstants.currencySymbol}${payByOther.toStringAsFixed(2)}';
-    } else if (label == TextConstants.discount) {
+    } else if (label == TextConstants.discountText) {
       amount = '-${TextConstants.currencySymbol}${discount.toStringAsFixed(2)}'; // Display discount from DB
     }
 
@@ -1288,7 +1296,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     if (isTotal) {
       amountColor = themeHelper.themeMode == ThemeMode.dark
           ? ThemeNotifier.textDark : Colors.black87;
-    } else if (label == TextConstants.discount || isDiscount) {
+    } else if (label == TextConstants.discountText || isDiscount) {
       labelColor = Colors.green[600]!;
       amountColor = Colors.green[600]!;
       leadingIcon = SvgPicture.asset(
@@ -2080,7 +2088,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     ]);
     // bytes += ticket.feed(1);
     bytes += ticket.row([
-      PosColumn(text: TextConstants.discount, width: 10),
+      PosColumn(text: TextConstants.discountText, width: 10), // Build #1.0.148: deleted duplicate discount string from constants , already we have discountText using !
       PosColumn(text: discount.toStringAsFixed(2), width:2),
     ]);
     // bytes += ticket.feed(1);

@@ -276,7 +276,7 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
       final itemId = apiItem.id.toString();
       final double itemPrice = apiItem.productData.regularPrice == '' ?  double.parse(apiItem.productData.price ?? '0.0') : double.parse(apiItem.productData.regularPrice ?? '0.0');
       final int itemQuantity = apiItem.quantity ?? 0;
-      final double itemSumPrice = double.parse(apiItem.total); //Build #1.0.134: updated item sum price using from api response
+      final double itemSumPrice = double.parse(apiItem.subtotal); //Build #1.0.134: updated item sum price using from api response
 
       if (kDebugMode) {
          print("         salesPrice: ${apiItem.productData.salePrice ?? "0.0"}, "
@@ -811,7 +811,7 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
           ${AppDBConst.itemRegularPrice} = ?,
           ${AppDBConst.itemUnitPrice} = ?
       WHERE ${AppDBConst.itemServerId} = ?
-    ''', [quantity, price * quantity, productId, variationId, salesPrice, regularPrice, unitPrice, serverItemId]);
+    ''', [quantity, price, productId, variationId, salesPrice, regularPrice, unitPrice, serverItemId]); //Build #1.0.146: Fixed Issue: We don't need to multiply with qty because we are already getting from line items sub total value
     } else {
       if (kDebugMode) {
         print("HELPER NOT existingItem");
@@ -822,7 +822,7 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
         AppDBConst.itemImage: image,
         AppDBConst.itemPrice: price,
         AppDBConst.itemCount: quantity,
-        AppDBConst.itemSumPrice: price * quantity,
+        AppDBConst.itemSumPrice: price, //Build #1.0.146: Fixed Issue: We don't need to multiply with qty because we are already getting from line items sub total value
         AppDBConst.orderIdForeignKey: orderId,
         AppDBConst.itemSKU: sku,
         AppDBConst.itemType: type,

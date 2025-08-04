@@ -300,7 +300,7 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMix
 
                 Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 12, 12, 12),
+                    padding: const EdgeInsets.fromLTRB(8, 5, 12, 5),
                     child: Container(
                       decoration: BoxDecoration(
                         color: themeHelper.themeMode == ThemeMode.dark
@@ -325,16 +325,28 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMix
                                     SizedBox(
                                       height: MediaQuery.of(context).size.height * 0.06,
                                       width: MediaQuery.of(context).size.width * 0.1,
-                                      child: OutlinedButton(
-                                        onPressed: () => Navigator.pop(context),
+                                      child: OutlinedButton( // Build #1.0.148: Fixed Issue : Disable Back Button in Safe open screen while tap on submit button
+                                        onPressed: _isSubmitting ? null : () => Navigator.pop(context), // Disable button when _isSubmitting is true
                                         style: OutlinedButton.styleFrom(
-                                          side: BorderSide(color: Colors.grey.shade300),
                                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                          side: BorderSide(
+                                            color: _isSubmitting ? Colors.grey.shade400 : Colors.grey.shade300, // Greyed-out border when disabled, active border when enabled
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          foregroundColor: _isSubmitting ? Colors.grey.shade400 : Colors.blueGrey, // Greyed-out text when disabled, active text when enabled
+                                          backgroundColor: _isSubmitting ? Colors.grey.shade100 : Colors.transparent, // Subtle background when disabled, no background when active
                                         ),
-                                        child: Text('Back',
-                                            style: TextStyle(color: themeHelper.themeMode == ThemeMode.dark
-                                            ? ThemeNotifier.textDark : Colors.blueGrey, fontSize: 16)),
+                                        child: Text(
+                                          'Back',
+                                          style: TextStyle(
+                                            color: _isSubmitting
+                                                ? Colors.grey.shade400 // Greyed-out text when disabled
+                                                : (themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.blueGrey), // Active text color
+                                            fontSize: 16, // Keep your font size
+                                          ),
+                                        ),
                                       ),
                                     ),
                                     const SizedBox(width: 20),
@@ -349,12 +361,11 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMix
                                           setState(() => _isSubmitting = true);
 
                                           try {
-                                            final prefs = await SharedPreferences.getInstance();
-                                            final shiftId = prefs.getString(TextConstants.shiftId);
+                                            int? shiftId = await UserDbHelper().getUserShiftId(); // Build #1.0.149 : using from db
                                             String? previousScreen = widget.previousScreen;
                                             String status = TextConstants.open;
 
-                                            if (shiftId != null && shiftId.isNotEmpty) {
+                                            if (shiftId != null) {
                                               if (previousScreen == TextConstants.navLogout) {
                                                 status = TextConstants.closed;
                                               } else if (previousScreen == TextConstants.navShiftHistory) { //Build #1.0.74
@@ -370,7 +381,7 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMix
                                             await _shiftSubscription?.cancel();
 
                                             final request = _buildShiftRequest(
-                                              shiftId: shiftId != null ? int.parse(shiftId) : null,
+                                              shiftId: shiftId,
                                               status: status,
                                             );
 
@@ -387,8 +398,10 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMix
                                                 dialogShown = true; // Mark dialog as shown
 
                                                 if (status == TextConstants.open) {
-                                                  final prefs = await SharedPreferences.getInstance();
-                                                  await prefs.setString(TextConstants.shiftId, response.data!.shiftId.toString());
+                                                  // final prefs = await SharedPreferences.getInstance();
+                                                  // await prefs.setString(TextConstants.shiftId, response.data!.shiftId.toString());
+                                                  // Build #1.0.149 : update shift id while create shift
+                                                  await UserDbHelper().updateUserShiftId(response.data!.shiftId);
                                                 }
                                                 setState(() => _isSubmitting = false); // Build #1.0. 140: hide loader
                                                 // Show dialog only once
@@ -422,8 +435,9 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMix
                                                     }
                                                     // Cancel subscription after dialog is handled
                                                     await _shiftSubscription?.cancel();
-                                                    final prefs = await SharedPreferences.getInstance();
-                                                    await prefs.remove(TextConstants.shiftId);
+                                                    // final prefs = await SharedPreferences.getInstance();
+                                                    // await prefs.remove(TextConstants.shiftId);
+                                                    await UserDbHelper().updateUserShiftId(null); // Build #1.0.149 : Remove shiftId on close
                                                     Navigator.push(context, MaterialPageRoute(builder: (context) => LoginScreen()));
                                                     return;
                                                   }
@@ -473,7 +487,7 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMix
                               ],
                             ),
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 2),
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
@@ -483,7 +497,7 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMix
                                 width: MediaQuery.of(context).size.width * 0.0725,
                                 //color: Colors.green,
                                 alignment: Alignment.bottomLeft,
-                                padding: EdgeInsets.only(left:5),
+                                padding: EdgeInsets.only(left:5,bottom: 10),
                                 child: Row(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
@@ -492,7 +506,7 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMix
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         SizedBox(
-                                          height: MediaQuery.of(context).size.height * 0.045,
+                                          height: MediaQuery.of(context).size.height * 0.065,
                                           child: Align(
                                             alignment: Alignment.centerLeft,
                                             child: Text(
@@ -506,7 +520,7 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMix
                                             ),
                                           ),
                                         ),
-                                        const SizedBox(height: 12),
+                                        const SizedBox(height: 2),
                                         SizedBox(
                                           height: MediaQuery.of(context).size.height * 0.045,
                                           child: Align(
@@ -599,6 +613,7 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMix
                                 child: SingleChildScrollView(
                                   scrollDirection: Axis.horizontal,
                                   child: Container(
+                                    height: MediaQuery.of(context).size.height * 0.65,
                                     padding: EdgeInsets.only(left: 5, right: 5),
                                     child: Column(
                                       children: [
@@ -640,7 +655,7 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMix
                               Expanded(
                                 flex: 1,
                                 child: Container(
-                                  height: MediaQuery.of(context).size.height * 0.675,
+                                  height: MediaQuery.of(context).size.height * 0.65,
                                   margin: EdgeInsets.all(10),
                                   padding: EdgeInsets.all(10),
                                   child: Column(
@@ -875,7 +890,7 @@ class MoneyColumn extends StatelessWidget {
             padding: const EdgeInsets.all(8.0),
             child: SizedBox(
               width: MediaQuery.of(context).size.width * 0.04,
-              height: MediaQuery.of(context).size.height * 0.5,
+              height: MediaQuery.of(context).size.height * 0.45,
               child: Stack(
                 alignment: Alignment.bottomCenter,
                 children: [
@@ -977,7 +992,7 @@ class MoneyColumn extends StatelessWidget {
                   borderRadius: BorderRadius.circular(5),
                 ),
                 child: Text(
-                  '$amount', // Display amount with symbol from denomination
+                  '${amount.toStringAsFixed(2)}', // Display amount with symbol from denomination
                   style: TextStyle(fontWeight: FontWeight.w500),
                   textAlign: TextAlign.center,
                 ),

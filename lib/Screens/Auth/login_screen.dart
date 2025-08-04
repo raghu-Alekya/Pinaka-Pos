@@ -247,9 +247,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                         await _assetBloc.fetchAssets(); // Fetch and save assets
 
                                         // Build #1.0.70 - check shift started or not based on shift id
-                                        final prefs = await SharedPreferences.getInstance();
-                                        final shiftId = prefs.getString(TextConstants.shiftId);
-                                        if (shiftId != null && shiftId.isNotEmpty) {
+                                        int? shiftId = await UserDbHelper().getUserShiftId(); // Build #1.0.149 : using from db
+                                        if (shiftId != null && snapshot.data?.data?.shiftId != null) { // Build #1.0.154: Updated -> shift_id checking null or not in login response
                                           Navigator.pushReplacement(
                                               context,
                                               MaterialPageRoute(builder: (context) => const FastKeyScreen()));

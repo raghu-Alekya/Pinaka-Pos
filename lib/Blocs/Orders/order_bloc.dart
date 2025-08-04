@@ -302,7 +302,7 @@ class OrderBloc { // Build #1.0.25 - added by naveen
         final double salesPrice = double.parse(lineItem.productData.salePrice ?? "0.0");
         final double regularPrice = double.parse(lineItem.productData.regularPrice ?? "0.0");
         final double unitPrice = double.parse(lineItem.productData.price ?? "0.0");
-        final double itemPrice = lineItem.productData.regularPrice == '' ?  double.parse(lineItem.productData.price ?? '0.0') : double.parse(lineItem.productData.regularPrice ?? '0.0');
+        final double itemPrice = double.parse(lineItem.subtotal ?? '0.0');//lineItem.productData.regularPrice == '' ?  double.parse(lineItem.productData.price ?? '0.0') : double.parse(lineItem.productData.regularPrice ?? '0.0');
         if (kDebugMode) {
           print("#### Start adding lineItem ${lineItem.id}, orderId:$serverOrderId , ProductId:${lineItem.productId}, VariationId:${lineItem.variationId}");
           print("variationName $variationName, variationCount:$variationCount, combo:$combo, salesPrice: $salesPrice, regularPrice: $regularPrice, unitPrice: $unitPrice");

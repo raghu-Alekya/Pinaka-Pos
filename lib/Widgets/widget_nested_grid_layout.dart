@@ -743,6 +743,7 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:pinaka_pos/Helper/auto_search.dart';
 import 'package:pinaka_pos/Widgets/widget_age_verification_popup_dialog.dart';
 import 'package:pinaka_pos/Widgets/widget_variants_dialog.dart';
@@ -759,6 +760,7 @@ import '../Providers/Age/age_verification_provider.dart';
 import '../Providers/Auth/product_variation_provider.dart';
 import '../Utilities/shimmer_effect.dart';
 import 'package:reorderable_grid_view/reorderable_grid_view.dart';
+import '../Utilities/svg_images_utility.dart';
 
 class NestedGridWidget extends StatelessWidget {
   final bool isHorizontal;
@@ -820,7 +822,13 @@ class NestedGridWidget extends StatelessWidget {
           },
         ),
       )
-      : Image.file(
+      : Platform.isWindows
+        ? Image.asset(
+      'assets/default.png',
+      height: 75,
+      width: 75,
+    )
+        : Image.file(
         File(imagePath),
         width: 75,
         height: 75,
@@ -903,7 +911,7 @@ class NestedGridWidget extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: const [
                             Icon(Icons.arrow_back, size: 50, color: Colors.blue),
-                            SizedBox(height: 8),
+                            SizedBox(height: 5),
                             Text(TextConstants.backToCategories, style: TextStyle(color: Colors.blue)),
                           ],
                         ),
@@ -944,6 +952,7 @@ class NestedGridWidget extends StatelessWidget {
                           if (kDebugMode) {
                             print("NestedGridWidget - Product tapped: ${item['fast_key_item_name']}, ID: $productId, (${item["fast_key_product_id"]})");
                             print("NestedGridWidget - minAge ${item[AppDBConst.fastKeyItemMinAge] ?? 0}");
+                            print("TEST 11 - fast_key_item_has_variant ${item[AppDBConst.fastKeyItemHasVariant]}");
                           }
                           /// use product id:22, sku:woo-fashion-socks
                           //var isVerified = await _ageRestrictedProduct(context, minAge: item[AppDBConst.fastKeyItemMinAge] ?? 0);
@@ -953,9 +962,28 @@ class NestedGridWidget extends StatelessWidget {
                           if(!isVerified){
                             return;
                           }
+                          /// Build #1.0.157: Added to check before calling variation API for saving loading time issue
+                         //  if (item['type'] == 'variable' || item['fast_key_item_has_variant'] == 1) {
+                         //    if (kDebugMode) {
+                         //      print("##### NestedGridWidget - Item Type: ${item['type']}, productId: $productId");
+                         //    }
+                         //    VariationPopup(productId, item['fast_key_item_name'], orderHelper!, onProductSelected: ({required bool isVariant}) {
+                         //
+                         //      onItemTapped(index, variantAdded: isVariant);
+                         //      if (kDebugMode) {
+                         //        print("##### NestedGridWidget - Variant $isVariant");
+                         //      }
+                         //    }).showVariantDialog(context: context);
+                         //  } else {
+                         //    if (kDebugMode) {
+                         //      print("##### NestedGridWidget - NO Variant, productId: $productId");
+                         //    }
+                         // //   Center(child: CircularProgressIndicator());
+                         //    onItemTapped(index, variantAdded: false);
+                         //  }
 
                           VariationPopup(productId, item['fast_key_item_name'], orderHelper!,onProductSelected: ({required bool isVariant}) {
-                            Navigator.pop(context);
+                            // Navigator.pop(context); // Build #1.0.148: loader/dialog popping after product adds into order panel in _onItemSelected in fastKey/categories screen
                             onItemTapped(index, variantAdded: isVariant); //Build #1.0.78: Pass isVariant to onItemTapped
                           },
                           ).showVariantDialog(context: context);
@@ -1055,13 +1083,32 @@ class NestedGridWidget extends StatelessWidget {
                                         ),
                                         overflow: TextOverflow.ellipsis,
                                       ),
-                                      Text(
-                                        '${TextConstants.currencySymbol}${item["fast_key_item_price"]}',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.bold,
-                                          color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight,
-                                        ),
+                                      Row(
+                                        children: [
+                                          Text(
+                                            '${TextConstants.currencySymbol}${double.tryParse(item["fast_key_item_price"].toString())?.toStringAsFixed(2) ?? "0.00"}',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.bold,
+                                              color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 22), // Space between price and variations
+                                          if (item['variations'] != null && item['variations'].isNotEmpty) // Build #1.0.157: show variationIcon with count
+                                            Row(
+                                              children: [
+                                                SvgPicture.asset(SvgUtils.variationIcon, height: 10, width: 10),
+                                                // SizedBox(width: 4),
+                                                // Text(
+                                                //   '${item["variations"].length}',
+                                                //   style: TextStyle(
+                                                //     fontSize: 12,
+                                                //     color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight,
+                                                //   ),
+                                                // ),
+                                              ],
+                                            ),
+                                        ],
                                       ),
                                     ],
                                   ),

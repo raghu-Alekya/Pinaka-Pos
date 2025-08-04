@@ -80,7 +80,7 @@ class AssetDBHelper { //Build #1.0.54: added
           }
         }
 
-        // TextConstants.currencySymbol = assetResponse.currencySymbol;
+        TextConstants.currencySymbol = assetResponse.currencySymbol;
 
         await txn.delete(AppDBConst.mediaTable, where: '${AppDBConst.assetId} = ?', whereArgs: [assetId]);
         await txn.delete(AppDBConst.taxTable, where: '${AppDBConst.assetId} = ?', whereArgs: [assetId]);

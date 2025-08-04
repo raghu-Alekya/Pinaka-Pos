@@ -155,6 +155,7 @@ class FastKeyProductBloc {  // Build #1.0.15
             product.productId,
             minAge: int.parse(tagg?.slug ?? "0"),
             slNumber: product.slNumber,
+            hasVariant: product.hasVariant, // Build #1.0.157: save hasVariant into DB
           );
         }
       } else {
@@ -176,6 +177,7 @@ class FastKeyProductBloc {  // Build #1.0.15
             AppDBConst.fastKeyItemImage: product.image,
             AppDBConst.fastKeyProductId: product.productId,  // Build #1.0.19: Updated parameters
             AppDBConst.fastKeyItemMinAge: int.parse(tagg?.slug ?? "0"),
+            AppDBConst.fastKeyItemHasVariant: product.hasVariant, // Build #1.0.157: save hasVariant into DB
           };
           await fastKeyDBHelper.updateFastKeyProductItemByProductId(
             fastKeyId,

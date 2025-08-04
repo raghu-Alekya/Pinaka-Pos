@@ -315,7 +315,7 @@ class _TopBarState extends State<TopBar> {
                                     )
                                   : const Icon(Icons.image, size: 40,),
                               title: Text(product.name ?? ''),
-                              subtitle: Text('${TextConstants.currencySymbol}${product.price ?? '0.00'}'),
+                              subtitle: Text('${TextConstants.currencySymbol}${double.tryParse(product.price.toString())?.toStringAsFixed(2) ?? "0.00"}'),
                                 onTap: () async {
                                   //Build #1.0.134: fixed - shoes getting overlapped with age verification dialog
                                   // Immediately remove focus and overlay when an item is tapped
@@ -925,6 +925,10 @@ class _TopBarState extends State<TopBar> {
       setState(() {
         userId = userData[AppDBConst.userId] as int;
         userDisplayName = userData[AppDBConst.userDisplayName];
+        if (kDebugMode) { // Build #1.0.148: tested using debug prints
+          print("##### userId 00000 : $userId");
+          print("##### userDisplayName 55555 : $userDisplayName");
+        }
         userRole = userData[AppDBConst.userRole];
       });
     }

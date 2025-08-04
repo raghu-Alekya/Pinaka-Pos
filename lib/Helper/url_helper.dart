@@ -11,9 +11,18 @@ class UrlHelper {
     _AndroidApiKey : "ANDROID"
   };
 //Hosts
-  static const String _dev = "https://pinakapos.techkumard.com"; // Build #1.1.36: Base URL without /wp-json/
-  static const  String _uat = "http://uatapi.pinaka.com/";
+  static const String _dev = 'https://mg.techkumard.com';//"https://pinakapos.techkumard.com"; // Build #1.1.36: Base URL without /wp-json/
+  static const  String _uat = "https://test.alekyatechsolutions.com";
   static const  String _prod = "http://api.pinaka.com/";
+
+  ///Update the environment URL in below API
+  ///PROD = use for production release
+  ///UAT = uat testing
+  ///DEV = dev testing
+  ///
+  /// Note: change _uat to _prod in release build
+  static const String pinakaBaseUrl = kDebugMode ? _dev : _uat ;
+  static const String validateMerchant =  "$pinakaBaseUrl/wp-json/custom/v1/validate-marchent";  //Build #1.0.42
 
   //API keys
   static const  String _AndroidApiKey = "?apikey=987654321";
@@ -83,8 +92,6 @@ class UrlHelper {
   static const  String deleteProfile = "auth/logout";
 
   static const  String assets = "assets/public";
-
-  static const String validateMerchant =  "https://mg.techkumard.com/wp-json/custom/v1/validate-marchent";  //Build #1.0.42
 
 }
 

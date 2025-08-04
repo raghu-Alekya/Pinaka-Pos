@@ -23,6 +23,7 @@ class AppDBConst { // Build #1.0.10 - Naveen: Updated DB tables constants
   static const String userToken = 'token';
   static const String userOrderCount = 'order_count'; // Build #1.0.108: Tracks total orders by the user
   static const String profilePhoto = 'profile_photo'; //Build #1.0.122 : Added new column's
+  static const String userShiftId = 'shift_id'; // Build #1.0.149: Added shift_id column
   static const String themeMode = 'theme_mode';
   static const String layoutSelection = 'layout_selection';
 
@@ -224,7 +225,8 @@ class DBHelper {
       ${AppDBConst.userOrderCount} INTEGER DEFAULT 0, -- Optional: Tracks total orders by the user
       ${AppDBConst.profilePhoto} TEXT,
       ${AppDBConst.themeMode} TEXT,
-      ${AppDBConst.layoutSelection} TEXT
+      ${AppDBConst.layoutSelection} TEXT,
+      ${AppDBConst.userShiftId} INTEGER
     )
     ''');
 

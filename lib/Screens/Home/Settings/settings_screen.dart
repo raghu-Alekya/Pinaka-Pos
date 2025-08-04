@@ -18,6 +18,7 @@ import '../../../Helper/Extentions/theme_notifier.dart';
 import '../../../Utilities/global_utility.dart';
 import '../../../Preferences/pinaka_preferences.dart';
 import '../../../Repositories/Auth/store_validation_repository.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 class SettingsScreen extends StatefulWidget { // Build #1.0.6 - Added Settings Screen
   const SettingsScreen({super.key});
@@ -306,12 +307,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
           // Left Side Column
           Expanded(
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start, // Align content to the left
               children: [
                 _buildPersonalInfoSection(),
                 Divider(color: Colors.grey[800], thickness: 1),
                 _buildDeviceDetailsSection(),
                 Divider(color: Colors.grey[800], thickness: 1),
                 _buildAppearanceSection(themeHelper),
+                Divider(color: Colors.grey[800], thickness: 1),
+                _buildAppVersionSection(), // Build #1.0.151: Displaying App version
                 // Divider(color: Colors.grey[800], thickness: 1),
                 // _buildCacheDurationSection(), //Build #1.0.122: no need
               ],
@@ -633,6 +637,54 @@ class _SettingsScreenState extends State<SettingsScreen> {
         // _buildSwitchOption(TextConstants.outOfStockMngText, outOfStockManage, (value) {
         //   setState(() => outOfStockManage = value);
         // }),
+      ],
+    );
+  }
+
+  // Build #1.0.151: Displaying App version
+  // get the app version + build number to show
+  Widget _buildAppVersionSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(TextConstants.appVersion,
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+        SizedBox(height: 8),
+        FutureBuilder<PackageInfo>(
+          future: PackageInfo.fromPlatform(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return Text(
+                TextConstants.appVersionLoading,
+                style: TextStyle(fontSize: 14, color: Colors.grey),
+              );
+            } else if (snapshot.hasError) {
+              if (kDebugMode) {
+                print("#### Error getting package info: ${snapshot.error}");
+              }
+              return Text(
+                TextConstants.appVersionError,
+                style: TextStyle(fontSize: 14, color: Colors.grey),
+              );
+            } else if (snapshot.hasData) {
+              final packageInfo = snapshot.data!;
+              final version = '${packageInfo.version}+${packageInfo.buildNumber}';
+              if (kDebugMode) {
+                print("#### App Version: $version");
+              }
+              return Text(
+                version,
+                style: TextStyle(fontSize: 14, color: Colors.grey),
+              );
+            } else {
+              return Text(
+                TextConstants.appVersionLoading,
+                style: TextStyle(fontSize: 14, color: Colors.grey),
+              );
+            }
+          },
+        ),
       ],
     );
   }

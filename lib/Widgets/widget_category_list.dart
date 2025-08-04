@@ -964,7 +964,14 @@ class CategoryList extends StatelessWidget {
         ),
       );
     } else {
-      return Image.file(
+      return Platform.isWindows ?
+        Image.asset( // Use Image.asset for PNG
+          'assets/default.png',
+          width: 40,
+          height: 40,
+        )
+      :
+        Image.file(
         File(imagePath),
         height: 40,
         width: 40,
@@ -1016,6 +1023,7 @@ class CategoryList extends StatelessWidget {
                     child: SizedBox(
                       height: ResponsiveLayout.getHeight(100),
                       child: ReorderableListView(
+                        buildDefaultDragHandles: Platform.isWindows ? false : true, /// to remove drag icons in windows
                         scrollController: scrollController,
                         scrollDirection: Axis.horizontal,
                         onReorderStart: (index) {
@@ -1043,92 +1051,15 @@ class CategoryList extends StatelessWidget {
                           bool isSelected = selectedIndex == index;
                           bool showEditButton = editingIndex == index;
 
-                          return GestureDetector(
-                            key: ValueKey('${category['title']}_$index'),
-                            onTap: () {
-                              if (editingIndex != null) {
-                                if (kDebugMode) {
-                                  print("### CategoryList: Tap ignored due to active edit mode at index: $editingIndex");
-                                }
-                                onDismissEditMode!(); // Dismiss edit mode instead of selecting
-                                return;
-                              }
-                              if (kDebugMode) {
-                                print("### CategoryList: Category tapped at index: $index");
-                              }
-                              onCategoryTapped(index); // Trigger category selection
-                            },
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 5.0),
-                              child: AnimatedContainer(
-                                width: ResponsiveLayout.getHeight(70),
-                                duration: const Duration(milliseconds: 300),
-                                //padding: const EdgeInsets.fromLTRB(8, 0, 8, 0),
-                                decoration: BoxDecoration(
-                                  color: isSelected ? ThemeNotifier.tabSelection : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground :  Colors.white,
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: showEditButton ? Colors.blueAccent : isSelected ? Colors.red : Colors.black12,
-                                    width: showEditButton ? 2 : 1,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.1),
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: Stack(
-                                  alignment: Alignment.center,
-                                  children: [
-                                    Positioned(
-                                      top: 0,
-                                      right: -6,
-                                      child: AnimatedOpacity(
-                                        duration: const Duration(milliseconds: 300),
-                                        opacity: showEditButton ? 1.0 : 0.0,
-                                        child: GestureDetector(
-                                          onTap: () {
-                                            if (kDebugMode) {
-                                              print("### CategoryList: Edit button pressed at index: $index");
-                                            }
-                                            onEditButtonPressed!(index); // Trigger edit dialog
-                                          },
-                                          child: Container(
-                                            padding: const EdgeInsets.all(4),
-                                            decoration: const BoxDecoration(
-                                              color: Colors.transparent,
-                                              shape: BoxShape.circle,
-                                            ),
-                                            child: const Icon(Icons.edit, size: 14, color: Colors.blueAccent),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      crossAxisAlignment: CrossAxisAlignment.center,
-                                      children: [
-                                        _buildImage(category['image']),
-                                        Text(
-                                          category['title'],
-                                          maxLines: 1,
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            overflow: TextOverflow.ellipsis,
-                                            fontWeight: FontWeight.normal,
-                                            fontVariations: const <FontVariation>[FontVariation('wght', 900.0)],
-                                            color: isSelected ? Colors.black87 : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.black87,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          );
+                          return Platform.isWindows ?
+                            ReorderableDelayedDragStartListener(  /// to remove drag icons in windows
+                              key: ValueKey('${category['title']}_$index'),
+                              index: index,
+                              child: _fastKeyTabGesture(context, index, isSelected, showEditButton),
+                            )
+                          :
+                            _fastKeyTabGesture(context, index, isSelected, showEditButton)
+                          ;
                         }),
                       ),
                     ),
@@ -1167,6 +1098,97 @@ class CategoryList extends StatelessWidget {
               }),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _fastKeyTabGesture(BuildContext context, int index, bool isSelected, bool showEditButton ){
+    final category = categories[index];
+    final themeHelper = Provider.of<ThemeNotifier>(context);
+    return GestureDetector(
+      key: ValueKey('${category['title']}_$index'),
+      onTap: () {
+        if (editingIndex != null) {
+          if (kDebugMode) {
+            print("### CategoryList: Tap ignored due to active edit mode at index: $editingIndex");
+          }
+          onDismissEditMode!(); // Dismiss edit mode instead of selecting
+          return;
+        }
+        if (kDebugMode) {
+          print("### CategoryList: Category tapped at index: $index");
+        }
+        onCategoryTapped(index); // Trigger category selection
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 5.0),
+        child: AnimatedContainer(
+          width: ResponsiveLayout.getHeight(70),
+          duration: const Duration(milliseconds: 300),
+          //padding: const EdgeInsets.fromLTRB(8, 0, 8, 0),
+          decoration: BoxDecoration(
+            color: isSelected ? ThemeNotifier.tabSelection : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground :  Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: showEditButton ? Colors.blueAccent : isSelected ? Colors.red : Colors.black12,
+              width: showEditButton ? 2 : 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Positioned(
+                top: 0,
+                right: -6,
+                child: AnimatedOpacity(
+                  duration: const Duration(milliseconds: 300),
+                  opacity: showEditButton ? 1.0 : 0.0,
+                  child: GestureDetector(
+                    onTap: () {
+                      if (kDebugMode) {
+                        print("### CategoryList: Edit button pressed at index: $index");
+                      }
+                      onEditButtonPressed!(index); // Trigger edit dialog
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Colors.transparent,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.edit, size: 14, color: Colors.blueAccent),
+                    ),
+                  ),
+                ),
+              ),
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  _buildImage(category['image']),
+                  Text(
+                    category['title'],
+                    maxLines: 1,
+                    style: TextStyle(
+                      fontSize: 12,
+                      overflow: TextOverflow.ellipsis,
+                      fontWeight: FontWeight.normal,
+                      fontVariations: const <FontVariation>[FontVariation('wght', 900.0)],
+                      color: isSelected ? Colors.black87 : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.black87,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

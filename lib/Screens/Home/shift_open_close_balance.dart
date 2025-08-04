@@ -93,8 +93,10 @@ class _ShiftOpenCloseBalanceScreenState extends State<ShiftOpenCloseBalanceScree
     // final prefs = await SharedPreferences.getInstance();
     // await prefs.remove(TextConstants.shiftId);
 
-    final prefs = await SharedPreferences.getInstance();
-    _shiftId = prefs.getString(TextConstants.shiftId);
+    int? shiftId = await UserDbHelper().getUserShiftId(); // Build #1.0.149 : using from db
+    if (shiftId != null) {
+      _shiftId = shiftId.toString();
+    }
     if (kDebugMode) {
       print("#### _checkShiftId: $_shiftId");
     }
@@ -439,6 +441,8 @@ class _ShiftOpenCloseBalanceScreenState extends State<ShiftOpenCloseBalanceScree
                                               width: MediaQuery.of(context).size.width * 0.1,
                                               child: ElevatedButton(  // Build #1.0.70
                                                 onPressed: () {
+                                                  // Add this line to close the keypad
+                                                  FocusScope.of(context).unfocus();
                                                   // Next button action - Pass the grand total to SafeOpenScreen
                                                   Navigator.push(
                                                     context,

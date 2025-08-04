@@ -269,44 +269,51 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
 
   Widget _buildTimeCard(String title, String value) {
     final themeHelper = Provider.of<ThemeNotifier>(context);
-    return
-      Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            title,
+    // Build #1.0.151: Updated - placeholder for startTime, duration, endTime if value is empty, present showing blank
+    final isPlaceholder = value.isEmpty; // Check if value is empty
+    final displayText = isPlaceholder ? '00:00:00' : value; // Set placeholder if empty
+    final textColor = isPlaceholder
+        ? Colors.grey // Grey for placeholder
+        : themeHelper.themeMode == ThemeMode.dark
+        ? ThemeNotifier.textDark
+        : Colors.black87; // Regular color for actual value
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            color: themeHelper.themeMode == ThemeMode.dark
+                ? Colors.white70 : Colors.grey,
+            fontSize: MediaQuery.of(context).size.width * 0.01,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        SizedBox(height: MediaQuery.of(context).size.height * 0.008),
+        Container(
+          width: MediaQuery.of(context).size.width * 0.095,
+          height: MediaQuery.of(context).size.height * 0.075,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: themeHelper.themeMode == ThemeMode.dark
+                ? ThemeNotifier.tabsBackground : Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: themeHelper.themeMode == ThemeMode.dark
+                ? ThemeNotifier.borderColor : Colors.grey, width: 1,),
+          ),
+          child: Text(
+            textAlign: TextAlign.center,
+            displayText,
             style: TextStyle(
-              color:  themeHelper.themeMode == ThemeMode.dark
-                  ? Colors.white70 : Colors.grey,
-              fontSize: MediaQuery.of(context).size.width * 0.01,
-              fontWeight: FontWeight.bold,
+              color: textColor,
+              fontSize: MediaQuery.of(context).size.width * 0.011,
+              fontWeight: FontWeight.w600,
             ),
           ),
-          SizedBox(height: MediaQuery.of(context).size.height * 0.008),
-          Container(
-            width: MediaQuery.of(context).size.width * 0.095,
-            height: MediaQuery.of(context).size.height * 0.075,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color:  themeHelper.themeMode == ThemeMode.dark
-                  ? ThemeNotifier.tabsBackground : Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color:  themeHelper.themeMode == ThemeMode.dark
-                  ? ThemeNotifier.borderColor : Colors.grey, width: 1),
-            ),
-            child: Text(
-              textAlign: TextAlign.center,
-              value,
-              style: TextStyle(
-                color:  themeHelper.themeMode == ThemeMode.dark
-                    ? ThemeNotifier.textDark : Colors.black87,
-                fontSize: MediaQuery.of(context).size.width * 0.011,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      );
+        ),
+      ],
+    );
   }
 
   Widget _buildFinancialSummaryCards(Shift shift) {
@@ -404,7 +411,7 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
                   ),
                 ),
                 Text(
-                  '${TextConstants.currencySymbol}${shift.safeDropTotal}',
+                  '${TextConstants.currencySymbol}${shift.safeDropTotal}', // "safe_drop_total": 0,
                   style: TextStyle(
                     color: Color(0xFF4CAF50),
                     fontSize: MediaQuery.of(context).size.width * 0.012,
@@ -444,7 +451,7 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '${TextConstants.currencySymbol}${item.total}',
+                            '${TextConstants.currencySymbol}${item.total}', // safe_drops -> "total": 0,
                             style: TextStyle(
                               color: themeHelper.themeMode == ThemeMode.dark
                                   ? ThemeNotifier.textDark : Colors.black87,

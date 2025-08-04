@@ -40,9 +40,15 @@ class APIHelper { // Build #1.0.8, Naveen added
       }
 
       // Add Bearer token if required
-      final headers = useToken && token != null && token.isNotEmpty
-          ? {HttpHeaders.authorizationHeader: "Bearer $token"}
-          : null;
+      // final headers =
+      //   useToken && token != null && token.isNotEmpty
+      //       ? {HttpHeaders.authorizationHeader: "Bearer $token"}
+      //       : null;
+      final headers = {
+        'Content-Type': 'application/json',
+        if (useToken && token != null && token.isNotEmpty)
+          HttpHeaders.authorizationHeader: "Bearer $token",
+      };
 
       final response = await http.get(Uri.parse(finalUrl), headers: headers);
       responseJson = _returnResponse(response);

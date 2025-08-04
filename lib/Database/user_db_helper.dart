@@ -30,16 +30,30 @@ class UserDbHelper { //Build #1.0.126: Updated for user data into db
 
   /// Saves or updates user data in the database
   /// Updates if user exists, inserts if new
+  // Build #1.0.148: Fixed Issue: user display name is not changing in top bar if new user login, old user name showing
+  // Ensures only ONE user has a valid token at any time
   Future<void> saveUserData(LoginResponse loginResponse) async {
+    if (kDebugMode) {
+      print("#### Saving user data for: ${loginResponse.displayName}");
+      print("#### Token: ${loginResponse.token}");
+    }
+
     final db = await DBHelper.instance.database;
 
-    //Build #1.0.126: Checking if user already exists
+    // 1. FIRST clear ALL existing tokens to ensure single active user
+    await db.update(
+      AppDBConst.userTable,
+      {AppDBConst.userToken: ''}, // Clear all tokens
+    );
+
+    // 2. Check if user already exists
     final existingUser = await db.query(
       AppDBConst.userTable,
       where: '${AppDBConst.userId} = ?',
       whereArgs: [loginResponse.id],
     );
 
+    // 3. Prepare user data map
     Map<String, dynamic> userMap = {
       AppDBConst.userId: loginResponse.id,
       AppDBConst.userRole: loginResponse.role,
@@ -48,39 +62,53 @@ class UserDbHelper { //Build #1.0.126: Updated for user data into db
       AppDBConst.userFirstName: loginResponse.firstName,
       AppDBConst.userLastName: loginResponse.lastName,
       AppDBConst.userNickname: loginResponse.nicename,
-      AppDBConst.userToken: loginResponse.token,
+      AppDBConst.userToken: loginResponse.token, // Set NEW token
       AppDBConst.profilePhoto: loginResponse.avatar,
+      AppDBConst.userShiftId: loginResponse.shiftId, // Build #1.0.149 : Added shift_id
     };
 
     if (existingUser.isNotEmpty) {
-      // Preserve existing themeMode and layoutSelection
+      // Preserve existing settings
       userMap[AppDBConst.themeMode] = existingUser.first[AppDBConst.themeMode] ?? ThemeMode.light.toString();
       userMap[AppDBConst.layoutSelection] = existingUser.first[AppDBConst.layoutSelection] ?? SharedPreferenceTextConstants.navLeftOrderRight;
 
-      //Build #1.0.126: Updating existing user
+      // Update existing user
       await db.update(
         AppDBConst.userTable,
         userMap,
         where: '${AppDBConst.userId} = ?',
         whereArgs: [loginResponse.id],
-        conflictAlgorithm: ConflictAlgorithm.replace,
       );
+
       if (kDebugMode) {
-        print("#### User data updated for userId: ${loginResponse.id}, preserved theme: ${userMap[AppDBConst.themeMode]}, layout: ${userMap[AppDBConst.layoutSelection]}, data: $userMap");
+        print("#### Updated existing user: ${loginResponse.id}");
       }
     } else {
-      // Set default values for new user
+      // Set defaults for new user
       userMap[AppDBConst.themeMode] = ThemeMode.light.toString();
       userMap[AppDBConst.layoutSelection] = SharedPreferenceTextConstants.navLeftOrderRight;
 
-      //Build #1.0.126: Inserting new user
+      // Insert new user
       await db.insert(
         AppDBConst.userTable,
         userMap,
-        conflictAlgorithm: ConflictAlgorithm.replace,
       );
+
       if (kDebugMode) {
-        print("#### New user data inserted for userId: ${loginResponse.id}, data: $userMap");
+        print("#### Inserted new user: ${loginResponse.id}");
+      }
+    }
+
+    // 4. Verify ONLY this user has a token
+    final activeUsers = await db.query(
+      AppDBConst.userTable,
+      where: '${AppDBConst.userToken} IS NOT NULL AND ${AppDBConst.userToken} != ""',
+    );
+
+    if (kDebugMode) {
+      print("#### Active users after save: ${activeUsers.length}");
+      if (activeUsers.isNotEmpty) {
+        print("#### Active user ID: ${activeUsers.first[AppDBConst.userId]}");
       }
     }
   }
@@ -138,21 +166,59 @@ class UserDbHelper { //Build #1.0.126: Updated for user data into db
     }
   }
 
-  /// Retrieves user data from database
+  // Build #1.0.148: Retrieves user data from database for the currently ACTIVE user (with valid token)
+  // Fixed Issue: user display name is not changing in top bar if new user login, old user name showing
   Future<Map<String, dynamic>?> getUserData() async {
     final db = await DBHelper.instance.database;
+
+    // Get the user with a valid token (most recent first)
     List<Map<String, dynamic>> result = await db.query(
       AppDBConst.userTable,
-      orderBy: "${AppDBConst.userId} DESC",
+      where: '${AppDBConst.userToken} IS NOT NULL AND ${AppDBConst.userToken} != ""',
+      orderBy: '${AppDBConst.userId} DESC', // Get most recently logged in
       limit: 1,
     );
 
     if (result.isNotEmpty) {
-      if (kDebugMode) print("#### Retrieved user data: ${result.first}");
+      if (kDebugMode) {
+        print("#### Retrieved ACTIVE user data: ${result.first}");
+        print("#### Current token: ${result.first[AppDBConst.userToken]}");
+      }
       return result.first;
     }
-    if (kDebugMode) print("#### No user data found in database");
+
+    if (kDebugMode) print("#### No active user found in database");
     return null;
+  }
+
+  // Build #1.0.149 : usage to get userShiftId
+  Future<int?> getUserShiftId() async {
+    final userData = await getUserData();
+    if (userData != null) {
+      return userData[AppDBConst.userShiftId] as int?;
+    }
+    return null;
+  }
+
+  // Build #1.0.149 : This approach avoids requiring a new login while ensuring the shiftId
+  Future<void> updateUserShiftId(int? shiftId) async {
+    final db = await DBHelper.instance.database;
+    final userData = await getUserData();
+    if (userData != null) {
+      await db.update(
+        AppDBConst.userTable,
+        {AppDBConst.userShiftId: shiftId},
+        where: '${AppDBConst.userId} = ?',
+        whereArgs: [userData[AppDBConst.userId]],
+      );
+      if (kDebugMode) {
+        print("#### Updated shiftId: $shiftId for user: ${userData[AppDBConst.userId]}");
+      }
+    } else {
+      if (kDebugMode) {
+        print("#### No active user found to update shiftId");
+      }
+    }
   }
 
   /// Checks if user is logged in by verifying token existence

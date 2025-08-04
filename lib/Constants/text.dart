@@ -4,7 +4,7 @@ import 'package:flutter/cupertino.dart';
 
 class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedPreferenceTextConstants classes
 
-  static String currencySymbol        = "\u{20B9}";
+  static String currencySymbol              =  '\u{20AC}';//"\u{20B9}"; //  \\u{20AC})
   static const String loginBtnText          = "Login";
   static const String settingsHeaderText    = "Settings";
   static const String saveChangesBtnText    = "Save Changes";
@@ -125,7 +125,6 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
 
   static const String orderId              = "Order ID";
   static const String paymentSummary       = "Payment Summary";
-  static const String discount             = "Discount";
   static const String merchantDiscount     = "Merchant Discount";
   static const String total                = "Total";
   static const String netPayable           = "Net Payable";
@@ -316,7 +315,22 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String allStatus             = "pending, processing, on-hold, completed, cancelled, refunded, failed";
   static const String processing            = "processing";
   static const String orderScreenStatus     = "pending, on-hold, completed, cancelled, refunded, failed";
-
+ // Build #1.0.144: Added TextConstants from static snackBar string error's to here
+  static const String failedToCreateFastKey = 'Failed to create fast key';
+  static const String failedToAddItemToFastKey = 'Failed to add item to fast key';
+  static const String failedToDeleteProductFromFastKey = 'Failed to delete product from fast key';
+  static const String failedToAddItemToOrder = 'Failed to add item to order';
+  static const String errorAddingItem = 'Error adding item';
+  static const String pleaseStartShiftBeforeCreatingOrder = 'Please start your shift before creating an order';
+  static const String orderCreatedSuccessfully = 'Order created successfully';
+  static const String failedToCreateOrder = 'Failed to create order';
+  static const String errorCreatingOrder = 'Error creating order';
+  static const String failedToUpdateFastKey = 'Failed to update fast key';
+  static const String failedToFetchShifts = 'Failed to fetch shifts';
+  static const String failedToFetchOrders = 'Failed to fetch orders'; // Build #1.0.149
+  static const String appVersion = "App Version"; // Build #1.0.151
+  static const String appVersionLoading = "Loading...";
+  static const String appVersionError = "Version unavailable";
 }
 
 class TextFontSize {

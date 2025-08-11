@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../../Constants/text.dart';
 import '../../Database/assets_db_helper.dart';
+import '../../Database/db_helper.dart';
 import '../../Helper/api_response.dart';
 import '../../Models/Assets/asset_model.dart';
 import '../../Repositories/Assets/asset_repository.dart';
@@ -13,6 +14,13 @@ class AssetBloc { //Build #1.0.40
 
   StreamSink<APIResponse<AssetResponse>> get assetSink => _assetController.sink;
   Stream<APIResponse<AssetResponse>> get assetStream => _assetController.stream;
+
+  // Build #1.0.163: Added Image assets api
+  final StreamController<APIResponse<ImageAssetsResponse>> _imageAssetController =
+  StreamController<APIResponse<ImageAssetsResponse>>.broadcast();
+
+  StreamSink<APIResponse<ImageAssetsResponse>> get imageAssetSink => _imageAssetController.sink;
+  Stream<APIResponse<ImageAssetsResponse>> get imageAssetStream => _imageAssetController.stream;
 
   AssetBloc(this._assetRepository) {
     if (kDebugMode) {
@@ -38,10 +46,55 @@ class AssetBloc { //Build #1.0.40
     }
   }
 
+  // Build #1.0.163: Added Image assets api
+  Future<void> fetchImageAssets() async {
+    if (_imageAssetController.isClosed) return;
+
+    imageAssetSink.add(APIResponse.loading(TextConstants.loading));
+    try {
+      if (kDebugMode) {
+        print("************** Fetching image assets in background");
+      }
+      // Call the API without UI loading indicators
+      ImageAssetsResponse response = await _assetRepository.getImageAssets();
+
+      // Get the current asset ID (usually 1)
+      final db = await AssetDBHelper.instance.database;
+      final existingAsset = await db.query(AppDBConst.assetTable, limit: 1);
+      int assetId = existingAsset.isNotEmpty ? 1 : 1;
+
+      // Delete existing media and save new ones
+      await db.delete(AppDBConst.mediaTable, where: '${AppDBConst.assetId} = ?', whereArgs: [assetId]);
+
+      for (var media in response.media) { // Build #1.0.163
+        await db.insert(AppDBConst.mediaTable, {
+          ...media.toMap(),
+          AppDBConst.assetId: assetId,
+        });
+        if (kDebugMode) {
+            print("#### fetchImageAssets: Inserted media with ID: ${media.id}");
+         }
+      }
+
+      if (kDebugMode) {
+        print("************** Successfully saved ${response.media.length} image assets to DB");
+      }
+      imageAssetSink.add(APIResponse.completed(response));
+    } catch (e) {
+      if (e.toString().contains('SocketException')) {
+        imageAssetSink.add(APIResponse.error("Network error. Please check your connection."));
+      } else {
+        imageAssetSink.add(APIResponse.error("Failed to fetch image assets: ${e.toString()}"));
+      }
+      if (kDebugMode) print("Exception in fetchImageAssets: $e");
+    }
+  }
+
   void dispose() {
     if (!_assetController.isClosed) {
       _assetController.close();
       if (kDebugMode) print("AssetBloc disposed");
     }
+    if (!_imageAssetController.isClosed) {_imageAssetController.close();}
   }
 }

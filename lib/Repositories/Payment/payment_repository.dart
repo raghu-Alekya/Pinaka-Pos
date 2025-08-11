@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import '../../Helper/api_helper.dart';
 import '../../Helper/url_helper.dart';
 import '../../Models/Payment/payment_model.dart';
+import '../../Models/Payment/send_order_details_model.dart';
 import '../../Models/Payment/void_payment_model.dart';
 
 class PaymentRepository {  // Build #1.0.25 - added by naveen
@@ -124,6 +125,37 @@ class PaymentRepository {  // Build #1.0.25 - added by naveen
       return VoidPaymentResponseModel.fromJson(response);
     } else {
       throw Exception("Unexpected response type in void payment POST");
+    }
+  }
+
+  // Build #1.0.159
+  // 5. Send Order Details API Call
+  Future<SendOrderDetailsResponseModel> sendOrderDetails(int orderId, SendOrderDetailsRequestModel request) async {
+    final url = "${UrlHelper.wooCommerceV3}${UrlMethodConstants.orders}/$orderId${EndUrlConstants.sendEmailOrderDetailsEndUrl}";
+
+    if (kDebugMode) {
+      print("PaymentRepository - POST URL: $url");
+      print("PaymentRepository - Request Body: ${request.toJson()}");
+    }
+
+    final response = await _helper.post(url, request.toJson(), true);
+
+    if (kDebugMode) {
+      print("PaymentRepository - Raw Response: $response");
+    }
+
+    if (response is String) {
+      try {
+        final responseData = json.decode(response);
+        return SendOrderDetailsResponseModel.fromJson(responseData);
+      } catch (e) {
+        if (kDebugMode) print("Error parsing send order details response: $e");
+        throw Exception("Failed to parse send order details response");
+      }
+    } else if (response is Map<String, dynamic>) {
+      return SendOrderDetailsResponseModel.fromJson(response);
+    } else {
+      throw Exception("Unexpected response type in send order details POST");
     }
   }
 }

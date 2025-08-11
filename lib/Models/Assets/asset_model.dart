@@ -474,3 +474,18 @@ class OrderType {
     };
   }
 }
+
+// Build #1.0.163: Added Image assets api response model
+class ImageAssetsResponse {
+  final List<Media> media;
+
+  ImageAssetsResponse({required this.media});
+
+  factory ImageAssetsResponse.fromJson(Map<String, dynamic> json) {
+    return ImageAssetsResponse(
+      media: (json['media'] as List<dynamic>?)
+          ?.map((item) => Media.fromJson(item as Map<String, dynamic>))
+          .toList() ?? [],
+    );
+  }
+}

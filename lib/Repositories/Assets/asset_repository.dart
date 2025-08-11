@@ -34,4 +34,32 @@ class AssetRepository { //Build #1.0.40
       throw Exception("Unexpected response type in assets GET");
     }
   }
+
+  // Build #1.0.163: Added Image Assets API call
+  Future<ImageAssetsResponse> getImageAssets() async {
+    final url = "${UrlHelper.componentVersionUrl}${UrlMethodConstants.assets}${EndUrlConstants.assetsImages}";
+    if (kDebugMode) {
+      print("AssetRepository - GET Image Assets URL: $url");
+    }
+
+    final response = await _helper.get(url, true);
+
+    if (kDebugMode) {
+      print("AssetRepository - GET Image Assets Raw Response: $response");
+    }
+
+    if (response is String) {
+      try {
+        final responseData = json.decode(response);
+        return ImageAssetsResponse.fromJson(responseData);
+      } catch (e) {
+        if (kDebugMode) print("Error parsing image assets response: $e");
+        throw Exception("Failed to parse image assets response");
+      }
+    } else if (response is Map<String, dynamic>) {
+      return ImageAssetsResponse.fromJson(response);
+    } else {
+      throw Exception("Unexpected response type in image assets GET");
+    }
+  }
 }

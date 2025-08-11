@@ -319,13 +319,13 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
   Widget _buildFinancialSummaryCards(Shift shift) {
     return Row(
       children: [
-        _buildSummaryCard(TextConstants.openingAmount, '${TextConstants.currencySymbol}${shift.openingBalance}', Color(0xFF8BB6E8)),
+        _buildSummaryCard(TextConstants.openingAmount, '${TextConstants.currencySymbol}${shift.openingBalance.toStringAsFixed(2)}', Color(0xFF8BB6E8)),
         SizedBox(width: MediaQuery.of(context).size.width * 0.015),
         _buildSummaryCard(TextConstants.totalTransactions, '${shift.totalSales}', Color(0xFF9BC5E8)),
         SizedBox(width: MediaQuery.of(context).size.width * 0.015),
-        _buildSummaryCard(TextConstants.saleAmount, '${TextConstants.currencySymbol}${shift.totalSaleAmount}', Color(0xFF7BC4A4)),
+        _buildSummaryCard(TextConstants.saleAmount, '${TextConstants.currencySymbol}${shift.totalSaleAmount.toStringAsFixed(2)}', Color(0xFF7BC4A4)),
         SizedBox(width: MediaQuery.of(context).size.width * 0.015),
-        _buildSummaryCard(TextConstants.closingAmount, '${TextConstants.currencySymbol}${shift.closingBalance}', Color(0xFFB8D4B8)),
+        _buildSummaryCard(TextConstants.closingAmount, '${TextConstants.currencySymbol}${shift.closingBalance.toStringAsFixed(2)}', Color(0xFFB8D4B8)),
       ],
     );
   }
@@ -411,7 +411,7 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
                   ),
                 ),
                 Text(
-                  '${TextConstants.currencySymbol}${shift.safeDropTotal}', // "safe_drop_total": 0,
+                  '${TextConstants.currencySymbol}${shift.safeDropTotal.toStringAsFixed(2)}', // "safe_drop_total": 0,
                   style: TextStyle(
                     color: Color(0xFF4CAF50),
                     fontSize: MediaQuery.of(context).size.width * 0.012,
@@ -451,7 +451,7 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '${TextConstants.currencySymbol}${item.total}', // safe_drops -> "total": 0,
+                            '${TextConstants.currencySymbol}${item.total.toStringAsFixed(2)}', // safe_drops -> "total": 0,
                             style: TextStyle(
                               color: themeHelper.themeMode == ThemeMode.dark
                                   ? ThemeNotifier.textDark : Colors.black87,
@@ -546,7 +546,7 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
                     ),
                     SizedBox(width: MediaQuery.of(context).size.width * 0.05),
                     Text(
-                      '${TextConstants.currencySymbol}${shift.totalVendorPayments}',
+                      '${TextConstants.currencySymbol}${shift.totalVendorPayments.toStringAsFixed(2)}',
                       style: TextStyle(
                         color: Color(0xFF4CAF50),
                         fontSize: MediaQuery.of(context).size.width * 0.012,

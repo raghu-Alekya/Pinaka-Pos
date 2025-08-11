@@ -481,126 +481,137 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
                       ),
                     Expanded(
                       child: Padding(
-                        padding: const EdgeInsets.only(left: 10, bottom: 5.0, top: 5.0, right: 10),
-                        child: Column(
+                        padding: const EdgeInsets.only(left: 10, bottom: 5.0, top: 20.0, right: 10),
+                        child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          mainAxisAlignment: MainAxisAlignment.start,
                           children: [
-                            Column(
-                              children: [
-                                Row(
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(Icons.arrow_back),
-                                      onPressed: () => Navigator.of(context).pop(),
-                                    ),
-                                    const Text("back", style: TextStyle(fontSize: 16)),
-                                  ],
-                                ),
-                                // Modified: Replaced static rows with GridView
-                                _safeDenominations.isEmpty
-                                    ? const Center(child: CircularProgressIndicator())
-                                    : GridView.builder(
-                                  shrinkWrap: true,
-                                 // physics: const NeverScrollableScrollPhysics(),
-                                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: 2,
-                                    childAspectRatio: 9,
-                                    crossAxisSpacing: 4,
-                                    mainAxisSpacing: 4,
-                                  ),
-                                  itemCount: 6, //_safeDenominations.length, //NOTE: Ranjeet: for now we have add only 6
-                                  itemBuilder: (context, index) {
-                                    final denom = _safeDenominations[index];
-                                    final controller = _denomControllers[denom.denom.toString()]!;
-                                    return _buildDenominationField(
-                                      denom.image ?? 'assets/svg/1.svg',
-                                      denom.denom.toString(),
-                                      controller,
-                                    );
-                                  },
-                                ),
-                              ],
+                            InkWell(
+                              onTap: () => Navigator.of(context).pop(),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.arrow_back, size: 20,),
+                                  SizedBox(width: 10,),
+                                  Text("back", style: TextStyle(fontSize: 18,fontWeight: FontWeight.bold)),
+                                ],
+                              ),
                             ),
-                            Divider(
-                              color: Colors.grey, // Light grey color
-                              thickness: 0.4, // Very thin line
-                              height: 1, // Minimal height
-                              endIndent: 150,
+                            SizedBox(
+                              width: 30,
                             ),
-                            // const SizedBox(height: 20),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                Container(
-                                  width: MediaQuery.of(context).size.width * 0.325,
-                                  height: MediaQuery.of(context).size.height * 0.4,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFE8F5ED),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Column(
                                     children: [
-                                      const Text("Total Notes", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                                      const SizedBox(height: 10),
-                                      SizedBox(
-                                        width: MediaQuery.of(context).size.width * 0.25,
-                                        child: TextField(
-                                          controller: _totalNotesController,
-                                          readOnly: true,
-                                          textAlign: TextAlign.center,
-                                          decoration: InputDecoration(
-                                            filled: true,
-                                            fillColor: Colors.white,
-                                            border: OutlineInputBorder(
-                                              borderRadius: BorderRadius.circular(8),
-                                              borderSide: BorderSide(color: Colors.grey.shade300),
+                                      // Modified: Replaced static rows with GridView
+                                      _safeDenominations.isEmpty
+                                          ? const Center(child: CircularProgressIndicator())
+                                          : GridView.builder(
+                                        shrinkWrap: true,
+                                       // physics: const NeverScrollableScrollPhysics(),
+                                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                          crossAxisCount: 2,
+                                          childAspectRatio: 9,
+                                          crossAxisSpacing: 4,
+                                          mainAxisSpacing: 4,
+                                        ),
+                                        itemCount: 6, //_safeDenominations.length, //NOTE: Ranjeet: for now we have add only 6
+                                        itemBuilder: (context, index) {
+                                          final denom = _safeDenominations[index];
+                                          final controller = _denomControllers[denom.denom.toString()]!;
+                                          return _buildDenominationField(
+                                            denom.image ?? 'assets/svg/1.svg',
+                                            denom.denom.toString(),
+                                            controller,
+                                          );
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                  Divider(
+                                    color: Colors.grey, // Light grey color
+                                    thickness: 0.4, // Very thin line
+                                    height: 1, // Minimal height
+                                    endIndent: 150,
+                                  ),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.max,
+                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    children: [
+                                      Container(
+                                        width: MediaQuery.of(context).size.width * 0.325,
+                                        height: MediaQuery.of(context).size.height * 0.4,
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFE8F5ED),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Column(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            const Text("Total Notes", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                            const SizedBox(height: 10),
+                                            SizedBox(
+                                              width: MediaQuery.of(context).size.width * 0.25,
+                                              child: TextField(
+                                                controller: _totalNotesController,
+                                                readOnly: true,
+                                                textAlign: TextAlign.center,
+                                                decoration: InputDecoration(
+                                                  filled: true,
+                                                  fillColor: Colors.white,
+                                                  border: OutlineInputBorder(
+                                                    borderRadius: BorderRadius.circular(8),
+                                                    borderSide: BorderSide(color: Colors.grey.shade300),
+                                                  ),
+                                                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                                                ),
+                                              ),
                                             ),
-                                            contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                                          ),
+                                            const SizedBox(height: 10),
+                                            const Text("Total Cash", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                            const SizedBox(height: 10),
+                                            SizedBox(
+                                              width: MediaQuery.of(context).size.width * 0.25,
+                                              child: TextField(
+                                                controller: _totalCashController,
+                                                readOnly: true,
+                                                textAlign: TextAlign.center,
+                                                decoration: InputDecoration(
+                                                  filled: true,
+                                                  fillColor: Colors.white,
+                                                  border: OutlineInputBorder(
+                                                    borderRadius: BorderRadius.circular(8),
+                                                    borderSide: BorderSide(color: Colors.grey.shade300),
+                                                  ),
+                                                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                      const SizedBox(height: 10),
-                                      const Text("Total Cash", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                                      const SizedBox(height: 10),
+                                      const SizedBox(width: 80),
                                       SizedBox(
-                                        width: MediaQuery.of(context).size.width * 0.25,
-                                        child: TextField(
-                                          controller: _totalCashController,
-                                          readOnly: true,
-                                          textAlign: TextAlign.center,
-                                          decoration: InputDecoration(
-                                            filled: true,
-                                            fillColor: Colors.white,
-                                            border: OutlineInputBorder(
-                                              borderRadius: BorderRadius.circular(8),
-                                              borderSide: BorderSide(color: Colors.grey.shade300),
-                                            ),
-                                            contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                                          ),
+                                        height: MediaQuery.of(context).size.height * 0.4,
+                                        width: MediaQuery.of(context).size.width * 0.325,
+                                        child: CustomNumPad(
+                                          onDigitPressed: _handleNumberPress,
+                                          onClearPressed: _handleClear,
+                                          onAddPressed: _handleAdd,
+                                          actionButtonType: ActionButtonType.add,
+                                          isLoading: _isApiLoading, // Pass the loading state here
                                         ),
                                       ),
                                     ],
                                   ),
-                                ),
-                                const SizedBox(width: 20),
-                                SizedBox(
-                                  height: MediaQuery.of(context).size.height * 0.4,
-                                  width: MediaQuery.of(context).size.width * 0.325,
-                                  child: CustomNumPad(
-                                    onDigitPressed: _handleNumberPress,
-                                    onClearPressed: _handleClear,
-                                    onAddPressed: _handleAdd,
-                                    actionButtonType: ActionButtonType.add,
-                                    isLoading: _isApiLoading, // Pass the loading state here
-                                  ),
-                                ),
-                              ],
+                                  const SizedBox(height: 15),
+                                ],
+                              ),
                             ),
-                            const SizedBox(height: 15),
                           ],
                         ),
                       ),

@@ -1,17 +1,22 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../Blocs/Assets/asset_bloc.dart';
 import '../../Blocs/Auth/login_bloc.dart';
+import '../../Blocs/Auth/logout_bloc.dart';
 import '../../Constants/text.dart';
 import '../../Database/assets_db_helper.dart';
 import '../../Database/db_helper.dart';
 import '../../Database/user_db_helper.dart';
 import '../../Helper/api_response.dart';
 import '../../Models/Auth/login_model.dart';
+import '../../Models/Auth/logout_model.dart';
 import '../../Repositories/Assets/asset_repository.dart';
 import '../../Repositories/Auth/login_repository.dart';
+import '../../Repositories/Auth/logout_repository.dart';
 import '../../Widgets/widget_custom_num_pad.dart';
 import '../../Widgets/widget_loading.dart';
 import '../../screens/Home/shift_open_close_balance.dart';
@@ -243,6 +248,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                   case Status.COMPLETED:
                                     if (snapshot.data?.data?.token != null) {
                                       WidgetsBinding.instance.addPostFrameCallback((_) async {
+                                        // Build #1.0.163: Call image assets API in background without waiting for it
+                                        unawaited(_assetBloc.fetchImageAssets()); // This will run in background
                                         // Build #1.0.69 : Call Fetch Assets Api after login api call success!
                                         await _assetBloc.fetchAssets(); // Fetch and save assets
 
@@ -267,6 +274,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                         ),
                                       );
                                     } else {
+                                      if (kDebugMode) {
+                                        print("Error in login bloc in completed and token is null");
+                                      }
                                       return Center(
                                         child: Text(
                                           snapshot.data?.data?.message ?? "",
@@ -281,17 +291,177 @@ class _LoginScreenState extends State<LoginScreen> {
                                     }
 
                                   case Status.ERROR:
+                                    if (kDebugMode) {
+                                      print("Error in login bloc.");
+                                    }
+                                    var errorMsg = snapshot.data?.message ?? "Login failed. Please try again.";
+                                    if(errorMsg.contains('logout')){
+
+                                    }
                                     if (!_hasErrorShown) { // 👈 Ensure error is shown only once
                                       _hasErrorShown = true;
+                                      var isLoading = false;
+                                      var logoutBloc = LogoutBloc(LogoutRepository());
                                       WidgetsBinding.instance.addPostFrameCallback((_) { // Build #1.0.16
                                         ScaffoldMessenger.of(context).showSnackBar(
                                           SnackBar(
-                                            content: Text(
-                                              snapshot.data?.message ?? "Login failed. Please try again.",
-                                              style: const TextStyle(color: Colors.red),
+                                            content:
+
+                                            Row(
+                                              children: [
+                                                Text(
+                                                  snapshot.data?.message ?? "Login failed. Please try again.",
+                                                  style: const TextStyle(color: Colors.red),
+                                                ),
+                                                Spacer(),
+                                                // !isLoading ? SizedBox(): StreamBuilder<APIResponse<LogoutResponse>>(
+                                                //     stream: logoutBloc.logoutStream,
+                                                //     builder: (context, snapshot) {
+                                                //   if (!snapshot.hasData || snapshot.data!.status == Status.LOADING) { // Build #1.0.148: updated condition , no need two if's
+                                                //     return const Center(child: CircularProgressIndicator());
+                                                //   }
+                                                //   var response = snapshot.data!;
+                                                //   if (snapshot.data!.status == Status.COMPLETED) {
+                                                //
+                                                //     if (kDebugMode) {
+                                                //       print("Logout successful, navigating to LoginScreen");
+                                                //     }
+                                                //     ScaffoldMessenger.of(context).showSnackBar(
+                                                //       SnackBar(
+                                                //         content: Text(response?.message ?? TextConstants.successfullyLogout),
+                                                //         backgroundColor: Colors.green,
+                                                //         duration: const Duration(seconds: 2),
+                                                //       ),
+                                                //     );
+                                                //     // Update loading state and navigate
+                                                //     // isLoading = false;
+                                                //     //Navigator.of(context).pop(); // Close loader dialog
+                                                //     Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()));
+                                                //   } else if (response.status == Status.ERROR) {
+                                                //       if (kDebugMode) {
+                                                //         print("Logout failed: ${response.message}");
+                                                //       }
+                                                //       ScaffoldMessenger.of(context).showSnackBar(
+                                                //         SnackBar(
+                                                //           content: Text(response.message ?? TextConstants.failedToLogout),
+                                                //           backgroundColor: Colors.red,
+                                                //           duration: const Duration(seconds: 2),
+                                                //         ),
+                                                //       );
+                                                //       isLoading  = false;
+                                                //       // Update loading state
+                                                //       // isLoading = false;
+                                                //       // Navigator.of(context).pop(); // Close loader dialog
+                                                //     }
+                                                //   return const Center(child: CircularProgressIndicator());
+                                                // }),
+                                                // isLoading ? SizedBox():
+                                                TextButton(
+                                                  onPressed: () {
+                                                    // // isLoading = true;
+                                                    // logoutBloc.logoutStream.listen((response) {
+                                                    //   if (response.status == Status.COMPLETED) {
+                                                    //     if (kDebugMode) {
+                                                    //       print("Logout successful, navigating to LoginScreen");
+                                                    //     }
+                                                    //     ScaffoldMessenger.of(context).showSnackBar(
+                                                    //       SnackBar(
+                                                    //         content: Text(response.message ?? TextConstants.successfullyLogout),
+                                                    //         backgroundColor: Colors.green,
+                                                    //         duration: const Duration(seconds: 2),
+                                                    //       ),
+                                                    //     );
+                                                    //     // Update loading state and navigate
+                                                    //     // isLoading = false;
+                                                    //     //Navigator.of(context).pop(); // Close loader dialog
+                                                    //     Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()),);
+                                                    //   } else if (response.status == Status.ERROR) {
+                                                    //     if (kDebugMode) {
+                                                    //       print("Logout failed: ${response.message}");
+                                                    //     }
+                                                    //     ScaffoldMessenger.of(context).showSnackBar(
+                                                    //       SnackBar(
+                                                    //         content: Text(response.message ?? TextConstants.failedToLogout),
+                                                    //         backgroundColor: Colors.red,
+                                                    //         duration: const Duration(seconds: 2),
+                                                    //       ),
+                                                    //     );
+                                                    //     // Update loading state
+                                                    //     // isLoading = false;
+                                                    //    // Navigator.of(context).pop(); // Close loader dialog
+                                                    //   }
+                                                    // });
+                                                    //
+                                                    // // Trigger logout API call
+                                                    // logoutBloc.performLogout();
+
+
+                                                    // Build #1.0.163: call Logout API after close shift
+                                                    showDialog(
+                                                      context: context,
+                                                      barrierDismissible: false,
+                                                      builder: (BuildContext context) {
+                                                        bool isLoading = true; // Initial loading state
+                                                        logoutBloc.logoutStream.listen((response) {
+                                                          if (response.status == Status.COMPLETED) {
+                                                            if (kDebugMode) {
+                                                              print("Logout successful, navigating to LoginScreen");
+                                                            }
+                                                            ScaffoldMessenger.of(context).showSnackBar(
+                                                              SnackBar(
+                                                                content: Text(response.message ?? TextConstants.successfullyLogout),
+                                                                backgroundColor: Colors.green,
+                                                                duration: const Duration(seconds: 2),
+                                                              ),
+                                                            );
+                                                            // Update loading state and navigate
+                                                            isLoading = false;
+                                                            Navigator.of(context).pop(); // Close loader dialog
+                                                            // Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()),
+                                                            // );
+                                                          } else if (response.status == Status.ERROR) {
+                                                            if (kDebugMode) {
+                                                              print("Logout failed: ${response.message}");
+                                                            }
+                                                            ScaffoldMessenger.of(context).showSnackBar(
+                                                              SnackBar(
+                                                                content: Text(response.message ?? TextConstants.failedToLogout),
+                                                                backgroundColor: Colors.red,
+                                                                duration: const Duration(seconds: 2),
+                                                              ),
+                                                            );
+                                                            // Update loading state
+                                                            isLoading = false;
+                                                            Navigator.of(context).pop(); // Close loader dialog
+                                                          }
+                                                        });
+
+                                                        // Trigger logout API call
+                                                        logoutBloc.performLogout();
+
+                                                        // Show circular loader
+                                                        return StatefulBuilder(
+                                                          builder: (context, setState) {
+                                                            return Center(
+                                                              child: CircularProgressIndicator(),
+                                                            );
+                                                          },
+                                                        );
+                                                      },
+                                                    );
+
+                                                  },
+                                                  child: Text(
+                                                    "Logout",
+                                                    style: const TextStyle(color: Colors.red),
+                                                  ),),
+
+                                              ],
                                             ),
                                             backgroundColor: Colors.black, // ✅ Black background
-                                            duration: const Duration(seconds: 3),
+                                            //duration: const Duration(seconds: 3),
+                                            showCloseIcon: true,
+
                                           ),
                                         );
                                       });

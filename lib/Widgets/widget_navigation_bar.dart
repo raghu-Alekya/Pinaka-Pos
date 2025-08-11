@@ -15,6 +15,9 @@ import '../Database/user_db_helper.dart';
 import '../Helper/Extentions/theme_notifier.dart';
 
 import '../Constants/text.dart';
+import '../Blocs/Auth/logout_bloc.dart';
+import '../Helper/api_response.dart';
+import '../Repositories/Auth/logout_repository.dart';
 import '../Screens/Home/add_screen.dart';
 import '../Screens/Home/Settings/settings_screen.dart';
 import '../Screens/Home/shift_open_close_balance.dart';
@@ -37,6 +40,7 @@ class NavigationBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context); // Build #1.0.6 - Added theme for navigation bar
     final themeHelper = Provider.of<ThemeNotifier>(context);
+    final logoutBloc = LogoutBloc(LogoutRepository());  // Build #1.0.163: Initialize LogoutBloc with repository
     return Container(
       width: isVertical ? MediaQuery.of(context).size.width * 0.07 : null,
       height: isVertical ? null : MediaQuery.of(context).size.height * 0.125,
@@ -56,8 +60,8 @@ class NavigationBar extends StatelessWidget {
               // }
               final shiftId = snapshot.data;
               return isVertical
-                  ? _buildVerticalLayout(context, shiftId)
-                  : _buildHorizontalLayout(context, shiftId);
+                  ? _buildVerticalLayout(context, shiftId, logoutBloc)  // Build #1.0.163
+                  : _buildHorizontalLayout(context, shiftId, logoutBloc);
             },
           ),
         ),
@@ -66,13 +70,21 @@ class NavigationBar extends StatelessWidget {
   }
 
   Future<String?> _getShiftId() async { //Build #1.0.78
-    int? shiftId = await UserDbHelper().getUserShiftId();  // Build #1.0.149
+    if (kDebugMode) {
+      print("### Getting shiftId from database");
+    }
+    int? shiftId = await UserDbHelper().getUserShiftId(); // Build #1.0.161: added debug prints
+    if (kDebugMode) {
+      print("### Retrieved shiftId: $shiftId");
+    }
     return shiftId.toString();
   }
 
-  Widget _buildVerticalLayout(BuildContext context, String? shiftId) {
+  Widget _buildVerticalLayout(BuildContext context, String? shiftId, LogoutBloc logoutBloc) {
     int lastSelectedIndex = 0;
     final themeHelper = Provider.of<ThemeNotifier>(context);
+    // Build #1.0.161: Fixed Issue - navigation bar icons are not disabled before create shift
+    bool isShiftInvalid = shiftId == null || shiftId == "null" || shiftId.isEmpty;
     return LayoutBuilder(
       builder: (context, constraints) {
            if (kDebugMode) {
@@ -84,7 +96,7 @@ class NavigationBar extends StatelessWidget {
             svgAsset: selectedSidebarIndex == 0 ? SvgUtils.fastKeySelectedIcon : SvgUtils.fastKeyIcon, // Build #1.0.148: Fixed Issue: Menu Bar Icons not matching with latest Figma Design , now using from assets/svg/navigation/
             label: TextConstants.fastKeyText,
             isSelected: selectedSidebarIndex == 0,
-            onTap: shiftId == null || shiftId.isEmpty
+            onTap: isShiftInvalid
                 ? () {}
                 : () {
               if (kDebugMode) {
@@ -100,14 +112,14 @@ class NavigationBar extends StatelessWidget {
               );
             },
             isVertical: isVertical,
-            isDisabled: shiftId == null || shiftId.isEmpty,
+            isDisabled: isShiftInvalid,
           ),
           const SizedBox(height: 10),
           SidebarButton(
             svgAsset: SvgUtils.categoriesIcon,
             label: TextConstants.categoriesText,
             isSelected: selectedSidebarIndex == 1,
-            onTap: shiftId == null || shiftId.isEmpty
+            onTap: isShiftInvalid
                 ? () {}
                 : () {
               if (kDebugMode) {
@@ -123,14 +135,14 @@ class NavigationBar extends StatelessWidget {
               );
             },
             isVertical: isVertical,
-            isDisabled: shiftId == null || shiftId.isEmpty,
+            isDisabled: isShiftInvalid,
           ),
           const SizedBox(height: 10),
           SidebarButton(
             svgAsset: SvgUtils.addIcon,
             label: TextConstants.addText,
             isSelected: selectedSidebarIndex == 2,
-            onTap: shiftId == null || shiftId.isEmpty
+            onTap: isShiftInvalid
                 ? () {}
                 : () {
               if (kDebugMode) {
@@ -142,14 +154,14 @@ class NavigationBar extends StatelessWidget {
               );
             },
             isVertical: isVertical,
-            isDisabled: shiftId == null || shiftId.isEmpty,
+            isDisabled: isShiftInvalid,
           ),
           const SizedBox(height: 10),
           SidebarButton(
             svgAsset: SvgUtils.ordersIcon,
             label: TextConstants.ordersText,
             isSelected: selectedSidebarIndex == 3,
-            onTap: shiftId == null || shiftId.isEmpty
+            onTap: isShiftInvalid
                 ? () {}
                 : () {
               if (kDebugMode) {
@@ -165,7 +177,7 @@ class NavigationBar extends StatelessWidget {
               );
             },
             isVertical: isVertical,
-            isDisabled: shiftId == null || shiftId.isEmpty,
+            isDisabled: isShiftInvalid,
           ),
           const SizedBox(height: 10),
           SidebarButton(
@@ -198,7 +210,7 @@ class NavigationBar extends StatelessWidget {
               svgAsset: SvgUtils.settingsIcon,
               label: TextConstants.settingsHeaderText,
               isSelected: selectedSidebarIndex == 5,
-              onTap: shiftId == null || shiftId.isEmpty
+              onTap: isShiftInvalid
                   ? () {}
                   : () {
                 if (kDebugMode) {
@@ -219,14 +231,16 @@ class NavigationBar extends StatelessWidget {
                 });
               },
               isVertical: isVertical,
-              isDisabled: shiftId == null || shiftId.isEmpty,
+              isDisabled: isShiftInvalid,
             ),
             const SizedBox(height: 10),
             SidebarButton(
               svgAsset: SvgUtils.logoutIcon,
               label: TextConstants.logoutText,
               isSelected: selectedSidebarIndex == 6,
-              onTap: () {
+              onTap: isShiftInvalid
+                  ? () {}
+                  : () {
                 onSidebarItemSelected(6);
                 if (kDebugMode) {
                   print("nav logout called");
@@ -286,10 +300,65 @@ class NavigationBar extends StatelessWidget {
                       ),
                     ),
                   ),
-                  onConfirmBtnTap: () {
-                    /// logout function
-                    Navigator.of(context).pop();
-                    Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen(),));
+                  onConfirmBtnTap: () async {
+                    if (kDebugMode) {
+                      print("Logout confirmed, initiating logout process");
+                    }
+
+                    // Build #1.0.163: call Logout API
+                    showDialog(
+                      context: context,
+                      barrierDismissible: false,
+                      builder: (BuildContext context) {
+                        bool isLoading = true; // Initial loading state
+                        logoutBloc.logoutStream.listen((response) {
+                          if (response.status == Status.COMPLETED) {
+                            if (kDebugMode) {
+                              print("Logout successful, navigating to LoginScreen");
+                            }
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(response.message ?? TextConstants.successfullyLogout),
+                                backgroundColor: Colors.green,
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                            // Update loading state and navigate
+                            isLoading = false;
+                            Navigator.of(context).pop(); // Close loader dialog
+                            Navigator.of(context).pop(); // Close QuickAlert dialog
+                            Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()),
+                            );
+                          } else if (response.status == Status.ERROR) {
+                            if (kDebugMode) {
+                              print("Logout failed: ${response.message}");
+                            }
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(response.message ?? TextConstants.failedToLogout),
+                                backgroundColor: Colors.red,
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                            // Update loading state
+                            isLoading = false;
+                            Navigator.of(context).pop(); // Close loader dialog
+                          }
+                        });
+
+                        // Trigger logout API call
+                        logoutBloc.performLogout();
+
+                        // Show circular loader
+                        return StatefulBuilder(
+                          builder: (context, setState) {
+                            return Center(
+                              child: CircularProgressIndicator(),
+                            );
+                          },
+                        );
+                      },
+                    );
                   },
                   onCancelBtnTap: () {
                     /// cancel
@@ -298,6 +367,7 @@ class NavigationBar extends StatelessWidget {
                 );
               },
               isVertical: isVertical,
+              isDisabled: isShiftInvalid,
             ),
             const SizedBox(height: 10),
           ],
@@ -322,9 +392,11 @@ class NavigationBar extends StatelessWidget {
     );
   }
 
-  Widget _buildHorizontalLayout(BuildContext context, String? shiftId) {
+  Widget _buildHorizontalLayout(BuildContext context, String? shiftId, LogoutBloc logoutBloc) {
     int lastSelectedIndex = 0;
     final themeHelper = Provider.of<ThemeNotifier>(context);
+    // Build #1.0.161: Fixed Issue - navigation bar icons are not disabled before create shift
+    bool isShiftInvalid = shiftId == null || shiftId == "null" || shiftId.isEmpty;
     return LayoutBuilder(
       builder: (context, constraints) {
         if (kDebugMode) {
@@ -336,7 +408,7 @@ class NavigationBar extends StatelessWidget {
             svgAsset: selectedSidebarIndex == 0 ? SvgUtils.fastKeySelectedIcon : SvgUtils.fastKeyIcon, // Build #1.0.148: Fixed Issue: Menu Bar Icons not matching with latest Figma Design , now using from assets/svg/navigation/
             label: TextConstants.fastKeyText,
             isSelected: selectedSidebarIndex == 0,
-            onTap: shiftId == null || shiftId.isEmpty
+            onTap: isShiftInvalid
                 ? () {}
                 : () {
               if (kDebugMode) {
@@ -352,13 +424,14 @@ class NavigationBar extends StatelessWidget {
               );
             },
             isVertical: false, //Build #1.0.54: updated
+            isDisabled: isShiftInvalid,
           ),
           const SizedBox(height: 10),
           SidebarButton(
             svgAsset: SvgUtils.categoriesIcon,
             label: TextConstants.categoriesText,
             isSelected: selectedSidebarIndex == 1,
-            onTap: shiftId == null || shiftId.isEmpty
+            onTap: isShiftInvalid
                 ? () {}
                 : () {
               if (kDebugMode) {
@@ -374,13 +447,14 @@ class NavigationBar extends StatelessWidget {
               );
             },
             isVertical: false,
+            isDisabled: isShiftInvalid,
           ),
           const SizedBox(height: 10),
           SidebarButton(
             svgAsset: SvgUtils.addIcon,
             label: TextConstants.addText,
             isSelected: selectedSidebarIndex == 2,
-            onTap: shiftId == null || shiftId.isEmpty
+            onTap: isShiftInvalid
                 ? () {}
                 : () {
               if (kDebugMode) {
@@ -394,13 +468,14 @@ class NavigationBar extends StatelessWidget {
               );
             },
             isVertical: false,
+            isDisabled: isShiftInvalid,
           ),
           const SizedBox(height: 10),
           SidebarButton(
             svgAsset: SvgUtils.ordersIcon,
             label: TextConstants.ordersText,
             isSelected: selectedSidebarIndex == 3,
-            onTap: shiftId == null || shiftId.isEmpty
+            onTap: isShiftInvalid
                 ? () {}
                 : () {
               if (kDebugMode) {
@@ -416,6 +491,7 @@ class NavigationBar extends StatelessWidget {
               );
             },
             isVertical: false,
+            isDisabled: isShiftInvalid,
           ),
           const SizedBox(height: 10),
           SidebarButton(
@@ -445,7 +521,7 @@ class NavigationBar extends StatelessWidget {
             svgAsset: SvgUtils.settingsIcon,
             label: TextConstants.settingsHeaderText,
             isSelected: selectedSidebarIndex == 5,
-            onTap: shiftId == null || shiftId.isEmpty
+            onTap: isShiftInvalid
                 ? () {}
                 : () {
               if (kDebugMode) {
@@ -464,13 +540,14 @@ class NavigationBar extends StatelessWidget {
               });
             },
             isVertical: false,
+            isDisabled: isShiftInvalid,
           ),
-          const SizedBox(height: 10),
+          const SizedBox(width: 10),
           SidebarButton(
             svgAsset: SvgUtils.logoutIcon,
             label: TextConstants.logoutText,
             isSelected: selectedSidebarIndex == 6,
-            onTap: shiftId == null || shiftId.isEmpty
+            onTap: isShiftInvalid
                 ? () {}
                 : () {
               onSidebarItemSelected(6);
@@ -532,10 +609,67 @@ class NavigationBar extends StatelessWidget {
                     ),
                   ),
                 ),
-                onConfirmBtnTap: () {
-                  /// logout function
-                  Navigator.of(context).pop();
-                  Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen(),));
+                onConfirmBtnTap: () async {
+                  // Trigger logout through BLoC
+                  if (kDebugMode) {
+                    print("Logout confirmed, initiating logout process");
+                  }
+
+                  // Build #1.0.163: call Logout API
+                  // Use StatefulBuilder to manage loading state
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (BuildContext context) {
+                      bool isLoading = true; // Initial loading state
+                      logoutBloc.logoutStream.listen((response) {
+                        if (response.status == Status.COMPLETED) {
+                          if (kDebugMode) {
+                            print("Logout successful, navigating to LoginScreen");
+                          }
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(response.message ?? TextConstants.successfullyLogout),
+                              backgroundColor: Colors.green,
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                          // Update loading state and navigate
+                          isLoading = false;
+                          Navigator.of(context).pop(); // Close loader dialog
+                          Navigator.of(context).pop(); // Close QuickAlert dialog
+                          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()),
+                          );
+                        } else if (response.status == Status.ERROR) {
+                          if (kDebugMode) {
+                            print("Logout failed: ${response.message}");
+                          }
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(response.message ?? TextConstants.failedToLogout),
+                              backgroundColor: Colors.red,
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                          // Update loading state
+                          isLoading = false;
+                          Navigator.of(context).pop(); // Close loader dialog
+                        }
+                      });
+
+                      // Trigger logout API call
+                      logoutBloc.performLogout();
+
+                      // Show circular loader
+                      return StatefulBuilder(
+                        builder: (context, setState) {
+                          return Center(
+                            child: CircularProgressIndicator(),
+                          );
+                        },
+                      );
+                    },
+                  );
                 },
                 onCancelBtnTap: () {
                   /// cancel
@@ -544,6 +678,7 @@ class NavigationBar extends StatelessWidget {
               );
             },
             isVertical: false,
+            isDisabled: isShiftInvalid,
           ),
           const SizedBox(width: 10),
         ];
@@ -676,39 +811,43 @@ class SidebarButton extends StatelessWidget {
             color: isSelected ? Colors.red : Colors.transparent,
             borderRadius: const BorderRadius.all(Radius.circular(8)),
           ),
-          child: svgAsset != null
-              ? SvgPicture.asset( // Build #1.0.148: Fixed Issue: Menu Bar Icons not matching with latest Figma Design , now using from assets/svg/navigation/
-            svgAsset!,
-            colorFilter: ColorFilter.mode(
-              isSelected
-                  ? Colors.white
-                  : isDisabled
-                  ? Colors.grey.shade800
-                  : Colors.white70,
-              BlendMode.srcIn,
-            ),
-            height: 28,
-          )
-              : Icon(
-            icon,
-            color: isSelected
-                ? Colors.white
-                : isDisabled
-                ? Colors.grey.shade800
-                : Colors.white,
-          ),
-        ),
-        const SizedBox(width: 10),
-        Text(
-          label,
-          style: TextStyle(
-            color: isSelected
-                ? Colors.red
-                : isDisabled
-                ? Colors.grey.shade800
-                : Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 14,
+          child: Row(
+            children: [
+              svgAsset != null
+                  ? SvgPicture.asset( // Build #1.0.148: Fixed Issue: Menu Bar Icons not matching with latest Figma Design , now using from assets/svg/navigation/
+                svgAsset!,
+                colorFilter: ColorFilter.mode(
+                  isSelected
+                      ? Colors.white
+                      : isDisabled
+                      ? Colors.grey.shade800
+                      : Colors.white70,
+                  BlendMode.srcIn,
+                ),
+                height: 28,
+              )
+                  : Icon(
+                icon,
+                color: isSelected
+                    ? Colors.white
+                    : isDisabled
+                    ? Colors.grey.shade800
+                    : Colors.white,
+              ),
+              SizedBox(width: 10),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected
+                      ? Colors.white // Build #1.0.161: issue - updated red colour to white
+                      : isDisabled
+                      ? Colors.grey.shade800
+                      : Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+            ],
           ),
         ),
       ],

@@ -158,7 +158,7 @@ class FastKeyDBHelper { // Build #1.0.11 : FastKeyHelper for all fast key relate
       AppDBConst.fastKeyProductId: productId, // Build #1.0.19: Updated req elements
       AppDBConst.fastKeySlNumber: slNumber,
       AppDBConst.fastKeyItemMinAge: minAge, // Build #1.0.19: Updated req elements
-      AppDBConst.fastKeyItemHasVariant: hasVariant, // Build #1.0.157: save hasVariant into DB
+      AppDBConst.fastKeyItemHasVariant: hasVariant ?? false ? 1 : 0, // Build #1.0.157: save hasVariant into DB
     },
       conflictAlgorithm: ConflictAlgorithm.ignore, // Build #1.0.80: Ignore duplicates
     );
@@ -206,6 +206,9 @@ class FastKeyDBHelper { // Build #1.0.11 : FastKeyHelper for all fast key relate
       int fastKeyId, int productId, Map<String, dynamic> updatedData) async {
     final db = await DBHelper.instance.database;
 
+    if (kDebugMode) {
+      print("FastkeyDBHelper: updateFastKeyProductItemByProductId $updatedData");
+    }
     final result = await db.update(
       AppDBConst.fastKeyItemsTable,
       updatedData,

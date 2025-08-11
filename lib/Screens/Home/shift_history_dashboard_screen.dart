@@ -315,14 +315,14 @@ class _ShiftHistoryDashboardScreenState extends State<ShiftHistoryDashboardScree
                                         Expanded(
                                           flex: 2,
                                           child: Text(
-                                            '${TextConstants.currencySymbol}${shift.totalSales}',
+                                            '${TextConstants.currencySymbol}${shift.totalSaleAmount.toStringAsFixed(2)}',
                                             style: _cellStyle(context),
                                           ),
                                         ),
                                         Expanded(
                                           flex: 2,
                                           child: Text(
-                                            '${shift.overShort < 0 ? '-' : ''}${TextConstants.currencySymbol}${shift.overShort.abs()}',
+                                            '${shift.overShort < 0 ? '-' : ''}${TextConstants.currencySymbol}${shift.overShort.abs().toStringAsFixed(2)}',
                                             style: TextStyle(
                                               color: shift.overShort >= 0 ? Colors.green : Colors.red, //Fix: all values are showing red , only show negative values as red text
                                               fontSize: 14,

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import '../../Constants/text.dart';
 import '../../Helper/api_response.dart';
 import '../../Models/Payment/payment_model.dart';
+import '../../Models/Payment/send_order_details_model.dart';
 import '../../Models/Payment/void_payment_model.dart';
 import '../../Repositories/Payment/payment_repository.dart';
 
@@ -23,6 +24,9 @@ class PaymentBloc {  // Build #1.0.25 - added by naveen
   final StreamController<APIResponse<VoidPaymentResponseModel>> _voidPaymentController =
   StreamController<APIResponse<VoidPaymentResponseModel>>.broadcast();
 
+  final StreamController<APIResponse<SendOrderDetailsResponseModel>> _sendOrderDetailsController =
+  StreamController<APIResponse<SendOrderDetailsResponseModel>>.broadcast();
+
   StreamSink<APIResponse<VoidPaymentResponseModel>> get voidPaymentSink => _voidPaymentController.sink;
   Stream<APIResponse<VoidPaymentResponseModel>> get voidPaymentStream => _voidPaymentController.stream;
 
@@ -35,6 +39,9 @@ class PaymentBloc {  // Build #1.0.25 - added by naveen
 
   StreamSink<APIResponse<List<PaymentListModel>>> get paymentsListSink => _paymentsListController.sink;
   Stream<APIResponse<List<PaymentListModel>>> get paymentsListStream => _paymentsListController.stream;
+
+  StreamSink<APIResponse<SendOrderDetailsResponseModel>> get sendOrderDetailsSink => _sendOrderDetailsController.sink;
+  Stream<APIResponse<SendOrderDetailsResponseModel>> get sendOrderDetailsStream => _sendOrderDetailsController.stream;
 
   PaymentBloc(this._paymentRepository) {
     if (kDebugMode) {
@@ -150,11 +157,38 @@ class PaymentBloc {  // Build #1.0.25 - added by naveen
     }
   }
 
+  // Build #1.0.159
+  // 5. Send Order Details API Call
+  Future<void> sendOrderDetails(int orderId, String email) async {
+    if (_sendOrderDetailsController.isClosed) return;
+
+    sendOrderDetailsSink.add(APIResponse.loading(TextConstants.loading));
+    try {
+      final request = SendOrderDetailsRequestModel(email: email);
+      final response = await _paymentRepository.sendOrderDetails(orderId, request);
+
+      if (kDebugMode) {
+        print("PaymentBloc - Send order details for order ID: $orderId, Email: $email");
+        print("PaymentBloc - Send Order Details Message: ${response.message}");
+      }
+
+      sendOrderDetailsSink.add(APIResponse.completed(response));
+    } catch (e) {
+      if (e.toString().contains('SocketException')) {
+        sendOrderDetailsSink.add(APIResponse.error("Network error. Please check your connection."));
+      } else {
+        sendOrderDetailsSink.add(APIResponse.error("Failed to send order details: ${e.toString()}"));
+      }
+      if (kDebugMode) print("Exception in sendOrderDetails: $e");
+    }
+  }
+
   void dispose() {
     if (!_createPaymentController.isClosed) _createPaymentController.close();
     if (!_paymentDetailController.isClosed) _paymentDetailController.close();
     if (!_paymentsListController.isClosed) _paymentsListController.close();
     if (!_voidPaymentController.isClosed) _voidPaymentController.close();
+    if (!_sendOrderDetailsController.isClosed) _sendOrderDetailsController.close();
     if (kDebugMode) print("PaymentBloc disposed with all controllers");
   }
 }

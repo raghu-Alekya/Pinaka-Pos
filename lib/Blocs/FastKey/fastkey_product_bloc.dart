@@ -177,7 +177,7 @@ class FastKeyProductBloc {  // Build #1.0.15
             AppDBConst.fastKeyItemImage: product.image,
             AppDBConst.fastKeyProductId: product.productId,  // Build #1.0.19: Updated parameters
             AppDBConst.fastKeyItemMinAge: int.parse(tagg?.slug ?? "0"),
-            AppDBConst.fastKeyItemHasVariant: product.hasVariant, // Build #1.0.157: save hasVariant into DB
+            AppDBConst.fastKeyItemHasVariant: product.hasVariant ?? false ? 1 : 0, // Build #1.0.157: save hasVariant into DB
           };
           await fastKeyDBHelper.updateFastKeyProductItemByProductId(
             fastKeyId,

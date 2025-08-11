@@ -20,7 +20,7 @@ class PaymentDialog extends StatefulWidget {
   final VoidCallback? onVoid; // Callback for cancelling payment
   final VoidCallback? onPrint; // Callback for printing receipt
   final VoidCallback? onNextPayment; // Callback for proceeding to next payment
-  final Function(String)? onDone; // Callback for completing the payment flow
+  final Function(String, {String? email})? onDone; // Callback for completing the payment flow
   final VoidCallback? onNoReceipt; // Callback when user doesn't want receipt
   final VoidCallback? onExitCancel; // Callback for canceling exit
   final VoidCallback? onExitConfirm; // Callback for confirming exit
@@ -558,17 +558,16 @@ class _PaymentDialogState extends State<PaymentDialog> {
                             _isDoneLoading = true; // Show loader on button
                           });
                           if (_selectedOption == TextConstants.print) {
-                            widget.onPrint
-                                ?.call(); // Call print callback if selected
+                            widget.onPrint?.call(); // Call print callback if selected
+                            widget.onDone?.call(_selectedOption);
                           } else if (_selectedOption == TextConstants.email) {
-                            widget.onEmail?.call(
-                                _contactController.text); // Email receipt
+                            widget.onEmail?.call(contactInfo); // Email receipt
+                            widget.onDone?.call(_selectedOption, email: contactInfo); // Build #1.0.159: Pass email to onDone btn action
                           } else if (_selectedOption == TextConstants.sms) {
-                            widget.onSMS
-                                ?.call(_contactController.text); // SMS receipt
+                            widget.onSMS?.call(contactInfo);// SMS receipt
+                            widget.onDone?.call(_selectedOption);
                           }
-                          widget.onDone
-                              ?.call(_selectedOption); // Call done callback
+                          // widget.onDone?.call(_selectedOption); // Call done callback
                         }
                       },
                       backgroundColor: const Color(0xFF1BA672),

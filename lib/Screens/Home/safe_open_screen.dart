@@ -6,6 +6,7 @@ import 'package:pinaka_pos/Screens/Auth/login_screen.dart';
 import 'package:pinaka_pos/Screens/Home/fast_key_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../Blocs/Auth/logout_bloc.dart';
 import '../../Blocs/Auth/shift_bloc.dart';
 import '../../Constants/text.dart';
 import '../../Database/assets_db_helper.dart';
@@ -17,6 +18,7 @@ import '../../Helper/api_response.dart';
 import '../../Models/Assets/asset_model.dart';
 import '../../Models/Auth/shift_model.dart';
 import '../../Preferences/pinaka_preferences.dart';
+import '../../Repositories/Auth/logout_repository.dart';
 import '../../Repositories/Auth/shift_repository.dart';
 import '../../Widgets/widget_age_verification_popup_dialog.dart';
 import '../../Widgets/widget_alert_popup_dialogs.dart';
@@ -52,6 +54,7 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMix
   StreamSubscription? _shiftSubscription;
   bool _isSubmitting = false;
   final PinakaPreferences _preferences = PinakaPreferences(); // Added this
+  final logoutBloc = LogoutBloc(LogoutRepository());
 
   @override
   void initState() {
@@ -438,7 +441,61 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMix
                                                     // final prefs = await SharedPreferences.getInstance();
                                                     // await prefs.remove(TextConstants.shiftId);
                                                     await UserDbHelper().updateUserShiftId(null); // Build #1.0.149 : Remove shiftId on close
-                                                    Navigator.push(context, MaterialPageRoute(builder: (context) => LoginScreen()));
+
+                                                    // Build #1.0.163: call Logout API after close shift
+                                                    showDialog(
+                                                      context: context,
+                                                      barrierDismissible: false,
+                                                      builder: (BuildContext context) {
+                                                        bool isLoading = true; // Initial loading state
+                                                        logoutBloc.logoutStream.listen((response) {
+                                                          if (response.status == Status.COMPLETED) {
+                                                            if (kDebugMode) {
+                                                              print("Logout successful, navigating to LoginScreen");
+                                                            }
+                                                            ScaffoldMessenger.of(context).showSnackBar(
+                                                              SnackBar(
+                                                                content: Text(response.message ?? TextConstants.successfullyLogout),
+                                                                backgroundColor: Colors.green,
+                                                                duration: const Duration(seconds: 2),
+                                                              ),
+                                                            );
+                                                            // Update loading state and navigate
+                                                            isLoading = false;
+                                                            Navigator.of(context).pop(); // Close loader dialog
+                                                            Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()),
+                                                            );
+                                                          } else if (response.status == Status.ERROR) {
+                                                            if (kDebugMode) {
+                                                              print("Logout failed: ${response.message}");
+                                                            }
+                                                            ScaffoldMessenger.of(context).showSnackBar(
+                                                              SnackBar(
+                                                                content: Text(response.message ?? TextConstants.failedToLogout),
+                                                                backgroundColor: Colors.red,
+                                                                duration: const Duration(seconds: 2),
+                                                              ),
+                                                            );
+                                                            // Update loading state
+                                                            isLoading = false;
+                                                            Navigator.of(context).pop(); // Close loader dialog
+                                                          }
+                                                        });
+
+                                                        // Trigger logout API call
+                                                        logoutBloc.performLogout();
+
+                                                        // Show circular loader
+                                                        return StatefulBuilder(
+                                                          builder: (context, setState) {
+                                                            return Center(
+                                                              child: CircularProgressIndicator(),
+                                                            );
+                                                          },
+                                                        );
+                                                      },
+                                                    );
+                                                  //  Navigator.push(context, MaterialPageRoute(builder: (context) => LoginScreen()));
                                                     return;
                                                   }
                                                 }

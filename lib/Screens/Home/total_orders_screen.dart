@@ -394,7 +394,7 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
     final List<model.OrderModel> paginatedData = _orders; // Use _orders directly
 
     // Update isFilterApplied check
-    bool isFilterApplied = _selectedStatusFilter != "All" ||
+    bool isFilterApplied = _selectedStatusFilter != "All" || _selectedUserFilter != "All" ||
         _selectedOrderTypeFilter != "All";
     bool isRangeFilterApplied = _salesAmountRange.start > _minSalesAmount ||
         _salesAmountRange.end < _maxSalesAmount;
@@ -844,6 +844,10 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
     // ADD this logic to determine the date and time for the panel
     String panelDate;
     String panelTime;
+
+    if(orderId == -1){
+      orderId = _orders.first.id; //Build #1.0.165: to fix issue in windows, not able to save lastActiveOrderID
+    }
 
     if (_selectedOrderId != null) {
       // Use indexWhere to safely find the index of the selected order.

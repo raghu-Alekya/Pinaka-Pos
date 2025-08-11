@@ -97,7 +97,7 @@ class OrderRepository {  // Build #1.0.25 - added by naveen
     }
   }
   //Build #1.0.40: getOrders
-  Future<OrdersListModel> getOrders({bool allStatuses = false, int pageNumber =1, int pageLimit = 10, String status = "", String orderType = "", String userId = ""}) async {
+  Future<OrdersListModel> getOrders({bool allStatuses = false, int pageNumber =1, int pageLimit = 30, String status = "", String orderType = "", String userId = ""}) async {
     //Build #1.0.54: added if allStatuses is true, include all statuses; otherwise, just "processing"
     final statusString = status != "" ? status : (allStatuses
         ? TextConstants.orderScreenStatus
@@ -105,8 +105,10 @@ class OrderRepository {  // Build #1.0.25 - added by naveen
 
     orderType = orderType != "" ? orderType : "";
 
+    final userData = await UserDbHelper().getUserData();
+    userId = "${userData?[AppDBConst.userId]}"; ///Added to filter user based processing orders as per requirement update on 7-Jul-25
     //"?page=1&per_page=10&search=&status="
-    var getOrdersParameter = "?author=$userId&page=$pageNumber&per_page=${pageLimit*3+1}&created_via=$orderType&search=&status=";
+    var getOrdersParameter = "?author=$userId&page=$pageNumber&per_page=$pageLimit&created_via=$orderType&search=&status=";
     // Encode for URL (spaces become '+', commas become '%2C')
     final encodedStatus = Uri.encodeQueryComponent(statusString);
     final url = "${UrlHelper.componentVersionUrl}${UrlMethodConstants.orders}"

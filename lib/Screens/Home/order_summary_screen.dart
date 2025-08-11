@@ -178,7 +178,11 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
       // Build #1.0.151: Fixed - Partial Payment Not Reflected After Voiding in On-Hold Order
       // Update balanceAmount / tenderAmount after getPaymentsByOrderId api call, because payByCash 'amount' avlue getting from this api only
       balanceAmount = orderTotal - payByCash - payByOther;
+      var isBalanceZero = balanceAmount <= 0;
+      changeAmount = isBalanceZero ? balanceAmount.abs() : changeAmount;
+      balanceAmount = isBalanceZero ? 0 : balanceAmount;
       tenderAmount = payByCash + payByOther;
+
     });
   }
 
@@ -2277,16 +2281,77 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
         mode: PaymentMode.cash,
         amount: amount,
         onPrint: () {
-         /// radio button
+          if (kDebugMode) {
+            print("Printing receipt for amount: $amount");
+          }
         },
-        onEmail: (email) {},
+        onEmail: (email) {
+          if (kDebugMode) {
+            print("Email option selected with email: $email");
+          }
+        },
         onSMS: (phone) {},
         onNoReceipt: () {
           changeStatusToCompletedAndExit(false);
         },
-        onDone: (selectedOption) {
-          changeStatusToCompletedAndExit(true, selectedOption: selectedOption);
-          /// send an email
+        onDone: (selectedOption, {String? email}) { // Build #1.0.159: Integrated Send Email Order Details API
+          if (kDebugMode) {
+            print("DEBUG 0011 : $selectedOption, $email, ${email?.isNotEmpty}");
+          }
+          // Call API only if email option is selected and an email is provided
+          if (selectedOption == TextConstants.email && email != null && email.isNotEmpty) {
+            if (orderId == null || orderId == 0) {
+              if (kDebugMode) {
+                print("Invalid order ID: $orderId. Cannot send email.");
+              }
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(TextConstants.canNotSendEmail),
+                  backgroundColor: Colors.red,
+                  duration: const Duration(seconds: 3),
+                ),
+              );
+              return;
+            }
+
+            if (kDebugMode) {
+              print("Sending receipt to email: $email for order ID: $orderId on Done button click");
+            }
+
+            paymentBloc.sendOrderDetails(orderId!, email);
+            StreamSubscription? subscription;
+            subscription = paymentBloc.sendOrderDetailsStream.listen((response) {
+              if (response.status == Status.COMPLETED) {
+                if (kDebugMode) {
+                  print("Email sent successfully: ${response.data!.message}");
+                }
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(response.data!.message),
+                    backgroundColor: Colors.green,
+                    duration: const Duration(seconds: 3),
+                  ),
+                );
+              } else if (response.status == Status.ERROR) {
+                if (kDebugMode) {
+                  print("Failed to send email: ${response.message}");
+                }
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(TextConstants.failedSendEmail),
+                    backgroundColor: Colors.red,
+                    duration: const Duration(seconds: 3),
+                  ),
+                );
+              }
+              subscription?.cancel();
+              // Proceed to complete the order after email API response
+              changeStatusToCompletedAndExit(true, selectedOption: selectedOption);
+            });
+          } else {
+            // For non-email options, proceed directly to complete the order
+            changeStatusToCompletedAndExit(true, selectedOption: selectedOption);
+          }
         },
       ),
     );
@@ -2314,14 +2379,14 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
           print("printing the ticket --- $isReceipt");
         }
       }
-    } else if (selectedOption == TextConstants.email) {  // Email receipt
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(TextConstants.emailConfiguration),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 2),
-        ),
-      );
+    // } else if (selectedOption == TextConstants.email) { // Build #1.0.159: Email receipt -> No need
+    //   ScaffoldMessenger.of(context).showSnackBar(
+    //     SnackBar(
+    //       content: Text(TextConstants.emailConfiguration),
+    //       backgroundColor: Colors.red,
+    //       duration: const Duration(seconds: 2),
+    //     ),
+    //   );
 
     } else if (selectedOption == TextConstants.sms) {// SMS receipt
       ScaffoldMessenger.of(context).showSnackBar(

@@ -248,7 +248,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
   Future<void> fetchOrderItems() async {
     if (orderHelper.activeOrderId != null) {
       if (kDebugMode) {
-        print("##### DEBUG: fetchOrderItems - Fetching items for activeOrderId: ${orderHelper.activeOrderId}");
+        print("##### DEBUG: Order screen panel  fetchOrderItems - Fetching items for activeOrderId: ${orderHelper.activeOrderId}");
       }
       try {
         List<Map<String, dynamic>> items = await orderHelper.getOrderItems(orderHelper.activeOrderId!);
@@ -1013,6 +1013,13 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                                           width: MediaQuery.of(context).size.height * 0.075,
                                           fit: BoxFit.cover,
                                         )
+                                            :  Platform.isWindows
+                                            ? Image.asset(
+                                          'assets/default.png',
+                                          height: MediaQuery.of(context).size.height * 0.08,
+                                          width: MediaQuery.of(context).size.height * 0.075,
+                                          fit: BoxFit.cover,
+                                        )
                                             : Image.file(
                                           File(orderItem[AppDBConst.itemImage]),
                                           height:MediaQuery.of(context).size.height * 0.08,
@@ -1484,7 +1491,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                     )
                         :
                     ElevatedButton( //Build 1.1.36: on pay tap calling updateOrderProducts api call
-                      onPressed: netPayable <= 0 ? null : () async {
+                      onPressed: netPayable >= 0 && orderItems.isNotEmpty ? () async {
                         if (orderHelper.activeOrderId != null) {
                           setState(() => _isPayBtnLoading = true);
                           _initialFetchDone = false; // Build #1.0.143: Track initial fetch of fetchOrdersData
@@ -1555,9 +1562,10 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                       //       lineItems: lineItems,
                       //     );
                         }
-                      },
+                      }
+                      : null,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: netPayable <= 0 ? Colors.grey : const Color(0xFFFF6B6B), // Coral red color
+                        backgroundColor: netPayable >= 0 && orderItems.isNotEmpty ? const Color(0xFFFF6B6B) : Colors.grey, // Coral red color
                         foregroundColor: Colors.white,
                         elevation: 0,
                         shape: RoundedRectangleBorder(

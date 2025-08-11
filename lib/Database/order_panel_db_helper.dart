@@ -42,12 +42,19 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
     final prefs = await SharedPreferences.getInstance();
     activeOrderId = prefs.getInt('activeOrderId'); // Retrieve the saved active order ID
     activeUserId = await getUserIdFromDB();
+    // Debugging logs
+    if (kDebugMode) {
+      print("#### Order Panel DB helper loadData: before activeOrderId = $activeOrderId, activeUserId= $activeUserId ");
+    }
     // Fetch the user's orders from the database
     final db = await DBHelper.instance.database;
     orders = await db.query(
       AppDBConst.orderTable,
       where: '${AppDBConst.userId} = ?',
       whereArgs: [activeUserId ?? 1],
+    /// Build #1.0.161
+    /// If required "asc" orders list, un-comment this line (order id's order low to high)
+    //  orderBy: '${AppDBConst.orderDate} ASC', // Ensure orders are sorted by creation date
     );
 
     if (orders.isNotEmpty) {
@@ -68,7 +75,7 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
     // Debugging logs
     if (kDebugMode) {
       print("#### Order Panel DB helper loadData: activeOrderId = $activeOrderId");
-      print("#### Order Panel DB helper loadData: orderIds = $orderIds");
+      print("#### Order Panel DB helper loadData: orderIds = $orderIds, activeUserId: $activeUserId");
     }
   }
 
@@ -152,17 +159,18 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
   //Build #1.0.40: syncOrdersFromApi
   Future<void> syncOrdersFromApi(List<model.OrderModel> apiOrders) async {
     final db = await DBHelper.instance.database;
-
+    activeUserId = await getUserIdFromDB(); // Build #1.0.165: to load user before update order table, to filter user based processing order only
     // Build #1.0.80: Count orders in the database
     final dbOrdersCount = await db.query(AppDBConst.orderTable);
     final apiOrdersCount = apiOrders.length;
 
     if (kDebugMode) {
-      print("#### DEBUG: syncOrdersFromApi - API orders count: $apiOrdersCount, DB orders count: ${dbOrdersCount.length}");
+      print("#### DEBUG: syncOrdersFromApi - API orders count: $apiOrdersCount, DB orders count: ${dbOrdersCount.length}, activeUserId :${activeUserId ?? 1}");
     }
 
     // Check if counts match
-    if (dbOrdersCount.length != apiOrdersCount) {
+    //Build #1.0.165: delete db every time because of user filter logic applied for order table
+    // if (dbOrdersCount.length != apiOrdersCount) {
       if (kDebugMode) {
         print("#### DEBUG: syncOrdersFromApi - Counts do not match, deleting DB orders");
       }
@@ -170,7 +178,7 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
       await db.delete(AppDBConst.orderTable);
       //  delete purchasedItemsTable related data
       await db.delete(AppDBConst.purchasedItemsTable);
-    }
+    // }
     // Proceed with syncing only if counts match or after clearing DB
     if (kDebugMode) {
       print("#### DEBUG: syncOrdersFromApi - Processing ${apiOrders.length} orders");
@@ -435,6 +443,12 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
     var merchantDiscountIds = "";
     for (var feeLine in feeLines) {
       final itemId = feeLine.id.toString();
+      if (kDebugMode) {
+        print("item id $itemId");
+      }
+      if (kDebugMode) {
+        print("item price value === ${feeLine.total}");
+      }
       final double itemPrice = double.parse(feeLine.total ?? '0.0');
       final int itemQuantity = 1;
       final double itemSumPrice = itemPrice;
@@ -672,6 +686,32 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
     // Debugging log
     if (kDebugMode) {
       print("#### Active order set to: $activeOrderId");
+    }
+  }
+
+  // Build #1.0.161: Store current active order before leaving
+  /// we are using same "activeOrderId" for both orderPanel & total order screen
+  /// we have to save order panel activeOrderId in "lastActiveOrderId" pref value when comes back assign it
+  /// Issue: when comes from orders screen to order panel screens selected orderId changing
+  Future<void> saveLastActiveOrderId(int orderId) async {
+    activeOrderId = orderId;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('lastActiveOrderId', activeOrderId!);
+    if (kDebugMode) {
+      print("##### Saved last active order ID: $activeOrderId");
+    }
+  }
+
+  // Build #1.0.161: Restore active order when returning
+  Future<void> restoreActiveOrderId() async {
+    final prefs = await SharedPreferences.getInstance();
+    final lastOrderId = prefs.getInt('lastActiveOrderId');
+
+    if (lastOrderId != null && lastOrderId != -1) {
+      await setActiveOrder(lastOrderId);
+      if (kDebugMode) {
+        print("##### Restored active order ID: $lastOrderId");
+      }
     }
   }
 

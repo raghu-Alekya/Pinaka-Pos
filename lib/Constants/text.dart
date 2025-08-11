@@ -331,6 +331,12 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String appVersion = "App Version"; // Build #1.0.151
   static const String appVersionLoading = "Loading...";
   static const String appVersionError = "Version unavailable";
+  static const String canNotSendEmail = "Invalid order ID. Cannot send email."; // Build #1.0.159
+  static const String failedSendEmail = "Failed to send email";
+  static const String failedToLogout = "Failed to logout. Please try again."; // Build #1.0.163
+  static const String networkError = "Network error during logout. Please check your connection.";
+  static const String logoutFailed = "Logout failed";
+  static const String successfullyLogout = "Successfully logged out";
 }
 
 class TextFontSize {

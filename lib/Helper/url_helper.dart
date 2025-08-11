@@ -144,5 +144,8 @@ class EndUrlConstants { // Build #1.0.13
   static const String updateVendorPayment         = "/update-vendor-payment";
   static const String updateFastKeyEndUrl         = "/update-fastkey"; // Build #1.0.89
   static const String deleteProductFromFastKeyEndUrl = "/delete-product";
+  static const String sendEmailOrderDetailsEndUrl = "/actions/send_order_details"; // Build #1.0.159
+  static const String logout                      = "/logout"; // Build #1.0.163
+  static const String assetsImages                = "/assets-images";
 }
 

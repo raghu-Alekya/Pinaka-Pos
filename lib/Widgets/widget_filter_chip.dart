@@ -56,8 +56,9 @@ class FilterChipWidget extends StatelessWidget { // Build #1.0.8, Surya added
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                '$label ',
+                //'$label ',
                     // ': $selectedValue',
+                selectedValue == "All" ? label : selectedValue,
                 style: TextStyle(
                     color: selectedValue != "All" ? Colors.white : themeHelper.themeMode == ThemeMode.dark
                         ? ThemeNotifier.textDark : Colors.black),

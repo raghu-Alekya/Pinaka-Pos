@@ -92,6 +92,8 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
     }
     orderBloc = OrderBloc(OrderRepository());
     super.initState();
+    // Build #1.0.161 - Fixed Issue: when comes from orders screen to order panel screens selected orderId changing
+    orderHelper.restoreActiveOrderId(); // Build #1.0.161:
     fetchOrdersData(); // Build #1.0.104
   }
 
@@ -163,24 +165,38 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
 
     if (!mounted) return; // Prevent controller initialization if unmounted
     _initializeTabController(); // Initialize tab controller
-
+    if (kDebugMode) {
+      print("##### _getOrderTabs saveLastActiveOrderId tabs.isNotEmpty ${tabs.isNotEmpty}");
+    }
     if (tabs.isNotEmpty) {
       int index = -1;
       if (orderHelper.activeOrderId != null) {
         index = orderHelper.orderIds.indexOf(orderHelper.activeOrderId!);
+        if (kDebugMode) {
+          print("##### _getOrderTabs saveLastActiveOrderId index: $index");
+        }
         if (index == -1) {
           if (kDebugMode) {
             print("##### DEBUG: _getOrderTabs - Active order ID ${orderHelper.activeOrderId} not found, defaulting to last tab");
           }
           index = tabs.length - 1;
-          await orderHelper.setActiveOrder(tabs[index]["orderId"] as int);
         }
+        await orderHelper.setActiveOrder(tabs[index]["orderId"] as int);
+        if (kDebugMode) {
+          print("saveLastActiveOrderId _getOrderTabs yes active tab, orderHelper.activeOrderId: ${orderHelper.activeOrderId}, orderID: ${tabs[index]["orderId"]}");
+        }
+        await orderHelper.saveLastActiveOrderId(tabs[index]["orderId"] as int); // Build #1.0.161
+
       } else {
         if (kDebugMode) {
           print("##### DEBUG: _getOrderTabs - No active order, setting to last tab");
         }
         index = tabs.length - 1;
         await orderHelper.setActiveOrder(tabs[index]["orderId"] as int);
+        if (kDebugMode) {
+          print("saveLastActiveOrderId _getOrderTabs no active tab, orderHelper.activeOrderId: ${orderHelper.activeOrderId}, orderID: ${tabs[index]["orderId"]}");
+        }
+        await orderHelper.saveLastActiveOrderId(tabs[index]["orderId"] as int); // Build #1.0.161
       }
       if (mounted && _tabController != null) {
         _tabController?.index = index;
@@ -230,10 +246,11 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
 
       if (response.status == Status.COMPLETED) {
         if (kDebugMode) {
-          print("##### DEBUG: Fetched orders successfully 33333");
+          print("##### DEBUG: Fetched orders successfully 33333, total orders: ${orderHelper.orders.length}");
         }
         setState(() => _isFetchingInitialData = false); // Build #1.0.128: Initial fetch complete
         _getOrderTabs();
+        //_fetchOrdersSubscription?.cancel();
       } else if (response.status == Status.ERROR) {
         if (kDebugMode) {
           print("##### ERROR: Fetch orders failed - ${response.message}");
@@ -258,7 +275,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
     }
     if (orderHelper.activeOrderId != null) {
       if (kDebugMode) {
-        print("##### DEBUG: fetchOrderItems - Fetching items for activeOrderId: ${orderHelper.activeOrderId}");
+        print("##### DEBUG: order panel fetchOrderItems - Fetching items for activeOrderId: ${orderHelper.activeOrderId}");
       }
       try {
         var order = await orderHelper.getOrderById(orderHelper.activeOrderId!);
@@ -303,6 +320,9 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
 
   // Build #1.0.10: Initializes the tab controller and handles tab switching
   void _initializeTabController() {
+    if (kDebugMode) {
+      print("##### _initializeTabController");
+    }
     if (!mounted) return; // Prevent initialization if unmounted
     _tabController?.dispose(); // Dispose existing controller
     _tabController = TabController(length: tabs.length, vsync: this);
@@ -317,6 +337,10 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
         }
 
         await orderHelper.setActiveOrder(selectedOrderId); // Set new active order
+        if (kDebugMode) {
+          print("saveLastActiveOrderId _initializeTabController, selectedOrderId: $selectedOrderId, Tab selectedIndex: $selectedIndex");
+        }
+        await orderHelper.saveLastActiveOrderId(selectedOrderId); // Build #1.0.161
         await fetchOrderItems(); // Load items for the selected order
         if (mounted) {
           setState(() {}); // Refresh UI
@@ -458,6 +482,8 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                 _tabController!.index = newIndex;
                 int newActiveOrderId = tabs[newIndex]["orderId"] as int;
                 await orderHelper.setActiveOrder(newActiveOrderId);
+                print("saveLastActiveOrderId removeTab serverOrderId: $serverOrderId, newActiveOrderId: $newActiveOrderId");
+                await orderHelper.saveLastActiveOrderId(newActiveOrderId); // Build #1.0.161
               } else {
                 int currentActiveIndex = tabs.indexWhere((tab) => tab["orderId"] == orderHelper.activeOrderId);
                 if (currentActiveIndex != -1) {
@@ -466,6 +492,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
               }
               await fetchOrderItems(); // Refresh order items list
             } else {
+              print("removeTab serverOrderId: $serverOrderId, orderHelper.activeOrderId to null");
               orderHelper.activeOrderId = null;
               setState(() {
                 orderItems = [];
@@ -510,6 +537,8 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
             _tabController!.index = newIndex;
             int newActiveOrderId = tabs[newIndex]["orderId"] as int;
             await orderHelper.setActiveOrder(newActiveOrderId);
+            print("saveLastActiveOrderId removeTab serverOrderId: $serverOrderId, newActiveOrderId: $newActiveOrderId");
+            await orderHelper.saveLastActiveOrderId(newActiveOrderId); // Build #1.0.161
           } else {
             int currentActiveIndex = tabs.indexWhere((tab) => tab["orderId"] == orderHelper.activeOrderId);
             if (currentActiveIndex != -1) {
@@ -519,6 +548,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
           await fetchOrderItems();
         } else {
           // No orders left, reset active order and clear UI
+          print("removeTab serverOrderId: $serverOrderId, orderHelper.activeOrderId to null");
           orderHelper.activeOrderId = null;
           setState(() {
             orderItems = [];
@@ -1242,18 +1272,24 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  if (orderHelper.activeOrderId != null)
                   Row(
                     spacing: 4,
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (tabs.isNotEmpty)
-                        SvgPicture.asset('assets/svg/calendar.svg', width: 22, height: 22),
-                      Text(widget.formattedDate,
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: theme.secondaryHeaderColor)),
-                      const SizedBox(width: 8),
-                      SvgPicture.asset('assets/svg/clock.svg', width: 22, height: 22),
-                      Text(widget.formattedTime, style: TextStyle(fontSize: 14, color: theme.secondaryHeaderColor)),
+                      SvgPicture.asset(
+                            'assets/svg/calendar.svg', width: 22, height: 22),
+                        Text(widget.formattedDate,
+                            style: TextStyle(fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: theme.secondaryHeaderColor)),
+                        const SizedBox(width: 8),
+                        SvgPicture.asset(
+                            'assets/svg/clock.svg', width: 22, height: 22),
+                        Text(widget.formattedTime, style: TextStyle(
+                            fontSize: 14, color: theme.secondaryHeaderColor)),
+
                     ],
                   ),
                 ],
@@ -1538,8 +1574,15 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                                           width: MediaQuery.of(context).size.height * 0.075,
                                           fit: BoxFit.cover,
                                         )
-                                            : Image.file(
-                                          File(orderItem[AppDBConst.itemImage]),
+                                                : Platform.isWindows
+                                                    ? Image.asset(
+                                                        'assets/default.png',
+                                                        height: MediaQuery.of(context).size.height * 0.08,
+                                                        width: MediaQuery.of(context).size.height * 0.075,
+                                                        fit: BoxFit.cover,
+                                                      )
+                                                    : Image.file(
+                                                        File(orderItem[AppDBConst.itemImage]),
                                           height: MediaQuery.of(context).size.height * 0.08,
                                           width: MediaQuery.of(context).size.height * 0.075,
                                           fit: BoxFit.cover,
@@ -1912,7 +1955,8 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                       width: double.infinity,
                       height: MediaQuery.of(context).size.height * 0.0575,
                       child: ElevatedButton( //Build 1.1.36: on pay tap calling updateOrderProducts api call
-                        onPressed: netPayable <= 0 ? null : () async {
+                        onPressed: netPayable >= 0 && orderItems.isNotEmpty
+                            ? () async {
                           setState(() => _isPayBtnLoading = true);
                           // await Navigator.push(
                           //   context,
@@ -1986,9 +2030,10 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
     //                           lineItems: lineItems,
     //                         );
     //                       }
-                        },
+                        }
+                            : null,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: netPayable <= 0 ? Colors.grey : const Color(0xFFFF6B6B),
+                          backgroundColor: netPayable >= 0 && orderItems.isNotEmpty ? const Color(0xFFFF6B6B) : Colors.grey,
                           foregroundColor: Colors.white,
                           elevation: 0,
                           shape: RoundedRectangleBorder(

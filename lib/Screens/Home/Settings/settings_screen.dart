@@ -410,14 +410,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             Expanded(
                 child: _buildTextField(
-                    label: TextConstants.fullNameText, controller: nameController)),
+                    label: TextConstants.fullNameText, controller: nameController, isReadOnly: true)),
             SizedBox(width: 10),
             Expanded(
                 child: _buildTextField(
-                    label: TextConstants.contactNoText, controller: contactNoController)),
+                    label: TextConstants.contactNoText, controller: contactNoController, isReadOnly: true)),
           ],
         ),
-        _buildTextField(label: TextConstants.emailText, controller: emailController),
+        _buildTextField(label: TextConstants.emailText, controller: emailController,isReadOnly: true),
         // _buildTextField(
         //     label: "Subscription Type",
         //     controller: TextEditingController(text: storeData?[AppDBConst.subscriptionType] ?? ""),
@@ -478,11 +478,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: _buildTextField(
                   label: TextConstants.companyNameText,
                   controller: companyNameController,
-                  hintText: TextConstants.companyNameHintText),
+                  hintText: TextConstants.companyNameHintText,
+                  isReadOnly: true),
+
             ),
           ],
         ),
-        _buildTextField(label: TextConstants.gstinText, controller: gstInController, hintText: TextConstants.gstinHintText),
+        _buildTextField(label: TextConstants.gstinText, controller: gstInController, hintText: TextConstants.gstinHintText, isReadOnly: true),
         _buildTextField(
             label: TextConstants.headerText,
             hintText: TextConstants.headerHintText,

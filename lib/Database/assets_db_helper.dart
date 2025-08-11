@@ -82,7 +82,8 @@ class AssetDBHelper { //Build #1.0.54: added
 
         TextConstants.currencySymbol = assetResponse.currencySymbol;
 
-        await txn.delete(AppDBConst.mediaTable, where: '${AppDBConst.assetId} = ?', whereArgs: [assetId]);
+        // Build #1.0.163: No need save media from assets api, updated to saving from image assets api
+       // await txn.delete(AppDBConst.mediaTable, where: '${AppDBConst.assetId} = ?', whereArgs: [assetId]);
         await txn.delete(AppDBConst.taxTable, where: '${AppDBConst.assetId} = ?', whereArgs: [assetId]);
         await txn.delete(AppDBConst.couponTable, where: '${AppDBConst.assetId} = ?', whereArgs: [assetId]);
         await txn.delete(AppDBConst.orderStatusTable, where: '${AppDBConst.assetId} = ?', whereArgs: [assetId]);
@@ -99,15 +100,16 @@ class AssetDBHelper { //Build #1.0.54: added
         await txn.delete(AppDBConst.employeesTable, where: '${AppDBConst.assetId} = ?', whereArgs: [assetId]);
         await txn.delete(AppDBConst.orderTypeTable, where: '${AppDBConst.assetId} = ?', whereArgs: [assetId]);
 
-        for (var media in assetResponse.media) {
-          await txn.insert(AppDBConst.mediaTable, {
-            ...media.toMap(),
-            AppDBConst.assetId: assetId,
-          });
-          if (kDebugMode) {
-            print("#### AssetDBHelper: Inserted media with ID: ${media.id}");
-          }
-        }
+        // Build #1.0.163: No need save media from assets api, updated to saving from image assets api
+        // for (var media in assetResponse.media) {
+        //   await txn.insert(AppDBConst.mediaTable, {
+        //     ...media.toMap(),
+        //     AppDBConst.assetId: assetId,
+        //   });
+        //   if (kDebugMode) {
+        //     print("#### AssetDBHelper: Inserted media with ID: ${media.id}");
+        //   }
+        // }
 
         for (var tax in assetResponse.taxes) {
           await txn.insert(

@@ -24,3 +24,12 @@ class LogoutResponse {
     );
   }
 }
+
+// Build #1.0.166: Added LogoutRequest Model
+class LogoutRequest {
+  final int empLoginPin;
+
+  LogoutRequest(this.empLoginPin);
+
+  Map<String, dynamic> toJson() => {'emp_login_pin': empLoginPin};
+}

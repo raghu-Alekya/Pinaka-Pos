@@ -299,10 +299,25 @@ class OrderBloc { // Build #1.0.25 - added by naveen
         final int variationCount = lineItem.productData.variations?.length ?? 0;
         final String combo = lineItem.metaData.firstWhere((e) => e.value.contains('Combo'), orElse: () => model.MetaData(id: 0, key: "", value: "")).value.split(' ').first ?? "";
         ///Todo: check if these values should come from product data or product variation data or line item data
-        final double salesPrice = double.parse(lineItem.productData.salePrice ?? "0.0");
-        final double regularPrice = double.parse(lineItem.productData.regularPrice ?? "0.0");
-        final double unitPrice = double.parse(lineItem.productData.price ?? "0.0");
-        final double itemPrice = double.parse(lineItem.subtotal ?? '0.0');//lineItem.productData.regularPrice == '' ?  double.parse(lineItem.productData.price ?? '0.0') : double.parse(lineItem.productData.regularPrice ?? '0.0');
+        final bool hasVariations = lineItem.productData.variations != null && lineItem.productData.variations!.isNotEmpty;
+        // final double salesPrice = double.parse(lineItem.productData.salePrice ?? "0.0");
+        // final double regularPrice = double.parse(lineItem.productData.regularPrice ?? "0.0");
+        // final double unitPrice = double.parse(lineItem.productData.price ?? "0.0");
+        // Safely parse prices, handling null or empty strings
+        /// Build #1.0.168: Fixed Issue - Order Panel gross total seems incorrect again
+        /// The issue is we are using productData values always not checking productVariationData if have those!
+        final double salesPrice = hasVariations
+            ? double.tryParse(lineItem.productVariationData?.salePrice?.isNotEmpty == true ? lineItem.productVariationData!.salePrice! : "0.0") ?? 0.0
+            : double.tryParse(lineItem.productData.salePrice?.isNotEmpty == true ? lineItem.productData.salePrice! : "0.0") ?? 0.0;
+        final double regularPrice = hasVariations
+            ? double.tryParse(lineItem.productVariationData?.regularPrice?.isNotEmpty == true ? lineItem.productVariationData!.regularPrice! : "0.0") ?? 0.0
+            : double.tryParse(lineItem.productData.regularPrice?.isNotEmpty == true ? lineItem.productData.regularPrice! : "0.0") ?? 0.0;
+        final double unitPrice = hasVariations
+            ? double.tryParse(lineItem.productVariationData?.price?.isNotEmpty == true ? lineItem.productVariationData!.price! : "0.0") ?? 0.0
+            : double.tryParse(lineItem.productData.price?.isNotEmpty == true ? lineItem.productData.price! : "0.0") ?? 0.0;
+        final double itemPrice = double.tryParse(lineItem.subtotal.isNotEmpty == true ? lineItem.subtotal : '0.0') ?? 0.0;
+
+        // final double itemPrice = double.parse(lineItem.subtotal ?? '0.0');//lineItem.productData.regularPrice == '' ?  double.parse(lineItem.productData.price ?? '0.0') : double.parse(lineItem.productData.regularPrice ?? '0.0');
         if (kDebugMode) {
           print("#### Start adding lineItem ${lineItem.id}, orderId:$serverOrderId , ProductId:${lineItem.productId}, VariationId:${lineItem.variationId}");
           print("variationName $variationName, variationCount:$variationCount, combo:$combo, salesPrice: $salesPrice, regularPrice: $regularPrice, unitPrice: $unitPrice");

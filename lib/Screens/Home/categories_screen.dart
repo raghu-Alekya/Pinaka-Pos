@@ -287,7 +287,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
         currentCategoryLevel = 1;
         isShowingSubCategories = true;
       });
-      _loadSubCategories(categories[_selectedCategoryIndex!].id);
+      await _loadSubCategories(categories[_selectedCategoryIndex!].id); // Build #1.0.166: added await to complete
     } else if (categories.isNotEmpty) {
       setState(() {
         _selectedCategoryIndex = 0;
@@ -298,7 +298,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
         isShowingSubCategories = true;
       });
       await prefs.setInt('lastSelectedCategoryIndex', 0);
-      _loadSubCategories(categories[0].id);
+      await _loadSubCategories(categories[0].id); // Build #1.0.166: added await to complete
     }
   }
 
@@ -319,7 +319,10 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
           categories = response.data!.categories;
         });
         // After loading categories, apply the last selected category
-        _loadLastSelectedCategory();
+        // Build #1.0.166: Only after top categories are loaded, load last selected
+        if (categories.isNotEmpty) {
+          await _loadLastSelectedCategory();
+        }
         break; // Break after loading top-level categories
       } else if (response.status == Status.ERROR) {
         if (kDebugMode) {
@@ -337,6 +340,9 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
     _categoryBloc.fetchCategories(parentId);
     await for (var response in _categoryBloc.categoriesStream) {
       if (response.status == Status.COMPLETED && response.data != null) {
+        if (kDebugMode) {
+          print("#### DEBUG 200: ${response.data!.categories.length}");
+        }
         setState(() {
           subCategories = response.data!.categories;
           isShowingSubCategories = true;

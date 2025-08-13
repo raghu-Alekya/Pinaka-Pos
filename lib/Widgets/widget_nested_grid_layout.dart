@@ -890,7 +890,7 @@ class NestedGridWidget extends StatelessWidget {
                           children: [
                             const Icon(Icons.add, size: 40, color: Color(0xFFFE6464)),
                             //SizedBox(height: 2),
-                            Text(TextConstants.addItemText, style: TextStyle(color: Color(0xFFFE6464))),
+                            Text(TextConstants.addProductText, style: TextStyle(color: Color(0xFFFE6464))),
                           ],
                         ),
                       ),

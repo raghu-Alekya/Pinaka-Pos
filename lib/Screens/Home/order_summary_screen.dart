@@ -290,13 +290,18 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
             final bool isOverPayment = (amount > balanceAmount);
             final bool isPartialPayment = (amount < balanceAmount);
 
+            if (kDebugMode) { // Build #1.0.168: Debug prints
+              print("#### DEBUG 101 : $amount");
+              print("#### DEBUG 102 : $balanceAmount");
+            }
+
             if (isOverPayment) {
               if (kDebugMode) {
                 print("#### isOverPayment");
               }
-              changeAmount += amount - balanceAmount; // Calculate change
+              changeAmount = amount - balanceAmount; // Build #1.0.168: Updated - Set changeAmount directly
               balanceAmount = 0.0; // Balance fully paid
-              tenderAmount += balanceAmount + amount;
+              tenderAmount += amount;
             } else if (isExactPayment) {
               if (kDebugMode) {
                 print("#### isExactPayment");
@@ -316,7 +321,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                 print("#### balanceAmount is 0");
               }
               // Case where balance is already 0, return the entire amount as change
-              changeAmount += amount; // Change is the current payment
+              changeAmount = amount; // Build #1.0.168: Updated - Set change to the full amount
               tenderAmount += amount; // Reset tender to current payment
             }
 
@@ -2194,6 +2199,12 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                   _printTicket();
                 }
               });
+            } else {
+              if (kDebugMode) {
+                print("OrderSummaryScreen - printer setup is NOT done, or user cancels printer setup");
+              }
+              // Build #1.0.168: If user cancels printer setup, show receipt dialog again
+              _showReceiptDialog(context, paidAmount);
             }
           });
         });
@@ -2360,10 +2371,13 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
   ///Use this function to change status to complete the order after payment
   ///it is used called by no receipt and print receipt on order payment completed - print button tap
   void changeStatusToCompletedAndExit(bool isReceipt, {String selectedOption = TextConstants.print}){
-    setState(() {
-      changeAmount = 0.0; // Reset change after returning
-      if (balanceAmount == 0) tenderAmount = 0.0; // Reset tender if order is fully paid
-    });
+    /// Build #1.0.168: Fixed Issue - Change is showing as zero only
+    /// No need here to reset changeAmount,balanceAmount or tenderAmount
+    /// Every time comes to this screen we are already resetting initially in fetchOrderItems method
+    // setState(() {
+    //   changeAmount = 0.0; // Reset change after returning
+    //   if (balanceAmount == 0) tenderAmount = 0.0; // Reset tender if order is fully paid
+    // });
 
     if (kDebugMode) {
       print("OrderSummaryScreen _showReceiptDialog Done call print receipt = $isReceipt");
@@ -2515,6 +2529,17 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
   }
 
   void _showExitPaymentConfirmation(BuildContext context) {
+    /// Build #1.0.168: Fix - If no transaction happen back btn tap - just back to prev screen without refresh or api calls
+    if (payByCash == 0.0 && payByOther == 0.0) {
+   //   if ((payByCash == 0.0 && payByOther == 0.0) || balanceAmount == 0) {
+      // No transactions, go back to previous screen directly
+    //  Navigator.of(context).pop('refresh'); If need to refresh prev screen UI un-comment this line
+      if (kDebugMode) {
+        print("_showExitPaymentConfirmation -> No Transaction Happen, Just Go back to prev screen");
+      }
+      Navigator.of(context).pop();
+      return;
+    }
     showDialog(
       context: context,
       barrierDismissible: false, // User must choose an option

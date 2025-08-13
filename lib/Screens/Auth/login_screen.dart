@@ -310,7 +310,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                             Row(
                                               children: [
                                                 Text(
-                                                  snapshot.data?.message ?? "Login failed. Please try again.",
+                                                  snapshot.data?.message ?? TextConstants.failedToLogin, // Build #1.0.166
                                                   style: const TextStyle(color: Colors.red),
                                                 ),
                                                 Spacer(),
@@ -405,7 +405,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                                         logoutBloc.logoutStream.listen((response) {
                                                           if (response.status == Status.COMPLETED) {
                                                             if (kDebugMode) {
-                                                              print("Logout successful, navigating to LoginScreen");
+                                                              print("#### COMPLETED performLogoutByEmpPin : Logout successful using pin");
                                                             }
                                                             ScaffoldMessenger.of(context).showSnackBar(
                                                               SnackBar(
@@ -436,8 +436,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                                           }
                                                         });
 
-                                                        // Trigger logout API call
-                                                        logoutBloc.performLogout();
+                                                        // Build #1.0.166: Trigger logout API call with _password PIN
+                                                        final pin = _password.join();
+                                                        logoutBloc.performLogoutByEmpPin(int.tryParse(pin));
 
                                                         // Show circular loader
                                                         return StatefulBuilder(
@@ -452,7 +453,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                                                   },
                                                   child: Text(
-                                                    "Logout",
+                                                    TextConstants.logoutText, // Build #1.0.166
                                                     style: const TextStyle(color: Colors.red),
                                                   ),),
 

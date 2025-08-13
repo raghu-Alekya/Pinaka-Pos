@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:provider/provider.dart';
 import '../../Helper/Extentions/nav_layout_manager.dart';
 
@@ -20,6 +21,7 @@ import '../Models/Search/product_custom_item_model.dart' as model;
 import '../Repositories/Assets/asset_repository.dart';
 import '../Repositories/Orders/order_repository.dart';
 import '../Repositories/Search/product_search_repository.dart';
+import '../Utilities/svg_images_utility.dart';
 import 'widget_custom_num_pad.dart';
 
 class AppScreenTabWidget extends StatefulWidget {
@@ -155,45 +157,76 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      resizeToAvoidBottomInset: true,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
+    final themeHelper = Provider.of<ThemeNotifier>(context);
+    return
+      //backgroundColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground : Colors.white,
+      // const Color(0xFFF1F5F9),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+        child: Container(
+          decoration: BoxDecoration(
+            color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground : Colors.white,
+            borderRadius: BorderRadius.circular(16.0),
+            border: Border.all(color: Colors.grey.shade400),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 5,
+              )
+            ],
+          ),
+          clipBehavior: Clip.antiAlias, // Ensures children conform to the rounded corners
+          child: Row(
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
-              SizedBox(height: 10,),
               // Top Tabs
               _buildTabs(),
 
-              const SizedBox(height: 10),
-
               // Content based on selected tab
-              _buildTabContent(),
+              Expanded(
+                  child: ClipPath(
+                    clipper: ContentSideClipper(selectedIndex: _selectedTabIndex),
+                      child: _buildTabContent()
+                  )
+              ),
             ],
           ),
         ),
+      );
+  }
+
+  //Build the top tabs
+  Widget _buildTabs() {
+    final themeHelper = Provider.of<ThemeNotifier>(context);
+    return ClipPath(
+      clipper: TabSideClipper(selectedIndex: _selectedTabIndex),
+      child: Container(
+          width: MediaQuery.of(context).size.width * 0.12,
+        decoration: BoxDecoration(
+          color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.tabsBackground : Color(0xFFF1F5F9),
+          borderRadius: BorderRadius.circular(16.0),
+        ),
+          child: Column(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _buildTab(0,SvgUtils.addDiscountIcon, TextConstants.discounts), // Build #1.0.168: Updated - Changed the icons to figma svg icons
+            const SizedBox(width: 10),
+            Divider(height: 1, thickness: 0.1, indent: 10, endIndent: 10),
+            _buildTab(1, SvgUtils.addCouponIcon, TextConstants.coupons),
+            const SizedBox(width: 10),
+           Divider(height: 1, thickness: 0.1, indent: 10, endIndent: 10),
+            _buildTab(2, SvgUtils.addCustomItemIcon, TextConstants.customItem),
+            const SizedBox(width: 10),
+            Divider(height: 1, thickness: 0.1, indent: 10, endIndent: 10),
+            _buildTab(3, SvgUtils.addPayoutIcon, TextConstants.payoutsText),
+          ],
+        )
       ),
     );
   }
 
-  // Build the top tabs
-  Widget _buildTabs() {
-    return Row(
-      children: [
-        _buildTab(0, Icons.percent, TextConstants.discounts),
-        const SizedBox(width: 10),
-        _buildTab(1, Icons.confirmation_num_outlined, TextConstants.coupons),
-        const SizedBox(width: 10),
-        _buildTab(2, Icons.shopping_bag_outlined, TextConstants.customItem),
-        const SizedBox(width: 10),
-        _buildTab(3, Icons.receipt_outlined, TextConstants.payoutsText),
-      ],
-    );
-  }
-
   // Build individual tab
-  Widget _buildTab(int index, IconData icon, String text) {
+  Widget _buildTab(int index, String svgPath, String text) {
     final themeHelper = Provider.of<ThemeNotifier>(context);
     if (kDebugMode) {
       print("Widget_tabs _buildTab index : $index");
@@ -211,41 +244,45 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
             _selectedTabIndex = index;
           });
         },
-        child: Container(height: MediaQuery.of(context).size.height * 0.065,
-          padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Container(
           decoration: BoxDecoration(
             color: isSelected
                 ? (themeHelper.themeMode == ThemeMode.dark
-                ? Colors.white70
-                : Color(0xFF1E2745))
+                ? ThemeNotifier.primaryBackground
+                : Colors.white)
                 : (themeHelper.themeMode == ThemeMode.dark
                 ? ThemeNotifier.tabsBackground
-                : Colors.white),            borderRadius: BorderRadius.circular(10),
+                : const Color(0xFFF1F5F9)),  //Color(0xFF1E2745))
+            borderRadius: BorderRadius.circular(16.0),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                icon,
-                color:  isSelected
-                    ? (themeHelper.themeMode == ThemeMode.dark
-                    ? ThemeNotifier.tabsBackground
-                    : Colors.white)
-                    : (themeHelper.themeMode == ThemeMode.dark
-                    ? Colors.white
-                    : Colors.grey),
-                size: 20,
+              SvgPicture.asset( // Build #1.0.168: Updated - Changed the icons to figma svg icons
+                svgPath,
+                height: 32,
+                width: 32,
+                colorFilter: ColorFilter.mode(
+                  isSelected
+                      ? (themeHelper.themeMode == ThemeMode.dark
+                      ? Colors.white
+                      : Colors.black)
+                      : (themeHelper.themeMode == ThemeMode.dark
+                      ? Colors.white70
+                      : Colors.grey),
+                  BlendMode.srcIn,
+                ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
               Text(
                 text,
                 style: TextStyle(
                   color: isSelected
                       ? (themeHelper.themeMode == ThemeMode.dark
-                      ? ThemeNotifier.primaryBackground
-                      : Colors.white)
-                      : (themeHelper.themeMode == ThemeMode.dark
                       ? Colors.white
+                      : Colors.black)
+                      : (themeHelper.themeMode == ThemeMode.dark
+                      ? Colors.white70
                       : Colors.grey.shade700),
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 ),
@@ -257,7 +294,6 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
     );
   }
 
-  // Build content based on selected tab
   Widget _buildTabContent() {
     switch (_selectedTabIndex) {
       case 0:
@@ -276,137 +312,146 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
   // DISCOUNTS TAB
   Widget _buildDiscountsTab() {
     final themeHelper = Provider.of<ThemeNotifier>(context);
-    return Column(
-      children: [
-        // Title
-         Text(
-          TextConstants.applyDiscountToSale,
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Color(0xFF1E2745),
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Column(
+        children: [
+          // Title
+           Text(
+            TextConstants.applyDiscountToSale,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Color(0xFF1E2745),
+            ),
           ),
-        ),
 
-        const SizedBox(height: 15),
+          const SizedBox(height: 10),
 
-        // Discount Input Toggle
-        _buildDiscountToggle(),
+          // Discount Input Toggle
+          _buildDiscountToggle(),
 
-        const SizedBox(height: 15),
+          const SizedBox(height: 10),
 
-        // Discount Value Display
-        _buildDiscountDisplay(),
+          // Discount Value Display
+          _buildDiscountDisplay(),
 
-        const SizedBox(height: 15),
+          const SizedBox(height: 10),
 
-        // Custom Numpad
-        SizedBox(
-          width: MediaQuery.of(context).size.width / 2.5,
-          height: MediaQuery.of(context).size.height / 2.0,
-          child: CustomNumPad(
-            onDigitPressed: (digit) {
-              setState(() { // Build #1.0.53 : updated code
-                String currentValue = _discountValue.replaceAll('%', '').replaceAll('\$', '');
-                if (currentValue == "0") {
-                  currentValue = digit;
-                } else {
-                  currentValue += digit;
-                }
-                _discountValue = _isPercentageSelected ? "$currentValue%" : currentValue;
-              });
-            },
-            onClearPressed: () {
-              setState(() {
-                _discountValue = _isPercentageSelected ? "0%" : "0";
-              });
-            },
-            onDeletePressed: () { // Build #1.0.53 : updated code
-              setState(() {
-                String currentValue = _discountValue.replaceAll('%', '').replaceAll('\$', '');
-                currentValue = currentValue.isNotEmpty ? currentValue.substring(0, currentValue.length - 1) : "0";
-                _discountValue = _isPercentageSelected ? "$currentValue%" : currentValue;
-              });
-            },
-            actionButtonType: ActionButtonType.add,
-            onAddPressed: _handleAddDiscount,
-            isLoading: _isDiscountLoading,
-            isDarkTheme: true,
-            isBottomNav: sidebarPosition == SidebarPosition.bottom,
+          // Custom Numpad
+          SizedBox(
+            width: MediaQuery.of(context).size.width / 2.75,
+            height: MediaQuery.of(context).size.height / 2.0,
+            child: CustomNumPad(
+              onDigitPressed: (digit) {
+                setState(() { // Build #1.0.53 : updated code
+                  String currentValue = _discountValue.replaceAll('%', '').replaceAll('\$', '');
+                  if (currentValue == "0") {
+                    currentValue = digit;
+                  } else {
+                    currentValue += digit;
+                  }
+                  _discountValue = _isPercentageSelected ? "$currentValue%" : currentValue;
+                });
+              },
+              onClearPressed: () {
+                setState(() {
+                  _discountValue = _isPercentageSelected ? "0%" : "0";
+                });
+              },
+              onDeletePressed: () { // Build #1.0.53 : updated code
+                setState(() {
+                  String currentValue = _discountValue.replaceAll('%', '').replaceAll('\$', '');
+                  currentValue = currentValue.isNotEmpty ? currentValue.substring(0, currentValue.length - 1) : "0";
+                  _discountValue = _isPercentageSelected ? "$currentValue%" : currentValue;
+                });
+              },
+              actionButtonType: ActionButtonType.add,
+              onAddPressed: _handleAddDiscount,
+              isLoading: _isDiscountLoading,
+              isDarkTheme: true,
+              numPadType: NumPadType.payment,
+              showAddInsteadOfPay: true,
+
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
   // COUPONS TAB
   Widget _buildCouponsTab() {
     final themeHelper = Provider.of<ThemeNotifier>(context);
-    return Column(
-      children: [
-        // Title
-        Text(
-          TextConstants.enterCouponCode,
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Color(0xFF1E2745),
-          ),
-        ),
-
-        const SizedBox(height: 20),
-
-        // Coupon Code Display
-        Container(
-          width: MediaQuery.of(context).size.width / 2.75,
-          height: MediaQuery.of(context).size.height / 12,
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
-          decoration: BoxDecoration(
-            color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.paymentEntryContainerColor : Colors.white,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : Colors.grey.shade300),
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            _couponCode.isEmpty ? "Ex: 123456789" : _couponCode, // Build #1.0.53 : updated code
+    return Padding(
+      padding: const EdgeInsets.only(top: 25),
+      child: Column(
+        children: [
+          // Title
+          Text(
+            TextConstants.enterCouponCode,
             style: TextStyle(
-              fontSize: 24,
+              fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: _couponCode.isEmpty ?  Colors.grey : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : const Color(0xFF1E2745),
+              color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Color(0xFF1E2745),
             ),
           ),
-        ),
 
-        const SizedBox(height: 20),
+          const SizedBox(height: 20),
 
-        // Custom Numpad
-        SizedBox(
-          width: MediaQuery.of(context).size.width / 2.5,
-          height: MediaQuery.of(context).size.height / 2.0,
-          child: CustomNumPad(
-            onDigitPressed: (digit) {
-              setState(() {
-                _couponCode += digit;
-              });
-            },
-            onClearPressed: () {
-              setState(() {
-                _couponCode = "";
-              });
-            },
-            onDeletePressed: () { // Build #1.0.53 : updated code
-              setState(() {
-                _couponCode = _couponCode.isNotEmpty ? _couponCode.substring(0, _couponCode.length - 1) : "";
-              });
-            },
-            actionButtonType: ActionButtonType.add,
-            onAddPressed: _handleAddCoupon,
-            isLoading: _isCouponLoading,
-            isDarkTheme: true,
-            isBottomNav: sidebarPosition == SidebarPosition.bottom,
+          // Coupon Code Display
+          Container(
+            width: MediaQuery.of(context).size.width / 2.75,
+            height: MediaQuery.of(context).size.height / 12,
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+            decoration: BoxDecoration(
+              color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.paymentEntryContainerColor : Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : Colors.grey.shade300),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              _couponCode.isEmpty ? "Ex: 123456789" : _couponCode, // Build #1.0.53 : updated code
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: _couponCode.isEmpty ?  Colors.grey : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : const Color(0xFF1E2745),
+              ),
+            ),
           ),
-        ),
-      ],
+
+          const SizedBox(height: 20),
+
+          // Custom Numpad
+          SizedBox(
+            width: MediaQuery.of(context).size.width / 2.75,
+            height: MediaQuery.of(context).size.height / 2.0,
+            child: CustomNumPad(
+              onDigitPressed: (digit) {
+                setState(() {
+                  _couponCode += digit;
+                });
+              },
+              onClearPressed: () {
+                setState(() {
+                  _couponCode = "";
+                });
+              },
+              onDeletePressed: () { // Build #1.0.53 : updated code
+                setState(() {
+                  _couponCode = _couponCode.isNotEmpty ? _couponCode.substring(0, _couponCode.length - 1) : "";
+                });
+              },
+              actionButtonType: ActionButtonType.add,
+              onAddPressed: _handleAddCoupon,
+              isLoading: _isCouponLoading,
+              isDarkTheme: true,
+              numPadType: NumPadType.payment,
+              showAddInsteadOfPay: true,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -706,7 +751,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
   Widget _buildCustomNumpad(BuildContext context) {
     return Center(
       child: SizedBox(
-        width: MediaQuery.of(context).size.width / 2.5,
+        width: MediaQuery.of(context).size.width / 2.75,
         height: MediaQuery.of(context).size.height / 2.0,
         child: CustomNumPad(
           onDigitPressed: (digit) {
@@ -735,7 +780,8 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
           },
           isLoading: _isCustomItemLoading,
           isDarkTheme: true,
-          isBottomNav: sidebarPosition == SidebarPosition.bottom,
+          numPadType: NumPadType.payment,
+          showAddInsteadOfPay: true,
         ),
       ),
     );
@@ -930,93 +976,97 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
   // PAYOUTS TAB
   Widget _buildPayoutsTab() {
     final themeHelper = Provider.of<ThemeNotifier>(context);
-    return Column(
-      children: [
-        // Floating label input field
-        SizedBox(
-          height: 20,
-        ),
-        Container(
-          width: MediaQuery.of(context).size.width / 2.75,
-          height: MediaQuery.of(context).size.height / 12,
-          margin: const EdgeInsets.only(top: 10),
-          child: TextField(
-            readOnly: true,
-            controller: TextEditingController(
-              text: _payoutAmount.isEmpty ? "${TextConstants.currencySymbol}0.00" : "${TextConstants.currencySymbol}$_payoutAmount",
-            ),
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: _payoutAmount.isEmpty
-                  ? Colors.grey.shade400 : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark
-                  : const Color(0xFF1E2745),
-            ),
-            decoration: InputDecoration(
-              floatingLabelAlignment: FloatingLabelAlignment.center,
-              labelText: TextConstants.addPaymentAmount,
-              labelStyle: TextStyle(
-                fontSize: 20,
-                color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.grey,
+    return Padding(
+      padding: const EdgeInsets.only(top: 25),
+      child: Column(
+        children: [
+          // Floating label input field
+          SizedBox(
+            height: 20,
+          ),
+          Container(
+            width: MediaQuery.of(context).size.width / 2.75,
+            height: MediaQuery.of(context).size.height / 12,
+            margin: const EdgeInsets.only(top: 10),
+            child: TextField(
+              readOnly: true,
+              controller: TextEditingController(
+                text: _payoutAmount.isEmpty ? "${TextConstants.currencySymbol}0.00" : "${TextConstants.currencySymbol}$_payoutAmount",
+              ),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 24,
                 fontWeight: FontWeight.bold,
+                color: _payoutAmount.isEmpty
+                    ? Colors.grey.shade400 : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark
+                    : const Color(0xFF1E2745),
               ),
-              filled: true,
-              fillColor:themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.paymentEntryContainerColor : Colors.white,
-              contentPadding: const EdgeInsets.symmetric(vertical: 16),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(
-                  color: Color(0xFF1E2745),
-                  width: 1,
+              decoration: InputDecoration(
+                floatingLabelAlignment: FloatingLabelAlignment.center,
+                labelText: TextConstants.addPaymentAmount,
+                labelStyle: TextStyle(
+                  fontSize: 20,
+                  color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.grey,
+                  fontWeight: FontWeight.bold,
                 ),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(
-                  color: Color(0xFF1E2745),
-                  width: 1,
+                filled: true,
+                fillColor:themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.paymentEntryContainerColor : Colors.white,
+                contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(
+                    color: Color(0xFF1E2745),
+                    width: 1,
+                  ),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(
+                    color: Color(0xFF1E2745),
+                    width: 1,
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-        const SizedBox(height: 20),
+          const SizedBox(height: 20),
 
-        // Custom Numpad
-        SizedBox(
-          width: MediaQuery.of(context).size.width / 2.5,
-          height: MediaQuery.of(context).size.height / 2.0,
-          child: CustomNumPad(
-            onDigitPressed: (digit) {
-              setState(() {
-                if (_payoutAmount == "0.00" || _payoutAmount.isEmpty) {
-                  _payoutAmount = digit;
-                } else {
-                  _payoutAmount += digit;
-                }
-              });
-            },
-            onClearPressed: () {
-              setState(() {
-                _payoutAmount = "";
-              });
-            },
-            onDeletePressed: () {
-              setState(() {
-                _payoutAmount = _payoutAmount.isNotEmpty
-                    ? _payoutAmount.substring(0, _payoutAmount.length - 1)
-                    : "";
-              });
-            },
-            actionButtonType: ActionButtonType.add,
-            onAddPressed: _handleAddPayout,
-            isLoading: _isPayoutLoading,
-            isDarkTheme: themeHelper.themeMode == ThemeMode.dark,
-            isBottomNav: sidebarPosition == SidebarPosition.bottom,
+          // Custom Numpad
+          SizedBox(
+            width: MediaQuery.of(context).size.width / 2.75,
+            height: MediaQuery.of(context).size.height / 2.0,
+            child: CustomNumPad(
+              onDigitPressed: (digit) {
+                setState(() {
+                  if (_payoutAmount == "0.00" || _payoutAmount.isEmpty) {
+                    _payoutAmount = digit;
+                  } else {
+                    _payoutAmount += digit;
+                  }
+                });
+              },
+              onClearPressed: () {
+                setState(() {
+                  _payoutAmount = "";
+                });
+              },
+              onDeletePressed: () {
+                setState(() {
+                  _payoutAmount = _payoutAmount.isNotEmpty
+                      ? _payoutAmount.substring(0, _payoutAmount.length - 1)
+                      : "";
+                });
+              },
+              actionButtonType: ActionButtonType.add,
+              onAddPressed: _handleAddPayout,
+              isLoading: _isPayoutLoading,
+              numPadType: NumPadType.payment,
+              showAddInsteadOfPay: true,
+              isDarkTheme: themeHelper.themeMode == ThemeMode.dark,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -1965,4 +2015,134 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
       );
     }
   }
+}
+
+// Simple clipper for the tab side curves
+class TabSideClipper extends CustomClipper<Path> {
+  final int selectedIndex;
+
+  TabSideClipper({required this.selectedIndex});
+
+  @override
+  Path getClip(Size size) {
+    Path path = Path();
+    double tabHeight = size.height / 4;
+    double selectedTabTop = selectedIndex * tabHeight;
+    double selectedTabBottom = selectedTabTop + tabHeight;
+    double curveRadius = 16.0; // Your specified curve radius
+
+    path.moveTo(0, 0);
+    path.lineTo(size.width, 0);
+
+    // Top curve around selected tab
+    if (selectedIndex > 0) {
+      path.lineTo(size.width, selectedTabTop - curveRadius);
+      // Smooth curve into the tab indent
+      path.quadraticBezierTo(
+          size.width, selectedTabTop,
+          size.width - curveRadius, selectedTabTop
+      );
+      path.lineTo(size.width - curveRadius, selectedTabTop);
+    } else {
+      // If first tab is selected, start the indent from top
+      path.lineTo(size.width - curveRadius, 0);
+    }
+
+    // Straight line along the tab indent
+    path.lineTo(size.width - curveRadius, selectedTabBottom);
+
+    // Bottom curve around selected tab
+    if (selectedIndex < 3) {
+      // Smooth curve out of the tab indent
+      path.quadraticBezierTo(
+          size.width, selectedTabBottom,
+          size.width, selectedTabBottom + curveRadius
+      );
+      path.lineTo(size.width, size.height);
+    } else {
+      // If last tab is selected, end the indent at bottom
+      path.lineTo(size.width, size.height);
+    }
+
+    path.lineTo(0, size.height);
+    path.close();
+
+    return path;
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Path> oldClipper) => true;
+}
+
+class ContentSideClipper extends CustomClipper<Path> {
+  final int selectedIndex;
+
+  ContentSideClipper({required this.selectedIndex});
+
+  @override
+  Path getClip(Size size) {
+    Path path = Path();
+    double tabHeight = size.height / 4;
+    double selectedTabTop = selectedIndex * tabHeight;
+    double selectedTabBottom = selectedTabTop + tabHeight;
+    double cornerRadius = 16.0;
+    double indentDepth = 16.0;
+
+    // Start with rounded top-left corner
+    path.moveTo(cornerRadius, 0);
+    path.quadraticBezierTo(0, 0, 0, cornerRadius);
+
+    // Top part before the selected tab indent
+    if (selectedIndex > 0) {
+      path.lineTo(0, selectedTabTop - cornerRadius);
+      // Smooth curve into the indent (curves inward)
+      path.quadraticBezierTo(0, selectedTabTop, cornerRadius, selectedTabTop);
+      path.quadraticBezierTo(indentDepth, selectedTabTop + cornerRadius, indentDepth, selectedTabTop + cornerRadius * 2);
+    } else {
+      // If first tab is selected, start indent from top
+      path.lineTo(0, cornerRadius);
+      path.quadraticBezierTo(cornerRadius, cornerRadius, indentDepth, cornerRadius * 2);
+    }
+
+    // Middle of the indent (straight line)
+    path.lineTo(indentDepth, selectedTabBottom - cornerRadius * 2);
+
+    // Bottom part - curve out of the selected tab indent
+    path.quadraticBezierTo(indentDepth, selectedTabBottom - cornerRadius, cornerRadius, selectedTabBottom);
+    path.quadraticBezierTo(0, selectedTabBottom, 0, selectedTabBottom + cornerRadius);
+
+    // Now add the outward bulge for the tab below the selected one
+    if (selectedIndex < 3) {
+      double nextTabTop = selectedTabBottom + cornerRadius;
+      double nextTabBottom = nextTabTop + tabHeight - (cornerRadius * 2);
+
+      // Go down a bit then curve outward (bulge)
+      path.lineTo(0, nextTabTop);
+      path.quadraticBezierTo(-cornerRadius, nextTabTop + cornerRadius, -cornerRadius, nextTabTop + cornerRadius * 2);
+      path.lineTo(-cornerRadius, nextTabBottom - cornerRadius);
+      path.quadraticBezierTo(-cornerRadius, nextTabBottom, 0, nextTabBottom + cornerRadius);
+
+      if (selectedIndex < 2) {
+        // Continue to bottom if not the second-to-last tab
+        path.lineTo(0, size.height - cornerRadius);
+      } else {
+        // Go to bottom
+        path.lineTo(0, size.height - cornerRadius);
+      }
+    } else {
+      // Last tab selected, just go to bottom
+      path.lineTo(0, size.height - cornerRadius);
+    }
+
+    // Rounded bottom-left corner
+    path.quadraticBezierTo(0, size.height, cornerRadius, size.height);
+    path.lineTo(size.width, size.height);
+    path.lineTo(size.width, 0);
+    path.close();
+
+    return path;
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Path> oldClipper) => true;
 }

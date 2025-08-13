@@ -25,7 +25,7 @@ class CustomNumPad extends StatelessWidget {
   final bool? isLoading; // Add isLoading
   final NumPadType numPadType;
   final bool isDarkTheme;
-  final bool isBottomNav;
+  final bool showAddInsteadOfPay;
 
   const CustomNumPad({
     super.key,
@@ -43,7 +43,7 @@ class CustomNumPad extends StatelessWidget {
     this.isLoading, // Require isLoading
     this.numPadType = NumPadType.login,
     this.isDarkTheme = false,
-    this.isBottomNav = false,
+    this.showAddInsteadOfPay = false,
   });
 
   @override
@@ -118,7 +118,9 @@ class CustomNumPad extends StatelessWidget {
                 SizedBox(height: 8),
                 Expanded(
                   flex: 2,
-                  child: _buildPayButton(context),
+                  child: showAddInsteadOfPay
+                      ? _buildAddButton(context)
+                      :_buildPayButton(context),
                 ),
               ],
             ),
@@ -198,7 +200,7 @@ class CustomNumPad extends StatelessWidget {
     var darkTheme = themeHelper.themeMode == ThemeMode.dark && isDarkTheme;
     return GridView.count(
       shrinkWrap: true,
-      crossAxisCount: isBottomNav ? 4 : 3,
+      crossAxisCount: 3,
       mainAxisSpacing: 12,
       crossAxisSpacing: 12,
       childAspectRatio: 2,
@@ -270,6 +272,56 @@ class CustomNumPad extends StatelessWidget {
             fontSize: 20,
             fontWeight: FontWeight.w600,
             color: Colors.white,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // New method for ADD button (similar styling to PAY button but different color and callback)
+  Widget _buildAddButton(BuildContext context) {
+    final themeHelper = Provider.of<ThemeNotifier>(context);
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: (themeHelper.themeMode == ThemeMode.dark && isDarkTheme
+            ? Colors.white70
+            : const Color(0xFF1E2745)), // Same as login pad ADD button color
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 2,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: TextButton(
+        onPressed: onAddPressed,
+        style: TextButton.styleFrom(
+          padding: EdgeInsets.zero,
+          backgroundColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+        child: (isLoading ?? false) // Show loader when loading
+            ? const SizedBox(
+          height: 40,
+          width: 40,
+          child: CircularProgressIndicator(
+            color: Colors.white,
+            strokeWidth: 2,
+          ),
+        )
+            : Text(
+          'ADD',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            color: themeHelper.themeMode == ThemeMode.dark && isDarkTheme
+                ? ThemeNotifier.primaryBackground
+                : Colors.white,
           ),
         ),
       ),

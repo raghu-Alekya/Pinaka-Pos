@@ -105,6 +105,8 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String typeSearchText        = "Type to search...";
   static const String backText              = "Back";
   static const String addItemText           = "Add Item";
+  static const String addProductText        = "Add Product";
+  static const String newText               = "New";
   static const String editProductText       = "Edit Product";
 
   static const String ebtText               = "EBT";
@@ -337,6 +339,7 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String networkError = "Network error during logout. Please check your connection.";
   static const String logoutFailed = "Logout failed";
   static const String successfullyLogout = "Successfully logged out";
+  static const String failedToLogin = "Login failed. Please try again."; // Build #1.0.166
 }
 
 class TextFontSize {

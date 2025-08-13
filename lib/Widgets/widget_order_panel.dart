@@ -1042,7 +1042,13 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                         minimumSize: const Size(50, 56),
                       ),
-                      child: const Text("+", style: TextStyle(color: Colors.redAccent, fontSize: 16)),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text("+", style: TextStyle(color: Colors.redAccent, fontSize: 16)),
+                          Text(TextConstants.newText,style: TextStyle(color: Colors.redAccent, fontSize: 12)),
+                        ],
+                      ),
                     ),
                   ],
                 ),

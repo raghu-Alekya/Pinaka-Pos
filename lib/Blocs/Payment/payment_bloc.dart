@@ -7,6 +7,7 @@ import '../../Models/Payment/payment_model.dart';
 import '../../Models/Payment/send_order_details_model.dart';
 import '../../Models/Payment/void_payment_model.dart';
 import '../../Repositories/Payment/payment_repository.dart';
+import '../../services/CustomerDisplayService.dart';
 
 class PaymentBloc {  // Build #1.0.25 - added by naveen
   final PaymentRepository _paymentRepository;
@@ -69,6 +70,8 @@ class PaymentBloc {  // Build #1.0.25 - added by naveen
       // }
 
       createPaymentSink.add(APIResponse.completed(response));
+      await CustomerDisplayService.showThankYou();
+
     } catch (e) {
       if (e.toString().contains('SocketException')) {
         createPaymentSink.add(APIResponse.error("Network error. Please check your connection."));

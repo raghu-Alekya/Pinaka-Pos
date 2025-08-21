@@ -33,6 +33,7 @@ import '../Database/db_helper.dart';
 import '../Database/order_panel_db_helper.dart';
 import '../Helper/Extentions/theme_notifier.dart';
 import '../Helper/api_response.dart';
+import '../Helper/customer_display_helper.dart';
 import '../Utilities/global_utility.dart';
 import '../Models/Orders/orders_model.dart';
 import '../Providers/Age/age_verification_provider.dart';
@@ -41,6 +42,7 @@ import '../Repositories/Orders/order_repository.dart';
 import '../Repositories/Search/product_search_repository.dart';
 import '../Screens/Home/add_screen.dart';
 import '../Screens/Home/edit_product_screen.dart';
+import '../services/CustomerDisplayService.dart';
 
 class RightOrderPanel extends StatefulWidget {
   final String formattedDate;
@@ -318,36 +320,87 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
     }
   }
 
-  // Build #1.0.10: Initializes the tab controller and handles tab switching
-  void _initializeTabController() {
+  // // Build #1.0.10: Initializes the tab controller and handles tab switching
+  // void _initializeTabController() {
+  //   if (kDebugMode) {
+  //     print("##### _initializeTabController");
+  //   }
+  //   if (!mounted) return; // Prevent initialization if unmounted
+  //   _tabController?.dispose(); // Dispose existing controller
+  //   _tabController = TabController(length: tabs.length, vsync: this);
+  //
+  //   _tabController!.addListener(() async {
+  //     if (!_tabController!.indexIsChanging && mounted) {
+  //       int selectedIndex = _tabController!.index; // Get selected tab index
+  //       int selectedOrderId = tabs[selectedIndex]["orderId"] as int;
+  //
+  //       if (kDebugMode) {
+  //         print("##### DEBUG: Tab changed to index: $selectedIndex, orderId: $selectedOrderId");
+  //       }
+  //
+  //       await orderHelper.setActiveOrder(selectedOrderId); // Set new active order
+  //       if (kDebugMode) {
+  //         print("saveLastActiveOrderId _initializeTabController, selectedOrderId: $selectedOrderId, Tab selectedIndex: $selectedIndex");
+  //       }
+  //       await orderHelper.saveLastActiveOrderId(selectedOrderId); // Build #1.0.161
+  //       await fetchOrderItems(); // Load items for the selected order
+  //       if (mounted) {
+  //         setState(() {}); // Refresh UI
+  //       }
+  //     }
+  //   });
+  // }
+
+  Future<void> _initializeTabController() async {
     if (kDebugMode) {
       print("##### _initializeTabController");
     }
     if (!mounted) return; // Prevent initialization if unmounted
-    _tabController?.dispose(); // Dispose existing controller
+
+    _tabController?.dispose();
+
+    if (tabs.isEmpty) {
+      if (kDebugMode) print("##### No tabs available → showing Welcome screen");
+      await CustomerDisplayService.showWelcome(); // Use await here
+      return;
+    }
+
     _tabController = TabController(length: tabs.length, vsync: this);
 
     _tabController!.addListener(() async {
       if (!_tabController!.indexIsChanging && mounted) {
-        int selectedIndex = _tabController!.index; // Get selected tab index
+        int selectedIndex = _tabController!.index;
         int selectedOrderId = tabs[selectedIndex]["orderId"] as int;
 
         if (kDebugMode) {
           print("##### DEBUG: Tab changed to index: $selectedIndex, orderId: $selectedOrderId");
         }
 
-        await orderHelper.setActiveOrder(selectedOrderId); // Set new active order
-        if (kDebugMode) {
-          print("saveLastActiveOrderId _initializeTabController, selectedOrderId: $selectedOrderId, Tab selectedIndex: $selectedIndex");
-        }
-        await orderHelper.saveLastActiveOrderId(selectedOrderId); // Build #1.0.161
-        await fetchOrderItems(); // Load items for the selected order
-        if (mounted) {
-          setState(() {}); // Refresh UI
-        }
+        await orderHelper.setActiveOrder(selectedOrderId);
+        await orderHelper.saveLastActiveOrderId(selectedOrderId);
+        await fetchOrderItems();
+        await CustomerDisplayHelper.updateCustomerDisplay(selectedOrderId);
+
+        if (mounted) setState(() {}); // Refresh UI
       }
     });
+
+    // Set default tab index
+    int defaultIndex = 0;
+    if (orderHelper.activeOrderId != null) {
+      int idx = orderHelper.orderIds.indexOf(orderHelper.activeOrderId!);
+      if (idx != -1) defaultIndex = idx;
+    } else {
+      defaultIndex = tabs.length - 1;
+      await orderHelper.setActiveOrder(tabs[defaultIndex]["orderId"] as int);
+    }
+
+    if (mounted) {
+      _tabController!.index = defaultIndex;
+      await CustomerDisplayHelper.updateCustomerDisplay(tabs[defaultIndex]["orderId"] as int);
+    }
   }
+
 
   // Build #1.0.10: Creates a new order and adds it as a new tab
   //Build #1.0.78: Explanation!

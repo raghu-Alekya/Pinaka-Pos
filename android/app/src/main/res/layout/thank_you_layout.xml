@@ -1,0 +1,68 @@
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/thank_you_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#3D506E">
+
+    <!-- Store Logo at Top -->
+    <ImageView
+        android:id="@+id/thank_you_store_logo"
+        android:layout_width="150dp"
+        android:layout_height="150dp"
+        android:layout_gravity="top|center_horizontal"
+        android:layout_marginTop="32dp"
+        android:scaleType="centerInside"
+        android:contentDescription="Store Logo"
+        android:src="@drawable/pinaka_logo" />
+
+    <!-- Centered Content -->
+    <LinearLayout
+        android:id="@+id/thank_you_content"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:padding="32dp">
+
+        <!-- Emoji -->
+        <TextView
+            android:id="@+id/thank_you_emoji"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="😊"
+            android:textSize="64sp"
+            android:layout_marginBottom="24dp"
+            android:gravity="center"
+            android:fontFamily="serif"
+            android:textColor="#FFFFFF"
+            android:shadowColor="#000000"
+            android:shadowDx="2"
+            android:shadowDy="2"
+            android:shadowRadius="4" />
+
+        <!-- Thank You Text -->
+        <TextView
+            android:id="@+id/thank_you_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Thank You!"
+            android:textSize="36sp"
+            android:textColor="#FFFFFF"
+            android:textAlignment="center"
+            android:layout_marginBottom="16dp"
+            android:lineSpacingExtra="8dp"
+            android:fontFamily="serif" />
+
+        <!-- Please Visit Again Text -->
+        <TextView
+            android:id="@+id/visit_again_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Please Visit Again"
+            android:textSize="50dp"
+            android:textColor="#FFFFFF"
+            android:textAlignment="center"
+            android:fontFamily="serif" />
+
+    </LinearLayout>
+</FrameLayout>

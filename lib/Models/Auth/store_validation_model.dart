@@ -9,6 +9,7 @@ class StoreValidationResponse { //Build #1.0.42: Added by Naveen
   final String subscriptionType;
   final String storeInfo;
   final String storeName;
+  final String storeLogo; // ✅ Added storeLogo
   final String expirationDate;
   final List<dynamic> deviceImeis;
   final String storeBaseUrl;
@@ -27,6 +28,7 @@ class StoreValidationResponse { //Build #1.0.42: Added by Naveen
     required this.subscriptionType,
     required this.storeInfo,
     required this.storeName,
+    required this.storeLogo, // ✅ constructor
     required this.expirationDate,
     required this.deviceImeis,
     required this.storeBaseUrl,
@@ -47,6 +49,7 @@ class StoreValidationResponse { //Build #1.0.42: Added by Naveen
       subscriptionType: json['subscription_type'] ?? '',
       storeInfo: json['store_info'] ?? '',
       storeName: json['store_name'] ?? '',
+      storeLogo: json['store_logo'] ?? '', // ✅ map JSON
       expirationDate: json['expiration_date'] ?? '',
       deviceImeis: json['device_imeis'] ?? [],
       storeBaseUrl: json['store_base_url'] ?? '',
@@ -68,6 +71,7 @@ class StoreValidationResponse { //Build #1.0.42: Added by Naveen
       'subscription_type': subscriptionType,
       'store_info': storeInfo,
       'store_name': storeName,
+      'store_logo': storeLogo, // ✅ include in JSON
       'expiration_date': expirationDate,
       'device_imeis': deviceImeis,
       'store_base_url': storeBaseUrl,

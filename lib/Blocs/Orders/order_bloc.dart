@@ -146,32 +146,64 @@ class OrderBloc { // Build #1.0.25 - added by naveen
   ///5. Save response in db for line_items
   ///6. stop loading
   ///7. Return
-  Future<void> updateOrderProducts({
-    required int? orderId,
-    required int? dbOrderId,
-    required List<OrderLineItem> lineItems,
-    bool isEditQuantity = false,
-  }) async {
+
+  Future<void> updateOrderProducts({required int? orderId, required int? dbOrderId, required List<OrderLineItem> lineItems, bool isEditQuantity = false}) async {
     if (_updateOrderController.isClosed) return;
 
     updateOrderSink.add(APIResponse.loading(TextConstants.loading));
-
     try {
+
+      /// NOTE:
+      // final itemsToAdd = lineItems.map((item) => OrderLineItem(
+      //   productId: item.productId,
+      //   quantity: item.quantity, // Setting quantity to 0 removes the item
+      // )).toList();
+      //  final db = await DBHelper.instance.database;
+      //  final existingItem = await db.query(
+      //    AppDBConst.purchasedItemsTable,
+      //    where: '${AppDBConst.orderIdForeignKey} = ? AND ${AppDBConst.itemSKU} = ? AND ${AppDBConst.itemType} = ?',
+      //    whereArgs: [dbOrderId, sku, type],
+      //  );
+      //
+      //  if (existingItem.isNotEmpty) { //Build #1.0.78: already managing this , no need
+      // //NOTE: request -> id, quantity to update existing item quantity
+      // Use Line Item Id -> id
+      //  }else{
+      //    //NOTE: request -> product, quantity to create new item in order
+      // Use Id -> product id
+      //  }
+      // Build #1.0.80: Updated code with fixes, duplicate products adding into order panel
       final db = await DBHelper.instance.database;
       final itemsToAdd = <OrderLineItem>[];
 
-      if (orderId == null) {
-        if (kDebugMode) print("#### updateOrderProducts: orderId is null, creating new order...");
+      if (orderId == null) {  //Build #1.0.128: Updated - If Order's are empty while adding adding item to order first create order then proceed
+        if (kDebugMode) {
+          print("#### updateOrderProducts orderId is $orderId");
+        }
+        // Call create new order if orderId is null
         await createOrder();
       }
 
       final serverOrderId = OrderHelper().activeOrderId;
-      if (kDebugMode) print("#### updateOrderProducts: serverOrderId = $serverOrderId");
-      if (serverOrderId == null) return;
+      if (kDebugMode) {
+        print("#### updateOrderProducts serverOrderId is $serverOrderId");
+      }
 
-      // Process line items
+      if(serverOrderId == null){
+        return;
+      }
+
+      // var itemsInDB = await OrderHelper().getOrderItems(orderId);
+      // for(var item in itemsInDB){
+      //   if (kDebugMode) {
+      //     print("#### updateOrderProducts getOrderItems: dbOrderId-> $dbOrderId, orderId:$orderId, item.productId  , productId-> ${item[AppDBConst.itemProductId]}, variationId-> ${item[AppDBConst.itemVariationId]}, itemId-> ${item[AppDBConst.itemId]}");
+      //   }
+      // }
+
       for (var item in lineItems) {
-        if (kDebugMode) print("Checking line item ${item.productId} in DB...");
+        if (kDebugMode) {
+          print("#### updateOrderProducts checking new line item ${item.productId} in DB.");
+        }
 
         var existingItem = await db.query(
           AppDBConst.purchasedItemsTable,
@@ -179,33 +211,48 @@ class OrderBloc { // Build #1.0.25 - added by naveen
           whereArgs: [serverOrderId, item.productId, ItemType.product.value],
         );
 
-        if (existingItem.isEmpty) {
+        if(existingItem.isEmpty) {
+          if (kDebugMode) {
+            print("#### updateOrderProducts existingItem is not found with variation id ${AppDBConst.itemProductId}");
+          }
           existingItem = await db.query(
             AppDBConst.purchasedItemsTable,
             where: '${AppDBConst.orderIdForeignKey} = ? AND ${AppDBConst.itemProductId} = ? AND ${AppDBConst.itemType} = ?',
             whereArgs: [serverOrderId, item.productId, ItemType.product.value],
           );
-          if (existingItem.isNotEmpty &&
-              (existingItem.first[AppDBConst.itemVariationId] as int) > 0) {
-            if (kDebugMode) print("Variation mismatch, ignoring existing item...");
-            existingItem = [];
+          if((existingItem.isNotEmpty && (existingItem.first[AppDBConst.itemVariationId] as int) > 0)){
+            if (kDebugMode) {
+              print(
+                  "OrderBloc - Existing item found productID: ${existingItem.first[AppDBConst.itemServerId]}, but variationId: ${existingItem.first[AppDBConst.itemVariationId]} instead ${item.productId}");
+              existingItem = [];
+            }
           }
+        }
+
+        if (kDebugMode) {
+          print("#### updateOrderProducts: dbOrderId-> $dbOrderId, orderId:$serverOrderId, productId-> ${item.productId}, variationId-> ${item.variationId}, itemId-> ${item.id}");
+          print("#### updateOrderProducts: Server Item Id ${existingItem.isEmpty}");
         }
 
         if (existingItem.isNotEmpty) {
           final currentQuantity = existingItem.first[AppDBConst.itemCount] as int;
           itemsToAdd.add(OrderLineItem(
             id: existingItem.first[AppDBConst.itemServerId] as int?,
+            // Build #1.0.108: We have to identify is editing product pass updated qty, else if same product adding again currentQuantity + new quantity
+            // otherwise while editing product qty was doubling the value
             quantity: isEditQuantity ? item.quantity : currentQuantity + item.quantity,
           ));
-          if (kDebugMode) print(
-              "Existing item updated: ID=${existingItem.first[AppDBConst.itemServerId]}, qty=${currentQuantity + item.quantity}");
-        } else {
+          if (kDebugMode) {
+            print("OrderBloc - Existing item found ID: ${existingItem.first[AppDBConst.itemServerId]}, updated quantity: ${currentQuantity + item.quantity}");
+          }
+        } else { // NEW Product
           itemsToAdd.add(OrderLineItem(
             productId: item.productId,
             quantity: item.quantity,
           ));
-          if (kDebugMode) print("New item added: productId=${item.productId}, qty=${item.quantity}");
+          if (kDebugMode) {
+            print("OrderBloc - New item added ID: ${item.productId}");
+          }
         }
       }
 
@@ -215,344 +262,147 @@ class OrderBloc { // Build #1.0.25 - added by naveen
         request: request,
       );
 
-      if (response == null) {
-        updateOrderSink.add(APIResponse.error("Empty response for order $serverOrderId"));
+      if(response == null){
+        updateOrderSink.add(APIResponse.error("Response is empty after updating product to order $serverOrderId"));
         return;
       }
 
       if (kDebugMode) {
-        print("Order updated: ID=${response.id}, total=${response.total}, lineItems=${response.lineItems.length}");
+        print("OrderBloc - Order updated with ID: ${response.id}");
+        print("OrderBloc - New total: ${response.total}");
+        print("OrderBloc - Line items count: ${response.lineItems.length}");
       }
-
-      // Update local DB
-      final orderHelper = OrderHelper();
+      //Build 1.1.36: working on updating order items in db getting issue.....
+      //Build #1.0.78: Update DB after successful API response
+      OrderHelper orderHelper = OrderHelper();
+      // Clear existing items for this order
       await orderHelper.clearOrderItems(serverOrderId);
-
-      // Add line items to DB
+      //Build #1.0.78: Add updated items from the API response
+      ///update order details like total ,tax, discounts, merchant discouts
+      if (kDebugMode) {
+        print("#### OrderBloc - Updating order table for orderId $serverOrderId, total:${double.tryParse(response.total) ?? 0.0},"
+            " totalTax:${double.tryParse(response.totalTax) ?? 0.0}");
+      }
+      await db.update(
+        AppDBConst.orderTable,
+        {
+          AppDBConst.orderTotal: double.tryParse(response.total) ?? 0.0,
+          AppDBConst.orderStatus: response.status,
+          AppDBConst.orderType: response.createdVia ?? 'in-store',
+          AppDBConst.orderDate: response.dateCreated,
+          AppDBConst.orderTime: response.dateCreated,
+          AppDBConst.orderPaymentMethod: response.paymentMethod,
+          AppDBConst.orderDiscount: double.tryParse(response.discountTotal) ?? 0.0, // Store discount
+          AppDBConst.orderTax: double.tryParse(response.totalTax) ?? 0.0, // Store tax
+          AppDBConst.orderShipping: double.tryParse(response.shippingTotal) ?? 0.0, // Store shipping
+        },
+        where: '${AppDBConst.orderServerId} = ?',
+        whereArgs: [serverOrderId],
+      );
+      // LineItems
       for (var lineItem in response.lineItems) {
-        final hasVariations = lineItem.productData.variations != null &&
-            lineItem.productData.variations!.isNotEmpty;
-        final salesPrice = hasVariations
-            ? double.tryParse(lineItem.productVariationData?.salePrice ?? "0") ?? 0
-            : double.tryParse(lineItem.productData.salePrice ?? "0") ?? 0;
-        final unitPrice = hasVariations
-            ? double.tryParse(lineItem.productVariationData?.price ?? "0") ?? 0
-            : double.tryParse(lineItem.productData.price ?? "0") ?? 0;
-        final itemPrice = double.tryParse(lineItem.subtotal.isNotEmpty ? lineItem.subtotal : "0") ?? 0;
+        final String variationName = lineItem.productVariationData?.metaData?.firstWhere((e) => e.key == "custom_name", orElse: () => model.MetaData(id: 0, key: "", value: "")).value ?? "";
+        final int variationCount = lineItem.productData.variations?.length ?? 0;
+        final String combo = lineItem.metaData.firstWhere((e) => e.value.contains('Combo'), orElse: () => model.MetaData(id: 0, key: "", value: "")).value.split(' ').first ?? "";
+        ///Todo: check if these values should come from product data or product variation data or line item data
+        final bool hasVariations = lineItem.productData.variations != null && lineItem.productData.variations!.isNotEmpty;
+        // final double salesPrice = double.parse(lineItem.productData.salePrice ?? "0.0");
+        // final double regularPrice = double.parse(lineItem.productData.regularPrice ?? "0.0");
+        // final double unitPrice = double.parse(lineItem.productData.price ?? "0.0");
+        // Safely parse prices, handling null or empty strings
+        /// Build #1.0.168: Fixed Issue - Order Panel gross total seems incorrect again
+        /// The issue is we are using productData values always not checking productVariationData if have those!
+        final double salesPrice = hasVariations
+            ? double.tryParse(lineItem.productVariationData?.salePrice?.isNotEmpty == true ? lineItem.productVariationData!.salePrice! : "0.0") ?? 0.0
+            : double.tryParse(lineItem.productData.salePrice?.isNotEmpty == true ? lineItem.productData.salePrice! : "0.0") ?? 0.0;
+        final double regularPrice = hasVariations
+            ? double.tryParse(lineItem.productVariationData?.regularPrice?.isNotEmpty == true ? lineItem.productVariationData!.regularPrice! : "0.0") ?? 0.0
+            : double.tryParse(lineItem.productData.regularPrice?.isNotEmpty == true ? lineItem.productData.regularPrice! : "0.0") ?? 0.0;
+        final double unitPrice = hasVariations
+            ? double.tryParse(lineItem.productVariationData?.price?.isNotEmpty == true ? lineItem.productVariationData!.price! : "0.0") ?? 0.0
+            : double.tryParse(lineItem.productData.price?.isNotEmpty == true ? lineItem.productData.price! : "0.0") ?? 0.0;
+        final double itemPrice = double.tryParse(lineItem.subtotal.isNotEmpty == true ? lineItem.subtotal : '0.0') ?? 0.0;
 
+        // final double itemPrice = double.parse(lineItem.subtotal ?? '0.0');//lineItem.productData.regularPrice == '' ?  double.parse(lineItem.productData.price ?? '0.0') : double.parse(lineItem.productData.regularPrice ?? '0.0');
+        if (kDebugMode) {
+          print("#### Start adding lineItem ${lineItem.id}, orderId:$serverOrderId , ProductId:${lineItem.productId}, VariationId:${lineItem.variationId}");
+          print("variationName $variationName, variationCount:$variationCount, combo:$combo, salesPrice: $salesPrice, regularPrice: $regularPrice, unitPrice: $unitPrice");
+        }
         await orderHelper.addItemToOrder(
           lineItem.id,
           lineItem.name,
-          lineItem.image.src ?? '',
-          itemPrice,
+          lineItem.image.src ?? '', // Fixed: Access 'src' key from image Map
+          itemPrice, // Ensure price is parsed correctly
           lineItem.quantity,
           lineItem.sku ?? '',
           serverOrderId,
-          productId: lineItem.productId,
-          variationId: lineItem.variationId,
+          productId:lineItem.productId, // Build #1.0.80: newly added these two
+          variationId:lineItem.variationId,
           type: ItemType.product.value,
+          variationName: variationName,
+          variationCount: variationCount,
+          combo: combo,
           salesPrice: salesPrice,
+          regularPrice: regularPrice,
           unitPrice: unitPrice,
         );
-
-        if (kDebugMode) print(
-            "DB added lineItem ID=${lineItem.id}, name=${lineItem.name}, qty=${lineItem.quantity}, price=$itemPrice");
+        if (kDebugMode) {
+          print("#### End adding lineItem ${lineItem.id}, orderId:$serverOrderId , ProductId:${lineItem.productId}, VariationId:${lineItem.variationId}");
+        }
       }
-
-      // Fee lines
+      if (kDebugMode) {
+        var itemsInDB = await OrderHelper().getOrderItems(serverOrderId);
+        for(var item in itemsInDB){
+            print("#### updateOrderProducts getOrderItems after adding : "
+                "dbOrderId-> $dbOrderId, orderId:$serverOrderId, orderHelper.activeOrderId!: ${orderHelper.activeOrderId!} "
+                "productId-> ${item[AppDBConst.itemProductId]}, variationId-> ${item[AppDBConst.itemVariationId]}, "
+              "itemId-> ${item[AppDBConst.itemServerId]}");
+        }
+      }
+      // Fee Lines
+      /// Build #1.0.138:
+      /// We need to display/add `feeLines` and `couponLines` items in the order panel.
+      /// When adding an item or custom item, the existing `feeLines` and `couponLines` are being removed.
+      /// This happens because `clearOrderItems` is called first, and then only `lineItems` are re-added—
+      /// `feeLines` and `couponLines` are not included.
+      /// This issue is now fixed; all items will be correctly shown in the order panel.
       for (var feeLine in response.feeLines ?? []) {
-        await orderHelper.addItemToOrder(
-          feeLine.id,
-          feeLine.name ?? '',
-          'assets/svg/payout.svg',
-          double.parse(feeLine.total ?? "0"),
-          1,
-          '',
-          serverOrderId,
-          type: ItemType.payout.value,
-        );
-        if (kDebugMode) print("Added fee line: ${feeLine.name} = ${feeLine.total}");
+        if (feeLine.name == TextConstants.payout) {
+          await orderHelper.addItemToOrder(
+            feeLine.id,
+            feeLine.name ?? '',
+            'assets/svg/payout.svg', // Fixed: Access 'src' key from image Map
+            double.parse(feeLine.total!), // Ensure price is parsed correctly
+            1,
+            '',
+            serverOrderId,
+            type: ItemType.payout.value,
+          );
+        }
       }
-
-      // Coupon lines
+      // Coupon Lines
       for (var couponLine in response.couponLines) {
         await orderHelper.addItemToOrder(
           couponLine.id,
           couponLine.code ?? '',
-          'assets/svg/coupon.svg',
-          double.parse(couponLine.nominalAmount?.toString() ?? "0"),
+          'assets/svg/coupon.svg', // Fixed: Access 'src' key from image Map
+          double.parse(couponLine.nominalAmount!.toString()), // Ensure price is parsed correctly
           1,
           '',
           serverOrderId,
           type: ItemType.coupon.value,
         );
-        if (kDebugMode) print("Added coupon line: ${couponLine.code} = ${couponLine.nominalAmount}");
       }
-
       // Send everything to log (instead of customer display)
       await CustomerDisplayHelper.updateCustomerDisplay(serverOrderId);
 
       updateOrderSink.add(APIResponse.completed(response));
     } catch (e, s) {
       updateOrderSink.add(APIResponse.error(_extractErrorMessage(e)));
-      if (kDebugMode) print("Exception in updateOrderProducts: $e\n$s");
+      if (kDebugMode) print("Exception in updateOrderProducts: $e, DEBUG $s");
     }
-  }
 
-  // Future<void> updateOrderProducts({required int? orderId, required int? dbOrderId, required List<OrderLineItem> lineItems, bool isEditQuantity = false}) async {
-  //   if (_updateOrderController.isClosed) return;
-  //
-  //   updateOrderSink.add(APIResponse.loading(TextConstants.loading));
-  //   try {
-  //
-  //     /// NOTE:
-  //     // final itemsToAdd = lineItems.map((item) => OrderLineItem(
-  //     //   productId: item.productId,
-  //     //   quantity: item.quantity, // Setting quantity to 0 removes the item
-  //     // )).toList();
-  //     //  final db = await DBHelper.instance.database;
-  //     //  final existingItem = await db.query(
-  //     //    AppDBConst.purchasedItemsTable,
-  //     //    where: '${AppDBConst.orderIdForeignKey} = ? AND ${AppDBConst.itemSKU} = ? AND ${AppDBConst.itemType} = ?',
-  //     //    whereArgs: [dbOrderId, sku, type],
-  //     //  );
-  //     //
-  //     //  if (existingItem.isNotEmpty) { //Build #1.0.78: already managing this , no need
-  //     // //NOTE: request -> id, quantity to update existing item quantity
-  //     // Use Line Item Id -> id
-  //     //  }else{
-  //     //    //NOTE: request -> product, quantity to create new item in order
-  //     // Use Id -> product id
-  //     //  }
-  //     // Build #1.0.80: Updated code with fixes, duplicate products adding into order panel
-  //     final db = await DBHelper.instance.database;
-  //     final itemsToAdd = <OrderLineItem>[];
-  //
-  //     if (orderId == null) {  //Build #1.0.128: Updated - If Order's are empty while adding adding item to order first create order then proceed
-  //       if (kDebugMode) {
-  //         print("#### updateOrderProducts orderId is $orderId");
-  //       }
-  //       // Call create new order if orderId is null
-  //       await createOrder();
-  //     }
-  //
-  //     final serverOrderId = OrderHelper().activeOrderId;
-  //     if (kDebugMode) {
-  //       print("#### updateOrderProducts serverOrderId is $serverOrderId");
-  //     }
-  //
-  //     if(serverOrderId == null){
-  //       return;
-  //     }
-  //
-  //     // var itemsInDB = await OrderHelper().getOrderItems(orderId);
-  //     // for(var item in itemsInDB){
-  //     //   if (kDebugMode) {
-  //     //     print("#### updateOrderProducts getOrderItems: dbOrderId-> $dbOrderId, orderId:$orderId, item.productId  , productId-> ${item[AppDBConst.itemProductId]}, variationId-> ${item[AppDBConst.itemVariationId]}, itemId-> ${item[AppDBConst.itemId]}");
-  //     //   }
-  //     // }
-  //
-  //     for (var item in lineItems) {
-  //       if (kDebugMode) {
-  //         print("#### updateOrderProducts checking new line item ${item.productId} in DB.");
-  //       }
-  //
-  //       var existingItem = await db.query(
-  //         AppDBConst.purchasedItemsTable,
-  //         where: '${AppDBConst.orderIdForeignKey} = ? AND ${AppDBConst.itemVariationId} = ? AND ${AppDBConst.itemType} = ?',
-  //         whereArgs: [serverOrderId, item.productId, ItemType.product.value],
-  //       );
-  //
-  //       if(existingItem.isEmpty) {
-  //         if (kDebugMode) {
-  //           print("#### updateOrderProducts existingItem is not found with variation id ${AppDBConst.itemProductId}");
-  //         }
-  //         existingItem = await db.query(
-  //           AppDBConst.purchasedItemsTable,
-  //           where: '${AppDBConst.orderIdForeignKey} = ? AND ${AppDBConst.itemProductId} = ? AND ${AppDBConst.itemType} = ?',
-  //           whereArgs: [serverOrderId, item.productId, ItemType.product.value],
-  //         );
-  //         if((existingItem.isNotEmpty && (existingItem.first[AppDBConst.itemVariationId] as int) > 0)){
-  //           if (kDebugMode) {
-  //             print(
-  //                 "OrderBloc - Existing item found productID: ${existingItem.first[AppDBConst.itemServerId]}, but variationId: ${existingItem.first[AppDBConst.itemVariationId]} instead ${item.productId}");
-  //             existingItem = [];
-  //           }
-  //         }
-  //       }
-  //
-  //       if (kDebugMode) {
-  //         print("#### updateOrderProducts: dbOrderId-> $dbOrderId, orderId:$serverOrderId, productId-> ${item.productId}, variationId-> ${item.variationId}, itemId-> ${item.id}");
-  //         print("#### updateOrderProducts: Server Item Id ${existingItem.isEmpty}");
-  //       }
-  //
-  //       if (existingItem.isNotEmpty) {
-  //         final currentQuantity = existingItem.first[AppDBConst.itemCount] as int;
-  //         itemsToAdd.add(OrderLineItem(
-  //           id: existingItem.first[AppDBConst.itemServerId] as int?,
-  //           // Build #1.0.108: We have to identify is editing product pass updated qty, else if same product adding again currentQuantity + new quantity
-  //           // otherwise while editing product qty was doubling the value
-  //           quantity: isEditQuantity ? item.quantity : currentQuantity + item.quantity,
-  //         ));
-  //         if (kDebugMode) {
-  //           print("OrderBloc - Existing item found ID: ${existingItem.first[AppDBConst.itemServerId]}, updated quantity: ${currentQuantity + item.quantity}");
-  //         }
-  //       } else { // NEW Product
-  //         itemsToAdd.add(OrderLineItem(
-  //           productId: item.productId,
-  //           quantity: item.quantity,
-  //         ));
-  //         if (kDebugMode) {
-  //           print("OrderBloc - New item added ID: ${item.productId}");
-  //         }
-  //       }
-  //     }
-  //
-  //     final request = UpdateOrderRequestModel(lineItems: itemsToAdd);
-  //     final response = await _orderRepository.updateOrderProducts(
-  //       orderId: serverOrderId,
-  //       request: request,
-  //     );
-  //
-  //     if(response == null){
-  //       updateOrderSink.add(APIResponse.error("Response is empty after updating product to order $serverOrderId"));
-  //       return;
-  //     }
-  //
-  //     if (kDebugMode) {
-  //       print("OrderBloc - Order updated with ID: ${response.id}");
-  //       print("OrderBloc - New total: ${response.total}");
-  //       print("OrderBloc - Line items count: ${response.lineItems.length}");
-  //     }
-  //     //Build 1.1.36: working on updating order items in db getting issue.....
-  //     //Build #1.0.78: Update DB after successful API response
-  //     OrderHelper orderHelper = OrderHelper();
-  //     // Clear existing items for this order
-  //     await orderHelper.clearOrderItems(serverOrderId);
-  //     //Build #1.0.78: Add updated items from the API response
-  //     ///update order details like total ,tax, discounts, merchant discouts
-  //     if (kDebugMode) {
-  //       print("#### OrderBloc - Updating order table for orderId $serverOrderId, total:${double.tryParse(response.total) ?? 0.0},"
-  //           " totalTax:${double.tryParse(response.totalTax) ?? 0.0}");
-  //     }
-  //     await db.update(
-  //       AppDBConst.orderTable,
-  //       {
-  //         AppDBConst.orderTotal: double.tryParse(response.total) ?? 0.0,
-  //         AppDBConst.orderStatus: response.status,
-  //         AppDBConst.orderType: response.createdVia ?? 'in-store',
-  //         AppDBConst.orderDate: response.dateCreated,
-  //         AppDBConst.orderTime: response.dateCreated,
-  //         AppDBConst.orderPaymentMethod: response.paymentMethod,
-  //         AppDBConst.orderDiscount: double.tryParse(response.discountTotal) ?? 0.0, // Store discount
-  //         AppDBConst.orderTax: double.tryParse(response.totalTax) ?? 0.0, // Store tax
-  //         AppDBConst.orderShipping: double.tryParse(response.shippingTotal) ?? 0.0, // Store shipping
-  //       },
-  //       where: '${AppDBConst.orderServerId} = ?',
-  //       whereArgs: [serverOrderId],
-  //     );
-  //     // LineItems
-  //     for (var lineItem in response.lineItems) {
-  //       final String variationName = lineItem.productVariationData?.metaData?.firstWhere((e) => e.key == "custom_name", orElse: () => model.MetaData(id: 0, key: "", value: "")).value ?? "";
-  //       final int variationCount = lineItem.productData.variations?.length ?? 0;
-  //       final String combo = lineItem.metaData.firstWhere((e) => e.value.contains('Combo'), orElse: () => model.MetaData(id: 0, key: "", value: "")).value.split(' ').first ?? "";
-  //       ///Todo: check if these values should come from product data or product variation data or line item data
-  //       final bool hasVariations = lineItem.productData.variations != null && lineItem.productData.variations!.isNotEmpty;
-  //       // final double salesPrice = double.parse(lineItem.productData.salePrice ?? "0.0");
-  //       // final double regularPrice = double.parse(lineItem.productData.regularPrice ?? "0.0");
-  //       // final double unitPrice = double.parse(lineItem.productData.price ?? "0.0");
-  //       // Safely parse prices, handling null or empty strings
-  //       /// Build #1.0.168: Fixed Issue - Order Panel gross total seems incorrect again
-  //       /// The issue is we are using productData values always not checking productVariationData if have those!
-  //       final double salesPrice = hasVariations
-  //           ? double.tryParse(lineItem.productVariationData?.salePrice?.isNotEmpty == true ? lineItem.productVariationData!.salePrice! : "0.0") ?? 0.0
-  //           : double.tryParse(lineItem.productData.salePrice?.isNotEmpty == true ? lineItem.productData.salePrice! : "0.0") ?? 0.0;
-  //       final double regularPrice = hasVariations
-  //           ? double.tryParse(lineItem.productVariationData?.regularPrice?.isNotEmpty == true ? lineItem.productVariationData!.regularPrice! : "0.0") ?? 0.0
-  //           : double.tryParse(lineItem.productData.regularPrice?.isNotEmpty == true ? lineItem.productData.regularPrice! : "0.0") ?? 0.0;
-  //       final double unitPrice = hasVariations
-  //           ? double.tryParse(lineItem.productVariationData?.price?.isNotEmpty == true ? lineItem.productVariationData!.price! : "0.0") ?? 0.0
-  //           : double.tryParse(lineItem.productData.price?.isNotEmpty == true ? lineItem.productData.price! : "0.0") ?? 0.0;
-  //       final double itemPrice = double.tryParse(lineItem.subtotal.isNotEmpty == true ? lineItem.subtotal : '0.0') ?? 0.0;
-  //
-  //       // final double itemPrice = double.parse(lineItem.subtotal ?? '0.0');//lineItem.productData.regularPrice == '' ?  double.parse(lineItem.productData.price ?? '0.0') : double.parse(lineItem.productData.regularPrice ?? '0.0');
-  //       if (kDebugMode) {
-  //         print("#### Start adding lineItem ${lineItem.id}, orderId:$serverOrderId , ProductId:${lineItem.productId}, VariationId:${lineItem.variationId}");
-  //         print("variationName $variationName, variationCount:$variationCount, combo:$combo, salesPrice: $salesPrice, regularPrice: $regularPrice, unitPrice: $unitPrice");
-  //       }
-  //       await orderHelper.addItemToOrder(
-  //         lineItem.id,
-  //         lineItem.name,
-  //         lineItem.image.src ?? '', // Fixed: Access 'src' key from image Map
-  //         itemPrice, // Ensure price is parsed correctly
-  //         lineItem.quantity,
-  //         lineItem.sku ?? '',
-  //         serverOrderId,
-  //         productId:lineItem.productId, // Build #1.0.80: newly added these two
-  //         variationId:lineItem.variationId,
-  //         type: ItemType.product.value,
-  //         variationName: variationName,
-  //         variationCount: variationCount,
-  //         combo: combo,
-  //         salesPrice: salesPrice,
-  //         regularPrice: regularPrice,
-  //         unitPrice: unitPrice,
-  //       );
-  //       if (kDebugMode) {
-  //         print("#### End adding lineItem ${lineItem.id}, orderId:$serverOrderId , ProductId:${lineItem.productId}, VariationId:${lineItem.variationId}");
-  //       }
-  //     }
-  //     if (kDebugMode) {
-  //       var itemsInDB = await OrderHelper().getOrderItems(serverOrderId);
-  //       for(var item in itemsInDB){
-  //           print("#### updateOrderProducts getOrderItems after adding : "
-  //               "dbOrderId-> $dbOrderId, orderId:$serverOrderId, orderHelper.activeOrderId!: ${orderHelper.activeOrderId!} "
-  //               "productId-> ${item[AppDBConst.itemProductId]}, variationId-> ${item[AppDBConst.itemVariationId]}, "
-  //             "itemId-> ${item[AppDBConst.itemServerId]}");
-  //       }
-  //     }
-  //     // Fee Lines
-  //     /// Build #1.0.138:
-  //     /// We need to display/add `feeLines` and `couponLines` items in the order panel.
-  //     /// When adding an item or custom item, the existing `feeLines` and `couponLines` are being removed.
-  //     /// This happens because `clearOrderItems` is called first, and then only `lineItems` are re-added—
-  //     /// `feeLines` and `couponLines` are not included.
-  //     /// This issue is now fixed; all items will be correctly shown in the order panel.
-  //     for (var feeLine in response.feeLines ?? []) {
-  //       if (feeLine.name == TextConstants.payout) {
-  //         await orderHelper.addItemToOrder(
-  //           feeLine.id,
-  //           feeLine.name ?? '',
-  //           'assets/svg/payout.svg', // Fixed: Access 'src' key from image Map
-  //           double.parse(feeLine.total!), // Ensure price is parsed correctly
-  //           1,
-  //           '',
-  //           serverOrderId,
-  //           type: ItemType.payout.value,
-  //         );
-  //       }
-  //     }
-  //     // Coupon Lines
-  //     for (var couponLine in response.couponLines) {
-  //       await orderHelper.addItemToOrder(
-  //         couponLine.id,
-  //         couponLine.code ?? '',
-  //         'assets/svg/coupon.svg', // Fixed: Access 'src' key from image Map
-  //         double.parse(couponLine.nominalAmount!.toString()), // Ensure price is parsed correctly
-  //         1,
-  //         '',
-  //         serverOrderId,
-  //         type: ItemType.coupon.value,
-  //       );
-  //     }
-  //
-  //     updateOrderSink.add(APIResponse.completed(response));
-  //   } catch (e, s) {
-  //     updateOrderSink.add(APIResponse.error(_extractErrorMessage(e)));
-  //     if (kDebugMode) print("Exception in updateOrderProducts: $e, DEBUG $s");
-  //   }
-  //
-  // }
+  }
 
   //Build #1.0.40: fetchOrders
   Future<void> fetchOrders({bool allStatuses = false, int pageNumber =1}) async { //Build #1.0.54: updated
@@ -733,6 +583,7 @@ class OrderBloc { // Build #1.0.25 - added by naveen
           type: ItemType.coupon.value,
         );
       }
+      await CustomerDisplayHelper.updateCustomerDisplay(orderId);
 
       if (kDebugMode) {
         print("OrderBloc - Coupon applied to order ID: ${response.id}");
@@ -841,6 +692,8 @@ class OrderBloc { // Build #1.0.25 - added by naveen
       //Build #1.0.78: Delete from DB after successful API response
       OrderHelper orderHelper = OrderHelper();
       await orderHelper.deleteItem(dbItemId);
+      await CustomerDisplayHelper.updateCustomerDisplay(orderId);
+
 
       deleteOrderItemSink.add(APIResponse.completed(response!));
     } catch (e) {
@@ -862,6 +715,7 @@ class OrderBloc { // Build #1.0.25 - added by naveen
           print("ProductBloc - Discount applied for order $orderId with code: $discountCode");
           print("Discount response: ${discountResponse.toJson()}");
         }
+        await CustomerDisplayHelper.updateCustomerDisplay(orderId);
         applyDiscountSink.add(APIResponse.completed(discountResponse));
       } else {
         applyDiscountSink.add(APIResponse.error(discountResponse.message.isNotEmpty ? discountResponse.message : "Failed to apply discount"));
@@ -949,6 +803,7 @@ class OrderBloc { // Build #1.0.25 - added by naveen
         where: '${AppDBConst.orderServerId} = ?',
         whereArgs: [orderId],
       );
+      await CustomerDisplayHelper.updateCustomerDisplay(orderId);
 
       addPayoutSink.add(APIResponse.completed(response));
     } catch (e, s) {
@@ -1173,6 +1028,7 @@ class OrderBloc { // Build #1.0.25 - added by naveen
         }
         await orderHelper.deleteItem(couponItem.first[AppDBConst.itemServerId] as int);
       }
+      await CustomerDisplayHelper.updateCustomerDisplay(orderId);
 
       removeCouponSink.add(APIResponse.completed(response));
     } catch (e) {

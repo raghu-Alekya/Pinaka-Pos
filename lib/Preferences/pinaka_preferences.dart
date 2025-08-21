@@ -17,6 +17,31 @@ class PinakaPreferences { // Build #1.0.7 , Naveen - added PinakaPreferences cod
     _prefs = await SharedPreferences.getInstance();
     layoutSelectionNotifier =  ValueNotifier<String>('');
   }
+  // Inside PinakaPreferences class
+  static Future<void> saveLoggedInStore({
+    required String storeId,
+    required String storeName,
+    String? storeLogoUrl,
+  }) async {
+    await _prefs.setString('storeId', storeId);
+    await _prefs.setString('storeName', storeName);
+    await _prefs.setString('storeLogoUrl', storeLogoUrl ?? '');
+  }
+
+  static Map<String, String?> getLoggedInStore() {
+    final storeId = _prefs.getString('storeId');
+    final storeName = _prefs.getString('storeName');
+    final storeLogoUrl = _prefs.getString('storeLogoUrl');
+    if (storeId != null && storeName != null) {
+      return {
+        'storeId': storeId,
+        'storeName': storeName,
+        'storeLogoUrl': storeLogoUrl,
+      };
+    }
+    return {};
+  }
+
 
   /// Build #1.0.122: No need , now we are using DB saving code
   // saveThemeMode
@@ -83,4 +108,5 @@ class PinakaPreferences { // Build #1.0.7 , Naveen - added PinakaPreferences cod
     }
     return selectedPrinter;//
   }
+
 }

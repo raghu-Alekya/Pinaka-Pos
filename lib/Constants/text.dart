@@ -67,11 +67,13 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String distributorText       = "Distributor";
 
   static const String editCateText          = "Edit Category";
-  static const String selectImageText          = "Select Image";
+  static const String selectImageText       = "Select Image";
   static const String addCateText           = "Add Category";
   static const String imgRequiredText       = "Image is required";
   static const String addFastKeyNameText    = "Add Fast key Name";
-  static const String editFastKeyNameText    = "Edit Fast key";
+  static const String add                   = "Add";
+  static const String fastKey               = "Fast key";
+  static const String editFastKeyNameText   = "Edit Fast key";
   static const String uploadImage           = "Upload Image";
   static const String nameText              = "Name";
   static const String nameReqText           = "Name is required";
@@ -152,7 +154,7 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String successPaymentTitle   = "Your transaction is successfully Done!";
   static const String partialPaymentTitle   = "Partial Payment Received!";
   static const String exitConfirmTitle   = "Exit Without Completing Payment?";
-  static const String receiptTitle          = "Partial Payment Received!";
+  static const String receiptTitle          = "Please choose how you'd like to share it.";
   static const String print                 = "Print";
   static const String email                 = "Email";
   static const String sms                   = "SMS";
@@ -179,6 +181,9 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String removeCoupon          = "Remove applied coupon?"; //Build #1.0.67
   static const String removeDiscount        = "Remove applied discount? ";
   static const String removePayout          = "Remove applied payout?";
+  static const String closeShiftWarning     = "Close Shift Warning";
+  static const String closeShiftWarningDesc = "Please close all open orders before closing shift";
+  static const String ok                    = "OK";
   static const String itemRemoved           = "Item removed successfully";
   static const String removedSuccessfully   = "removed successfully";
   static const String failedToRemove        = "Failed to remove";
@@ -340,10 +345,38 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String logoutFailed = "Logout failed";
   static const String successfullyLogout = "Successfully logged out";
   static const String failedToLogin = "Login failed. Please try again."; // Build #1.0.166
+  static const String voidSuccess   = "Payment voided successfully";
+  static const String failedOrderPending  = "Failed to set order to pending";
+  static const String refresh        = "refresh";
+  static const String orderPending   = "Order changed to 'Pending'";   // Build #1.0.175: Added
+
+  static const String cashDrawerIsOpening   = "Opening Cash Drawer.";
+
+  static const String invalidDiscountError = "Please enter a valid Discount"; // Build #1.0.181
+  static const String noActiveOrderError = "No active order selected";
+  static const String orderNotFoundError = "Order not found";
+
+  static const String invalidCouponError = "Please enter a valid Coupon Code";
+  static const String couponAlreadyApplied = "This coupon has already been applied";
+  static const String couponAppliedSuccess = "Coupon applied successfully";
+
+  static const String itemNameRequired = "Please enter item name";
+  static const String invalidPriceError = "Please enter a valid price";
+  static const String taxSlabRequired = "Please select a tax slab";
+  static const String skuRequired = "Please generate SKU";
+  static const String skuGeneratedSuccess = "SKU Generated Successfully";
+  static const String customItemAddedSuccess = "Custom item added successfully";
+
+  static const String invalidPayoutError = "Please enter a valid Payout Amount";
+  static const String payoutAlreadyAdded = "A payout has already been added for this order";
+  static const String payoutAddedSuccess = "Payout added successfully";
+
 }
 
 class TextFontSize {
   static const double size_28 = 28;
+  static const double size_30 = 30;
+  static const double size_32 = 32;
 }
 
 class SharedPreferenceTextConstants {

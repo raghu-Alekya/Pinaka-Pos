@@ -696,7 +696,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
       try {
         final DateTime createdDateTime = DateTime.parse(order[AppDBConst.orderDate].toString());
         displayDate = DateFormat("EEE, MMM d, yyyy").format(createdDateTime);
-        displayTime = DateFormat('hh:mm a').format(createdDateTime);
+        displayTime = DateFormat('hh:mm:ss a').format(createdDateTime);
       } catch (e) {
         if (kDebugMode) {
           print("Error parsing order creation date: $e");
@@ -1040,7 +1040,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                                       Expanded(
                                         child: Column(
                                           crossAxisAlignment: CrossAxisAlignment.start,
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                                           children: [
                                             Column(
                                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1422,7 +1422,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                     width: double.infinity,
                     height: MediaQuery.of(context).size.height * 0.0575,
                     child:
-                    (_order?[AppDBConst.orderStatus] ?? '') != 'on-hold'
+                    ((_order?[AppDBConst.orderStatus] ?? '') != TextConstants.pending)
                         ?
                     ElevatedButton( //Build 1.1.36: on pay tap calling updateOrderProducts api call
                       onPressed: () async {
@@ -1516,7 +1516,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                             print("###### OrderScreenPanel: Returned from OrderSummaryScreen with result: $result");
                           }
                           // Handle refresh if result is 'refresh'
-                          if (result == 'refresh') {
+                          if (result == TextConstants.refresh) { // Build #1.0.175: added TextConstants
                             if (kDebugMode) {
                               print("###### OrderScreenPanel: Refresh signal received, reinitializing entire screen");
                             }
@@ -1575,7 +1575,8 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                       child: _isPayBtnLoading  //Build 1.1.36: added loader for pay button in order panel
                           ? CircularProgressIndicator(color: Colors.white)
                           : Text(
-                        "${TextConstants.pay} ${TextConstants.currencySymbol}${netPayable.toStringAsFixed(2)}",
+                       // "${TextConstants.pay} ${TextConstants.currencySymbol}${netPayable.toStringAsFixed(2)}",
+                        TextConstants.pay, // Build #1.0.175: No need show amount on PAY button in order screen panel
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w500,
@@ -1846,7 +1847,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
           Navigator.push(context, MaterialPageRoute(
             builder: (context) => PrinterSetup(),
           )).then((result) {
-            if (result == 'refresh') {
+            if (result == TextConstants.refresh) { // Build #1.0.175: added TextConstants
               _printerSettings.loadPrinter();
               setState(() {
                 // Update state to refresh the UI

@@ -11,6 +11,7 @@ import 'package:thermal_printer/esc_pos_utils_platform/esc_pos_utils_platform.da
 import 'package:thermal_printer/thermal_printer.dart';
 import 'package:image/image.dart' as img;
 // import 'package:dart_ping_ios/dart_ping_ios.dart';
+import '../../../Constants/text.dart';
 import 'image_utils.dart';
 
 // void main() {
@@ -255,6 +256,9 @@ class _PrinterSetupState extends State<PrinterSetup> {
       // bytes += generator.imageRaster(img.decodeImage(imageBytes)!, align: PosAlign.center);
       bytes += generator.imageRaster(grayscaleImage, align: PosAlign.center);
       bytes += generator.feed(1);
+
+      ///open cash drawer
+      // generator.drawer();
     }
 
     // // // Chinese characters
@@ -380,7 +384,7 @@ class _PrinterSetupState extends State<PrinterSetup> {
                                   print(">>>>> PrinterSetupScreen Device is connected : $_isConnected");
                                 }
                               });
-                              Navigator.pop(context, 'refresh'); // Pass a result when popping
+                              Navigator.pop(context, TextConstants.refresh); // Pass a result when popping
                             },
                             child: const Text("Connect", textAlign: TextAlign.center),
                           ),

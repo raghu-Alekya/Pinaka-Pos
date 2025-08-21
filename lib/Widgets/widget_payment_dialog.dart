@@ -364,7 +364,8 @@ class _PaymentDialogState extends State<PaymentDialog> {
     );
   }
 
-  Widget _buildActionButtons() {  // Build #1.0.49: Updated code with void confirm dialog code and loader adder
+  Widget _buildActionButtons() {// Build #1.0.49: Updated code with void confirm dialog code and loader adder
+    final bool isVoidable = (widget.amount ?? 0.0) <= 0.0; // Build #1.0.175: added default value
     if (widget.status == PaymentStatus.voidConfirmation) {
       return Row(
         children: [
@@ -591,8 +592,8 @@ class _PaymentDialogState extends State<PaymentDialog> {
             Expanded(
               child: _buildButton(
                 TextConstants.vOid,
-                widget.onVoid ?? () {},
-                backgroundColor: const Color(0xFFFE6464),
+                isVoidable ? () {} : widget.onVoid ?? () {},
+                backgroundColor:  isVoidable ? Colors.grey : const Color(0xFFFE6464),
               ),
             ),
             const SizedBox(width: 16), // Horizontal spacing

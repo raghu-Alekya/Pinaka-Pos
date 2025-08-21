@@ -234,11 +234,11 @@ class CustomNumPad extends StatelessWidget {
   // Remove _buildPayButton, _showPartialPaymentDialog, _showPaymentDialog, _showReceiptDialog
  // Build #1.0.34: Update _buildPayButton to only call onPayPressed
   Widget _buildPayButton(BuildContext context) {
-    final bool isEnabled = onPayPressed != null;
+    //final bool isEnabled = onPayPressed != null;
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: isEnabled ? const Color(0xFFFF4444) : Colors.grey,
+        color: const Color(0xFFFF4444), //isEnabled ? : Colors.grey, # 1.0.174 removed the condition because to allow payment even the net payable/balance amount is <= 0
         borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(

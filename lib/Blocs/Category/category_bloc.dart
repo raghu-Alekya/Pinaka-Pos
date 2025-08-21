@@ -48,6 +48,10 @@ class CategoryBloc { // Build #1.0.21 - Added category screen bloc - naveen
 
       categoriesSink.add(APIResponse.completed(response));
     } catch (e) {
+      //Build #1.0.179
+      if (e.toString().contains('UnauthorisedException')) {
+        categoriesSink.add(APIResponse.error("Unauthorised. Session is expired."));
+      }
       if (e.toString().contains('SocketException')) {
         categoriesSink.add(APIResponse.error("Network error. Please check your connection."));
       } else {

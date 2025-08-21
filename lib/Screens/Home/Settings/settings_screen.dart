@@ -39,6 +39,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String layoutSelection = ""; // Default layout
   File? _selectedIcon;
   String? profilePhotoPath;
+  String? userRole; //Build #1.0.170
   final PrinterDBHelper printerDBHelper = PrinterDBHelper(); //Build #1.0.122
 
   TextEditingController nameController = TextEditingController();
@@ -57,7 +58,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.initState();
     _loadUserDataFromDB();
     _loadPrinterData(); //Build #1.0.122: Updated code: data loading from db
+
+    // _addThemeListener();   # Build 1.0.182 - (option automatically change when tapped in top bar)
   }
+
+  // // Add this method to listen for theme changes
+  // void _addThemeListener() {
+  //   // Listen for theme changes from the top bar
+  //   WidgetsBinding.instance.addPostFrameCallback((_) {
+  //     final themeHelper = Provider.of<ThemeNotifier>(context, listen: false);
+  //     themeHelper.addListener(_onThemeChanged);
+  //   });
+  // }
+  //
+  // // Add this callback method
+  // void _onThemeChanged() {
+  //   final themeHelper = Provider.of<ThemeNotifier>(context, listen: false);
+  //   setState(() {
+  //     appearance = themeHelper.themeMode == ThemeMode.dark
+  //         ? TextConstants.darkText
+  //         : TextConstants.lightText;
+  //   });
+  // }    # Build 1.0.182(option automatically change when tapped in top bar)
 
   Future<void> _loadUserDataFromDB() async { // Build #1.0.13 : now user data loads from user table DB
     try {
@@ -71,6 +93,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       }
 
       if (userData != null) {
+        //final themeHelper = Provider.of<ThemeNotifier>(context, listen: false);  # Build 1.0.182(Radio option automatically change when tapped in top bar)
         setState(() {
           nameController.text = userData[AppDBConst.userDisplayName] ?? "Unknown Name";
           emailController.text = userData[AppDBConst.userEmail] ?? "test@pinaka.com";
@@ -78,8 +101,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
           appearance = userData[AppDBConst.themeMode] == ThemeMode.dark.toString()
               ? TextConstants.darkText
               : TextConstants.lightText;
+
+          // = themeHelper.themeMode == ThemeMode.dark
+          //     ? TextConstants.darkText
+          //     : TextConstants.lightText;  # Build 1.0.182(option automatically change when tapped in top bar)
+
           layoutSelection = userData[AppDBConst.layoutSelection] ?? SharedPreferenceTextConstants.navLeftOrderRight;
           profilePhotoPath = userData[AppDBConst.profilePhoto];
+          userRole = userData[AppDBConst.userRole] ?? "Unknown Role"; //Build #1.0.170: Fixed: User role not updating
           if (profilePhotoPath != null) {
             _selectedIcon = File(profilePhotoPath!);
           }
@@ -237,6 +266,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   void dispose() {
+    // final themeHelper = Provider.of<ThemeNotifier>(context, listen: false);
+    // themeHelper.removeListener(_onThemeChanged);  # Build 1.0.182(option automatically change when tapped in top bar)
     nameController.dispose();
     contactNoController.dispose();
     emailController.dispose();
@@ -369,11 +400,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       height: 80,
                       width: 80,
                       color: Colors.grey[800],
-                      child: profilePhotoPath != null && File(profilePhotoPath!).existsSync()
-                          ? Image.file(File(profilePhotoPath!),
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Icon(Icons.perm_identity, color: Colors.white))
-                          : Icon(Icons.perm_identity, color: Colors.white),
+                      child: GlobalUtility.buildImageWidget( //Build #1.0.170: Fixed - User Profile photo not loading, created GlobalUtility function and using here!
+                        imagePath: profilePhotoPath,
+                        imageFile: _selectedIcon,
+                        fit: BoxFit.cover,
+                        defaultIcon: Icons.perm_identity, // Default icon for user profile
+                        defaultIconColor: Colors.white,
+                      ),
                     ),
                   ),
                 ),
@@ -399,8 +432,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(TextConstants.userText, style: TextStyle(fontSize: 16, color: Colors.white)),
-                Text(TextConstants.administratorText,
-                    style: TextStyle(fontSize: 12, color: Colors.tealAccent)),
+                Text(userRole ?? '',
+                    style: TextStyle(fontSize: 12, color: Colors.tealAccent)), //Build #1.0.170: Fixed - User role not updating as per login
               ],
             ),
           ],
@@ -454,9 +487,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       color: Colors.grey[800],
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: _selectedIcon != null && _selectedIcon!.existsSync()
-                        ? Image.file(_selectedIcon!, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Icon(Icons.image, color: Colors.white70))
-                        : Icon(Icons.image, color: Colors.white70),
+                    child: GlobalUtility.buildImageWidget( //Build #1.0.170: Fixed - User Profile photo not loading, created GlobalUtility function and using here!
+                      imageFile: _selectedIcon,
+                      fit: BoxFit.cover,
+                      defaultIcon: Icons.image, // Default icon for company/receipt
+                      defaultIconColor: Colors.white70,
+                    ),
                   ),
                   Positioned(
                     top: 0,
@@ -747,7 +783,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Navigator.push(context, MaterialPageRoute(
                   builder: (context) => PrinterSetup(),
                 )).then((result) {
-                  if (result == 'refresh') {
+                  if (result == TextConstants.refresh) {  // Build #1.0.175: Added refresh constant string into TextConstants
                     _printerSettings.loadPrinter();
                     setState(() {
                       // Update state to refresh the UI
@@ -1046,6 +1082,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               themeManager.setThemeMode( //Build #1.0.54: updated
                   appearance == TextConstants.lightText ? ThemeMode.light : ThemeMode.dark
               );
+              // final newTheme = appearance == TextConstants.lightText ? ThemeMode.light : ThemeMode.dark; # Build 1.0.182(option automatically change when tapped in top bar)
+              // themeManager.setThemeMode(newTheme);
+
              // _preferences.saveAppThemeMode(themeManager.themeMode);
             });
           },

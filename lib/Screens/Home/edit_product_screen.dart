@@ -41,6 +41,7 @@ class _EditProductScreenState extends State<EditProductScreen> with SingleTicker
   late AnimationController _animationController;
   late Animation<Offset> _slideAnimation;
   final PinakaPreferences _preferences = PinakaPreferences(); // Add this
+  int _refreshCounter = 0; //Build #1.0.170: Added: Counter to trigger RightOrderPanel refresh only when needed
 
 
   @override
@@ -76,8 +77,9 @@ class _EditProductScreenState extends State<EditProductScreen> with SingleTicker
   void _refreshOrderList() { // Build #1.0.10 - Naveen: This will trigger a rebuild of the RightOrderPanel (Callback)
     setState(() {
       if (kDebugMode) {
-        print("###### CategoriesScreen _refreshOrderList");
+        print("##### _refreshOrderList: Incrementing _refreshCounter to $_refreshCounter to trigger RightOrderPanel refresh");
       }
+      _refreshCounter++; //Build #1.0.170: Increment to signal refresh, causing didUpdateWidget to load with loader
     });
   }
 
@@ -142,6 +144,7 @@ class _EditProductScreenState extends State<EditProductScreen> with SingleTicker
                     formattedTime: formattedTime,
                     quantities: quantities,
                     refreshOrderList: _refreshOrderList, // Pass the callback
+                    refreshKey: _refreshCounter, //Build #1.0.170: Pass counter as refreshKey
                   ),
 
                 Expanded(
@@ -162,6 +165,7 @@ class _EditProductScreenState extends State<EditProductScreen> with SingleTicker
                     formattedTime: formattedTime,
                     quantities: quantities,
                     refreshOrderList: _refreshOrderList, // Pass the callback
+                    refreshKey: _refreshCounter, //Build #1.0.170: Pass counter as refreshKey
                   ),
 
                 // Right Sidebar (Conditional)

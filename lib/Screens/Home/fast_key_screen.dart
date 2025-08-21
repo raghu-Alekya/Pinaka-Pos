@@ -287,6 +287,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
   bool _isDeleting = false; // Build #1.0.104 : Track delete button loading state
   bool isAddingItemLoading = false; // Loader for adding items to order
   final ScrollController _scrollController = ScrollController();
+  int _refreshCounter = 0; //Build #1.0.170: Added: Counter to trigger RightOrderPanel refresh only when needed
 
   @override
   void initState() {
@@ -360,8 +361,16 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
       final userData = await UserDbHelper().getUserData();
       if (userData != null && userData[AppDBConst.userId] != null) {
         userId = userData[AppDBConst.userId] as int;
+        ///stop loading fast key every time
+        if (kDebugMode) {
+          print("FastKeyScreen.getUserIdFromDB -> FastKeyDBHelper.isFastkeyLoaded = ${FastKeyDBHelper.isFastkeyLoaded}");
+        }
+        if(FastKeyDBHelper.isFastkeyLoaded){
+          loadTabs();
+          return;
+        }
         _fastKeyBloc.fetchFastKeysByUser(userId ?? 0);
-        await _fastKeyBloc.getFastKeysStream.listen((onData) {
+        await _fastKeyBloc.getFastKeysStream.listen((onData) async {
           if (onData.data != null) {
             if (onData.status == Status.ERROR) {
               _fastKeyBloc.getFastKeysSink.add(APIResponse.error(TextConstants.retryText));
@@ -370,7 +379,8 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
               if (fastKeysResponse.status != "success") {
                 _fastKeyBloc.getFastKeysSink.add(APIResponse.error(TextConstants.retryText));
               }
-              loadTabs();
+              await loadTabs(); // Build  #1.0.177: add await to loadTabs to fix delay in loading
+              FastKeyDBHelper.isFastkeyLoaded = true;
             }
           }
         });
@@ -389,7 +399,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
   //Build #1.0.84, Explanation:
   // Call _loadActiveFastKeyTabId after loading tabs to ensure the active tab is set once fastKeyTabs is populated.
   // Update isTabsLoading to reflect the loading state and trigger a UI refresh.
-  void loadTabs() async {
+  Future<void> loadTabs() async { // Build  #1.0.177: add await to loadTabs to fix delay in loading
     if (kDebugMode) {
       print("### FastKeyScreen: loadTabs called");
     }
@@ -441,7 +451,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
       print("### FastKeyScreen: _addFastKeyTab started with title: $title, image: $image");
     }
     // Call API to create FastKey on server via BLoC
-    _fastKeyBloc.createFastKey(title: title, index: fastKeyTabs.length, imageUrl: image, userId: userId ?? 1);
+    _fastKeyBloc.createFastKey(title: title, index: fastKeyTabs.length+1, imageUrl: image, userId: userId ?? 1);
 
     // Listen for API response
     final response = await _fastKeyBloc.createFastKeyStream.firstWhere((response) => response.status == Status.COMPLETED || response.status == Status.ERROR);
@@ -564,6 +574,20 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
       setState(() { //Build #1.0.68
         isItemsLoading = false;
       });
+      return;
+    }
+    if(FastKeyDBHelper.isFastkeyLoaded){ ///stops loading every time
+      final items = await fastKeyDBHelper.getFastKeyItems(_fastKeyTabId!);
+      if (kDebugMode) {
+        print("FastKey Screen _loadFastKeyTabItems loading items: ${items.length}");
+      }
+      if (mounted) {
+        setState(() {
+          fastKeyProductItems = List<Map<String, dynamic>>.from(items);
+          reorderedIndices = List.filled(fastKeyProductItems.length, null);
+          isItemsLoading = false;
+        });
+      }
       return;
     }
 
@@ -964,7 +988,10 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
 
   void _refreshOrderList() {
     setState(() { // Build #1.0.128
-      if (kDebugMode) print("_refreshOrderList called");
+      if (kDebugMode) {
+        print("##### _refreshOrderList: Incrementing _refreshCounter to $_refreshCounter to trigger RightOrderPanel refresh");
+      }
+      _refreshCounter++; //Build #1.0.170: Increment to signal refresh, causing didUpdateWidget to load with loader
     });
   }
 
@@ -1177,6 +1204,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
     String imagePath = isEditing ? fastKeyTabs[index!].fastkeyImage : 'assets/default.png';
     bool showError = false;
     final themeHelper = Provider.of<ThemeNotifier>(context, listen: false);
+    bool isLoading = false;
 
     showDialog(
       context: context,
@@ -1422,17 +1450,18 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                                 setStateDialog(() => showError = true);
                                 return;
                               }
-
+                              setStateDialog(() =>isLoading = true);
                               if (isEditing) {
                                 if (kDebugMode) {
-                                  print("##### isEditing : $isEditing, serverId: ${fastKeyTabs[index].fastkeyServerId}, Title : ${nameController.text}");
+                                  print("##### isEditing : $isEditing, $index, serverId: ${fastKeyTabs[index].fastkeyServerId}, Title : ${nameController.text}");
                                 }
                                 // Build #1.0.89: updateFastKey API call integrated
                                 _fastKeyBloc.updateFastKey(
                                   title: nameController.text,
-                                  index: index,
+                                  index: index+1,//backend uses non zero indexes to be passed so increase index to 1 onwards
                                   imageUrl: imagePath,
                                   fastKeyServerId: fastKeyTabs[index].fastkeyServerId,
+                                  userId: userId ?? 0
                                 );
 
                                 // Listen for API response
@@ -1446,6 +1475,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                                   }
                                   // Update the local list
                                   setState(() {
+                                    isLoading = false;
                                     _editingCategoryIndex = null;
                                     _loadFastKeysTabs();
                                   });
@@ -1484,7 +1514,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                                 borderRadius: BorderRadius.circular(8),
                               ),
                             ),
-                            child: Text(
+                            child: isLoading ? const Center(child: CircularProgressIndicator(color: Colors.white,)) : Text(
                               isEditing ? TextConstants.saveText : TextConstants.addText,
                               style: TextStyle(
                                   color: Colors.white,
@@ -1783,6 +1813,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _fastKeyBloc.dispose();
+    orderBloc.dispose(); // Build 1.0.171
     _fastKeyProductBloc.dispose();
     _productSearchController.dispose();
     fastKeyTabIdNotifier.dispose();
@@ -1921,6 +1952,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                     formattedTime: formattedTime,
                     quantities: quantities,
                     refreshOrderList: _refreshOrderList,
+                    refreshKey: _refreshCounter, //Build #1.0.170: Pass counter as refreshKey
                   ),
                 Expanded(
                   child: Column(
@@ -1973,6 +2005,8 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                             if (_editingCategoryIndex == oldIndex) {
                               _editingCategoryIndex = newIndex;
                             }
+                            ///update the index in backend as well
+                            _fastKeyBloc.updateFastKey(title: item.fastkeyTitle, index: newIndex+1, imageUrl: item.fastkeyImage, fastKeyServerId: item.fastkeyServerId, userId: item.userId);
                           });
                           // Update indices in the database
                           for (int i = 0; i < fastKeyTabs.length; i++) {
@@ -2070,6 +2104,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                     formattedTime: formattedTime,
                     quantities: quantities,
                     refreshOrderList: _refreshOrderList,
+                    refreshKey: _refreshCounter, //Build #1.0.170: Pass counter as refreshKey
                   ),
                 if (sidebarPosition == SidebarPosition.right)
                   custom_widgets.NavigationBar(

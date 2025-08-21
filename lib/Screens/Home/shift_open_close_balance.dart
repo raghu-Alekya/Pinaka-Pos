@@ -473,16 +473,18 @@ class _ShiftOpenCloseBalanceScreenState extends State<ShiftOpenCloseBalanceScree
                                       ],
                                     ),
                                   ),
-                                  const SizedBox(height: 16),
+                                  const SizedBox(height: 10),
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.start,
-                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Container(
                                         margin: EdgeInsets.only(left: 16, right: 8),
                                         padding: EdgeInsets.all(8),
                                         width: MediaQuery.of(context).size.width * 0.425,
-                                        height: MediaQuery.of(context).size.height * 0.7,
+                                        height: sidebarPosition == SidebarPosition.bottom
+                                            ? MediaQuery.of(context).size.height * 0.625  // Reduced height for bottom nav
+                                            :MediaQuery.of(context).size.height * 0.7,
                                         decoration: BoxDecoration(
                                           borderRadius: BorderRadius.circular(5),
                                           color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground :  Colors.grey.shade100,
@@ -549,9 +551,17 @@ class _ShiftOpenCloseBalanceScreenState extends State<ShiftOpenCloseBalanceScree
 
                                             // Note rows - Use fetched denominations
                                             Expanded(
-                                              child: ListView(
-                                                children: _notesDenominations.map((denom) {
-                                                  String denomination = denom.denom.toString();
+                                              child: ListView.builder(
+                                                // scrollDirection: Axis.vertical,
+                                                // physics: AlwaysScrollableScrollPhysics(),
+                                                // children: _notesDenominations.map((denom) {
+                                                //   String denomination = denom.denom.toString();
+                                                  itemCount: _notesDenominations.length,
+                                                  physics: const AlwaysScrollableScrollPhysics(),
+                                                  padding: EdgeInsets.zero, // Remove default padding
+                                                  itemBuilder: (context, index) {
+                                                    final denom = _notesDenominations[index];
+                                                    String denomination = denom.denom.toString();
                                                   return Padding(
                                                     padding: const EdgeInsets.symmetric(vertical: 7.0, horizontal: 7.0),
                                                     child: Row(
@@ -629,7 +639,7 @@ class _ShiftOpenCloseBalanceScreenState extends State<ShiftOpenCloseBalanceScree
                                                       ],
                                                     ),
                                                   );
-                                                }).toList(),
+                                                },
                                               ),
                                             ),
                                           ],
@@ -645,7 +655,9 @@ class _ShiftOpenCloseBalanceScreenState extends State<ShiftOpenCloseBalanceScree
                                             margin: EdgeInsets.only(left: 16, right: 8),
                                             padding: EdgeInsets.all(8),
                                             width: MediaQuery.of(context).size.width * 0.425,
-                                            height: MediaQuery.of(context).size.height * 0.54,
+                                            height: sidebarPosition == SidebarPosition.bottom
+                                                ? MediaQuery.of(context).size.height * 0.45  // Reduced height for bottom nav
+                                                :MediaQuery.of(context).size.height * 0.45,
                                             decoration: BoxDecoration(
                                               borderRadius: BorderRadius.circular(5),
                                               color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : Colors.grey.shade100,
@@ -712,9 +724,18 @@ class _ShiftOpenCloseBalanceScreenState extends State<ShiftOpenCloseBalanceScree
 
                                                 // Coin rows - Use fetched denominations
                                                 Expanded(
-                                                  child: ListView(
-                                                    children: _coinsDenominations.map((denom) {
-                                                      String denomination = denom.denom.toString();
+                                                  child: ListView.builder(
+    itemCount: _coinsDenominations.length,
+    physics: const AlwaysScrollableScrollPhysics(),
+    padding: EdgeInsets.zero, // Remove default padding
+    itemBuilder: (context, index) {
+    final denom = _coinsDenominations[index];
+    String denomination = denom.denom.toString();
+
+                                                    // scrollDirection: Axis.vertical,
+                                                    // physics: AlwaysScrollableScrollPhysics(),
+                                                    // children: _coinsDenominations.map((denom) {
+                                                    //   String denomination = denom.denom.toString();
                                                       return Padding(
                                                         padding: const EdgeInsets.symmetric(vertical: 7.0, horizontal: 7.0),
                                                         child: Row(
@@ -791,7 +812,7 @@ class _ShiftOpenCloseBalanceScreenState extends State<ShiftOpenCloseBalanceScree
                                                           ],
                                                         ),
                                                       );
-                                                    }).toList(),
+                                                    },
                                                   ),
                                                 ),
                                               ],

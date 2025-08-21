@@ -257,6 +257,7 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMix
   Widget build(BuildContext context) {
     final themeHelper = Provider.of<ThemeNotifier>(context);
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       body: Column(
         children: [
           TopBar(
@@ -302,8 +303,8 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMix
                   ),
 
                 Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 5, 12, 5),
+                  child: Padding( // need to change the top for bottom mode
+                    padding: EdgeInsets.fromLTRB(8, sidebarPosition == SidebarPosition.bottom ? 2 : 5, 12, sidebarPosition == SidebarPosition.bottom ? 0 : 5 ),
                     child: Container(
                       decoration: BoxDecoration(
                         color: themeHelper.themeMode == ThemeMode.dark
@@ -318,7 +319,7 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMix
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Padding(
-                            padding: const EdgeInsets.only(top: 16, right: 16, left: 16),
+                            padding: EdgeInsets.only(top: sidebarPosition == SidebarPosition.bottom ? 5 : 16, right: 16, left: 16),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
@@ -713,7 +714,7 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMix
                                 flex: 1,
                                 child: Container(
                                   height: MediaQuery.of(context).size.height * 0.65,
-                                  margin: EdgeInsets.all(10),
+                                  margin: EdgeInsets.all(sidebarPosition == SidebarPosition.bottom ? 8 : 10),
                                   padding: EdgeInsets.all(10),
                                   child: Column(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,

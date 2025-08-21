@@ -3,6 +3,7 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import '../Database/db_helper.dart';
 import '../Database/order_panel_db_helper.dart';
+import 'package:flutter/material.dart';
 
 class GlobalUtility { //Build #1.0.126: Added for re-Use code at global level
 
@@ -77,5 +78,116 @@ class GlobalUtility { //Build #1.0.126: Added for re-Use code at global level
         return sum;
       }
     });
+  }
+
+  //Build #1.0.170: Added buildImageWidget for load api url images or local file images path
+  static Widget buildImageWidget({
+    String? imagePath,
+    File? imageFile,
+    required BoxFit fit,
+    required IconData defaultIcon,
+    Color defaultIconColor = Colors.white70,
+  }) {
+    // Debug logging
+    if (kDebugMode) {
+      print('### buildImageWidget called with:');
+      print('### imagePath: $imagePath');
+      print('### imageFile: ${imageFile?.path}');
+    }
+
+    // If both are null, return default icon
+    if (imagePath == null && imageFile == null) {
+      if (kDebugMode) {
+        print("### No image path or file provided, using default icon");
+      }
+      return Icon(defaultIcon, color: defaultIconColor);
+    }
+
+    // Handle File first if provided
+    if (imageFile != null) {
+      try {
+        if (imageFile.existsSync()) {
+          if (kDebugMode) {
+            print("### Loading image from file: ${imageFile.path}");
+          }
+          return Image.file(
+            imageFile,
+            fit: fit,
+            errorBuilder: (context, error, stackTrace) {
+              if (kDebugMode) {
+                print("### Error loading file image: $error");
+              }
+              return Icon(defaultIcon, color: defaultIconColor);
+            },
+          );
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print("### Exception loading file: $e");
+        }
+      }
+    }
+
+    // Handle imagePath if provided
+    if (imagePath != null) {
+      // Check if it's a network URL
+      if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+        if (kDebugMode) {
+          print("### Loading network image from URL: $imagePath");
+        }
+        return Image.network(
+          imagePath,
+          fit: fit,
+          headers: {"Accept": "image/*"}, // Important for Gravatar
+          errorBuilder: (context, error, stackTrace) {
+            if (kDebugMode) {
+              print("### Error loading network image: $error");
+            }
+            return Icon(defaultIcon, color: defaultIconColor);
+          },
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) return child;
+            return Center(
+              child: CircularProgressIndicator(
+                value: loadingProgress.expectedTotalBytes != null
+                    ? loadingProgress.cumulativeBytesLoaded /
+                    (loadingProgress.expectedTotalBytes ?? 1)
+                    : null,
+              ),
+            );
+          },
+        );
+      }
+
+      // Handle as local file path
+      try {
+        final file = File(imagePath);
+        if (file.existsSync()) {
+          if (kDebugMode) {
+            print("### Loading image from local path: $imagePath");
+          }
+          return Image.file(
+            file,
+            fit: fit,
+            errorBuilder: (context, error, stackTrace) {
+              if (kDebugMode) {
+                print("### Error loading local image: $error");
+              }
+              return Icon(defaultIcon, color: defaultIconColor);
+            },
+          );
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print("### Exception loading local path: $e");
+        }
+      }
+    }
+
+    // Fallback to default icon
+    if (kDebugMode) {
+      print("### Falling back to default icon");
+    }
+    return Icon(defaultIcon, color: defaultIconColor);
   }
 }

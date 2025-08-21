@@ -1037,7 +1037,10 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
           isLoading = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(response.message ?? "Failed to fetch orders")),
+          SnackBar(content: Text(response.message ?? "Failed to fetch orders"),
+            backgroundColor: Colors.red, // ✅ Added red background for error
+            duration: const Duration(seconds: 2)
+          ),
         );
       } else if (response.status == Status.LOADING){
         setState(() => isLoading = true); // Build #1.0.104

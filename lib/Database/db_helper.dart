@@ -182,10 +182,13 @@ class DBHelper {
       final path = join(dbPath, filePath);
 
       if (kDebugMode) {
-        print("#### DB Path: $path");
+        print("#### DB Path: $path ; enableDBDelete: ${Misc.enableDBDelete}");
       }
       ///Todo: Uncomment the line below to delete the database during development/testing
       if(Misc.enableDBDelete) {
+        if (kDebugMode) {
+          print("DBHelper delete database");
+        }
         await databaseFactory.deleteDatabase(path);
         final SharedPreferences prefs = await SharedPreferences.getInstance();
         await prefs.clear(); // This removes all stored preferences
@@ -197,10 +200,13 @@ class DBHelper {
     final path = join(dbPath, filePath);
 
     if (kDebugMode) {
-      print("#### DB Path: $path");
+      print("#### DB Path: $path ; enableDBDelete: ${Misc.enableDBDelete}");
     }
     ///Todo: Uncomment the line below to delete the database during development/testing
     if(Misc.enableDBDelete) {
+      if (kDebugMode) {
+        print("DBHelper delete database");
+      }
       await deleteDatabase(path);
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       await prefs.clear(); // This removes all stored preferences

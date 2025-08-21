@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:pinaka_pos/Blocs/Orders/order_bloc.dart';
 import 'package:pinaka_pos/Database/user_db_helper.dart';
@@ -24,17 +25,63 @@ enum ItemType {
 class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Order data
   static final OrderHelper _instance = OrderHelper._internal(); // Singleton instance to ensure only one instance of OrderHelper exists
   factory OrderHelper() => _instance;
+  static bool isOrderPanelLoaded = false;
 
   int? activeOrderId; // Stores the currently active order ID
   int? activeUserId; // Stores the active user ID
   List<int> orderIds = []; // List of order IDs for the active user
   List<Map<String, dynamic>> orders = [];
+  /// Build 1.0.171: Concurrency Control: _syncFuture ensures only one sync operation runs at a time by checking if a sync is in progress; if so, it waits for completion, preventing data corruption or race conditions.
+  /// Reliable Sync Process: Using a Completer, _syncFuture manages the sync, clears and updates the database with API orders, handles errors, and resets to allow new syncs, maintaining data consistency.
+  static Future<void>? _syncFuture;
 
   OrderHelper._internal() {
     if (kDebugMode) {
       print("#### OrderHelper initialized!");
     }
     loadData(); // Load existing order data on initialization
+  }
+
+  // Loads processing order data from the local database and shared preferences
+  Future<void> loadProcessingData() async {
+    final prefs = await SharedPreferences.getInstance();
+    activeOrderId = prefs.getInt('activeOrderId'); // Retrieve the saved active order ID
+    activeUserId = await getUserIdFromDB();
+    // Debugging logs
+    if (kDebugMode) {
+      print("#### Order Panel DB helper loadData: before activeOrderId = $activeOrderId, activeUserId= $activeUserId ");
+    }
+    // Fetch the user's orders from the database
+    final db = await DBHelper.instance.database;
+    orders = await db.query(
+      AppDBConst.orderTable,
+      where: '${AppDBConst.userId} = ? AND ${AppDBConst.orderStatus} = ?',
+      whereArgs: [activeUserId ?? 1, 'processing'],
+      /// Build #1.0.161
+      /// If required "asc" orders list, un-comment this line (order id's order low to high)
+      orderBy: '${AppDBConst.orderDate} ASC', // Ensure orders are sorted by creation date
+    );
+
+    if (orders.isNotEmpty) {
+      // Convert order list from DB into a list of order IDs
+      orderIds = orders.map((order) => order[AppDBConst.orderServerId] as int).toList();
+      // If activeOrderId is null or invalid, set it to the last available order ID
+      if (activeOrderId == null || !orderIds.contains(activeOrderId)) {
+        activeOrderId = orders.last[AppDBConst.orderServerId];///changed to order server id
+        await prefs.setInt('activeOrderId', activeOrderId!);
+      }
+    } else {
+      // No orders found, reset values
+      activeOrderId = null;
+      orderIds = [];
+      orders = [];
+    }
+
+    // Debugging logs
+    if (kDebugMode) {
+      print("#### Order Panel DB helper loadData: activeOrderId = $activeOrderId");
+      print("#### Order Panel DB helper loadData: orderIds = $orderIds, activeUserId: $activeUserId");
+    }
   }
 
   // Loads order data from the local database and shared preferences
@@ -54,7 +101,7 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
       whereArgs: [activeUserId ?? 1],
     /// Build #1.0.161
     /// If required "asc" orders list, un-comment this line (order id's order low to high)
-    //  orderBy: '${AppDBConst.orderDate} ASC', // Ensure orders are sorted by creation date
+     orderBy: '${AppDBConst.orderDate} ASC', // Ensure orders are sorted by creation date
     );
 
     if (orders.isNotEmpty) {
@@ -158,6 +205,23 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
 
   //Build #1.0.40: syncOrdersFromApi
   Future<void> syncOrdersFromApi(List<model.OrderModel> apiOrders) async {
+    // Build 1.0.171: Check if a sync operation is already in progress
+    if (_syncFuture != null) {
+      if (kDebugMode) {
+        print("#### DEBUG: syncOrdersFromApi - Sync already in progress, waiting for completion");
+      }
+      await _syncFuture; // Wait for the existing sync to complete
+      return;
+    }
+
+    // Create a Completer to manage the sync operation's future
+    final completer = Completer<void>();
+    _syncFuture = completer.future;
+    if (kDebugMode) {
+      print("#### DEBUG: syncOrdersFromApi - Starting new sync operation");
+    }
+
+    try {
     final db = await DBHelper.instance.database;
     activeUserId = await getUserIdFromDB(); // Build #1.0.165: to load user before update order table, to filter user based processing order only
     // Build #1.0.80: Count orders in the database
@@ -178,6 +242,16 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
       await db.delete(AppDBConst.orderTable);
       //  delete purchasedItemsTable related data
       await db.delete(AppDBConst.purchasedItemsTable);
+      OrderHelper.isOrderPanelLoaded = false;/// set 'false' to load 'processing' orders in order panel again, if db is empty by orders screen loading.
+    // }
+    // if(!isProcessing) {
+    //   if (kDebugMode) {
+    //     print("#### DEBUG: syncOrdersFromApi - Counts do not match, deleting DB orders");
+    //   }
+    //   // Build #1.0.80: Delete all orders in the database
+    //   await db.delete(AppDBConst.orderTable, where: '${AppDBConst.orderStatus} != ?', whereArgs: ['processing']);
+    //   //  delete purchasedItemsTable related data
+    //   await db.delete(AppDBConst.purchasedItemsTable, where: '${AppDBConst.orderStatus} != ?', whereArgs: ['processing']);
     // }
     // Proceed with syncing only if counts match or after clearing DB
     if (kDebugMode) {
@@ -258,6 +332,25 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
       print("#### DEBUG: syncOrdersFromApi - Refreshing local data");
     }
     await loadData();
+    // Complete the sync operation
+    if (kDebugMode) {
+      print("#### DEBUG: syncOrdersFromApi - Sync completed successfully");
+    }
+    completer.complete();
+    } catch (e) { // Build 1.0.171
+      // Handle errors and propagate them
+      if (kDebugMode) {
+        print("#### DEBUG: syncOrdersFromApi - Error occurred: $e");
+      }
+      completer.completeError(e);
+      rethrow;
+    } finally { // Build 1.0.171
+      // Reset _syncFuture to allow new sync operations
+      _syncFuture = null;
+      if (kDebugMode) {
+        print("#### DEBUG: syncOrdersFromApi - Sync future reset, ready for new sync");
+      }
+    }
   }
 
   //Build #1.0.40: update order items using item id

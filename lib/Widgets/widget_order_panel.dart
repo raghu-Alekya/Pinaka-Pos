@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_barcode_listener/flutter_barcode_listener.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:intl/intl.dart';
 import 'package:pinaka_pos/Models/Search/product_by_sku_model.dart' as SKU;
 import 'package:pinaka_pos/Models/Search/product_search_model.dart';
 import 'package:pinaka_pos/Providers/Auth/product_variation_provider.dart';
@@ -47,12 +48,14 @@ class RightOrderPanel extends StatefulWidget {
   final String formattedTime;
   final List<int> quantities;
   final VoidCallback? refreshOrderList;
+  final int refreshKey; //Build #1.0.170: Added: Key to trigger refresh only when explicitly needed
 
   const RightOrderPanel({
     required this.formattedDate,
     required this.formattedTime,
     required this.quantities,
     this.refreshOrderList,
+    this.refreshKey = 0, //Build #1.0.170: Default to 0, increment externally to trigger refresh
     Key? key,
   }) : super(key: key);
 
@@ -91,16 +94,28 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
       print("##### OrderPanel initState");
     }
     orderBloc = OrderBloc(OrderRepository());
-    super.initState();
     // Build #1.0.161 - Fixed Issue: when comes from orders screen to order panel screens selected orderId changing
     orderHelper.restoreActiveOrderId(); // Build #1.0.161:
-    fetchOrdersData(); // Build #1.0.104
+    if (!_isFetchingInitialData) { //Build #1.0.170: Fixed -  Order Cart Flickering When Clicking on Fast Keys
+      fetchOrdersData(); // Build #1.0.104
+    } else {
+      if (kDebugMode) {
+        print("##### RightOrderPanel initState: Fetch already in done, skipping -> _isFetchingInitialData:$_isFetchingInitialData");
+      }
+    }
+    super.initState();
   }
 
   // Build #1.0.104: created this function for initial call & while back to this screen
   void fetchOrdersData(){
     if (kDebugMode) {
       print("##### fetchOrdersData called");
+      print("##### fetchOrdersData -> isOrderPanelLoaded : ${OrderHelper.isOrderPanelLoaded}");
+    }
+    if(OrderHelper.isOrderPanelLoaded){
+      setState(() => _isFetchingInitialData = false); // Build #1.0.128: Initial fetch complete
+      _getOrderTabs();
+      return;
     }
     setState(() { // Build #1.0.128: Added this flag to track if we're in the middle of initial fetch
       _isFetchingInitialData = true;
@@ -119,7 +134,10 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
     //    _getOrderTabs(); // Build #1.0.10 : Reload tabs when the widget updates (e.g., after item selection)
     //  }
    // }
-    if (mounted && !_isFetchingInitialData) { // Build #1.0.128: hOnly update if not in initial fetch
+    ///Build #1.0.170: Fixed -  Order Cart Flickering When Clicking on Fast Keys
+    // Only trigger loading if refreshKey changed (indicating an external update like item add/delete)
+    // This prevents unnecessary loading/flickering on unrelated parent rebuilds (e.g., time changes or screen switches)
+    if (widget.refreshKey != oldWidget.refreshKey && mounted && !_isFetchingInitialData) { // Build #1.0.128: hOnly update if not in initial fetch
       setState(() => _isLoading = true); // Build #1.0.131: show loader in order panel after selecting item/product
       if (kDebugMode) {
         print("##### _isFetchingInitialData : $_isFetchingInitialData");
@@ -133,11 +151,11 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
   }
 
   // Build #1.0.10: Fetches the list of order tabs from OrderHelper
-  void _getOrderTabs() async {
+  Future<void> _getOrderTabs() async { // Build  #1.0.177: add await to loadTabs to fix delay in loading
     if (kDebugMode) {
       print("##### DEBUG: _getOrderTabs - Loading order tabs, loadOrderItems 1");
     }
-    await orderHelper.loadData(); // Load order data from DB
+    await orderHelper.loadProcessingData(); // Load order data from DB
 
     if (kDebugMode) {
       print("#### Order Panel loadData: activeOrderId = ${orderHelper.activeOrderId}");
@@ -241,6 +259,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
   void _fetchOrders() { //Build #1.0.40: fetch orders items from API sync & updating to UI
     // updated above
     // setState(() => _isLoading = true); // Build #1.0.104: Show loader
+    _fetchOrdersSubscription?.cancel(); //Build #1.0.170
     _fetchOrdersSubscription = orderBloc.fetchOrdersStream.listen((response) async {
       if (!mounted) return;
 
@@ -249,7 +268,8 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
           print("##### DEBUG: Fetched orders successfully 33333, total orders: ${orderHelper.orders.length}");
         }
         setState(() => _isFetchingInitialData = false); // Build #1.0.128: Initial fetch complete
-        _getOrderTabs();
+        await _getOrderTabs(); // Build  #1.0.177: add await to loadTabs to fix delay in loading
+        OrderHelper.isOrderPanelLoaded = true;
         //_fetchOrdersSubscription?.cancel();
       } else if (response.status == Status.ERROR) {
         if (kDebugMode) {
@@ -260,7 +280,10 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
           _isFetchingInitialData = false; // Build #1.0.128
         }); // Build #1.0.104: Hide loader
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(response.message ?? "Failed to fetch orders")),
+          SnackBar(content: Text(response.message ?? "Failed to fetch orders"),
+            backgroundColor: Colors.red, // ✅ Added red background for error
+            duration: const Duration(seconds: 2),
+          ),
         );
       }
     });
@@ -502,7 +525,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
             _scaffoldMessenger.showSnackBar(
               SnackBar(
                 content: Text(TextConstants.orderCancelled),
-                backgroundColor: Colors.green,
+                backgroundColor: Colors.red, // Build #1.0.175: Added as red for cancel
                 duration: const Duration(seconds: 2),
               ),
             );
@@ -750,14 +773,14 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
   @override
   void dispose() {
     _updateOrderSubscription?.cancel(); // Cancel the subscription
-    orderBloc.dispose(); // Dispose the bloc if needed
+    //orderBloc.dispose(); // Dispose the bloc if needed
     _fetchOrdersSubscription?.cancel();
     orderBloc.dispose();
     productBloc.dispose();
     _tabController?.dispose();
     _scrollController.dispose(); // Dispose ScrollController
     _productBySkuSubscription?.cancel(); // Build #1.0.44 : Added Cancel product subscription
-    productBloc.dispose(); // Added: Dispose ProductBloc
+   // productBloc.dispose(); // Added: Dispose ProductBloc
     super.dispose();
   }
 
@@ -780,7 +803,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
     final theme = Theme.of(context);
     final themeHelper = Provider.of<ThemeNotifier>(context);
     return BarcodeKeyboardListener( // Build #1.0.44 : Added - Wrap with BarcodeKeyboardListener for barcode scanning
-      bufferDuration: Duration(milliseconds: 3000),
+      bufferDuration: Duration(milliseconds: 5000),
       //Build #1.0.78: Removed orderHelper.addItemToOrder from the API success block, as it’s now in OrderBloc.updateOrderProducts.
       // Kept local addItemToOrder for non-API orders.
       // Ensured loader is shown during API calls and hidden afterward.
@@ -789,6 +812,20 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
           print("##### DEBUG: onBarcodeScanned - Scanned barcode: $barcode");
         }
         if (barcode.isNotEmpty) {
+
+          /// Testing code: not working, Scanner will generate multiple tap events and call when scanned driving licence with PDF417 format irrespective of this code here
+          // if (barcode.startsWith('@') || barcode.contains('\n') || barcode.startsWith('ansi') || barcode.startsWith('2') ) {
+          //   // if (barcode.startsWith('@') || barcode.contains('\n')) {
+          //   // PDF417 often includes structured data with newlines or starts with '@' (AAMVA standard)
+          //   if (kDebugMode) {
+          //     print('PDF417 Detected: $barcode');
+          //   }
+          //   return;
+          // } else {
+          //   if (kDebugMode) {
+          //     print('Non-PDF417 Barcode: $barcode');
+          //   }
+          // }
           if (kDebugMode) {
             print("##### DEBUG: onBarcodeScanned - Scanned barcode: $barcode");
           }
@@ -1040,13 +1077,23 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                         elevation: 2, // Controls the size and blur of the shadow
                         shadowColor: ThemeNotifier.shadow_F7,
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                        minimumSize: const Size(50, 56),
+                        minimumSize: const Size(50, 60),
                       ),
                       child: Row(
-                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.end, // Aligns to text baseline
                         children: [
-                          const Text("+", style: TextStyle(color: Colors.redAccent, fontSize: 16)),
-                          Text(TextConstants.newText,style: TextStyle(color: Colors.redAccent, fontSize: 12)),
+                          Container(
+                              width: 18,
+                              height: 18,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.redAccent)
+                              ),
+                              child: Icon(Icons.add,size: 16,color: Colors.redAccent,)),
+                          SizedBox(
+                            width: 5
+                          ),
+                          Text(TextConstants.newText,style: TextStyle(color: Colors.redAccent, fontSize: 14)),
                         ],
                       ),
                     ),
@@ -1122,7 +1169,8 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
       }) async {
     if (!mounted) return;
     if (response.status == Status.COMPLETED) {
-      setState(() => _isLoading = false); //Build #1.0.92
+      //Build #1.0.170: Updated - No need to make _isLoading is false here , we are doing after refresh!
+     // setState(() => _isLoading = false); //Build #1.0.92
       _scaffoldMessenger.showSnackBar(
         SnackBar(
           content: Text("${isPayout ? 'Payout' : isCoupon ? 'Coupon' : isCustomItem ? 'Custom Item' : 'Item'} removed successfully"),
@@ -1224,6 +1272,17 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
     num netTotal = 0.0;
     num netPayable = 0.0;  //Build #1.0.67
 
+    // Initialize display date and time variables
+    String displayDate = widget.formattedDate;
+    String displayTime = widget.formattedTime;
+
+    if (kDebugMode) {
+      print("display date === $displayDate");
+    }
+    if (kDebugMode) {
+      print("display time === $displayTime");
+    }
+
     // Update the calculation section in buildCurrentOrder:
     if (orderHelper.activeOrderId != null) {
 
@@ -1250,8 +1309,23 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
 
       // Ensure netPayable is not negative
       // Build #1.0.138: Ensure no negative values
-      netTotal = netTotal < 0 ? 0.0 : netTotal;
-      netPayable = netPayable < 0 ? 0.0 : netPayable;
+      netTotal = netTotal; //< 0 ? 0.0 : netTotal;
+      netPayable = netPayable; // < 0 ? 0.0 : netPayable;
+
+      // Determine the date and time to display from order data
+      if (order.isNotEmpty && order[AppDBConst.orderDate] != null) {
+        try {
+          final DateTime createdDateTime = DateTime.parse(order[AppDBConst.orderDate].toString());
+          displayDate = DateFormat("EEE, MMM d, yyyy").format(createdDateTime);
+          displayTime = DateFormat('hh:mm:ss a').format(createdDateTime);
+        } catch (e) {
+          if (kDebugMode) {
+            print("Error parsing order creation date: $e");
+          }
+          // Fallback to raw data or default if parsing fails
+          displayDate = order[AppDBConst.orderDate].toString().split(' ').first;
+        }
+      }
       if (kDebugMode) {
         print("#### netPayable: $netPayable, orderTotal: ${order[AppDBConst.orderTotal] as double? ?? 0.0}");
       }
@@ -1286,14 +1360,14 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                     children: [
                       SvgPicture.asset(
                             'assets/svg/calendar.svg', width: 22, height: 22),
-                        Text(widget.formattedDate,
+                        Text(displayDate,
                             style: TextStyle(fontSize: 14,
                                 fontWeight: FontWeight.bold,
                                 color: theme.secondaryHeaderColor)),
                         const SizedBox(width: 8),
                         SvgPicture.asset(
                             'assets/svg/clock.svg', width: 22, height: 22),
-                        Text(widget.formattedTime, style: TextStyle(
+                        Text(displayTime, style: TextStyle(
                             fontSize: 14, color: theme.secondaryHeaderColor)),
 
                     ],
@@ -1367,6 +1441,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                         if (kDebugMode) {
                           print("#### originalName: $originalName, itemType: $itemType, isPayoutOrCouponOrCustomItem: $isPayoutOrCouponOrCustomItem");
                           print("#### variationName: $variationName, variationCount: $variationCount");
+                          print("#### isCouponOrPayout: $isCouponOrPayout"); // Build #1.0.181: Debug print
                         }
                         /// Set display name based on item type
                         String displayName = originalName;
@@ -1606,7 +1681,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                                       Expanded(
                                         child: Column(
                                           crossAxisAlignment: CrossAxisAlignment.start,
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                                           children: [
                                             /// TODO: Change here to apply meta values for (mix & match) "combo" and "variation"
                                             Column(
@@ -1661,7 +1736,9 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                                                 ),
                                               ],
                                             ),
-                                            if (!isPayoutOrCouponOrCustomItem)
+                                            // Build #1.0.181: Fixed - Quantity for Custom Item Not Displayed After Switching Screens [JIRA #319]
+                                            // we have to show price * qty for custom item also / condition updated, only dont show for payout and coupons
+                                            if (!isCouponOrPayout)
                                               Text(
                                                 "${TextConstants.currencySymbol} ${regularPrice.toStringAsFixed(2)} * ${orderItem[AppDBConst.itemCount]} ", //Build #1.0.134: updated price * count
                                                 style: TextStyle(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.black87, fontSize: 10, fontWeight: FontWeight.bold),
@@ -1669,26 +1746,23 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                                           ],
                                         ),
                                       ),
+                                      SizedBox(width: 8,),
                                       if (!isCouponOrPayout)
                                         Text(
                                           "${TextConstants.currencySymbol} ${(regularPrice * orderItem[AppDBConst.itemCount]).toStringAsFixed(2)}",
                                           style: TextStyle(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.blueGrey, fontSize: 14),
                                         ),
                                       SizedBox(width: 20,),
-                                      Column(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          Text(
-                                            isCouponOrPayout
-                                                ? "${TextConstants.currencySymbol}${(orderItem[AppDBConst.itemCount] * orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}"
-                                                : "${TextConstants.currencySymbol}${(orderItem[AppDBConst.itemCount] * salesPrice).toStringAsFixed(2)}",
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.bold,
-                                              color: isPayoutOrCouponOrCustomItem ? Colors.red : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight, // Added: Red color for Payout/Coupon
-                                            ),
-                                          ),
-                                        ],
+                                      Text(
+                                        isCouponOrPayout
+                                            ? "${TextConstants.currencySymbol}${(orderItem[AppDBConst.itemCount] * orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}"
+                                            : "${TextConstants.currencySymbol}${(orderItem[AppDBConst.itemCount] * salesPrice).toStringAsFixed(2)}",
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                          // Build #1.0.181: Fixed - show price value red for payout and coupons only , not custom item
+                                          color: isCouponOrPayout ? Colors.red : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight, // Added: Red color for Payout/Coupon
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -1961,7 +2035,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                       width: double.infinity,
                       height: MediaQuery.of(context).size.height * 0.0575,
                       child: ElevatedButton( //Build 1.1.36: on pay tap calling updateOrderProducts api call
-                        onPressed: netPayable >= 0 && orderItems.isNotEmpty
+                        onPressed: /*netPayable >= 0 && */orderItems.isNotEmpty
                             ? () async {
                           setState(() => _isPayBtnLoading = true);
                           // await Navigator.push(
@@ -1978,11 +2052,12 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                             print("###### FastKeyScreen: Returned from OrderSummaryScreen with result: $result");
                           }
                           // Handle refresh if result is 'refresh'
-                          if (result == 'refresh') {
+                          if (result == TextConstants.refresh) {
                             if (kDebugMode) {
                               print("###### FastKeyScreen: Refresh signal received, reinitializing entire screen");
                             }
                             setState(() {
+                              OrderHelper.isOrderPanelLoaded = false; // Build #1.0.175: making isOrderPanelLoaded false when ever return from OrderSummaryScreen with 'refresh' we have to reload the order panel
                               fetchOrdersData(); // call
                             });
                           }
@@ -2039,7 +2114,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                         }
                             : null,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: netPayable >= 0 && orderItems.isNotEmpty ? const Color(0xFFFF6B6B) : Colors.grey,
+                          backgroundColor: /*netPayable >= 0 &&*/ orderItems.isNotEmpty ? const Color(0xFFFF6B6B) : Colors.grey,
                           foregroundColor: Colors.white,
                           elevation: 0,
                           shape: RoundedRectangleBorder(

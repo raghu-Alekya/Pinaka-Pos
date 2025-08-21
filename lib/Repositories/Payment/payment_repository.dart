@@ -99,7 +99,7 @@ class PaymentRepository {  // Build #1.0.25 - added by naveen
   }
 
   // Build #1.0.49: Added voidPayment api call code
-  Future<VoidPaymentResponseModel> voidPayment(VoidPaymentRequestModel request) async {
+  Future<PaymentResponseModel> voidPayment(VoidPaymentRequestModel request) async {
     final url = "${UrlHelper.componentVersionUrl}${UrlMethodConstants.payments}${EndUrlConstants.voidPaymentEndUrl}";
 
     if (kDebugMode) {
@@ -116,15 +116,46 @@ class PaymentRepository {  // Build #1.0.25 - added by naveen
     if (response is String) {
       try {
         final responseData = json.decode(response);
-        return VoidPaymentResponseModel.fromJson(responseData);
+        return PaymentResponseModel.fromJson(responseData);
       } catch (e) {
         if (kDebugMode) print("Error parsing void payment response: $e");
         throw Exception("Failed to parse void payment response");
       }
     } else if (response is Map<String, dynamic>) {
-      return VoidPaymentResponseModel.fromJson(response);
+      return PaymentResponseModel.fromJson(response);
     } else {
       throw Exception("Unexpected response type in void payment POST");
+    }
+  }
+
+  // Build #1.0.175: Added void order API call for cancel the payment completed order if it is void
+  Future<PaymentResponseModel> voidOrder(int orderId) async {
+    final url = "${UrlHelper.componentVersionUrl}${UrlMethodConstants.payments}${EndUrlConstants.voidOrderEndUrl}";
+    final body = {"order_id": orderId};
+
+    if (kDebugMode) {
+      print("PaymentRepository - Void Order POST URL: $url");
+      print("PaymentRepository - Void Order Request Body: $body");
+    }
+
+    final response = await _helper.post(url, body, true);
+
+    if (kDebugMode) {
+      print("PaymentRepository - Void Order Raw Response: $response");
+    }
+
+    if (response is String) {
+      try {
+        final responseData = json.decode(response);
+        return PaymentResponseModel.fromJson(responseData);
+      } catch (e) {
+        if (kDebugMode) print("Error parsing void order response: $e");
+        throw Exception("Failed to parse void order response");
+      }
+    } else if (response is Map<String, dynamic>) {
+      return PaymentResponseModel.fromJson(response);
+    } else {
+      throw Exception("Unexpected response type in void order POST");
     }
   }
 

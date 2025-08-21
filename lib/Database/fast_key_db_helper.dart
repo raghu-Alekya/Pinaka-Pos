@@ -7,6 +7,7 @@ import 'db_helper.dart';
 class FastKeyDBHelper { // Build #1.0.11 : FastKeyHelper for all fast key related methods
   static final FastKeyDBHelper _instance = FastKeyDBHelper._internal();
   factory FastKeyDBHelper() => _instance;
+  static bool isFastkeyLoaded = false;
 
   FastKeyDBHelper._internal() {
     if (kDebugMode) {

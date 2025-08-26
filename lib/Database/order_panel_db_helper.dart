@@ -29,6 +29,7 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
 
   int? activeOrderId; // Stores the currently active order ID
   int? activeUserId; // Stores the active user ID
+  int? cancelledOrderId; // Build #1.0.189: Stores the cancelled order ID
   List<int> orderIds = []; // List of order IDs for the active user
   List<Map<String, dynamic>> orders = [];
   /// Build 1.0.171: Concurrency Control: _syncFuture ensures only one sync operation runs at a time by checking if a sync is in progress; if so, it waits for completion, preventing data corruption or race conditions.
@@ -50,6 +51,9 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
     // Debugging logs
     if (kDebugMode) {
       print("#### Order Panel DB helper loadData: before activeOrderId = $activeOrderId, activeUserId= $activeUserId ");
+      print("#### DEBUG orders: $orders");  // Build #1.0.189
+      print("#### DEBUG orders length >>>>> : ${orders.length}");
+      print("#### DEBUG orderIds >>>>> : $orderIds");
     }
     // Fetch the user's orders from the database
     final db = await DBHelper.instance.database;
@@ -89,9 +93,15 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
     final prefs = await SharedPreferences.getInstance();
     activeOrderId = prefs.getInt('activeOrderId'); // Retrieve the saved active order ID
     activeUserId = await getUserIdFromDB();
+    // Build #1.0.189: Clear First
+    orderIds = [];
+    orders = [];
     // Debugging logs
     if (kDebugMode) {
       print("#### Order Panel DB helper loadData: before activeOrderId = $activeOrderId, activeUserId= $activeUserId ");
+      print("#### DEBUG orders: $orders"); // Build #1.0.189
+      print("#### DEBUG orders length >>>>> : ${orders.length}");
+      print("#### DEBUG orderIds >>>>> : $orderIds");
     }
     // Fetch the user's orders from the database
     final db = await DBHelper.instance.database;
@@ -759,7 +769,8 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
       whereArgs: [orderId],
     );
 
-    orders.removeWhere((order) => order[AppDBConst.orderServerId] == orderId);
+   //  orders.removeWhere((order) => order[AppDBConst.orderServerId] == orderId); // read-only property
+    // Build #1.0.189: Remove the orderId from orderIds list
     orderIds.remove(orderId);
 
     final prefs = await SharedPreferences.getInstance();

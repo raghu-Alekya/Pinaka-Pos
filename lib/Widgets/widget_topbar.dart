@@ -151,6 +151,7 @@ class _TopBarState extends State<TopBar> {
   String? userRole;
   String? userDisplayName;
   String? _lastSearchQuery; // Build #1.0.120: Track last searched query to avoid redundant fetches
+  bool _isSearchEnabled = true;
 
   @override
   void initState() {
@@ -159,6 +160,7 @@ class _TopBarState extends State<TopBar> {
     _searchController.addListener(_onSearchChanged);
     _searchFocusNode.addListener(_onFocusChanged);
     _fetchUserId();
+    _isSearchEnabled = !(widget.screen == Screen.ORDERS || widget.screen == Screen.APPS);// to restrict search box
   }
 
   @override
@@ -975,7 +977,7 @@ class _TopBarState extends State<TopBar> {
               height: 50,
               key: _searchFieldKey,
               child: TextField(
-                enabled: widget.screen != Screen.ORDERS,
+                enabled: _isSearchEnabled,
                 controller: _searchController,
                 onSubmitted: (value) {
                   if (kDebugMode) {
@@ -1098,12 +1100,12 @@ class _TopBarState extends State<TopBar> {
                   ),
 
                   const Text(
-                    TextConstants.lightText,
+                    TextConstants.cashDrawer,
                     style: TextStyle(fontSize: 8),
                   ),
                 ],
               ),
-              SizedBox(width: 20),
+              SizedBox(width: 30),
               // mode button
               Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -1128,7 +1130,7 @@ class _TopBarState extends State<TopBar> {
                   ),
                 ],
               ),
-              SizedBox(width: 20),
+              SizedBox(width: 30),
               Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -1179,7 +1181,7 @@ class _TopBarState extends State<TopBar> {
                   ),
                 ],
               ),
-              SizedBox(width: 20),
+              SizedBox(width: 30),
               // User profile section with container and notification bell
               Container(
                 height: 45,
@@ -1237,7 +1239,7 @@ class _TopBarState extends State<TopBar> {
                   ],
                 ),
               ),
-              SizedBox(width: 16),
+              SizedBox(width: 25),
               Container(
                 decoration: BoxDecoration(
                   color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : Colors.white,
@@ -1261,8 +1263,6 @@ class _TopBarState extends State<TopBar> {
               ),
             ],
           ),
-
-
         ],
       ),
     );

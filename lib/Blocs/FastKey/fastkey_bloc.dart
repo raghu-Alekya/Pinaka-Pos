@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import '../../Constants/text.dart';
 import '../../Helper/api_response.dart';
@@ -6,6 +7,7 @@ import '../../Models/FastKey/fastkey_model.dart';
 import '../../Repositories/FastKey/fastkey_repository.dart';
 import '../../Database/fast_key_db_helper.dart';
 import '../../Database/db_helper.dart';
+import '../../Utilities/global_utility.dart';
 
 class FastKeyBloc { // Build #1.0.15
   final FastKeyRepository _fastKeyRepository;
@@ -81,11 +83,7 @@ class FastKeyBloc { // Build #1.0.15
       }
       createFastKeySink.add(APIResponse.completed(response));
     } catch (e) {
-      if (e.toString().contains('SocketException')) {
-        createFastKeySink.add(APIResponse.error("Network error. Please check your connection."));
-      } else {
-        createFastKeySink.add(APIResponse.error("Failed to create FastKey: ${e.toString()}"));
-      }
+      createFastKeySink.add(APIResponse.error(GlobalUtility.extractErrorMessage(e))); //Build #1.0.189: Proper error not showing while getting error in create fast key
       if (kDebugMode) print("Exception in createFastKey: $e");
     }
   }
@@ -235,11 +233,7 @@ class FastKeyBloc { // Build #1.0.15
       updateFastKeySink.add(APIResponse.completed(response)); // Build #1.0.184
        //no need of user id to pass
     } catch (e, s) {
-      if (e.toString().contains('SocketException')) {
-        updateFastKeySink.add(APIResponse.error("Network error. Please check your connection."));
-      } else {
-        updateFastKeySink.add(APIResponse.error("Failed to update FastKey"));
-      }
+      updateFastKeySink.add(APIResponse.error(GlobalUtility.extractErrorMessage(e))); //Build #1.0.189: Proper error not showing while getting error in update fast key
       if (kDebugMode) print("Exception in updateFastKey: $e, Stack: $s");
     }
   }

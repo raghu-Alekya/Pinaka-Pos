@@ -476,16 +476,16 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
           print("### FastKeyScreen: Updated UI, selected tab ID: $_fastKeyTabId, index: $_selectedCategoryIndex");
         }
       });
-    } else {
+    } else if(response.status == Status.ERROR){ // Build #1.0.189: Only Show when it comes response as error
       // Handle API error
       if (kDebugMode) {
         print("### FastKeyScreen: API createFastKey failed: ${response.message}");
       }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(TextConstants.failedToCreateFastKey), // Build #1.0.144
+          content: Text(response.message ?? TextConstants.failedToCreateFastKey), // Build #1.0.189: Updated from api response - Proper error not showing while getting error in create fast key
           backgroundColor: Colors.red,
-          duration: const Duration(seconds: 2),
+          duration: const Duration(seconds: 4),
         ),
       );
     }

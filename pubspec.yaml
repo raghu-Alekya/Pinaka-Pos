@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.186+1
+version: 1.0.191+1
 
 environment:
 #  sdk: ^3.6.2
@@ -34,7 +34,7 @@ dependencies:
     sdk: flutter
 
   sqflite_common_ffi: 2.3.4+4
-  http: ^0.13.5
+  http: ^1.5.0
   path_provider: ^2.1.5
   connectivity_plus: ^5.0.2
   flutter_svg: ^2.0.7
@@ -63,6 +63,8 @@ dependencies:
   syncfusion_flutter_datepicker: ^29.1.38
   flutter_barcode_listener: ^0.1.4
   equatable: ^2.0.7
+  google_fonts: ^6.1.0
+  auto_size_text: ^3.0.0
   package_info_plus: ^8.3.0
 
   # The following adds the Cupertino Icons font to your application.
@@ -109,17 +111,20 @@ flutter:
   # "family" key with the font family name, and a "fonts" key with a
   # list giving the asset and other descriptors for the font. For
   # example:
-  # fonts:
-  #   - family: Schyler
-  #     fonts:
-  #       - asset: fonts/Schyler-Regular.ttf
-  #       - asset: fonts/Schyler-Italic.ttf
-  #         style: italic
-  #   - family: Trajan Pro
-  #     fonts:
-  #       - asset: fonts/TrajanPro.ttf
-  #       - asset: fonts/TrajanPro_Bold.ttf
-  #         weight: 700
-  #
+  fonts:
+    - family: Poppins
+      fonts:
+        - asset: assets/fonts/poppins/Poppins-Regular.ttf
+        - asset: assets/fonts/poppins/Poppins-Medium.ttf
+        - asset: assets/fonts/poppins/Poppins-SemiBold.ttf
+        - asset: assets/fonts/poppins/Poppins-Bold.ttf
+
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/inter/Inter-Regular.ttf
+        - asset: assets/fonts/inter/Inter-Medium.ttf
+        - asset: assets/fonts/inter/Inter-SemiBold.ttf
+        - asset: assets/fonts/inter/Inter-Bold.ttf
+
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package

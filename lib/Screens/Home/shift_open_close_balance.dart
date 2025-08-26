@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:pinaka_pos/Helper/Extentions/text_extensions.dart';
 import 'package:pinaka_pos/Screens/Home/safe_open_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -503,7 +504,7 @@ class _ShiftOpenCloseBalanceScreenState extends State<ShiftOpenCloseBalanceScree
                                             const Text(
                                               TextConstants.notes,
                                               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                                            ),
+                                            ).poppins(),
                                             const SizedBox(height: 5),
 
                                             // Table headers
@@ -676,12 +677,13 @@ class _ShiftOpenCloseBalanceScreenState extends State<ShiftOpenCloseBalanceScree
                                                 const Text(
                                                   TextConstants.coins,
                                                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                                                ),
+                                                ).poppins(),
                                                 const SizedBox(height: 5),
 
                                                 // Table headers
                                                 Row(
                                                   mainAxisAlignment: MainAxisAlignment.center,
+                                                  crossAxisAlignment: CrossAxisAlignment.center,
                                                   children: [
                                                     Expanded(
                                                       flex:2,

@@ -1159,10 +1159,10 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
               height: ResponsiveLayout.getHeight(100),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(8)),
-                color:  Colors.grey.shade200,
+                color:  Colors.transparent,
               ),
               child: ClipRRect( // Build #1.0.13 : updated images from db not static default images
-                borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(10)),
+                borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(8)),
                 child: orderItem[AppDBConst.itemImage].toString().startsWith('http')
                     ? SizedBox(
                         height: ResponsiveLayout.getHeight(40),
@@ -1188,20 +1188,20 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                     ? SvgPicture.asset(
                   orderItem[AppDBConst.itemImage],
                   height: ResponsiveLayout.getHeight(40),
-                  width: ResponsiveLayout.getWidth(30),
+                  width: ResponsiveLayout.getWidth(40),
                   fit: BoxFit.cover,
                 )
                     : Image.file(
                   File(orderItem[AppDBConst.itemImage]),
                   height: ResponsiveLayout.getHeight(40),
-                  width: ResponsiveLayout.getWidth(30),
+                  width: ResponsiveLayout.getWidth(40),
                   fit: BoxFit.cover,
                   errorBuilder:
                       (context, error, stackTrace) {
                     return SvgPicture.asset(
                       'assets/svg/password_placeholder.svg',
                       height: ResponsiveLayout.getHeight(40),
-                      width: ResponsiveLayout.getWidth(30),
+                      width: ResponsiveLayout.getWidth(40),
                       fit: BoxFit.cover,
                     );
                   },
@@ -1266,7 +1266,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                       ),
                     ],
                   ),
-                  if (!isPayoutOrCouponOrCustomItem)
+                  if (!isCouponOrPayout) //Build #1.0.187
                   Text(
                     "${TextConstants.currencySymbol} ${regularPrice.toStringAsFixed(2)} * ${orderItem[AppDBConst.itemCount]}", // Build #1.0.12: now item count will update in order panel
                     style: TextStyle(
@@ -1298,7 +1298,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: ResponsiveLayout.getFontSize(16),
-                color: isPayoutOrCouponOrCustomItem ? Colors.red : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight, // Added: Red color for Payout/Coupon
+                color: isCouponOrPayout ? Colors.red : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight, // Added: Red color for Payout/Coupon
               ),
             ),
           ],
@@ -1558,7 +1558,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
-                                      _buildQuickAmountButton('${TextConstants.currencySymbol}${balanceAmount.toStringAsFixed(0)}'), // Match balance amount
+                                      _buildQuickAmountButton('${TextConstants.currencySymbol}${balanceAmount.ceil()/*  toStringAsFixed(0)*/}'), // Match balance amount, show round greater value
                                       _buildQuickAmountButton('${TextConstants.currencySymbol}${(balanceAmount + 2).toStringAsFixed(0)}'), // Slightly above
                                       _buildQuickAmountButton('${TextConstants.currencySymbol}${(balanceAmount + 12).toStringAsFixed(0)}'), // More above
                                       _buildQuickAmountButton('${TextConstants.currencySymbol}${((balanceAmount ~/ 10 + 1) * 10).toStringAsFixed(0)}'), // Round up to next 10

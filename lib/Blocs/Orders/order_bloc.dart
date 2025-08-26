@@ -214,6 +214,13 @@ class OrderBloc { // Build #1.0.25 - added by naveen
             where: '${AppDBConst.orderIdForeignKey} = ? AND ${AppDBConst.itemProductId} = ? AND ${AppDBConst.itemType} = ?',
             whereArgs: [serverOrderId, item.productId, ItemType.product.value],
           );
+          if(existingItem.isEmpty) { // Build #1.0.187: Fixed - Updating Quantity of Custom Item Creates Duplicate Line Item
+          existingItem = await db.query(
+            AppDBConst.purchasedItemsTable,
+            where: '${AppDBConst.orderIdForeignKey} = ? AND ${AppDBConst.itemProductId} = ? AND ${AppDBConst.itemType} = ?',
+            whereArgs: [serverOrderId, item.productId, ItemType.customProduct.value],
+          );
+         }
           if((existingItem.isNotEmpty && (existingItem.first[AppDBConst.itemVariationId] as int) > 0)){
             if (kDebugMode) {
               print(
@@ -317,6 +324,12 @@ class OrderBloc { // Build #1.0.25 - added by naveen
             ? double.tryParse(lineItem.productVariationData?.price?.isNotEmpty == true ? lineItem.productVariationData!.price! : "0.0") ?? 0.0
             : double.tryParse(lineItem.productData.price?.isNotEmpty == true ? lineItem.productData.price! : "0.0") ?? 0.0;
         final double itemPrice = double.tryParse(lineItem.subtotal.isNotEmpty == true ? lineItem.subtotal : '0.0') ?? 0.0;
+        // Build #1.0.187: Fixed - Updating Quantity of Custom Item Creates Duplicate Line Item
+        // Check if the product has a tag named "Custom Item"
+        bool isCustomItem = lineItem.productData.tags.any((tag) => tag.name == TextConstants.customItem);
+        if (kDebugMode) {
+          print("#### isCustomItem 1022 : isCustomItem -> $isCustomItem");
+        }
 
         // final double itemPrice = double.parse(lineItem.subtotal ?? '0.0');//lineItem.productData.regularPrice == '' ?  double.parse(lineItem.productData.price ?? '0.0') : double.parse(lineItem.productData.regularPrice ?? '0.0');
         if (kDebugMode) {
@@ -333,7 +346,7 @@ class OrderBloc { // Build #1.0.25 - added by naveen
           serverOrderId,
           productId:lineItem.productId, // Build #1.0.80: newly added these two
           variationId:lineItem.variationId,
-          type: ItemType.product.value,
+          type: isCustomItem ? ItemType.customProduct.value : ItemType.product.value, // Build #1.0.187: Set type based on Custom Item tag
           variationName: variationName,
           variationCount: variationCount,
           combo: combo,

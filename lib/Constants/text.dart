@@ -41,6 +41,7 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String chooseLanText         = "Choose language";
   static const String appearanceText        = "Appearance";
   static const String screenModeText        = "Select the screen mode";
+  static const String cashDrawer             = "Cash drawer";
   static const String lightText             = "Light";
   static const String darkText              = "Dark";
   static const String systemText            = "System";

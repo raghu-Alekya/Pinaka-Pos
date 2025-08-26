@@ -20,6 +20,7 @@ import '../../Widgets/widget_add_vendor_payout_dialog.dart';
 import '../../Widgets/widget_alert_popup_dialogs.dart';
 import '../../Widgets/widget_navigation_bar.dart' as custom_widgets;
 import '../../Widgets/widget_topbar.dart';
+import '../Auth/login_screen.dart';
 
 class ShiftSummaryDashboardScreen extends StatefulWidget {
   final int? lastSelectedIndex;
@@ -353,12 +354,15 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
                 fontWeight: FontWeight.w500,
               ),
             ),
-            Text(
-              amount,
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: MediaQuery.of(context).size.width * 0.02,
-                fontWeight: FontWeight.bold,
+            FittedBox(
+              fit: BoxFit.contain,
+              child: Text(
+                amount,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: MediaQuery.of(context).size.width * 0.02,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ],

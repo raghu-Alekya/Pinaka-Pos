@@ -280,6 +280,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
                 ),
               ),
               const SizedBox(width: 10),
+              Padding(padding: EdgeInsets.only(right: 5), child:
               Text(
                 text,
                 style: TextStyle(
@@ -292,7 +293,8 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
                       : Colors.grey.shade700),
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 ),
-              ),
+              ),),
+
             ],
           ),
         ),
@@ -719,6 +721,14 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
       ),
       child: Column(
         children: [
+          Text(
+            TextConstants.customItem,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Color(0xFF1E2745),
+            ),
+          ),
           Row(
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -986,6 +996,14 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
       padding: const EdgeInsets.only(top: 25),
       child: Column(
         children: [
+          Text(
+            TextConstants.addPaymentAmount,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Color(0xFF1E2745),
+            ),
+          ),
           // Floating label input field
           SizedBox(
             height: 20,
@@ -1009,7 +1027,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
               ),
               decoration: InputDecoration(
                 floatingLabelAlignment: FloatingLabelAlignment.center,
-                labelText: TextConstants.addPaymentAmount,
+                //labelText: TextConstants.addPaymentAmount,
                 labelStyle: TextStyle(
                   fontSize: 20,
                   color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.grey,

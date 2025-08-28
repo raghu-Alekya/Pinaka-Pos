@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:pinaka_pos/services/CustomerDisplayService.dart';
 import 'package:provider/provider.dart';
 import 'Database/db_helper.dart';
+import 'Helper/CustomerDisplayHelper.dart';
 import 'Helper/Extentions/theme_notifier.dart';
-import 'Helper/customer_display_helper.dart';
 import 'Preferences/pinaka_preferences.dart';
 import 'Screens/Auth/splash_screen.dart';
 
@@ -16,7 +16,7 @@ void main() async {
   ThemeNotifier themeNotifier = ThemeNotifier();
   await themeNotifier.initializeThemeMode(); // Build #1.0.9 : By default dark theme getting selected on launch even after changing from settings
 
-  await DBHelper.instance.database; // Build #1.0.10: Initialize the database
+  await DBHelper.instance.database;
   final storeInfo = PinakaPreferences.getLoggedInStore();
   if (storeInfo.isNotEmpty) {
     await CustomerDisplayHelper.updateWelcomeWithStore(
@@ -27,7 +27,7 @@ void main() async {
   } else {
     // Show default welcome if no store info
     await CustomerDisplayService.showWelcome();
-  }
+  }// Build #1.0.10: Initialize the database
   runApp(
     ChangeNotifierProvider(
       create: (_) => themeNotifier,

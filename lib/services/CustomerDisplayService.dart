@@ -1,27 +1,30 @@
 import 'package:flutter/services.dart';
 
 class CustomerDisplayService {
-  static const platform =
+  static const MethodChannel _platform =
   MethodChannel('com.example.flutter_customer_display/sunmi_display');
 
   /// 🔹 Show default welcome screen
   static Future<void> showWelcome() async {
     try {
-      print("📢 [CustomerDisplayService] Calling → showWelcome()");
-      await platform.invokeMethod('showWelcome');
-      print("✅ [CustomerDisplayService] showWelcome executed successfully");
+      print("📢 [CustomerDisplayService] showWelcome() called");
+      await _platform.invokeMethod('showWelcome');
+      print("✅ [CustomerDisplayService] Welcome screen displayed");
     } catch (e) {
       print("⚠️ [CustomerDisplayService] Failed to show welcome: $e");
     }
   }
-  static Future<void> showThankYou() async {
-    try {
-      print("📢 [CustomerDisplayService] Calling → showThankYou()");
-      await platform.invokeMethod('showThankYou');
-      print("✅ [CustomerDisplayService] showThankYou executed successfully");
 
-      // Automatically revert to welcome after 5 seconds
-      Future.delayed(const Duration(seconds: 5), () async {
+  /// 🔹 Show Thank You screen, then revert to welcome after 5 seconds
+  static Future<void> showThankYou({int delaySeconds = 5}) async {
+    try {
+      print("📢 [CustomerDisplayService] showThankYou() called");
+      await _platform.invokeMethod('showThankYou');
+      print("✅ [CustomerDisplayService] Thank You screen displayed");
+
+      // Revert to welcome automatically
+      Future.delayed(Duration(seconds: delaySeconds), () async {
+        print("🔄 [CustomerDisplayService] Reverting to welcome screen");
         await showWelcome();
       });
     } catch (e) {
@@ -29,31 +32,28 @@ class CustomerDisplayService {
     }
   }
 
-
-/// 🔹 Update welcome screen with Store ID / Name
+  /// 🔹 Show welcome screen with store info and optional logo
   static Future<void> showWelcomeWithStore({
     required String storeId,
     required String storeName,
-    String? storeLogoUrl, // New optional logo
+    String? storeLogoUrl,
   }) async {
     try {
-      print("📢 [CustomerDisplayService] showWelcomeWithStore → storeId=$storeId, storeName=$storeName, logo=$storeLogoUrl");
+      print(
+          "📢 [CustomerDisplayService] showWelcomeWithStore → storeId=$storeId, storeName=$storeName, logo=$storeLogoUrl");
 
-      await platform.invokeMethod('showWelcomeWithStore', {
+      await _platform.invokeMethod('showWelcomeWithStore', {
         "storeId": storeId,
         "storeName": storeName,
-        "storeLogoUrl": storeLogoUrl ?? "", // fallback to empty
+        "storeLogoUrl": storeLogoUrl ?? "",
       });
 
-      print("✅ [CustomerDisplayService] showWelcomeWithStore executed successfully");
+      print("✅ [CustomerDisplayService] Store welcome displayed");
     } catch (e) {
       print("⚠️ [CustomerDisplayService] Failed to show store welcome: $e");
     }
   }
-
-
-
-  /// 🔹 Send Order Data to Customer Display
+  /// 🔹 Send order data to customer display
   static Future<void> showCustomerData({
     required int orderId,
     required List<Map<String, dynamic>> items,
@@ -63,28 +63,46 @@ class CustomerDisplayService {
     required double netTotal,
     required double tax,
     required double netPayable,
+    String orderDate = '',
+    String orderTime = '',
+    String storeId = '',
+    String storeName = '',
+    String? storeLogoUrl,
   }) async {
     try {
-      print("📢 [CustomerDisplayService] Calling → showCustomerData()");
-      print("📝 orderId: $orderId");
-      print("📝 items: $items");
-      print("📝 grossTotal: $grossTotal, discount: $discount, merchantDiscount: $merchantDiscount");
-      print("📝 netTotal: $netTotal, tax: $tax, netPayable: $netPayable");
+      print("📢 [CustomerDisplayService] showCustomerData() called");
+      print("📝 orderId: $orderId, items count: ${items.length}");
+      print(
+          "📝 grossTotal: $grossTotal, discount: $discount, merchantDiscount: $merchantDiscount, netTotal: $netTotal, tax: $tax, netPayable: $netPayable");
+      print("📝 store: $storeName ($storeId), logo: $storeLogoUrl");
+      final safeItems = items.map((item) {
+        return {
+          "name": item["name"] ?? "Unknown",
+          "qty": item["qty"] ?? 0,
+          "price": item["price"] ?? 0.0,
+          "image": item["image"] ?? "",
+        };
+      }).toList();
 
-      await platform.invokeMethod('showCustomerData', {
+      await _platform.invokeMethod('showCustomerData', {
         "orderId": orderId,
-        "items": items,
+        "items": safeItems,
         "grossTotal": grossTotal,
         "discount": discount,
         "merchantDiscount": merchantDiscount,
         "netTotal": netTotal,
         "tax": tax,
         "netPayable": netPayable,
+        "orderDate": orderDate,
+        "orderTime": orderTime,
+        "storeId": storeId,
+        "storeName": storeName,
+        "storeLogoUrl": storeLogoUrl ?? "",
       });
 
-      print("✅ [CustomerDisplayService] showCustomerData executed successfully");
+      print("✅ [CustomerDisplayService] Customer data sent successfully");
     } catch (e) {
-      print("⚠️ [CustomerDisplayService] Failed to send data to customer display: $e");
+      print("⚠️ [CustomerDisplayService] Failed to send data: $e");
     }
   }
 }

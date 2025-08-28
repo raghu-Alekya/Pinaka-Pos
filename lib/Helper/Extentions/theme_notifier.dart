@@ -27,6 +27,10 @@ class ThemeNotifier with ChangeNotifier { // Build #1.0.6 - Added Theme code & a
     notifyListeners();
   }
 
+  ThemeMode getThemeMode() {
+    return _themeMode;
+  }
+
   void setThemeMode(ThemeMode mode) async {
     if (mode == ThemeMode.system) return; //Build #1.0.54: added prevent system theme
     _themeMode = mode;
@@ -53,6 +57,7 @@ class ThemeNotifier with ChangeNotifier { // Build #1.0.6 - Added Theme code & a
   static const Color orderPanelBackground = Color(0xFF221E2B);
   static const Color circularNavBackground = Color(0xFF373A4A);
   static const Color tabsBackground = Color(0xFF313441);
+  static const Color tabsLightBackground = Color(0xFFF1F5F9);
   static const Color popUpsBackground = Color(0xFF201E2B);
   static const Color searchBarBackground = Color(0xFF2D303F);
   static const Color buttonLight = Color(0xFF1E2745);

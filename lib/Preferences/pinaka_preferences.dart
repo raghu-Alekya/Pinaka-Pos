@@ -17,7 +17,7 @@ class PinakaPreferences { // Build #1.0.7 , Naveen - added PinakaPreferences cod
     _prefs = await SharedPreferences.getInstance();
     layoutSelectionNotifier =  ValueNotifier<String>('');
   }
-  // Inside PinakaPreferences class
+
   static Future<void> saveLoggedInStore({
     required String storeId,
     required String storeName,
@@ -41,7 +41,6 @@ class PinakaPreferences { // Build #1.0.7 , Naveen - added PinakaPreferences cod
     }
     return {};
   }
-
 
   /// Build #1.0.122: No need , now we are using DB saving code
   // saveThemeMode
@@ -108,5 +107,4 @@ class PinakaPreferences { // Build #1.0.7 , Naveen - added PinakaPreferences cod
     }
     return selectedPrinter;//
   }
-
 }

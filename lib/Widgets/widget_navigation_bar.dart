@@ -11,6 +11,7 @@ import 'package:quickalert/models/quickalert_type.dart';
 import 'package:quickalert/widgets/quickalert_dialog.dart';
 import 'package:flutter_swipe_button/flutter_swipe_button.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../Database/order_panel_db_helper.dart';
 import '../Database/user_db_helper.dart';
 import '../Helper/Extentions/theme_notifier.dart';
 
@@ -23,6 +24,7 @@ import '../Screens/Home/Settings/settings_screen.dart';
 import '../Screens/Home/shift_open_close_balance.dart';
 import '../Screens/Home/total_orders_screen.dart';
 import '../Utilities/svg_images_utility.dart';
+import 'widget_alert_popup_dialogs.dart';
 
 class NavigationBar extends StatelessWidget {
   final int selectedSidebarIndex;
@@ -278,7 +280,20 @@ class NavigationBar extends StatelessWidget {
                       borderRadius: BorderRadius.circular(25),
                       activeThumbColor: Colors.orangeAccent,
                       activeTrackColor: Colors.orange,
-                      onSwipe: () {
+                      onSwipe: () async {
+                        // Get instance of OrderHelper
+                        final orderHelper = OrderHelper();
+                        // Load processing orders for the active user
+                        await orderHelper.loadProcessingData();
+                        // Check if there are any processing orders
+                        if (orderHelper.orders.isNotEmpty) { // Build #1.0.175: Added
+                          if (kDebugMode) {
+                            print("Processing Orders > 0 -> orders length: ${orderHelper.orders.length}");
+                          }
+                          Navigator.of(context).pop(); // dismiss logout alert
+                          // Show popup warning before closing shift
+                          CustomDialog.showCloseShiftWarning(context);
+                        } else {
                         // Close shift functionality
                         if (kDebugMode) {
                           print("Shift closed");
@@ -293,7 +308,8 @@ class NavigationBar extends StatelessWidget {
                             settings: RouteSettings(arguments: TextConstants.navLogout),  // Build #1.0.70
                           ),
                         );
-                      },
+                      }
+                    },
                       child: Text(
                         TextConstants.swipeToCloseShift,
                         style: TextStyle(color: Colors.white, fontSize: 16),
@@ -587,7 +603,20 @@ class NavigationBar extends StatelessWidget {
                     borderRadius: BorderRadius.circular(25),
                     activeThumbColor: Colors.orangeAccent,
                     activeTrackColor: Colors.orange,
-                    onSwipe: () {
+                    onSwipe: () async {
+                      // Get instance of OrderHelper
+                      final orderHelper = OrderHelper();
+                      // Load processing orders for the active user
+                      await orderHelper.loadProcessingData();
+                      // Check if there are any processing orders
+                      if (orderHelper.orders.isNotEmpty) { // Build #1.0.175: Added
+                        if (kDebugMode) {
+                          print("Processing Orders > 0 -> orders length: ${orderHelper.orders.length}");
+                        }
+                        Navigator.of(context).pop(); // dismiss logout alert
+                        // Show popup warning before closing shift
+                        CustomDialog.showCloseShiftWarning(context);
+                      } else {
                       // Close shift functionality
                       if (kDebugMode) {
                         print("Shift closed");
@@ -602,7 +631,8 @@ class NavigationBar extends StatelessWidget {
                           settings: RouteSettings(arguments: TextConstants.navLogout),  // Build #1.0.70
                         ),
                       );
-                    },
+                    }
+                  },
                     child: Text(
                       TextConstants.swipeToCloseShift,
                       style: TextStyle(color: Colors.white, fontSize: 16),

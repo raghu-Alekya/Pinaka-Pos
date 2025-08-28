@@ -5,8 +5,8 @@ import 'package:flutter/foundation.dart';
 import '../../Constants/text.dart';
 import '../../Database/db_helper.dart';
 import '../../Database/order_panel_db_helper.dart';
+import '../../Helper/CustomerDisplayHelper.dart';
 import '../../Helper/api_response.dart';
-import '../../Helper/customer_display_helper.dart';
 import '../../Models/Orders/apply_discount_model.dart';
 import '../../Models/Orders/get_orders_model.dart' as model;
 import '../../Models/Orders/orders_model.dart';
@@ -146,7 +146,6 @@ class OrderBloc { // Build #1.0.25 - added by naveen
   ///5. Save response in db for line_items
   ///6. stop loading
   ///7. Return
-
   Future<void> updateOrderProducts({required int? orderId, required int? dbOrderId, required List<OrderLineItem> lineItems, bool isEditQuantity = false}) async {
     if (_updateOrderController.isClosed) return;
 
@@ -282,6 +281,7 @@ class OrderBloc { // Build #1.0.25 - added by naveen
       if (kDebugMode) {
         print("#### OrderBloc - Updating order table for orderId $serverOrderId, total:${double.tryParse(response.total) ?? 0.0},"
             " totalTax:${double.tryParse(response.totalTax) ?? 0.0}");
+        print("#### OrderBloc - updateOrderProducts -> couponLines count : ${response.couponLines.length}"); // Build #1.0.181: Debug print
       }
       await db.update(
         AppDBConst.orderTable,
@@ -393,7 +393,6 @@ class OrderBloc { // Build #1.0.25 - added by naveen
           type: ItemType.coupon.value,
         );
       }
-      // Send everything to log (instead of customer display)
       await CustomerDisplayHelper.updateCustomerDisplay(serverOrderId);
 
       updateOrderSink.add(APIResponse.completed(response));
@@ -401,7 +400,6 @@ class OrderBloc { // Build #1.0.25 - added by naveen
       updateOrderSink.add(APIResponse.error(_extractErrorMessage(e)));
       if (kDebugMode) print("Exception in updateOrderProducts: $e, DEBUG $s");
     }
-
   }
 
   //Build #1.0.40: fetchOrders
@@ -459,11 +457,15 @@ class OrderBloc { // Build #1.0.25 - added by naveen
       await orderHelper.syncOrdersFromApi(orderModels);
       fetchTotalOrdersSink.add(APIResponse.completed(response));
     } catch (e, s) {
-      fetchTotalOrdersSink.add(APIResponse.error(_extractErrorMessage(e)));
-      if (kDebugMode) print("Exception in fetchTotalOrders: $e, Stack: $s");
+      if (e.toString().contains('Unauthorised')) {
+        fetchTotalOrdersSink.add(APIResponse.error("Unauthorised. Session is expired."));
+      }else {
+        fetchTotalOrdersSink.add(APIResponse.error(_extractErrorMessage(e)));
+        if (kDebugMode) print("Exception in fetchTotalOrders: $e, Stack: $s");
+      }
     }
   }
-
+  ///"Used only for test fetching single order API"
   Future<void> fetchOrder({required String orderId}) async { //Build #1.0.54: updated
     if (_fetchOrdersController.isClosed) return;
 
@@ -495,6 +497,7 @@ class OrderBloc { // Build #1.0.25 - added by naveen
   }
 
   //Build #1.0.40: fetchOrders
+  @Deprecated("Deprecated as we are using total order api")
   Future<void> fetchFilteredOrders({bool allStatuses = false, int pageNumber =1, int pageLimit = 10, String status = "", String orderType = "", String userId = ""}) async { //Build #1.0.54: updated
     if (_fetchOrdersController.isClosed) return;
 
@@ -693,7 +696,6 @@ class OrderBloc { // Build #1.0.25 - added by naveen
       OrderHelper orderHelper = OrderHelper();
       await orderHelper.deleteItem(dbItemId);
       await CustomerDisplayHelper.updateCustomerDisplay(orderId);
-
 
       deleteOrderItemSink.add(APIResponse.completed(response!));
     } catch (e) {

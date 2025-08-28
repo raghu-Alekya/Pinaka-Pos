@@ -200,6 +200,7 @@ class FastKeyBloc { // Build #1.0.15
     required int index,
     required String imageUrl,
     required int fastKeyServerId,
+    required int userId
   }) async {
     if (_updateFastKeyController.isClosed) return;
 
@@ -218,19 +219,21 @@ class FastKeyBloc { // Build #1.0.15
         print("FastKeyBloc - Updated FastKey: ${response.fastkeyId}");
       }
 
+      //Build #1.0.184: it will update all fastkey, including reorder indexes; so no need of below code for now
       // Build #1.0.89: Update DB after successful API response
-      final FastKeyDBHelper fastKeyDBHelper = FastKeyDBHelper();
-      await fastKeyDBHelper.updateFastKeyTab(fastKeyServerId, {
-        AppDBConst.fastKeyTabTitle: response.fastkeyTitle,
-        AppDBConst.fastKeyTabImage: response.fastkeyImage,
-        AppDBConst.fastKeyTabIndex: response.fastkeyIndex.toString(),
-      });
-
+      // final FastKeyDBHelper fastKeyDBHelper = FastKeyDBHelper();
+      // await fastKeyDBHelper.updateFastKeyTab(fastKeyServerId, {
+      //   AppDBConst.fastKeyTabTitle: response.fastkeyTitle,
+      //   AppDBConst.fastKeyTabImage: response.fastkeyImage,
+      //   AppDBConst.fastKeyTabIndex: response.fastkeyIndex.toString(),
+      // });
       if (kDebugMode) {
         print("### FastKeyBloc: Updated tab in DB with server ID: ${response.fastkeyId}");
       }
 
-      updateFastKeySink.add(APIResponse.completed(response));
+      await fetchFastKeysByUser(userId);
+      updateFastKeySink.add(APIResponse.completed(response)); // Build #1.0.184
+       //no need of user id to pass
     } catch (e, s) {
       if (e.toString().contains('SocketException')) {
         updateFastKeySink.add(APIResponse.error("Network error. Please check your connection."));

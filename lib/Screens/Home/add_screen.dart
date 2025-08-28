@@ -35,6 +35,7 @@ class _AddScreenState extends State<AddScreen> with LayoutSelectionMixin {
   final ValueNotifier<int?> fastKeyTabIdNotifier = ValueNotifier<int?>(null); // Add this
   final PinakaPreferences _preferences = PinakaPreferences(); //Build #1.0.84: Added this
   final OrderHelper orderHelper = OrderHelper();
+  int _refreshCounter = 0; //Build #1.0.170: Added - Counter to trigger RightOrderPanel refresh only when needed
 
   @override
   void initState() {
@@ -45,8 +46,9 @@ class _AddScreenState extends State<AddScreen> with LayoutSelectionMixin {
   void _refreshOrderList() { // Build #1.0.10 - Naveen: This will trigger a rebuild of the RightOrderPanel (Callback)
     setState(() {
       if (kDebugMode) {
-        print("###### CategoriesScreen _refreshOrderList");
+        print("##### _refreshOrderList: Incrementing _refreshCounter to $_refreshCounter to trigger RightOrderPanel refresh");
       }
+      _refreshCounter++; //Build #1.0.170: Increment to signal refresh, causing didUpdateWidget to load with loader
     });
   }
 
@@ -162,6 +164,7 @@ class _AddScreenState extends State<AddScreen> with LayoutSelectionMixin {
                       formattedTime: formattedTime,
                       quantities: quantities,
                       refreshOrderList: _refreshOrderList, // Pass the callback
+                      refreshKey: _refreshCounter, //Build #1.0.170: Pass counter as refreshKey
                     ),
 
                   Expanded(child: AppScreenTabWidget(selectedTabIndex: widget.selectedTabIndex,barcode: widget.barcode, scaffoldMessengerContext: context, refreshOrderList: _refreshOrderList)), // Build #1.0.53
@@ -174,6 +177,7 @@ class _AddScreenState extends State<AddScreen> with LayoutSelectionMixin {
                       formattedTime: formattedTime,
                       quantities: quantities,
                       refreshOrderList: _refreshOrderList, // Pass the callback
+                      refreshKey: _refreshCounter, //Build #1.0.170: Pass counter as refreshKey
                     ),
 
                   // Right Sidebar (Conditional)

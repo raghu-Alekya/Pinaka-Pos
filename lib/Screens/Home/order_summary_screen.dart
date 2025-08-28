@@ -33,6 +33,7 @@ import '../../Utilities/responsive_layout.dart';
 import '../../Utilities/result_utility.dart';
 import '../../Widgets/widget_custom_num_pad.dart';
 import '../../Widgets/widget_payment_dialog.dart';
+import '../Auth/login_screen.dart';
 import 'Settings/image_utils.dart';
 import 'Settings/printer_setup_screen.dart';
 import 'edit_product_screen.dart';
@@ -71,6 +72,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
   String serviceType = "default"; // Hardcoded as per requirement
   double total = 0.0;
   double orderTotal = 0.0;  // Build #1.0.137
+  String orderStatus = TextConstants.processing; // Build  #1.0.177
   double grossTotal = 0.0;
   double balanceAmount = 0.0;
   double tenderAmount = 0.0; // Build #1.0.33 : added new variables
@@ -81,6 +83,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
   double tax = 0.0; // AddED tax variable
   double payByCash = 0.0;
   double payByOther = 0.0;
+  // String? orderStatus = ""; // Build #1.0.175: save orderStatus value
   StreamSubscription? _paymentListSubscription;
   bool isLoading = false; // Add this to track loading state
   bool isSummaryLoading = false;
@@ -138,6 +141,9 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
           if (kDebugMode) {
             print("###### _fetchPaymentsByOrderId Api call COMPLETED");
           }
+          if (response.data!.isNotEmpty) { // Build #1.0.175: check empty or not
+            orderStatus = response.data?.first.orderStatus ?? TextConstants.processing;
+          }
           _processPaymentList(response.data!);
         } else if (response.status == Status.ERROR) {
           if (kDebugMode) {
@@ -162,15 +168,16 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
 
     for (var payment in payments) {
       double amount = double.tryParse(payment.amount) ?? 0.0;
-      if (payment.paymentMethod == 'Cash') {
+      if (payment.paymentMethod == TextConstants.cash && payment.voidStatus == false) {  // Build #1.0.175: addition of all payment method cash & if it is not void
         cashTotal += amount;
-      } else {
+      } else if (payment.paymentMethod != TextConstants.cash && payment.voidStatus == false) { // Build #1.0.175: addition of all payment method others & if it is not void
         otherTotal += amount;
       }
     }
 
     if (kDebugMode) {
-      print("###### _processPaymentList ->>> payByCash: $cashTotal, payByOther: $otherTotal");
+      print("###### _processPaymentList ->>> payByCash1: $cashTotal, payByOther1: $otherTotal");
+      print("###### _processPaymentList ->>> payByCash2: $payByCash, payByOther2: $payByOther");
     }
     setState(() {
       payByCash = cashTotal;
@@ -179,12 +186,15 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
       // Update balanceAmount / tenderAmount after getPaymentsByOrderId api call, because payByCash 'amount' avlue getting from this api only
       balanceAmount = orderTotal - payByCash - payByOther;
       var isBalanceZero = balanceAmount <= 0;
-      changeAmount = isBalanceZero ? balanceAmount.abs() : changeAmount;
-      balanceAmount = isBalanceZero ? 0 : balanceAmount;
+      // Build  #1.0.177: -ve balanace will be shown as balance if order status is processing
+      changeAmount = isBalanceZero && (orderStatus != TextConstants.processing) ? balanceAmount.abs() : changeAmount;
+      balanceAmount = isBalanceZero && (orderStatus != TextConstants.processing) ? 0 : balanceAmount;
       tenderAmount = payByCash + payByOther;
 
     });
+    print("###### _processPaymentList ->>> payByCash3: $payByCash, payByOther3: $payByOther");
   }
+
 
   // void fetchOrderItems() async {
   //   // TODO: Implement actual data fetching from database
@@ -206,20 +216,22 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     });
   }
 
-  void _callCreatePaymentAPI() { // Build #1.0.29
+  void _callCreatePaymentAPI({double amount = 0.0}) { // Build #1.0.29
     if (kDebugMode) {
       print("###### _callCreatePaymentAPI called");
     }
-    if (amountController.text.isEmpty) { //Build #1.0.34: updated code
-      if (kDebugMode) {
-        print("Error: Amount TextField is empty");
+    if (balanceAmount > 0) {
+      if (amountController.text.isEmpty) { //Build #1.0.34: updated code
+        if (kDebugMode) {
+          print("Error: Amount TextField is empty");
+        }
+        return;
       }
-      return;
     }
 
     String cleanAmount = amountController.text.replaceAll(TextConstants.currencySymbol, '').trim();
     final double amount = double.tryParse(cleanAmount) ?? 0.0;
-    if (amount == 0.0) {
+    if (amount < 0.0) {
       if (kDebugMode) {
         print("Error: Invalid amount: $cleanAmount");
       }
@@ -254,7 +266,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     StreamSubscription? subscription;
     subscription = paymentBloc.createPaymentStream.listen((paymentResponse) {
       if (kDebugMode) {
-        print("Payment stream response: $paymentResponse");
+        print("Payment stream response: $paymentResponse ++++ end of message");
       }
       if (paymentResponse.data != null) {
         if (paymentResponse.status == Status.ERROR) {
@@ -268,8 +280,8 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
         } else if (paymentResponse.status == Status.COMPLETED) {
           final paymentData = paymentResponse.data!;
           if (paymentData.message == "Payment Created Successfully") {
-            // Build #1.0.99: Call fetch payment details by order id API call
-            _fetchPaymentsByOrderId(); // Refresh payments after successful payment
+            // // Build #1.0.99: Call fetch payment details by order id API call
+            // _fetchPaymentsByOrderId(); // Refresh payments after successful payment
 
             setState(() {
               isLoading = false; // Hide loader on success
@@ -277,13 +289,18 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
             paidAmount = amount; // Current payment amount
 
             // Capture paymentId for wallet payments
-            if (selectedPaymentMethod == TextConstants.wallet) {
+            /// Build #1.0.175: Commented below code, because its only checking wallet payments
+            /// We need to save paymentId always
+            /// if required un-comment below line & change selectedPaymentMethod to wallet/cash
+            //  if (selectedPaymentMethod == TextConstants.wallet) {
             //  paymentId = paymentData.paymentId; // Assuming the API response includes paymentId
-              paymentId = "TXT_123456789"; // For testing purpose added here
+             // paymentId = "TXT_123456789"; // For testing purpose added here
+              paymentId = paymentData.paymentId.toString(); // paymentId
+              orderStatus = paymentData.orderStatus ?? TextConstants.processing;
               if (kDebugMode) {
                 print("Wallet payment successful. Transaction ID: $paymentId");
               }
-            }
+          //  }
 
             // Determine payment type
             final bool isExactPayment = (amount == balanceAmount);
@@ -352,6 +369,21 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
           }
           subscription?.cancel(); // Cancel subscription after handling
         }
+      } else if (paymentResponse.status == Status.ERROR) {
+        if (kDebugMode) {
+          print("Unauthorised : response.message ${paymentResponse.message!} ++ end");
+        }
+        //Build #1.0.180
+        if (paymentResponse.message!.contains('Unauthorised')) {
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()));
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Unauthorised. Session is expired on this device."),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 2),
+          ),
+        );
       }
     });
   }
@@ -507,7 +539,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
       try {
         final DateTime createdDateTime = DateTime.parse(order[AppDBConst.orderDate].toString());
         displayDate = DateFormat("EEE, MMM d, yyyy").format(createdDateTime);
-        displayTime = DateFormat('hh:mm a').format(createdDateTime);
+        displayTime = DateFormat('hh:mm:ss a').format(createdDateTime);
       } catch (e) {
         if (kDebugMode) {
           print("Error parsing order creation date: $e");
@@ -868,6 +900,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
           merchantDiscount = (orderData.first[AppDBConst.merchantDiscount] as num?)?.toDouble() ?? 0.0; // Build #1.0.80
           tax = (orderData.first[AppDBConst.orderTax] as num?)?.toDouble() ?? 0.0;
           orderTotal = (orderData.first[AppDBConst.orderTotal] as num?)?.toDouble() ?? 0.0; // Build #1.0.80
+          orderStatus = (orderData.first[AppDBConst.orderStatus] as String?) ?? TextConstants.processing; // Build  #1.0.177
           if (kDebugMode) {
             print("Fetched orderServerId: $orderId, Discount: $discount for activeOrderId: ${orderHelper.activeOrderId}, Time: $orderDateTime");
           }
@@ -1181,7 +1214,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   /// TODO: Change here to apply meta values for (mix & match) "combo" and "variation"
                   Column(
@@ -1545,6 +1578,10 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                                     getPaidAmount: () => amountController.text,
                                     balanceAmount: balanceAmount,
                                     onDigitPressed: (value) {
+                                      // ADD THIS CONDITION to disable input
+                                      if (balanceAmount <= 0) {
+                                      return; // Do nothing if balance is already paid
+                                      }
                                       // Clear error when user starts typing
                                       if (_amountErrorText != null) {
                                         setState(() {
@@ -1569,22 +1606,33 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                                         setState(() {});
                                       }
                                     },
-                                    onPayPressed:balanceAmount <= 0 ? null : () { //Build #1.0.34: updated code
-                                      String paidAmount = amountController.text;
-                                      String cleanAmount = paidAmount.replaceAll('${TextConstants.currencySymbol}', '').trim();
-                                      double amount = double.tryParse(cleanAmount) ?? 0.0;
-                
-                                      setState(() {
-                                        if (amount == 0.0) {
-                                          _amountErrorText = TextConstants.amountValidation;
-                                        } else {
-                                          _amountErrorText = null;
-                                          _callCreatePaymentAPI(); // create payment api call
+
+                                      onPayPressed: () {
+                                        if (balanceAmount <= 0) { // If balanceAmount is zero, call the API directly without checking amountController
+                                          setState(() {
+                                            _amountErrorText =
+                                            null; // Clear any previous error
+                                            _callCreatePaymentAPI(
+                                                amount: 0.0); // Pass 0.0 or appropriate amount
+                                          });
                                         }
-                                      }); // create payment api call
-                                    },
+                                        else { //Build #1.0.34: updated code
+                                          String paidAmount = amountController.text;
+                                          String cleanAmount = paidAmount.replaceAll('${TextConstants.currencySymbol}', '').trim();
+                                          double amount = double.tryParse(cleanAmount) ?? 0.0;
+
+                                          setState(() {
+                                            if (amount == 0.0) {
+                                              _amountErrorText = TextConstants.amountValidation;
+                                            } else {
+                                              _amountErrorText = null;
+                                              _callCreatePaymentAPI(); // create payment api call
+                                            }
+                                          });
+                                        }
+                                      },
                                     isLoading: isLoading, // Pass isLoading
-                                  )
+                                  ),
                                 ],
                               ),
                             ),
@@ -1847,57 +1895,182 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
   }
 
   // Build #1.0.49: Added _handleVoidPayment for void payment api call code
-  void _handleVoidPayment(BuildContext context) {
+  // Build #1.0.175: Modified _handleVoidPayment for partial void with API call
+  void _handleVoidPayment(BuildContext context, {required bool isPartial}) {
     if (orderId == null || orderId == 0) {
       if (kDebugMode) {
-        print("Invalid order ID: $orderId. Cannot void transaction.");
+        print("_handleVoidPayment -> Invalid order ID: $orderId. Cannot void transaction.");
       }
       Navigator.of(context).pop(); // Close the dialog
       return;
     }
 
+    // DEBUG: Log the void payment attempt
     if (kDebugMode) {
-      print("Void payment for order ID: $orderId");
+      print("_handleVoidPayment -> Attempting to void payment for order ID: $orderId, paymentId: $paymentId, isPartial: $isPartial");
     }
 
     final request = VoidPaymentRequestModel(
       orderId: orderId!,
-      paymentId: selectedPaymentMethod == TextConstants.wallet ? paymentId ?? "" : "",
+    //  paymentId: selectedPaymentMethod == TextConstants.wallet ? paymentId ?? "" : "", // Build #1.0.175: We have to pass paymentId for partial payment if void , then it will became processing
+      paymentId: paymentId ?? "",
     );
 
     paymentBloc.voidPayment(request);
     StreamSubscription? subscription;
     subscription = paymentBloc.voidPaymentStream.listen((response) {
+      if (!mounted) {
+        if (kDebugMode) {
+          print("_handleVoidPayment -> Widget not mounted, skipping UI updates");
+        }
+        subscription?.cancel();
+        return;
+      }
+
       if (response.status == Status.COMPLETED) {
         if (kDebugMode) {
-          print("Void successful: ${response.data!.message}");
+          print("_handleVoidPayment -> Void successful: ${response.data!.message}");
         }
-        Navigator.of(context).pop(); //Build #1.0.134: FIRST POP THE CONFIRM DIALOG
-        Navigator.of(context).pop(); // Dismiss void dialog
-        Navigator.of(context).pop('refresh'); // Pop back to previous screen with refresh
+
+        // Update UI with response values for partial void
+        setState(() {
+          if (kDebugMode) {
+            print("🔹 Before Update:");
+            print("orderTotal: $orderTotal, tenderAmount: $tenderAmount, balanceAmount: $balanceAmount, changeAmount: $changeAmount, orderStatus: $orderStatus");
+
+            print("🔹 Response Data:");
+            print("orderTotal: ${response.data!.orderTotal}, totalPaid: ${response.data!.totalPaid}, remainingAmount: ${response.data!.remainingAmount}, orderStatus: ${response.data!.orderStatus}");
+          }
+
+          // Build #1.0.175: Call fetch payment details by order id API call
+           _fetchPaymentsByOrderId(); // Refresh payments after successful payment
+          /// Build #1.0.175: We are already updating all the values in _callCreatePaymentAPI method, after that again here updating again no need
+          /// If required un-comment and use it!
+          // orderTotal = response.data!.orderTotal ?? orderTotal;
+          // tenderAmount = response.data!.totalPaid ?? tenderAmount;
+          // balanceAmount = response.data!.remainingAmount ?? balanceAmount;
+          // changeAmount = tenderAmount > orderTotal ? (tenderAmount - orderTotal) : 0.0;
+          orderStatus = response.data!.orderStatus ?? orderStatus;
+          // Subtract the voided amount (paidAmount) from payByCash or payByOther based on selectedPaymentMethod
+          // if (selectedPaymentMethod == TextConstants.cash) {
+          //   payByCash = (payByCash - paidAmount).clamp(0.0, double.infinity);
+          // } else {
+          //   payByOther = (payByOther - paidAmount).clamp(0.0, double.infinity);
+          // }
+
+          if (kDebugMode) {
+            print("✅ After Update:");
+            print("orderTotal: $orderTotal, tenderAmount: $tenderAmount, balanceAmount: $balanceAmount, changeAmount: $changeAmount, orderStatus: $orderStatus");
+            print("payByCash: $payByCash, payByOther: $payByOther");
+          }
+        });
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              response.data!.message ?? "",
+              response.data!.message ?? '',
               style: const TextStyle(color: Colors.white),
             ),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 3),
           ),
         );
-       // Navigator.of(context).popUntil((route) => route.isFirst || route.settings.name == '/previousScreen');
-      } else if (response.status == Status.ERROR) {
 
+        // Build #1.0.175: For partial void, stay on same screen; for complete void, navigate back
+        Navigator.of(context).pop(); // Close void confirmation dialog
+        Navigator.of(context).pop(); // Close payment dialog
+        if (!isPartial) {
+          Navigator.of(context).pop(TextConstants.refresh); // Navigate back for complete void
+        }
+      } else if (response.status == Status.ERROR) {
         if (kDebugMode) {
-          print("Void failed: ${response.data!.message}");
+          print("_handleVoidPayment -> Void failed: ${response.data!.message}");
         }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              response.data!.message ?? "",
+              response.data!.message ?? '',
               style: const TextStyle(color: Colors.red),
             ),
-            backgroundColor: Colors.black,
+            backgroundColor: Colors.white,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+        Navigator.of(context).pop(); // Close the dialog
+      }
+      subscription?.cancel();
+    });
+  }
+
+  // Build #1.0.175: New method for void order API call
+  void _handleVoidOrder(BuildContext context) {
+    if (orderId == null || orderId == 0) {
+      if (kDebugMode) {
+        print("_handleVoidOrder -> Invalid order ID: $orderId. Cannot void order.");
+      }
+      Navigator.of(context).pop(); // Close the dialog
+      return;
+    }
+
+    // DEBUG: Log the void order attempt
+    if (kDebugMode) {
+      print("_handleVoidOrder -> Attempting to void order ID: $orderId");
+    }
+
+    paymentBloc.voidOrder(orderId!);
+    StreamSubscription? subscription;
+    subscription = paymentBloc.voidOrderStream.listen((response) {
+      if (!mounted) {
+        if (kDebugMode) {
+          print("_handleVoidOrder -> Widget not mounted, skipping UI updates");
+        }
+        subscription?.cancel();
+        return;
+      }
+
+      if (response.status == Status.COMPLETED) {
+        if (kDebugMode) {
+          print("_handleVoidOrder -> Void order successful: ${response.data!.message}");
+        }
+
+        // Reset UI values after voiding order
+        setState(() {
+          payByCash = 0.0;
+          payByOther = 0.0;
+          tenderAmount = 0.0;
+          changeAmount = 0.0;
+          balanceAmount = orderTotal; // Reset to original order total
+          if (kDebugMode) {
+            print("_handleVoidOrder -> Balance reset to original order total: $balanceAmount");
+          }
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              response.data!.message ?? TextConstants.voidSuccess,
+              style: const TextStyle(color: Colors.white),
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+
+        // Build #1.0.175
+        Navigator.of(context).pop(); // Close void confirmation dialog
+        Navigator.of(context).pop(); // Close payment dialog
+        Navigator.of(context).pop(TextConstants.refresh); // Navigate back to previous screen
+      } else if (response.status == Status.ERROR) {
+        if (kDebugMode) {
+          print("_handleVoidOrder -> Void order failed: ${response.data!.message}");
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              response.data!.message ?? '',
+              style: const TextStyle(color: Colors.red),
+            ),
+            backgroundColor: Colors.white,
             duration: const Duration(seconds: 3),
           ),
         );
@@ -1924,6 +2097,8 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
           if (kDebugMode) {
             print("Proceeding to next payment");
           }
+          // Build #1.0.175: Call fetch payment details by order id API call
+          _fetchPaymentsByOrderId(); // Refresh payments after successful payment
           Navigator.of(context).pop();
         },
       ),
@@ -2188,7 +2363,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
           Navigator.push(context, MaterialPageRoute(
             builder: (context) => PrinterSetup(),
           )).then((result) {
-            if (result == 'refresh') {
+            if (result == TextConstants.refresh) { // Build #1.0.175: added TextConstants
               _printerSettings.loadPrinter();
               setState(() {
                 // Update state to refresh the UI
@@ -2265,7 +2440,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
           Navigator.push(context, MaterialPageRoute(
             builder: (context) => PrinterSetup(),
           )).then((result) {
-            if (result == 'refresh') {
+            if (result == TextConstants.refresh) { // Build #1.0.175: added TextConstants
               _printerSettings.loadPrinter();
               setState(() {
                 // Update state to refresh the UI
@@ -2414,26 +2589,31 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
 
     ///ToDO: Change the status of order to 'completed' here
     // Build #1.0.49: Added Call Order Status Update API code
-    orderBloc.changeOrderStatus(orderId: orderId!, status: TextConstants.completed);
-    StreamSubscription? subscription;
-    subscription = orderBloc.changeOrderStatusStream.listen((response) {
-      if (response.status == Status.COMPLETED) {
-        if (kDebugMode) {
-          print("OrderPanel - Order #@# $orderId, successfully completed");
-        }
-        if (!isReceipt) { //Build #1.0.134: IF USER TAP ON "NO RECEIPT" -> POP THE DIALOG & POP THE SCREEN
-          // Build #1.0.104:  Pop the receipt dialog
-          Navigator.of(context).pop();
-          // Build #1.0.104:  Pop back to the previous screen with a refresh signal
-          Navigator.of(context).pop('refresh');
-        }else{ //Build #1.0.134: IF USER TAP ON "DONE" -> POP THE PRINTER SCREEN & THE DIALOG & POP THE SCREEN
-          // Navigator.of(context).pop();
-          // Build #1.0.104:  Pop the receipt dialog
-          Navigator.of(context).pop();
-          // Build #1.0.104:  Pop back to the previous screen with a refresh signal
-          Navigator.of(context).pop('refresh');
-        }
-        ScaffoldMessenger.of(context).showSnackBar(
+    // orderBloc.changeOrderStatus(orderId: orderId!, status: TextConstants.completed);
+    // StreamSubscription? subscription;
+    // subscription = orderBloc.changeOrderStatusStream.listen((response) {
+    //   if (response.status == Status.COMPLETED) {
+    //     if (kDebugMode) {
+    //       print("OrderPanel - Order #@# $orderId, successfully completed");
+    //     }
+    //     if (!isReceipt) { //Build #1.0.134: IF USER TAP ON "NO RECEIPT" -> POP THE DIALOG & POP THE SCREEN
+    //       // Build #1.0.104:  Pop the receipt dialog
+    //       Navigator.of(context).pop();
+    //       // Build #1.0.104:  Pop back to the previous screen with a refresh signal
+    //       Navigator.of(context).pop(TextConstants.refresh);
+    //     }else{ //Build #1.0.134: IF USER TAP ON "DONE" -> POP THE PRINTER SCREEN & THE DIALOG & POP THE SCREEN
+    //       // Navigator.of(context).pop();
+    //       // Build #1.0.104:  Pop the receipt dialog
+    //       Navigator.of(context).pop();
+    //       // Build #1.0.104:  Pop back to the previous screen with a refresh signal
+    //       Navigator.of(context).pop(TextConstants.refresh);
+    //     }
+      /// Build #1.0.175: No need change status to completed API call
+     /// It was handling from backend
+       Navigator.of(context).pop();  // Dismiss the receipt dialog
+       Navigator.of(context).pop(TextConstants.refresh); // Dismiss back to the previous screen with a refresh signal
+
+       ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
               TextConstants.orderCompleted,
@@ -2445,152 +2625,112 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
         );
         // Optionally refresh UI or remove tab
         // fetchOrderItems();
-      } else if (response.status == Status.ERROR) {
-        if (kDebugMode) {
-          print("OrderPanel - completed failed: ${response.message}");
-        }
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              response.message ?? "Failed to complete order",
-              style: const TextStyle(color: Colors.red),
-            ),
-            backgroundColor: Colors.black,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-        Navigator.of(context).pop(); // Build #1.0.104: close dialog on error
-      }
-      subscription?.cancel();
-    });
+    //   } else if (response.status == Status.ERROR) {
+    //     if (kDebugMode) {
+    //       print("OrderPanel - completed failed: ${response.message}");
+    //     }
+    //     ScaffoldMessenger.of(context).showSnackBar(
+    //       SnackBar(
+    //         content: Text(
+    //           response.message ?? "Failed to complete order",
+    //           style: const TextStyle(color: Colors.red),
+    //         ),
+    //         backgroundColor: Colors.black,
+    //         duration: const Duration(seconds: 3),
+    //       ),
+    //     );
+    //     Navigator.of(context).pop(); // Build #1.0.104: close dialog on error
+    //   }
+    //   subscription?.cancel();
+    // });
   }
 
   // Build #1.0.49: _showVoidExitConfirmation
+  // Build #1.0.175: Modified _showVoidExitConfirmation to handle partial and complete void scenarios
   void showVoidExitConfirmation(BuildContext context, bool isPartial) {
+    // DEBUG: Log void confirmation details
+    if (kDebugMode) {
+      print("showVoidExitConfirmation -> isPartial: $isPartial, orderId: $orderId, paymentId: $paymentId");
+    }
+
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => PaymentDialog.voidConfirmation(
         onVoidCancel: () {
+          if (kDebugMode) {
+            print("showVoidExitConfirmation -> User canceled void, closing dialog");
+          }
           Navigator.of(context).pop(); // Dismiss the confirm dialog
-          // Navigator.of(context).pop();// Dismiss the main dialog
-          // Navigator.of(context).pop('refresh');
         },
         onVoidConfirm: () {
-          ///Added changes for patial payment
-          /// change order status to pending if partial payment and void is selected
-          ///else do void the complete order which will set order status to canceled from backend
-          if(isPartial){
-            orderBloc.changeOrderStatus(orderId: orderId!, status: TextConstants.pending);
-            StreamSubscription? subscription;
-            subscription = orderBloc.changeOrderStatusStream.listen((response) {
-              if (response.status == Status.COMPLETED) {
-                if (kDebugMode) {
-                  print("OrderPanel - Order #$orderId successfully changed to pending");
-                }
-                Navigator.of(context).pop(); //Build #1.0.134: FIRST POP THE CONFIRM DIALOG
-                Navigator.of(context).pop(); // Dismiss void dialog
-                Navigator.of(context).pop('refresh'); // Pop back to previous screen with refresh
-
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      TextConstants.pending,
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                    backgroundColor: Colors.yellow,
-                    duration: const Duration(seconds: 3),
-                  ),
-                );
-              } else if (response.status == Status.ERROR) {
-                if (kDebugMode) {
-                  print("OrderPanel - pending failed: ${response.message}");
-                }
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      response.message ?? "Failed to set order to pending",
-                      style: const TextStyle(color: Colors.red),
-                    ),
-                    backgroundColor: Colors.black,
-                    duration: const Duration(seconds: 3),
-                  ),
-                );
-                Navigator.of(context).pop(); // Build #1.0.104:  close dialog on error
-              }
-              subscription?.cancel();
-            });
-          } else {
-          _handleVoidPayment(context); // Call void payment logic
+          if (isPartial) {
+            // Build #1.0.175: For partial payment void - call voidPayment API
+            if (kDebugMode) {
+              print("showVoidExitConfirmation -> Partial payment void: calling voidPayment API");
             }
+            _handleVoidPayment(context, isPartial: true);
+          } else {
+            // Build #1.0.175: For complete payment void - call voidOrder API
+            if (kDebugMode) {
+              print("showVoidExitConfirmation -> Complete payment void: calling voidOrder API");
+            }
+            _handleVoidOrder(context);
+          }
         },
       ),
     );
   }
 
+  // Build #1.0.175: Modified _showExitPaymentConfirmation to check order_status
   void _showExitPaymentConfirmation(BuildContext context) {
-    /// Build #1.0.168: Fix - If no transaction happen back btn tap - just back to prev screen without refresh or api calls
-    if (payByCash == 0.0 && payByOther == 0.0) {
-   //   if ((payByCash == 0.0 && payByOther == 0.0) || balanceAmount == 0) {
-      // No transactions, go back to previous screen directly
-    //  Navigator.of(context).pop('refresh'); If need to refresh prev screen UI un-comment this line
-      if (kDebugMode) {
-        print("_showExitPaymentConfirmation -> No Transaction Happen, Just Go back to prev screen");
-      }
-      Navigator.of(context).pop();
-      return;
+    // DEBUG: Log the current payment and balance status
+    if (kDebugMode) {
+      print("_showExitPaymentConfirmation -> payByCash: $payByCash, payByOther: $payByOther, balanceAmount: $balanceAmount, orderTotal: $orderTotal, orderStatus: $orderStatus");
     }
-    showDialog(
-      context: context,
-      barrierDismissible: false, // User must choose an option
-      builder: (context) => PaymentDialog( //Build #1.0.134: updated code
-        status: PaymentStatus.exitConfirmation,
-        onExitCancel: () {
-          Navigator.of(context).pop(); // Close the dialog
-        },
-        onExitConfirm: () {
-          // Set order status to on-hold
-          orderBloc.changeOrderStatus(orderId: orderId!, status: TextConstants.onhold);
-          StreamSubscription? subscription;
-          subscription = orderBloc.changeOrderStatusStream.listen((response) {
-            if (response.status == Status.COMPLETED) {
-              if (kDebugMode) {
-                print("OrderPanel - Order #$orderId successfully changed to on hold");
-              }
 
-              Navigator.of(context).pop(); // Dismiss dialog
-              Navigator.of(context).pop('refresh'); // Pop back to FastKeyScreen with refresh
-
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    TextConstants.orderOnHold,
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                  backgroundColor: Colors.orange,
-                  duration: const Duration(seconds: 3),
-                ),
-              );
-            } else if (response.status == Status.ERROR) {
-              if (kDebugMode) {
-                print("OrderPanel - on-hold failed: ${response.message}");
-              }
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                    response.message ?? "Failed to set order to on-hold",
-                    style: const TextStyle(color: Colors.red),
-                  ),
-                  backgroundColor: Colors.black,
-                  duration: const Duration(seconds: 3),
-                ),
-              );
-              Navigator.of(context).pop(); // Close dialog on error
+    // Build #1.0.175: If order_status is pending, show confirmation dialog
+    if (orderStatus == TextConstants.pending) {
+      if (kDebugMode) {
+        print("_showExitPaymentConfirmation -> Order status is pending, showing confirmation dialog");
+      }
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => PaymentDialog(
+          status: PaymentStatus.exitConfirmation,
+          onExitCancel: () {
+            if (kDebugMode) {
+              print("_showExitPaymentConfirmation -> User canceled exit, closing dialog");
             }
-            subscription?.cancel();
-          });
-        },
-      ),
-    );
+            Navigator.of(context).pop(); // Close the dialog
+          },
+          onExitConfirm: () {
+            if (kDebugMode) {
+              print("_showExitPaymentConfirmation -> User confirmed exit, navigating back");
+            }
+            Navigator.of(context).pop(); // Close exit confirmation dialog
+            Navigator.of(context).pop(TextConstants.refresh); // Navigate back to previous screen
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  TextConstants.orderPending,
+                  style: const TextStyle(color: Colors.white),
+                ),
+                backgroundColor: Colors.yellow,
+                duration: const Duration(seconds: 3),
+              ),
+            );
+          },
+        ),
+      );
+    } else {
+      // Build #1.0.175: If order_status is not pending, navigate back without popup
+      if (kDebugMode) {
+        print("_showExitPaymentConfirmation -> Order status is not pending, navigating back directly");
+      }
+      Navigator.of(context).pop(); // Direct navigation back to previous screen
+    }
   }
 }

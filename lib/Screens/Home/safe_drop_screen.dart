@@ -413,7 +413,7 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
           Navigator.push(context, MaterialPageRoute(
             builder: (context) => PrinterSetup(),
           )).then((result) {
-            if (result == 'refresh') {
+            if (result == TextConstants.refresh) { // Build #1.0.175: Added refresh constant string into TextConstants
               _printerSettings.loadPrinter();
               setState(() {
                 // Update state to refresh the UI
@@ -481,7 +481,7 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
                       ),
                     Expanded(
                       child: Padding(
-                        padding: const EdgeInsets.only(left: 10, bottom: 5.0, top: 20.0, right: 10),
+                        padding: const EdgeInsets.only(left: 10, bottom: 0.0, top: 15.0, right: 10),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisAlignment: MainAxisAlignment.start,
@@ -537,6 +537,7 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
                                     height: 1, // Minimal height
                                     endIndent: 150,
                                   ),
+                                  const SizedBox(height: 5),
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.start,
                                     mainAxisSize: MainAxisSize.max,
@@ -594,7 +595,7 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
                                           ],
                                         ),
                                       ),
-                                      const SizedBox(width: 80),
+                                      const SizedBox(width: 150),
                                       SizedBox(
                                         height: MediaQuery.of(context).size.height * 0.4,
                                         width: MediaQuery.of(context).size.width * 0.325,
@@ -608,7 +609,7 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 15),
+                                  const SizedBox(height: 5),
                                 ],
                               ),
                             ),

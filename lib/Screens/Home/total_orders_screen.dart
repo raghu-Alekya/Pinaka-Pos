@@ -29,6 +29,8 @@ import '../../Widgets/widget_navigation_bar.dart' as custom_widgets;
 
 import 'package:quickalert/quickalert.dart';
 
+import '../Auth/login_screen.dart';
+
 class OrdersScreen extends StatefulWidget { //Build #1.0.54: updated
   final int? lastSelectedIndex;
 
@@ -102,7 +104,7 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
 
   Future<void> initFilters() async {
     var filterStatuses = await AssetDBHelper.instance.getOrderStatusList();
-    filterStatuses.removeWhere((e) => e.slug == 'processing');
+    filterStatuses.removeWhere((e) => e.slug == TextConstants.processing);
     _filterStatuses.addAll(filterStatuses);
 
     var filterUsers = await AssetDBHelper.instance.getEmployeeList();
@@ -138,18 +140,41 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
           }
         });
       } else if (response.status == Status.ERROR) {
-        debugPrint("OrdersScreen: Error fetching orders - ${response.message}");
-        setState(() {
-          isLoading = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(TextConstants.failedToFetchOrders), // Build #1.0.149 : added to constant & added background to red
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      } else if (response.status == Status.LOADING) {
+        if (response.message!.contains('Unauthorised')) {
+          if (kDebugMode) {
+            print("Unauthorised : response.message ${response.message!}");
+          }
+          Navigator.pushReplacement(
+              context, MaterialPageRoute(builder: (context) => LoginScreen()));
+
+          if (kDebugMode) {
+            print("message --- ${response.message}");
+          }
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Unauthorised. Session is expired on this device."),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+        else {
+          debugPrint(
+              "OrdersScreen: Error fetching orders - ${response.message}");
+          setState(() {
+            isLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(TextConstants.failedToFetchOrders),
+              // Build #1.0.149 : added to constant & added background to red
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    else if (response.status == Status.LOADING) {
         setState(() => isLoading = true);
       }
     });
@@ -159,7 +184,7 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
     var selectedOrderType = _filterOrderType.firstWhere((element) => element.name == _selectedOrderTypeFilter).slug ?? "";
 
     //Build #1.0.134: Format dates without milliseconds
-    DateFormat format = DateFormat('yyyy-MM-ddThh:mm:ss');
+    DateFormat format = DateFormat('yyyy-MM-dd'); // #Build 1.0.172 removed them (time - Thh:mm:ss), so that when applied date filter, data is fetching properly.
     String? startDateFormatted = '';//_startDate?.toString().split('.')[0];
     String? endDateFormatted = '';//_endDate?.toString().split('.')[0];
     if(_startDate != null){
@@ -463,327 +488,332 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
                     refreshOrderList: _refreshOrderList, // Build #1.0.143: Fixed Issue : After return from order summary screen , total order screen not refreshing with updated response
                   ),
 
-
+                SizedBox(
+                  width: sidebarPosition == SidebarPosition.bottom ? 50 : null,
+                ),
                 // Main Content (Table layout View)
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      // Filters
-                      Wrap(
-                        spacing: 8.0,
-                        children: [
-                          // User Filter
-                          FilterChipWidget(
-                            label: "User",
-                            options: _filterUsers.map((filter) => filter.displayName ?? "").toList(),
-                            selectedValue: _selectedUserFilter,
-                            onSelected: (value) {
-                              setState(() {
-                                _selectedUserFilter = value;
-                                _currentPage = 1;
-                                _fetchOrders();
-                                debugPrint("OrdersScreen: User filter changed to $value");
-                              });
-                            },
-                          ),
-                          // Status Filter
-                          FilterChipWidget(
-                            label: "Status",
-                            options: _filterStatuses.map((filter) => filter.name).toList(),
-                            selectedValue: _selectedStatusFilter,
-                            onSelected: (value) {
-                              setState(() {
-                                _selectedStatusFilter = value;
-                                _currentPage = 1;
-                                _fetchOrders();
-                                debugPrint("OrdersScreen: Status filter changed to $value");
-                              });
-                            },
-                          ),
-                          // Order Type Filter
-                          FilterChipWidget(
-                            label: "OrderType",
-                            options: _filterOrderType.map((e) => e.name).toList(),
-                            selectedValue: _selectedOrderTypeFilter,
-                            onSelected: (value) {
-                              setState(() {
-                                _selectedOrderTypeFilter = value;
-                                _currentPage = 1;
-                                _fetchOrders();
-                                debugPrint("OrdersScreen: Order type filter changed to $value");
-                              });
-                            },
-                          ),
-                          // Range Filter
-                          // Container(
-                          //   height: MediaQuery.of(context).size.height * 0.06,
-                          //   margin: EdgeInsets.symmetric(vertical: 10),
-                          //   padding: const EdgeInsets.symmetric(horizontal: 4),
-                          //   child: ChoiceChip(
-                          //     shape: const RoundedRectangleBorder(
-                          //       side: BorderSide(color: Colors.black),
-                          //       borderRadius: BorderRadius.all(Radius.circular(10.0)),
-                          //     ),
-                          //     visualDensity: VisualDensity.compact,
-                          //     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          //     padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-                          //     label: Row(
-                          //       mainAxisSize: MainAxisSize.min,
-                          //       children: [
-                          //         Text(
-                          //           "Select Range",
-                          //           style: TextStyle(
-                          //             color: isRangeFilterApplied
-                          //                 ? Colors.white
-                          //                 : Colors.black,
-                          //           ),
-                          //         ),
-                          //         const SizedBox(width: 4),
-                          //         Icon(
-                          //           Icons.filter_list,
-                          //           size: 18,
-                          //           color: isRangeFilterApplied
-                          //               ? Colors.white
-                          //               : Colors.black,
-                          //         ),
-                          //       ],
-                          //     ),
-                          //     showCheckmark: false,
-                          //     selected: isRangeFilterApplied,
-                          //     selectedColor: Colors.redAccent,
-                          //     backgroundColor: Colors.grey[200],
-                          //     onSelected: (selected) {
-                          //       _openRangeFilterDialog();
-                          //       _currentPage = 1;
-                          //     },
-                          //   ),
-                          // ),
-                          // Date Range Filter
-                          Container(
-                            margin: EdgeInsets.symmetric(vertical: 10),
-                            child: GestureDetector(
-                              onTap: _openDateRangePickerDialog,
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  // if (_isDateRangeApplied) ...[
-                                  //   Text(
-                                  //     "${DateFormat('dd/MM').format(_startDate!)} - ${DateFormat('dd/MM').format(_endDate!)}",
-                                  //     style: TextStyle(
-                                  //       color: _isDateRangeApplied ? Colors.white : Colors.black,
-                                  //       fontSize: 14,
-                                  //     ),
-                                  //   ),
-                                  //   const SizedBox(width: 8),
-                                  // ],
-                                  SvgPicture.asset(
-                                    'assets/svg/filter_calendar.svg',
-                                    width: MediaQuery.of(context).size.width * 0.1,
-                                    height: MediaQuery.of(context).size.height * 0.06,
-                                    colorFilter: ColorFilter.mode(
-                                      _isDateRangeApplied ? Colors.redAccent :themeHelper.themeMode == ThemeMode.dark
-                                          ? ThemeNotifier.textDark : Colors.black,
-                                      BlendMode.srcIn,
+                Container(
+                  margin: sidebarPosition == SidebarPosition.bottom ? EdgeInsets.zero : null,
+                  child: Expanded(
+                    child: Column(
+                      //mainAxisAlignment: MainAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        // Filters
+                        Wrap(
+                          spacing: 8.0,
+                          children: [
+                            // User Filter
+                            FilterChipWidget(
+                              label: "User",
+                              options: _filterUsers.map((filter) => filter.displayName ?? "").toList(),
+                              selectedValue: _selectedUserFilter,
+                              onSelected: (value) {
+                                setState(() {
+                                  _selectedUserFilter = value;
+                                  _currentPage = 1;
+                                  _fetchOrders();
+                                  debugPrint("OrdersScreen: User filter changed to $value");
+                                });
+                              },
+                            ),
+                            // Status Filter
+                            FilterChipWidget(
+                              label: "Status",
+                              options: _filterStatuses.map((filter) => filter.name).toList(),
+                              selectedValue: _selectedStatusFilter,
+                              onSelected: (value) {
+                                setState(() {
+                                  _selectedStatusFilter = value;
+                                  _currentPage = 1;
+                                  _fetchOrders();
+                                  debugPrint("OrdersScreen: Status filter changed to $value");
+                                });
+                              },
+                            ),
+                            // Order Type Filter
+                            FilterChipWidget(
+                              label: "OrderType",
+                              options: _filterOrderType.map((e) => e.name).toList(),
+                              selectedValue: _selectedOrderTypeFilter,
+                              onSelected: (value) {
+                                setState(() {
+                                  _selectedOrderTypeFilter = value;
+                                  _currentPage = 1;
+                                  _fetchOrders();
+                                  debugPrint("OrdersScreen: Order type filter changed to $value");
+                                });
+                              },
+                            ),
+                            // Range Filter
+                            // Container(
+                            //   height: MediaQuery.of(context).size.height * 0.06,
+                            //   margin: EdgeInsets.symmetric(vertical: 10),
+                            //   padding: const EdgeInsets.symmetric(horizontal: 4),
+                            //   child: ChoiceChip(
+                            //     shape: const RoundedRectangleBorder(
+                            //       side: BorderSide(color: Colors.black),
+                            //       borderRadius: BorderRadius.all(Radius.circular(10.0)),
+                            //     ),
+                            //     visualDensity: VisualDensity.compact,
+                            //     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            //     padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                            //     label: Row(
+                            //       mainAxisSize: MainAxisSize.min,
+                            //       children: [
+                            //         Text(
+                            //           "Select Range",
+                            //           style: TextStyle(
+                            //             color: isRangeFilterApplied
+                            //                 ? Colors.white
+                            //                 : Colors.black,
+                            //           ),
+                            //         ),
+                            //         const SizedBox(width: 4),
+                            //         Icon(
+                            //           Icons.filter_list,
+                            //           size: 18,
+                            //           color: isRangeFilterApplied
+                            //               ? Colors.white
+                            //               : Colors.black,
+                            //         ),
+                            //       ],
+                            //     ),
+                            //     showCheckmark: false,
+                            //     selected: isRangeFilterApplied,
+                            //     selectedColor: Colors.redAccent,
+                            //     backgroundColor: Colors.grey[200],
+                            //     onSelected: (selected) {
+                            //       _openRangeFilterDialog();
+                            //       _currentPage = 1;
+                            //     },
+                            //   ),
+                            // ),
+                            // Date Range Filter
+                            Container(
+                              margin: EdgeInsets.symmetric(vertical: 10),
+                              child: GestureDetector(
+                                onTap: _openDateRangePickerDialog,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    // if (_isDateRangeApplied) ...[
+                                    //   Text(
+                                    //     "${DateFormat('dd/MM').format(_startDate!)} - ${DateFormat('dd/MM').format(_endDate!)}",
+                                    //     style: TextStyle(
+                                    //       color: _isDateRangeApplied ? Colors.white : Colors.black,
+                                    //       fontSize: 14,
+                                    //     ),
+                                    //   ),
+                                    //   const SizedBox(width: 8),
+                                    // ],
+                                    SvgPicture.asset(
+                                      'assets/svg/filter_calendar.svg',
+                                      width: MediaQuery.of(context).size.width * 0.1,
+                                      height: MediaQuery.of(context).size.height * 0.06,
+                                      colorFilter: ColorFilter.mode(
+                                        _isDateRangeApplied ? Colors.redAccent :themeHelper.themeMode == ThemeMode.dark
+                                            ? ThemeNotifier.textDark : Colors.black,
+                                        BlendMode.srcIn,
+                                      ),
+                                      //color: _isDateRangeApplied ? Colors.white : Colors.black,
                                     ),
-                                    //color: _isDateRangeApplied ? Colors.white : Colors.black,
+                                    // if (!_isDateRangeApplied) ...[
+                                    //   const SizedBox(width: 8),
+                                    //   Text(
+                                    //     "Date Range",
+                                    //     style: TextStyle(
+                                    //       color: Colors.black,
+                                    //       fontSize: 14,
+                                    //     ),
+                                    //   ),
+                                    // ],
+                                  ],
+                                ),
+                              ),
+                            ),
+                            // Clear Filters
+                            if (isFilterApplied || isRangeFilterApplied || _isDateRangeApplied)
+                              Container(
+                                margin:EdgeInsets.symmetric(vertical: 5),
+                                child: IconButton(
+                                  icon: Icon(
+                                    Icons.clear,
+                                    color: isFilterApplied || isRangeFilterApplied || _isDateRangeApplied
+                                        ? Colors.redAccent
+                                        : Colors.black,
                                   ),
-                                  // if (!_isDateRangeApplied) ...[
-                                  //   const SizedBox(width: 8),
-                                  //   Text(
-                                  //     "Date Range",
-                                  //     style: TextStyle(
-                                  //       color: Colors.black,
-                                  //       fontSize: 14,
-                                  //     ),
-                                  //   ),
-                                  // ],
+                                  onPressed: _clearFilters,
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Data Table and Pagination controls
+                        Expanded(
+                          child: isLoading
+                              ? const Center(child: CircularProgressIndicator())
+                              : SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            physics: const BouncingScrollPhysics(),
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.vertical,
+                              physics: const BouncingScrollPhysics(),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Table Header with colored container
+                                  Container(
+                                    padding: const EdgeInsets.only(left: 0.0, top: 8.0, bottom: 8.0),
+                                    decoration: BoxDecoration(
+                                      color: themeHelper.themeMode == ThemeMode.dark
+                                          ? ThemeNotifier.primaryBackground : Colors.grey[100], // Light grey background
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color:themeHelper.themeMode == ThemeMode.dark
+                                          ? ThemeNotifier.borderColor : Colors.grey.shade300),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.start,
+                                      children: [
+                                        _buildSortableColumn("ID", 'id'),
+                                        _buildSortableColumn("Order Type", 'orderType'),
+                                        _buildSortableColumn("Date", 'date'),
+                                        _buildSortableColumn("Time", 'time'),
+                                        _buildSortableColumn("Total", 'sales_amount'), //Build #1.0.134: changed to "Total"
+                                        _buildSortableColumn("Status", 'status'),
+                                        //_buildHeaderCell(""),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+
+                                  // Data Rows
+                                  //...filteredData.map((order)
+                                  ...paginatedData.map((order){
+                                    final date = DateTime.tryParse(order.dateCreated)?.toLocal();
+                                    final formattedDate = date != null
+                                        ? DateFormat("EEE, MMM d' '${now.year}'").format(date)
+                                        : '';
+                                    final formattedTime = date != null
+                                        ? DateFormat('HH:mm:ss').format(date)
+                                        : '';
+                                    final isSelected = orderHelper.activeOrderId == order.id; // Check if the row is selected
+
+                                    return Padding(
+                                      padding: EdgeInsets.only(bottom: 8),
+                                      child: GestureDetector( // Add GestureDetector for row click
+                                        onTap: () => _onOrderRowSelected(order.id),
+                                        child: Container(
+                                          padding: EdgeInsets.symmetric(vertical: 8.0),
+                                          decoration: BoxDecoration(
+                                            color: isSelected
+                                                ? (themeHelper.themeMode == ThemeMode.dark
+                                                ? Color(0xFF334756)  // Dark selection color for dark mode
+                                                : Color(0xFFF3ECEC)) // Light selection color for light mode
+                                                : (themeHelper.themeMode == ThemeMode.dark
+                                                ? ThemeNotifier.primaryBackground
+                                                : Colors.white),
+                                            borderRadius: BorderRadius.circular(12),
+                                            border: Border.all(color: themeHelper.themeMode == ThemeMode.dark
+                                                ? ThemeNotifier.borderColor : Colors.grey.shade300),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: themeHelper.themeMode == ThemeMode.dark
+                                                    ? ThemeNotifier.shadow_F7 : Colors.grey.withValues(alpha: 0.2),
+                                                blurRadius: 2,
+                                                offset: const Offset(0, 0),
+                                              ),
+                                            ],
+                                          ),
+                                          child: Row(
+                                            mainAxisAlignment: MainAxisAlignment.start,
+                                            children: [
+                                              _buildDataCell(order.id.toString()),
+                                              _buildDataCell(_filterOrderType.firstWhere((e) => e.slug == order.createdVia.toString()).name), //AppDBConst.orderType
+                                              _buildDataCell(formattedDate),
+                                              _buildDataCell(formattedTime),
+                                              _buildDataCell('${order.currencySymbol}${order.total}'),
+                                              //  _buildDataCell('N/A'), // Over/short not in API response
+                                              _buildDataCell(order.status, isStatus: true),
+                                              // Add action buttons if needed
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  }),
+                                  // Show message when no data available
+                                  if (paginatedData.isEmpty && filteredData.isEmpty)
+                                    Container(
+                                      padding: const EdgeInsets.all(20),
+                                      child: Center(
+                                        child: Text(
+                                          'No orders found',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            color: themeHelper.themeMode == ThemeMode.dark
+                                                ? ThemeNotifier.textDark : Colors.grey,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+
+                                  // Show message when filters result in no data
+                                  if (paginatedData.isEmpty && filteredData.isEmpty && _orders.isNotEmpty)
+                                    Container(
+                                      padding: const EdgeInsets.all(20),
+                                      child: Center(
+                                        child: Text(
+                                          'No orders match the selected filters',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            color: themeHelper.themeMode == ThemeMode.dark
+                                                ? ThemeNotifier.textDark : Colors.grey,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
                                 ],
                               ),
                             ),
                           ),
-                          // Clear Filters
-                          if (isFilterApplied || isRangeFilterApplied || _isDateRangeApplied)
-                            Container(
-                              margin:EdgeInsets.symmetric(vertical: 5),
-                              child: IconButton(
-                                icon: Icon(
-                                  Icons.clear,
-                                  color: isFilterApplied || isRangeFilterApplied || _isDateRangeApplied
-                                      ? Colors.redAccent
-                                      : Colors.black,
-                                ),
-                                onPressed: _clearFilters,
-                              ),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Data Table and Pagination controls
-                      Expanded(
-                        child: isLoading
-                            ? const Center(child: CircularProgressIndicator())
-                            : SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          physics: const BouncingScrollPhysics(),
-                          child: SingleChildScrollView(
-                            scrollDirection: Axis.vertical,
-                            physics: const BouncingScrollPhysics(),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.start,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Table Header with colored container
-                                Container(
-                                  padding: const EdgeInsets.only(left: 0.0, top: 8.0, bottom: 8.0),
-                                  decoration: BoxDecoration(
-                                    color: themeHelper.themeMode == ThemeMode.dark
-                                        ? ThemeNotifier.primaryBackground : Colors.grey[100], // Light grey background
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color:themeHelper.themeMode == ThemeMode.dark
-                                        ? ThemeNotifier.borderColor : Colors.grey.shade300),
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.start,
-                                    children: [
-                                      _buildSortableColumn("ID", 'id'),
-                                      _buildSortableColumn("Order Type", 'orderType'),
-                                      _buildSortableColumn("Date", 'date'),
-                                      _buildSortableColumn("Time", 'time'),
-                                      _buildSortableColumn("Total", 'sales_amount'), //Build #1.0.134: changed to "Total"
-                                      _buildSortableColumn("Status", 'status'),
-                                      //_buildHeaderCell(""),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 10),
-
-                                // Data Rows
-                                //...filteredData.map((order)
-                                ...paginatedData.map((order){
-                                  final date = DateTime.tryParse(order.dateCreated)?.toLocal();
-                                  final formattedDate = date != null
-                                      ? DateFormat("EEE, MMM d' '${now.year}'").format(date)
-                                      : '';
-                                  final formattedTime = date != null
-                                      ? DateFormat('HH:mm:ss').format(date)
-                                      : '';
-                                  final isSelected = orderHelper.activeOrderId == order.id; // Check if the row is selected
-
-                                  return Padding(
-                                    padding: EdgeInsets.only(bottom: 8),
-                                    child: GestureDetector( // Add GestureDetector for row click
-                                      onTap: () => _onOrderRowSelected(order.id),
-                                      child: Container(
-                                        padding: EdgeInsets.symmetric(vertical: 8.0),
-                                        decoration: BoxDecoration(
-                                          color: isSelected
-                                              ? (themeHelper.themeMode == ThemeMode.dark
-                                              ? Color(0xFF334756)  // Dark selection color for dark mode
-                                              : Color(0xFFF3ECEC)) // Light selection color for light mode
-                                              : (themeHelper.themeMode == ThemeMode.dark
-                                              ? ThemeNotifier.primaryBackground
-                                              : Colors.white),
-                                          borderRadius: BorderRadius.circular(12),
-                                          border: Border.all(color: themeHelper.themeMode == ThemeMode.dark
-                                              ? ThemeNotifier.borderColor : Colors.grey.shade300),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: themeHelper.themeMode == ThemeMode.dark
-                                                  ? ThemeNotifier.shadow_F7 : Colors.grey.withValues(alpha: 0.2),
-                                              blurRadius: 2,
-                                              offset: const Offset(0, 0),
-                                            ),
-                                          ],
-                                        ),
-                                        child: Row(
-                                          mainAxisAlignment: MainAxisAlignment.start,
-                                          children: [
-                                            _buildDataCell(order.id.toString()),
-                                            _buildDataCell(_filterOrderType.firstWhere((e) => e.slug == order.createdVia.toString()).name), //AppDBConst.orderType
-                                            _buildDataCell(formattedDate),
-                                            _buildDataCell(formattedTime),
-                                            _buildDataCell('${order.currencySymbol}${order.total}'),
-                                            //  _buildDataCell('N/A'), // Over/short not in API response
-                                            _buildDataCell(order.status, isStatus: true),
-                                            // Add action buttons if needed
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                }),
-                                // Show message when no data available
-                                if (paginatedData.isEmpty && filteredData.isEmpty)
-                                  Container(
-                                    padding: const EdgeInsets.all(20),
-                                    child: Center(
-                                      child: Text(
-                                        'No orders found',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          color: themeHelper.themeMode == ThemeMode.dark
-                                              ? ThemeNotifier.textDark : Colors.grey,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-
-                                // Show message when filters result in no data
-                                if (paginatedData.isEmpty && filteredData.isEmpty && _orders.isNotEmpty)
-                                  Container(
-                                    padding: const EdgeInsets.all(20),
-                                    child: Center(
-                                      child: Text(
-                                        'No orders match the selected filters',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          color: themeHelper.themeMode == ThemeMode.dark
-                                              ? ThemeNotifier.textDark : Colors.grey,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
                         ),
-                      ),
-                      // ADDED: Pagination Controls
-                      //if (!isLoading && totalItems > 0)
-                      if (!isLoading && _totalOrdersCount > _rowsPerPage)
-                        _buildPaginationControls(totalItems, totalPages),
-                      // REUSABLE PAGINATION WIDGET
-                      // PaginationWidget(
-                      //   currentPage: _currentPage,
-                      //   totalItems: filteredData.length,
-                      //   rowsPerPage: _rowsPerPage,
-                      //   rowsPerPageOptions: _rowsPerPageOptions,
-                      //   onPageChanged: (page) {
-                      //     setState(() {
-                      //       _currentPage = page;
-                      //     });
-                      //     debugPrint("OrdersScreen: Page changed to $page");
-                      //   },
-                      //   onRowsPerPageChanged: (rowsPerPage) {
-                      //     setState(() {
-                      //       _rowsPerPage = rowsPerPage;
-                      //       _currentPage = 1; // Reset to first page
-                      //     });
-                      //     debugPrint("OrdersScreen: Rows per page changed to $rowsPerPage");
-                      //   },
-                      //   showFirstLastButtons: true,
-                      //   showPageNumbers: true,
-                      //   emptyMessage: "No orders found",
-                      //   // Optional customization
-                      //   backgroundColor: Colors.grey[50],
-                      //   textStyle: const TextStyle(fontSize: 14, color: Colors.black87),
-                      //   buttonColor: Colors.blue,
-                      //   disabledButtonColor: Colors.grey,
-                      // ),
-                    ],
+                        // ADDED: Pagination Controls
+                        //if (!isLoading && totalItems > 0)
+                        if (!isLoading && _totalOrdersCount > _rowsPerPage)
+                          _buildPaginationControls(totalItems, totalPages),
+                        // REUSABLE PAGINATION WIDGET
+                        // PaginationWidget(
+                        //   currentPage: _currentPage,
+                        //   totalItems: filteredData.length,
+                        //   rowsPerPage: _rowsPerPage,
+                        //   rowsPerPageOptions: _rowsPerPageOptions,
+                        //   onPageChanged: (page) {
+                        //     setState(() {
+                        //       _currentPage = page;
+                        //     });
+                        //     debugPrint("OrdersScreen: Page changed to $page");
+                        //   },
+                        //   onRowsPerPageChanged: (rowsPerPage) {
+                        //     setState(() {
+                        //       _rowsPerPage = rowsPerPage;
+                        //       _currentPage = 1; // Reset to first page
+                        //     });
+                        //     debugPrint("OrdersScreen: Rows per page changed to $rowsPerPage");
+                        //   },
+                        //   showFirstLastButtons: true,
+                        //   showPageNumbers: true,
+                        //   emptyMessage: "No orders found",
+                        //   // Optional customization
+                        //   backgroundColor: Colors.grey[50],
+                        //   textStyle: const TextStyle(fontSize: 14, color: Colors.black87),
+                        //   buttonColor: Colors.blue,
+                        //   disabledButtonColor: Colors.grey,
+                        // ),
+                      ],
+                    ),
                   ),
                 ),
 

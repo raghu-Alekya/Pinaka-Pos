@@ -9,11 +9,13 @@
         android:id="@+id/welcome_root"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:gravity="center"
+        android:gravity="center_horizontal"
         android:orientation="vertical"
         android:padding="16dp"
         android:scaleX="0.85"
-        android:scaleY="0.85">
+        android:scaleY="0.85"
+        android:layout_gravity="top"
+        android:layout_marginTop="170dp">
 
         <ImageView
             android:id="@+id/welcome_logo"

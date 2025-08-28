@@ -55,191 +55,168 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
     return Center(
       child: Card(
         elevation: 8,
+        margin: EdgeInsets.only(top: 10),
         color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground : null,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: Container(
-          alignment: Alignment.center,
-          width: MediaQuery.of(context).size.width * 0.5,
-          height: MediaQuery.of(context).size.height * 0.9,
+          width: MediaQuery.of(context).size.width * 0.65,
+          height: MediaQuery.of(context).size.height * 0.9, // Reduced from 0.9 to 0.85
           padding: const EdgeInsets.all(5.0),
-          child: Column(
-            //mainAxisSize: MainAxisSize.min,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Title with close button
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+              Expanded(
+                  flex: 1,
+                  child: SizedBox()),
+              Column(
                 children: [
-                  Expanded(
-                    child: Text(
-                      TextConstants.editProductText,
-                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                      textAlign: TextAlign.center,
+                  // Title with close button
+                  // Text(
+                  //   TextConstants.editProductText,
+                  //   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  //   textAlign: TextAlign.center,
+                  // ),
+                  const SizedBox(height: 10),
+
+                  // Product information
+                  Center(
+                    child: Container(
+                      width: MediaQuery.of(context).size.width / 3,
+                      height: MediaQuery.of(context).size.height * 0.16, // Reduced from 0.16 to 0.14
+                      padding: EdgeInsets.all(16.0),
+                      decoration: BoxDecoration(
+                          color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : Colors.white,
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.05),
+                              spreadRadius: 5,
+                              blurRadius: 5,
+                              offset: Offset(0, 0),
+                            )
+                          ]
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Product Image
+                          Container(
+                            width: 75,
+                            height: 75,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(5),
+                              border: Border.all(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.borderColor : Colors.grey.shade300),
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: _buildProductImage(),
+                            ),
+                          ),
+                          const SizedBox(width: 20),
+
+                          // Product details
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SizedBox(
+                                width: MediaQuery.of(context).size.width * 0.23,
+                                child: Text(
+                                  widget.orderItem[AppDBConst.itemName],
+                                  maxLines: 2,
+                                  softWrap: true,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                "Unit Price: ${TextConstants.currencySymbol}${(_regularPrice).toStringAsFixed(2)}",
+                                style: TextStyle(fontSize: 12),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                "Total: ${TextConstants.currencySymbol}${(quantity * _regularPrice).toStringAsFixed(2)}",
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.green.shade700
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  Container(
-                    width: 50.0,
-                    height: 40.0,
-                    margin: EdgeInsets.only(top: 10, right: 15),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.red
-                    ),
-                    child: IconButton(
-                      icon: Icon(Icons.close,color: Colors.white,size: 20,),
-                      onPressed: () => Navigator.of(context).pop(),
+                  const SizedBox(height: 10), // Reduced from 15 to 10
+
+                  // Quantity controls
+                  QuantityControl(
+                    controller: controller,
+                    quantity: quantity,
+                    onDecrement: updateQuantity,
+                    onIncrement: updateQuantity,
+                  ),
+                  const SizedBox(height: 10), // Reduced from 10 to 8
+
+                  // NumPad - Make it flexible to take remaining space
+                  Expanded(
+                    flex: 1,
+                    child: SizedBox(
+                      width: MediaQuery.of(context).size.width / 2.65,
+                      child: CustomNumPad(
+                        isDarkTheme: themeHelper.themeMode == ThemeMode.dark,
+                        onDigitPressed: (digit) {
+                          setState(() {
+                            int newQty = int.tryParse((controller.text.isEmpty ? "0" : controller.text) + digit) ?? quantity;
+                            updateQuantity(newQty);
+                          });
+                        },
+                        onClearPressed: () => updateQuantity(0),
+                        onAddPressed: () {
+                          widget.onQuantityUpdated(quantity);
+                          Navigator.pop(context);
+                        },
+                        actionButtonType: ActionButtonType.add,
+                      ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 5),
-
-              // Product information
-              Center(
-                child: Container(
-                  //width: MediaQuery.of(context).size.width * 0.2,
-                  width: MediaQuery.of(context).size.width /3,
-                  height: MediaQuery.of(context).size.height * 0.16,
-                  padding: EdgeInsets.all(16.0),
-                  decoration: BoxDecoration(
-                    color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : Colors.white,
+              Spacer(
+                flex: 1,
+              ),
+              Container(
+                width: 50.0,
+                height: 40.0,
+                margin: EdgeInsets.only(top: 15, right: 15),
+                decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.red
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () => Navigator.of(context).pop(),
                     borderRadius: BorderRadius.circular(10),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.05),
-                        spreadRadius: 5,
-                        blurRadius: 5,
-                        offset: Offset(0, 0),
-                      )
-                    ]
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min, // This makes the Row take only needed width
-                    children: [
-                      // Product Image
-                      Container(
-                        width: 75,
-                        height: 75,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(5),
-                          border: Border.all(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.borderColor : Colors.grey.shade300),
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: _buildProductImage(),
-                        ),
+                    child: Center(
+                      child: Icon(
+                        Icons.close,
+                        color: Colors.white,
+                        size: 20,
                       ),
-                      const SizedBox(width: 20),
-
-                      // Product details
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: MediaQuery.of(context).size.width * 0.23,
-                            child: Text(
-                              widget.orderItem[AppDBConst.itemName],
-                              maxLines: 2,
-                              softWrap: true,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            "Unit Price: ${TextConstants.currencySymbol}${(_regularPrice).toStringAsFixed(2)}",
-                            style: TextStyle(fontSize: 12,
-                                //color: Colors.grey.shade700
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                          //  "Total: \$${(quantity * widget.orderItem[AppDBConst.itemCount] * widget.orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}",
-                            "Total: ${TextConstants.currencySymbol}${(quantity * _regularPrice).toStringAsFixed(2)}", //Build 1.1.36
-                            style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.green.shade700
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(height: 15),
-
-              // Quantity controls -- Using our new stateless widget
-              QuantityControl(
-                controller: controller,
-                quantity: quantity,
-                onDecrement: updateQuantity,
-                onIncrement: updateQuantity,
-              ),
-              const SizedBox(height: 15,),
-
-              // NumPad
-              SizedBox(
-                //color: Colors.red,
-                //margin: EdgeInsets.all(5.0),
-                //padding: EdgeInsets.all(2.0),
-                height: MediaQuery.of(context).size.height * 0.5,
-                width: MediaQuery.of(context).size.width /2.65,
-                child: CustomNumPad(
-                  isDarkTheme: themeHelper.themeMode == ThemeMode.dark,
-                  onDigitPressed: (digit) {
-                    setState(() {
-                      int newQty = int.tryParse((controller.text.isEmpty ? "0" : controller.text) + digit) ?? quantity;
-                      updateQuantity(newQty);
-                    });
-                  },
-                  onClearPressed: () => updateQuantity(0),
-                  onAddPressed: () {
-                    widget.onQuantityUpdated(quantity);
-                    Navigator.pop(context);
-                  },
-                  actionButtonType: ActionButtonType.add,
-                ),
-              ),
-              // Action buttons
-              // Container(
-              //   height: MediaQuery.of(context).size.height * 0.070,
-              //   padding: EdgeInsets.all(5.0),
-              //   child: Row(
-              //     mainAxisAlignment: MainAxisAlignment.end,
-              //     //crossAxisAlignment: CrossAxisAlignment.center,
-              //     children: [
-              //       TextButton(
-              //         onPressed: () => Navigator.pop(context),
-              //         child: Text('Cancel',style: TextStyle(fontSize: 20.0,color: Colors.redAccent),),
-              //         style:
-              //         TextButton.styleFrom(
-              //           padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              //         ),
-              //       ),
-              //       const SizedBox(width: 10),
-              //       ElevatedButton(
-              //         onPressed: () {
-              //           widget.onQuantityUpdated(quantity);
-              //           Navigator.pop(context);
-              //         },
-              //         child: Text('Update',style: TextStyle(fontSize: 20.0,color: Colors.white),),
-              //         style: ElevatedButton.styleFrom(
-              //           backgroundColor: Colors.green,
-              //           padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              //         ),
-              //       ),
-              //     ],
-              //   ),
-              // ),
             ],
           ),
         ),
       ),
     );
   }
-
   Widget _buildProductImage() {
     if (widget.orderItem[AppDBConst.itemImage].toString().startsWith('http')) {
       return SizedBox(

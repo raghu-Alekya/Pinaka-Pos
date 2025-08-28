@@ -137,7 +137,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
 
   // Fetch order ID and total from OrderHelper
   Future<void> _loadOrderData() async {
-    await _orderHelper.loadData();
+    await _orderHelper.loadProcessingData();
     setState(() {
       orderId = _orderHelper.activeOrderId;
       if (kDebugMode) {
@@ -203,7 +203,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
       child: Container(
           width: MediaQuery.of(context).size.width * 0.12,
         decoration: BoxDecoration(
-          color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.tabsBackground : Color(0xFFF1F5F9),
+          color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.tabsBackground : ThemeNotifier.tabsLightBackground,
           borderRadius: BorderRadius.circular(16.0),
         ),
           child: Column(
@@ -211,12 +211,18 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
           children: [
             _buildTab(0,SvgUtils.addDiscountIcon, TextConstants.discounts), // Build #1.0.168: Updated - Changed the icons to figma svg icons
             const SizedBox(width: 10),
+            // Hide divider if current tab (0) or next tab (1) is selected
+            if (_selectedTabIndex != 0 && _selectedTabIndex != 1)
             Divider(height: 1, thickness: 0.1, indent: 10, endIndent: 10),
             _buildTab(1, SvgUtils.addCouponIcon, TextConstants.coupons),
             const SizedBox(width: 10),
+            // Hide divider if current tab (1) or next tab (2) is selected
+            if (_selectedTabIndex != 1 && _selectedTabIndex != 2)
            Divider(height: 1, thickness: 0.1, indent: 10, endIndent: 10),
             _buildTab(2, SvgUtils.addCustomItemIcon, TextConstants.customItem),
             const SizedBox(width: 10),
+            // Hide divider if current tab (2) or next tab (3) is selected
+            if (_selectedTabIndex != 2 && _selectedTabIndex != 3)
             Divider(height: 1, thickness: 0.1, indent: 10, endIndent: 10),
             _buildTab(3, SvgUtils.addPayoutIcon, TextConstants.payoutsText),
           ],
@@ -252,7 +258,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
                 : Colors.white)
                 : (themeHelper.themeMode == ThemeMode.dark
                 ? ThemeNotifier.tabsBackground
-                : const Color(0xFFF1F5F9)),  //Color(0xFF1E2745))
+                : ThemeNotifier.tabsLightBackground),  //Color(0xFF1E2745))
             borderRadius: BorderRadius.circular(16.0),
           ),
           child: Row(
@@ -341,11 +347,11 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
           // Custom Numpad
           SizedBox(
             width: MediaQuery.of(context).size.width / 2.75,
-            height: MediaQuery.of(context).size.height / 2.0,
+            height: MediaQuery.of(context).size.height / 2.25,
             child: CustomNumPad(
               onDigitPressed: (digit) {
                 setState(() { // Build #1.0.53 : updated code
-                  String currentValue = _discountValue.replaceAll('%', '').replaceAll('\$', '');
+                  String currentValue = _discountValue.replaceAll('%', '').replaceAll(TextConstants.currencySymbol, '');
                   if (currentValue == "0") {
                     currentValue = digit;
                   } else {
@@ -361,7 +367,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
               },
               onDeletePressed: () { // Build #1.0.53 : updated code
                 setState(() {
-                  String currentValue = _discountValue.replaceAll('%', '').replaceAll('\$', '');
+                  String currentValue = _discountValue.replaceAll('%', '').replaceAll(TextConstants.currencySymbol, ''); // Build #1.0.181: 1. Replaced Hard coded ‘\$’ with TextConstants.currencySymbol
                   currentValue = currentValue.isNotEmpty ? currentValue.substring(0, currentValue.length - 1) : "0";
                   _discountValue = _isPercentageSelected ? "$currentValue%" : currentValue;
                 });
@@ -425,7 +431,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
           // Custom Numpad
           SizedBox(
             width: MediaQuery.of(context).size.width / 2.75,
-            height: MediaQuery.of(context).size.height / 2.0,
+            height: MediaQuery.of(context).size.height / 2.25,
             child: CustomNumPad(
               onDigitPressed: (digit) {
                 setState(() {
@@ -752,7 +758,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
     return Center(
       child: SizedBox(
         width: MediaQuery.of(context).size.width / 2.75,
-        height: MediaQuery.of(context).size.height / 2.0,
+        height: MediaQuery.of(context).size.height / 2.25,
         child: CustomNumPad(
           onDigitPressed: (digit) {
             setState(() {
@@ -1034,7 +1040,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
           // Custom Numpad
           SizedBox(
             width: MediaQuery.of(context).size.width / 2.75,
-            height: MediaQuery.of(context).size.height / 2.0,
+            height: MediaQuery.of(context).size.height / 2.25,
             child: CustomNumPad(
               onDigitPressed: (digit) {
                 setState(() {
@@ -1114,7 +1120,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
                   if (!_isPercentageSelected) {
                     _isPercentageSelected = true;
                     // Convert to percentage format
-                    _discountValue = _discountValue.replaceAll('\$', '') + "%";
+                    _discountValue = "${_discountValue.replaceAll(TextConstants.currencySymbol, '')}%"; // Build #1.0.181: 1. Replaced Hard coded ‘\$’ with TextConstants.currencySymbol
                   }
                 });
               },
@@ -1221,12 +1227,12 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
   // Ensured _isDiscountLoading is shown during API calls and cleared afterward.
   // Preserved success toast and UI refresh logic.
   void _handleAddDiscount() async { // Build #1.0.53 : updated code with discount api call
-    String discountValue = _discountValue.replaceAll('%', '').replaceAll('\$', '');
+    String discountValue = _discountValue.replaceAll('%', '').replaceAll(TextConstants.currencySymbol, ''); // Build #1.0.181: 1. Replaced Hard coded ‘\$’ with TextConstants.currencySymbol
     if (discountValue.isEmpty || discountValue == "0" || double.tryParse(discountValue) == null) {
       if (kDebugMode) print("Invalid discount value: $discountValue");
       ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
         const SnackBar(
-          content: Text("Please enter a valid Discount"),
+          content: Text(TextConstants.invalidDiscountError), // Build #1.0.181: Added through TextConstants
           backgroundColor: Colors.red,
           duration: Duration(seconds: 2),
         ),
@@ -1238,7 +1244,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
       if (kDebugMode) print("No active order selected");
       ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
         const SnackBar(
-          content: Text("No active order selected"),
+          content: Text(TextConstants.noActiveOrderError), // Build #1.0.181: Added through TextConstants
           backgroundColor: Colors.red,
           duration: Duration(seconds: 2),
         ),
@@ -1264,7 +1270,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
         setState(() => _isDiscountLoading = false);
         ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar( // Build #1.0.128:  updated missed condition
           const SnackBar(
-            content: Text("Order not found"),
+            content: Text(TextConstants.orderNotFoundError), // Build #1.0.181: Added through TextConstants
             backgroundColor: Colors.red,
             duration: Duration(seconds: 2),
           ),
@@ -1318,7 +1324,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
 
         ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
           SnackBar(
-            content: Text("Discount of \$${discountAmount.toStringAsFixed(2)} not applied, order id $serverOrderId not found in DB"),
+            content: Text("Discount of ${TextConstants.currencySymbol}${discountAmount.toStringAsFixed(2)} not applied, order id $serverOrderId not found in DB"),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 2),
           ),
@@ -1341,7 +1347,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
           });
           ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
             SnackBar(
-              content: Text("Discount of \$${discountAmount.toStringAsFixed(2)} applied"),
+              content: Text("Discount of ${TextConstants.currencySymbol}${discountAmount.toStringAsFixed(2)} applied"),
               backgroundColor: Colors.green,
               duration: const Duration(seconds: 2),
             ),
@@ -1353,11 +1359,12 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
           subscription?.cancel();
         } else if (response.status == Status.ERROR) {
           if (kDebugMode) print("Failed to confirm discount: ${response.message}");
+          setState(() => _isDiscountLoading = false); // Build #1.0.181: Fixed - continues loader on add discount button for empty order
           ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
             SnackBar(
               content: Text(response.message ?? "Failed to apply discount"),
               backgroundColor: Colors.red,
-              duration: const Duration(seconds: 2),
+              duration: const Duration(seconds: 4), // Build #1.0.181: increased reading time for the error toast message!
             ),
           );
 
@@ -1365,7 +1372,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
         }
       });
 
-      await orderBloc.addPayout(orderId: serverOrderId, dbOrderId: orderId!, amount: discountAmount, isPayOut: false);
+      await orderBloc.addPayout(orderId: serverOrderId, dbOrderId: orderId, amount: discountAmount, isPayOut: false);
     } catch (e) {
       if (kDebugMode) print("Error processing discount: $e");
       setState(() => _isDiscountLoading = false);
@@ -1385,7 +1392,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
       if (kDebugMode) print("### _couponCode is empty");
       ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
         const SnackBar(
-          content: Text("Please enter a valid Coupon Code"),
+          content: Text(TextConstants.invalidCouponError), // Build #1.0.181: Added through TextConstants
           backgroundColor: Colors.red,
           duration: Duration(seconds: 2),
         ),
@@ -1398,7 +1405,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
       if (kDebugMode) print("No active order selected");
       ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
         const SnackBar(
-          content: Text("No active order selected"),
+          content: Text(TextConstants.noActiveOrderError), // Build #1.0.181: Added through TextConstants
           backgroundColor: Colors.red,
           duration: Duration(seconds: 2),
         ),
@@ -1425,7 +1432,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
         setState(() => _isCouponLoading = false);
         ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
           const SnackBar(
-            content: Text("Order not found"),
+            content: Text(TextConstants.orderNotFoundError), // Build #1.0.181: Added through TextConstants
             backgroundColor: Colors.red,
             duration: Duration(seconds: 2),
           ),
@@ -1444,7 +1451,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
         if (kDebugMode) print("Coupon with code $_couponCode already exists for order $orderId");
         ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
           const SnackBar(
-            content: Text("This coupon has already been applied"),
+            content: Text(TextConstants.couponAlreadyApplied), // Build #1.0.181: Added through TextConstants
             backgroundColor: Colors.orange,
             duration: Duration(seconds: 2),
           ),
@@ -1560,7 +1567,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
       if (kDebugMode) print("Custom item name is empty");
       ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
         const SnackBar(
-          content: Text("Please enter item name"),
+          content: Text(TextConstants.itemNameRequired), // Build #1.0.181: Added through TextConstants
           backgroundColor: Colors.red,
           duration: Duration(seconds: 2),
         ),
@@ -1571,7 +1578,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
       if (kDebugMode) print("Invalid custom item price: $_customItemPrice");
       ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
         const SnackBar(
-          content: Text("Please enter a valid price"),
+          content: Text(TextConstants.invalidPriceError), // Build #1.0.181: Added through TextConstants
           backgroundColor: Colors.red,
           duration: Duration(seconds: 2),
         ),
@@ -1583,7 +1590,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
       if (kDebugMode) print("No tax slab selected");
       ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
         const SnackBar(
-          content: Text("Please select a tax slab"),
+          content: Text(TextConstants.taxSlabRequired), // Build #1.0.181: Added through TextConstants
           backgroundColor: Colors.red,
           duration: Duration(seconds: 2),
         ),
@@ -1594,7 +1601,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
       if (kDebugMode) print("SKU is empty");
       ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
         const SnackBar(
-          content: Text("Please generate SKU"),
+          content: Text(TextConstants.skuRequired), // Build #1.0.181: Added through TextConstants
           backgroundColor: Colors.red,
           duration: Duration(seconds: 2),
         ),
@@ -1629,7 +1636,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
       //   setState(() => _isCustomItemLoading = false);
       //   ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
       //     const SnackBar(
-      //       content: Text("Order not found"),
+      //       content: Text(TextConstants.orderNotFoundError),
       //       backgroundColor: Colors.red,
       //       duration: Duration(seconds: 2),
       //     ),
@@ -1775,7 +1782,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
               });
               ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
                 SnackBar(
-                  content: Text("Custom item '$_customItemName' added at \$$_customItemPrice"),
+                  content: Text("Custom item '$_customItemName' added at ${TextConstants.currencySymbol}$_customItemPrice"),
                   backgroundColor: Colors.green,
                   duration: const Duration(seconds: 2),
                 ),
@@ -1857,7 +1864,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
       if (kDebugMode) print("Invalid payout amount: $_payoutAmount");
         ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
           const SnackBar(
-            content: Text("Please enter a valid Payout Amount"),
+            content: Text(TextConstants.invalidPayoutError), // Build #1.0.181: Added through TextConstants
             backgroundColor: Colors.red,
             duration: Duration(seconds: 2),
           ),
@@ -1870,7 +1877,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
       if (kDebugMode) print("No active order selected");
       ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
         const SnackBar(
-          content: Text("No active order selected"),
+          content: Text(TextConstants.noActiveOrderError), // Build #1.0.181: Added through TextConstants
           backgroundColor: Colors.red,
           duration: Duration(seconds: 2),
         ),
@@ -1893,7 +1900,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
         setState(() => _isPayoutLoading = false);
         ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
           const SnackBar(
-            content: Text("Order not found"),
+            content: Text(TextConstants.orderNotFoundError), // Build #1.0.181: Added through TextConstants
             backgroundColor: Colors.red,
             duration: Duration(seconds: 2),
           ),
@@ -1917,7 +1924,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
         setState(() => _isPayoutLoading = false);
         ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
           const SnackBar(
-            content: Text("A payout has already been added for this order"),
+            content: Text(TextConstants.payoutAlreadyAdded), // Build #1.0.181: Added through TextConstants
             backgroundColor: Colors.orange,
             duration: Duration(seconds: 2),
           ),
@@ -1955,7 +1962,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
 ///Show error instead adding to local DB and return
         ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
           SnackBar(
-            content: Text("Payout of \$$payoutAmount did not add, as of Order Id did not fount."),
+            content: Text("Payout of ${TextConstants.currencySymbol}$payoutAmount did not add, as of Order Id did not fount."),
             backgroundColor: Colors.orange,
             duration: const Duration(seconds: 2),
           ),
@@ -1979,7 +1986,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
           });
           ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
             SnackBar(
-              content: Text("Payout of \$$payoutAmount added successfully"),
+              content: Text("Payout of ${TextConstants.currencySymbol}$payoutAmount added successfully"),
               backgroundColor: Colors.green,
               duration: const Duration(seconds: 2),
             ),
@@ -1990,6 +1997,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
           subscription?.cancel();
         } else if (response.status == Status.ERROR) {
           if (kDebugMode) print("Failed to add payout: ${response.message}");
+          setState(() {_isPayoutLoading = false;}); // Build #1.0.181: Fixed loader not stopping issue
           ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
             SnackBar(
               content: Text("Failed to add payout"),

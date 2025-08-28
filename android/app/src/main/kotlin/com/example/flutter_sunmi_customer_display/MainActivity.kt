@@ -18,11 +18,9 @@ import io.flutter.plugin.common.MethodChannel
 import java.net.URL
 import android.graphics.BitmapFactory
 import android.graphics.Color
-import android.graphics.Typeface
 import android.view.Gravity
 import android.view.View
-import java.text.SimpleDateFormat
-import java.util.*
+import kotlin.math.absoluteValue
 
 class MainActivity : FlutterActivity() {
 
@@ -57,13 +55,25 @@ class MainActivity : FlutterActivity() {
                     val storeName = call.argument<String>("storeName") ?: ""
                     val storeLogoUrl = call.argument<String>("storeLogoUrl")
 
-                    Log.d("CustomerDisplay", "➡ showWelcomeWithStore invoked → storeId=$storeId, storeName=$storeName, logoUrl=$storeLogoUrl")
+                    Log.d(
+                        "CustomerDisplay",
+                        "➡ showWelcomeWithStore invoked → storeId=$storeId, storeName=$storeName, logoUrl=$storeLogoUrl"
+                    )
+                    Toast.makeText(
+                        context,
+                        "Welcome → id=$storeId, name=$storeName, logo=$storeLogoUrl",
+                        Toast.LENGTH_LONG
+                    ).show()
 
                     currentStoreId = storeId
                     currentStoreName = storeName
                     currentStoreLogoUrl = storeLogoUrl
 
-                    customerDisplayPresentation?.updateWelcomeWithStore(storeId, storeName, storeLogoUrl)
+                    if (customerDisplayPresentation == null) {
+                        showWelcomeOnCustomerDisplay()
+                    }
+                    customerDisplayPresentation?.showWelcomeLayout(storeId, storeName, storeLogoUrl)
+
                     result.success("Welcome updated with store")
                 }
 
@@ -76,12 +86,16 @@ class MainActivity : FlutterActivity() {
                     val netTotal = call.argument<Double>("netTotal") ?: 0.0
                     val tax = call.argument<Double>("tax") ?: 0.0
                     val netPayable = call.argument<Double>("netPayable") ?: 0.0
+                    val orderDate = call.argument<String>("orderDate") ?: ""
+                    val orderTime = call.argument<String>("orderTime") ?: ""
 
                     Log.d("CustomerDisplay", "➡ showCustomerData invoked → orderId=$orderId, items=${items.size}, grossTotal=$grossTotal, discount=$discount, merchantDiscount=$merchantDiscount, netTotal=$netTotal, tax=$tax, netPayable=$netPayable")
+                    Log.d("CustomerDisplay", "➡ orderDate='$orderDate'")
+                    Log.d("CustomerDisplay", "➡ orderTime='$orderTime'")
 
                     val success = showDataOnCustomerDisplay(
                         orderId, currentStoreId, currentStoreName, currentStoreLogoUrl, items,
-                        grossTotal, discount, merchantDiscount, netTotal, tax, netPayable
+                        grossTotal, discount, merchantDiscount, netTotal, tax, netPayable,orderDate, orderTime
                     )
 
                     if (success) {
@@ -152,7 +166,9 @@ class MainActivity : FlutterActivity() {
         merchantDiscount: Double,
         netTotal: Double,
         tax: Double,
-        netPayable: Double
+        netPayable: Double,
+        orderDate: String,
+        orderTime: String
     ): Boolean {
         if (customerDisplayPresentation == null) {
             Log.d("CustomerDisplay", "CustomerDisplayPresentation null, showing Welcome first")
@@ -161,7 +177,7 @@ class MainActivity : FlutterActivity() {
 
         customerDisplayPresentation?.updateCustomerData(
             orderId, storeId, storeName, storeLogoUrl, items, grossTotal,
-            discount, merchantDiscount, netTotal, tax, netPayable
+            discount, merchantDiscount, netTotal, tax, netPayable,orderDate, orderTime
         )
         Log.d("CustomerDisplay", "✔ CustomerDisplayPresentation updated with order #$orderId")
         return customerDisplayPresentation != null
@@ -230,28 +246,10 @@ class MainActivity : FlutterActivity() {
 
         private lateinit var paymentDate: TextView
         private lateinit var paymentTime: TextView
-        private val handler = Handler(Looper.getMainLooper())
 
         private var currentStoreId: String = ""
         private var currentStoreName: String = ""
         private var currentStoreLogoUrl: String? = null
-
-        private val dateTimeUpdater = object : Runnable {
-            override fun run() {
-                val now = Calendar.getInstance().time
-                val dateFormat = SimpleDateFormat("EEEE, dd MMMM yyyy", Locale.getDefault())
-                val timeFormat = SimpleDateFormat("hh:mm a", Locale.getDefault())
-
-                if (this@CustomerDisplayPresentation::paymentDate.isInitialized) {
-                    paymentDate.text = dateFormat.format(now)
-                }
-                if (this@CustomerDisplayPresentation::paymentTime.isInitialized) {
-                    paymentTime.text = timeFormat.format(now)
-                }
-                Log.d("CustomerDisplay", "⏰ Current Date: ${dateFormat.format(now)}, Time: ${timeFormat.format(now)}")
-                handler.postDelayed(this, 1000)
-            }
-        }
 
         override fun onCreate(savedInstanceState: Bundle?) {
             super.onCreate(savedInstanceState)
@@ -298,113 +296,22 @@ class MainActivity : FlutterActivity() {
                 Log.d("CustomerDisplay", "✅ Using default Welcome logo")
             }
         }
+        fun showWelcomeLayout(storeId: String, storeName: String, storeLogoUrl: String?) {
+            Log.d("CustomerDisplay", "➡ Switching back to Welcome layout")
 
-        fun updateCustomerData(
-            orderId: Int,
-            storeId: String,
-            storeName: String,
-            storeLogoUrl: String?,
-            items: List<Map<String, Any>>,
-            grossTotal: Double,
-            discount: Double,
-            merchantDiscount: Double,
-            netTotal: Double,
-            tax: Double,
-            netPayable: Double
-        ) {
-            currentStoreId = storeId
-            currentStoreName = storeName
-            currentStoreLogoUrl = storeLogoUrl
+            setContentView(R.layout.welcome_layout)
+            welcomeText = findViewById(R.id.welcome_text)
 
-            if (!firstOrderShown) {
-                Log.d("CustomerDisplay", "➡ Showing customer_display_layout for first order")
-                setContentView(R.layout.customer_display_layout)
-                bindOrderViews()
-                firstOrderShown = true
+            updateWelcomeWithStore(storeId, storeName, storeLogoUrl)
+            firstOrderShown = false
+        }
 
-                // Start date/time updater
-                handler.post(dateTimeUpdater)
+        private fun formatCurrency(value: Double): String {
+            return if (value < 0) {
+                "- $${"%.2f".format(value.absoluteValue)}"
+            } else {
+                "$${"%.2f".format(value)}"
             }
-
-            updateStoreInfo(currentStoreId, currentStoreName, currentStoreLogoUrl)
-
-            Log.d("CustomerDisplay", "➡ Updating order #$orderId with ${items.size} items")
-            orderIdView.text = "Order #$orderId (${storeId.ifEmpty { "Store" }})"
-            itemsContainer.removeAllViews()
-
-            var totalItemCount = 0
-
-            for (item in items) {
-                val qty = (item["qty"] as? Number)?.toInt() ?: 0
-                totalItemCount += qty
-                val cardLayout = LinearLayout(context).apply {
-                    orientation = LinearLayout.HORIZONTAL
-                    setPadding(16, 16, 16, 16)
-                    layoutParams = LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT,
-                        LinearLayout.LayoutParams.WRAP_CONTENT
-                    ).apply { setMargins(0, 8, 0, 8) }
-                    setBackgroundResource(R.drawable.card_bg)
-                    elevation = 4f
-                }
-
-                // Item image
-                val imageView = ImageView(context).apply {
-                    layoutParams = LinearLayout.LayoutParams(120, 120).apply { marginEnd = 16 }
-                    scaleType = ImageView.ScaleType.CENTER_CROP
-                    setBackgroundColor(Color.LTGRAY)
-                    clipToOutline = true
-                }
-
-                // Item name + qty × price
-                val detailsLayout = LinearLayout(context).apply {
-                    orientation = LinearLayout.VERTICAL
-                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                }
-
-                val nameQtyView = TextView(context).apply {
-                    textSize = 16f
-                    setTextColor(Color.BLACK)
-                    typeface = Typeface.DEFAULT_BOLD
-                    text = "${item["name"]}  (${qty} × ${item["unitPrice"]})"
-                }
-
-                detailsLayout.addView(nameQtyView)
-
-                // Item total price
-                val priceView = TextView(context).apply {
-                    layoutParams = LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.WRAP_CONTENT,
-                        LinearLayout.LayoutParams.MATCH_PARENT
-                    )
-                    textSize = 16f
-                    setTextColor(Color.BLACK)
-                    typeface = Typeface.DEFAULT_BOLD
-                    gravity = Gravity.END or Gravity.CENTER_VERTICAL
-                    text = "$${item["total"]}"
-                }
-
-                cardLayout.addView(imageView)
-                cardLayout.addView(detailsLayout)
-                cardLayout.addView(priceView)
-
-                itemsContainer.addView(cardLayout)
-            }
-
-
-            // Update total items count
-            val totalItemsView = findViewById<TextView>(R.id.label_total_items)
-            totalItemsView.text = "Total Items : $totalItemCount"
-
-            // Update totals
-            grossView.text = "Gross Total: $%.2f".format(grossTotal)
-            discountView.text = "Discount: -$%.2f".format(discount)
-            merchantDiscountView.text = "Merchant Discount: -$%.2f".format(merchantDiscount)
-            netTotalView.text = "Net Total: $%.2f".format(netTotal)
-            taxView.text = "Tax: $%.2f".format(tax)
-            netPayableView.text = "Net Payable: $%.2f".format(netPayable)
-
-            Log.d("CustomerDisplay", "✔ Order #$orderId totals updated on display, Total Items: $totalItemCount")
         }
 
         private fun bindOrderViews() {
@@ -426,15 +333,16 @@ class MainActivity : FlutterActivity() {
             Log.d("CustomerDisplay", "✔ Customer order views bound")
         }
 
-        private fun updateStoreInfo(storeId: String, storeName: String, storeLogoUrl: String?) {
+        private fun updateStoreInfo(
+            storeId: String,
+            storeName: String,
+            storeLogoUrl: String?,
+            orderDate: String,
+            orderTime: String
+        ) {
             storeInfoText.text = storeName
-            val now = Calendar.getInstance().time
-            val dateFormat = SimpleDateFormat("EEEE, dd MMMM yyyy", Locale.getDefault())
-            val timeFormat = SimpleDateFormat("hh:mm a", Locale.getDefault())
-            Log.d(
-                "CustomerDisplay",
-                "➡ Store Info Update → Store: $storeName, LogoUrl: $storeLogoUrl, Date: ${dateFormat.format(now)}, Time: ${timeFormat.format(now)}"
-            )
+            paymentDate.text = orderDate
+            paymentTime.text = orderTime
 
             if (!storeLogoUrl.isNullOrEmpty()) {
                 Thread {
@@ -458,6 +366,147 @@ class MainActivity : FlutterActivity() {
             }
         }
 
+        fun updateCustomerData(
+            orderId: Int,
+            storeId: String,
+            storeName: String,
+            storeLogoUrl: String?,
+            items: List<Map<String, Any>>,
+            grossTotal: Double,
+            discount: Double,
+            merchantDiscount: Double,
+            netTotal: Double,
+            tax: Double,
+            netPayable: Double,
+            orderDate: String,
+            orderTime: String
+        ) {
+            currentStoreId = storeId
+            currentStoreName = storeName
+            currentStoreLogoUrl = storeLogoUrl
+            if (items.isEmpty()) {
+                Log.d("CustomerDisplay", "⚠ No items → showing Welcome for store $storeName")
+                showWelcomeLayout(storeId, storeName, storeLogoUrl)
+                firstOrderShown = false
+                return
+            }
+            if (!firstOrderShown || window?.decorView?.findViewById<View>(R.id.customer_order_id) == null) {
+                Log.d("CustomerDisplay", "➡ Showing Customer Display layout for order #$orderId")
+                setContentView(R.layout.customer_display_layout)
+                bindOrderViews()
+                firstOrderShown = true
+            }
+            updateStoreInfo(currentStoreId, currentStoreName, currentStoreLogoUrl, orderDate, orderTime)
+
+            Log.d("CustomerDisplay", "➡ Updating order #$orderId with ${items.size} items")
+            orderIdView.text = "Order #$orderId"
+            itemsContainer.removeAllViews()
+
+            var totalItemCount = 0
+
+            for (item in items) {
+                val name = (item["name"] as? String) ?: ""
+                val qty = (item["qty"] as? Number)?.toInt() ?: 0
+                val price = (item["price"] as? Number)?.toDouble() ?: 0.0
+                val total = price * qty
+
+                if (!name.equals("Payout", ignoreCase = true) && !name.equals("Coupon", ignoreCase = true)) {
+                    totalItemCount += qty
+                }
+
+                val cardLayout = LinearLayout(context).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    setPadding(6, 8, 6, 8)
+                    background = context.getDrawable(R.drawable.item_card_background)
+                    val params = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    )
+                    params.setMargins(0, 4, 0, 4)
+                    layoutParams = params
+                }
+
+                val imageView = ImageView(context).apply {
+                    layoutParams = LinearLayout.LayoutParams(70, 70)
+                    scaleType = ImageView.ScaleType.CENTER_CROP
+                }
+
+                if (name.equals("Payout", ignoreCase = true)) {
+                    imageView.setImageResource(R.drawable.ic_payout)
+                } else if (name.equals("Coupon", ignoreCase = true)) {
+                    imageView.setImageResource(R.drawable.ic_coupon)
+                } else {
+                    (item["image"] as? String)?.let { imageUrl ->
+                        Thread {
+                            try {
+                                val input = URL(imageUrl).openStream()
+                                val bitmap = BitmapFactory.decodeStream(input)
+                                Handler(Looper.getMainLooper()).post {
+                                    imageView.setImageBitmap(bitmap)
+                                    Log.d("CustomerDisplay", "✅ Item image loaded successfully for $name from $imageUrl")
+                                }
+                            } catch (e: Exception) {
+                                Handler(Looper.getMainLooper()).post {
+                                    imageView.setImageResource(android.R.drawable.ic_menu_report_image)
+                                    Log.e("CustomerDisplay", "❌ Failed to load item image for $name from $imageUrl: ${e.message}")
+                                }
+                            }
+                        }.start()
+                    } ?: Log.w("CustomerDisplay", "⚠ No image URL provided for item $name")
+                }
+
+                val detailsLayout = LinearLayout(context).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    val params = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    )
+                    params.setMargins(8, 0, 0, 0)
+                    layoutParams = params
+                    weightSum = 2f
+                }
+
+                val nameQtyView = TextView(context).apply {
+                    textSize = 12f
+                    setTypeface(typeface, android.graphics.Typeface.BOLD)
+                    text = "$name x$qty"
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                }
+
+                val totalView = TextView(context).apply {
+                    textSize = 12f
+                    setTypeface(typeface, android.graphics.Typeface.BOLD)
+                    text = formatCurrency(total)
+                    setTextColor(if (total < 0) Color.RED else Color.BLUE)
+                    gravity = Gravity.END
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                }
+
+                detailsLayout.addView(nameQtyView)
+                detailsLayout.addView(totalView)
+
+                cardLayout.addView(imageView)
+                cardLayout.addView(detailsLayout)
+
+                itemsContainer.addView(cardLayout)
+            }
+
+            val totalItemsView = findViewById<TextView>(R.id.label_total_items)
+            totalItemsView.text = "Total Items : $totalItemCount"
+
+            // First code currency formatting
+            grossView.text = formatCurrency(grossTotal)
+            discountView.text = formatCurrency(-discount)
+            merchantDiscountView.text = formatCurrency(-merchantDiscount)
+            netTotalView.text = formatCurrency(netTotal)
+            taxView.text = formatCurrency(tax)
+            netPayableView.text = "Total : ${formatCurrency(netPayable)}"
+            paymentDate.text = orderDate
+            paymentTime.text = orderTime
+
+            Log.d("CustomerDisplay", "✔ Order #$orderId totals updated on display, Total Items: $totalItemCount")
+        }
+
         fun showThankYouLayout() {
             setContentView(R.layout.thank_you_layout)
 
@@ -475,21 +524,23 @@ class MainActivity : FlutterActivity() {
                         val bitmap = BitmapFactory.decodeStream(input)
                         Handler(Looper.getMainLooper()).post {
                             storeLogoView.setImageBitmap(bitmap)
+                            Log.d("CustomerDisplay", "✅ Thank You store logo loaded successfully from $currentStoreLogoUrl")
                         }
                     } catch (e: Exception) {
                         Handler(Looper.getMainLooper()).post {
                             storeLogoView.setImageResource(R.drawable.pinaka_logo)
+                            Log.e("CustomerDisplay", "❌ Failed to load Thank You store logo from $currentStoreLogoUrl: ${e.message}")
                         }
                     }
                 }.start()
             } else {
                 storeLogoView.setImageResource(R.drawable.pinaka_logo)
+                Log.d("CustomerDisplay", "⚠ No store logo URL provided → using default in Thank You layout")
             }
         }
 
         override fun onDetachedFromWindow() {
             super.onDetachedFromWindow()
-            handler.removeCallbacks(dateTimeUpdater)
         }
     }
 }

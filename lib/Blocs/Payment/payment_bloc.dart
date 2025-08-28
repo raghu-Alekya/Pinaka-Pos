@@ -22,14 +22,20 @@ class PaymentBloc {  // Build #1.0.25 - added by naveen
   final StreamController<APIResponse<List<PaymentListModel>>> _paymentsListController =
   StreamController<APIResponse<List<PaymentListModel>>>.broadcast();
 
-  final StreamController<APIResponse<VoidPaymentResponseModel>> _voidPaymentController =
-  StreamController<APIResponse<VoidPaymentResponseModel>>.broadcast();
+  final StreamController<APIResponse<PaymentResponseModel>> _voidPaymentController =
+  StreamController<APIResponse<PaymentResponseModel>>.broadcast();
 
   final StreamController<APIResponse<SendOrderDetailsResponseModel>> _sendOrderDetailsController =
   StreamController<APIResponse<SendOrderDetailsResponseModel>>.broadcast();
 
-  StreamSink<APIResponse<VoidPaymentResponseModel>> get voidPaymentSink => _voidPaymentController.sink;
-  Stream<APIResponse<VoidPaymentResponseModel>> get voidPaymentStream => _voidPaymentController.stream;
+  final StreamController<APIResponse<PaymentResponseModel>> _voidOrderController =
+  StreamController<APIResponse<PaymentResponseModel>>.broadcast(); // Build #1.0.175: Added void order API call for cancel the payment completed order if it is void
+
+  StreamSink<APIResponse<PaymentResponseModel>> get voidPaymentSink => _voidPaymentController.sink;
+  Stream<APIResponse<PaymentResponseModel>> get voidPaymentStream => _voidPaymentController.stream;
+
+  StreamSink<APIResponse<PaymentResponseModel>> get voidOrderSink => _voidOrderController.sink;
+  Stream<APIResponse<PaymentResponseModel>> get voidOrderStream => _voidOrderController.stream;
 
   // Getters for Streams
   StreamSink<APIResponse<PaymentResponseModel>> get createPaymentSink => _createPaymentController.sink;
@@ -59,7 +65,7 @@ class PaymentBloc {  // Build #1.0.25 - added by naveen
       final response = await _paymentRepository.createPayment(request);
 
       if (kDebugMode) {
-        print("PaymentBloc - Payment created with ID: ${response.postId}");
+      //  print("PaymentBloc - Payment created with ID: ${response.postId}");
         print("PaymentBloc - Payment Message: ${response.message}");
       }
 
@@ -68,11 +74,14 @@ class PaymentBloc {  // Build #1.0.25 - added by naveen
       //     "payment_id": 3592,
       //     "message": "Payment Created Successfully"
       // }
-
-      createPaymentSink.add(APIResponse.completed(response));
       await CustomerDisplayService.showThankYou();
-
+      createPaymentSink.add(APIResponse.completed(response));
     } catch (e) {
+      //Build #1.0.180
+      if (e.toString().contains('UnauthorisedException')) {
+        if (kDebugMode) print("UnAutherized $e");
+        createPaymentSink.add(APIResponse.error("Unauthorised. Session is expired."));
+      }
       if (e.toString().contains('SocketException')) {
         createPaymentSink.add(APIResponse.error("Network error. Please check your connection."));
       } else {
@@ -160,6 +169,33 @@ class PaymentBloc {  // Build #1.0.25 - added by naveen
     }
   }
 
+  // Build #1.0.175: Added void order API call for cancel the payment completed order if it is void
+  Future<void> voidOrder(int orderId) async {
+    if (_voidOrderController.isClosed) return;
+
+    voidOrderSink.add(APIResponse.loading(TextConstants.loading));
+    try {
+      final response = await _paymentRepository.voidOrder(orderId);
+
+      if (kDebugMode) {
+        print("PaymentBloc - Voided order ID: $orderId");
+        print("PaymentBloc - Void Order Message: ${response.message}");
+        if (response.voidedPayments != null) {
+          print("PaymentBloc - Voided Payments: ${response.voidedPayments}");
+        }
+      }
+
+      voidOrderSink.add(APIResponse.completed(response));
+    } catch (e) {
+      if (e.toString().contains('SocketException')) {
+        voidOrderSink.add(APIResponse.error("Network error. Please check your connection."));
+      } else {
+        voidOrderSink.add(APIResponse.error("Failed to void order: ${e.toString()}"));
+      }
+      if (kDebugMode) print("Exception in voidOrder: $e");
+    }
+  }
+
   // Build #1.0.159
   // 5. Send Order Details API Call
   Future<void> sendOrderDetails(int orderId, String email) async {
@@ -192,6 +228,7 @@ class PaymentBloc {  // Build #1.0.25 - added by naveen
     if (!_paymentsListController.isClosed) _paymentsListController.close();
     if (!_voidPaymentController.isClosed) _voidPaymentController.close();
     if (!_sendOrderDetailsController.isClosed) _sendOrderDetailsController.close();
+    if (!_voidOrderController.isClosed) _createPaymentController.close();
     if (kDebugMode) print("PaymentBloc disposed with all controllers");
   }
 }

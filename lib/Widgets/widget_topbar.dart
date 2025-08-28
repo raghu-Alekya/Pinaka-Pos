@@ -94,6 +94,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:pinaka_pos/Widgets/widget_variants_dialog.dart';
 import 'package:provider/provider.dart';
+import 'package:thermal_printer/esc_pos_utils_platform/src/capability_profile.dart';
+import 'package:thermal_printer/esc_pos_utils_platform/src/enums.dart';
+import 'package:thermal_printer/esc_pos_utils_platform/src/generator.dart';
 import '../Blocs/Orders/order_bloc.dart';
 import '../Blocs/Search/product_search_bloc.dart';
 import '../Constants/text.dart';
@@ -111,15 +114,19 @@ import '../Repositories/Orders/order_repository.dart';
 import '../Repositories/Search/product_search_repository.dart';
 import '../Utilities/responsive_layout.dart';
 import 'package:pinaka_pos/Models/Search/product_by_sku_model.dart' as SKU;
+
+import '../Utilities/svg_images_utility.dart';
 enum Screen { FASTKEY, CATEGORY, ADD, ORDERS, APPS, SHIFT, SAFE, EDIT }
 class TopBar extends StatefulWidget { // Build #1.0.13 : Updated top bar with search api integration
   final Function() onModeChanged;
+  // final Function() onThemeChanged;
   final Function(ProductResponse)? onProductSelected;
   final Screen screen;
 
   const TopBar({
     required this.screen,
     required this.onModeChanged,
+    // required this.onThemeChanged,
     this.onProductSelected,
     Key? key,
   }) : super(key: key);
@@ -940,7 +947,7 @@ class _TopBarState extends State<TopBar> {
     final theme = Theme.of(context);
     final themeHelper = Provider.of<ThemeNotifier>(context);
     return Container(
-      color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground : ThemeNotifier.lightBackground,
+      color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground : Colors.white,
       height: 60,
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
@@ -953,6 +960,18 @@ class _TopBarState extends State<TopBar> {
           const SizedBox(width: 140),
           Expanded(
             child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: [
+                  BoxShadow(
+                    color: themeHelper.themeMode == ThemeMode.dark
+                        ? ThemeNotifier.shadow_F7 : Colors.grey.withValues(alpha: 0.2),
+                    blurRadius: 2,
+                    spreadRadius: 2,
+                    offset: const Offset(0, 0),
+                  ),
+                ],
+              ),
               height: 50,
               key: _searchFieldKey,
               child: TextField(
@@ -1007,6 +1026,7 @@ class _TopBarState extends State<TopBar> {
                     borderRadius: BorderRadius.circular(8),
                     borderSide: BorderSide.none,
                   ),
+
                   filled: true,
                   fillColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.searchBarBackground : Colors.white,
                 ),
@@ -1044,6 +1064,123 @@ class _TopBarState extends State<TopBar> {
           // const SizedBox(width: 8),
           Row(
             children: [
+              //cash drawer
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  GestureDetector(
+                    // onTap: widget.onThemeChanged,
+                    onTap: () async {
+                      final profile = await CapabilityProfile.load(name: 'XP-N160I');
+                      var bytes = Generator(PaperSize.mm80, profile).drawer(); /// open drawer
+                      if (kDebugMode) {
+                        print("TopBar onTap of cash drawer open tapped with profile: ${profile.name} and bytes return $bytes");
+                      }
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(TextConstants.cashDrawerIsOpening),
+                          backgroundColor: Colors.orange,
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                    child: SvgPicture.asset(
+                      SvgUtils.cashDrawerIcon,
+                      width: 26,
+                      height: 26,
+                      colorFilter: ColorFilter.mode(
+                        themeHelper.themeMode == ThemeMode.dark
+                            ? ThemeNotifier.lightBackground
+                            : Colors.grey,
+                        BlendMode.srcIn,
+                      ),
+                    ),
+                  ),
+
+                  const Text(
+                    TextConstants.lightText,
+                    style: TextStyle(fontSize: 8),
+                  ),
+                ],
+              ),
+              SizedBox(width: 20),
+              // mode button
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  GestureDetector(
+                    onTap: widget.onModeChanged,
+                    child: SvgPicture.asset(
+                      SvgUtils.changeModeIcon,
+                      width: 26,
+                      height: 26,
+                      colorFilter: ColorFilter.mode(
+                        themeHelper.themeMode == ThemeMode.dark
+                            ? ThemeNotifier.lightBackground
+                            : Colors.grey,
+                        BlendMode.srcIn,
+                      ),
+                    ),
+                  ),
+                  const Text(
+                    TextConstants.modeText,
+                    style: TextStyle(fontSize: 8),
+                  ),
+                ],
+              ),
+              SizedBox(width: 20),
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // GestureDetector(
+                  //   // FIX: Makes the entire area of the widget tappable, not just the visible parts.
+                  //   behavior: HitTestBehavior.opaque,
+                  //   onTap: () async {
+                  //     if (kDebugMode) {
+                  //       print("Theme icon tapped!");
+                  //     }
+                  //     final themeNotifier = Provider.of<ThemeNotifier>(context, listen: false);
+                  //     final newTheme = themeNotifier.themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
+                  //     themeNotifier.setThemeMode(newTheme);
+                  //     // Save the new theme setting to the database
+                  //     await UserDbHelper().saveUserSettings({
+                  //       AppDBConst.themeMode: newTheme.toString(),
+                  //     });
+                  //   },
+                  GestureDetector(
+                    // onTap: widget.onThemeChanged,
+                    onTap: (){
+                      if (kDebugMode) {
+                        print("TopBar onTap of thememode change ${themeHelper.getThemeMode()}");
+                      }
+
+                      themeHelper.setThemeMode( //Build #1.0.54: updated
+                          themeHelper.getThemeMode() == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark
+                      );
+                    },
+                    child: SvgPicture.asset(
+                      SvgUtils.themeIcon,
+                      width: 26,
+                      height: 26,
+                      colorFilter: ColorFilter.mode(
+                        themeHelper.themeMode == ThemeMode.dark
+                            ? ThemeNotifier.lightBackground
+                            : Colors.grey,
+                        BlendMode.srcIn,
+                      ),
+                    ),
+                  ),
+
+                  Text(
+                    themeHelper.themeMode == ThemeMode.dark
+                        ? TextConstants.darkText
+                        : TextConstants.lightText,
+                    style: const TextStyle(fontSize: 8),
+                  ),
+                ],
+              ),
+              SizedBox(width: 20),
+              // User profile section with container and notification bell
               Container(
                 height: 45,
                 margin: EdgeInsets.all(10),
@@ -1054,11 +1191,20 @@ class _TopBarState extends State<TopBar> {
                 decoration: BoxDecoration(
                   color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : Colors.white,
                   borderRadius: BorderRadius.circular(15),
+                  boxShadow: [
+                    BoxShadow(
+                      color: themeHelper.themeMode == ThemeMode.dark
+                          ? ThemeNotifier.shadow_F7 : Colors.grey.withValues(alpha: 0.2),
+                      blurRadius: 2,
+                      spreadRadius: 4,
+                      offset: const Offset(0, 0),
+                    ),
+                  ],
                 ),
                 child: Row(
                   children: [
                     CircleAvatar(
-                      radius: 18,
+                      radius: 15,
                       backgroundColor: Colors.deepPurple,
                       child: Text(
                         (userDisplayName ?? "Unknown").substring(0,1), // "A", /// use initial for the login user
@@ -1068,7 +1214,7 @@ class _TopBarState extends State<TopBar> {
                             fontSize: 14),
                       ),
                     ),
-                    SizedBox(width: 12),
+                    SizedBox(width: 15),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
@@ -1096,6 +1242,15 @@ class _TopBarState extends State<TopBar> {
                 decoration: BoxDecoration(
                   color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : Colors.white,
                   shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: themeHelper.themeMode == ThemeMode.dark
+                          ? ThemeNotifier.shadow_F7 : Colors.grey.withValues(alpha: 0.2),
+                      blurRadius: 2,
+                      spreadRadius: 4,
+                      offset: const Offset(0, 0),
+                    ),
+                  ],
                 ),
                 padding: EdgeInsets.all(10),
                 child: Icon(
@@ -1106,20 +1261,7 @@ class _TopBarState extends State<TopBar> {
               ),
             ],
           ),
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              IconButton(
-                onPressed: widget.onModeChanged,
-                icon: const Icon(Icons.switch_right),
-              ),
-              const Text(
-                TextConstants.modeText,
-                style: TextStyle(fontSize: 8),
-              ),
-            ],
-          ),
-          // User profile section with container and notification bell
+
 
         ],
       ),

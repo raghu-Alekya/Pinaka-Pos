@@ -4,9 +4,9 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import '../../Constants/text.dart';
+import '../../Helper/CustomerDisplayHelper.dart';
 import '../../Helper/Extentions/exceptions.dart';
 import '../../Helper/api_response.dart';
-import '../../Helper/customer_display_helper.dart';
 import '../../Preferences/pinaka_preferences.dart';
 import '../../Utilities/global_utility.dart';
 import '../../Models/Auth/store_validation_model.dart';
@@ -48,7 +48,6 @@ class StoreValidationBloc { //Build #1.0.42: Added by Naveen
       if (kDebugMode) {
         print("StoreValidationBloc - Validation Response: ${response.toJson()}");
       }
-
       if (response.storeId != null && response.storeId!.isNotEmpty) {
         // Save store info locally
         await PinakaPreferences.saveLoggedInStore(

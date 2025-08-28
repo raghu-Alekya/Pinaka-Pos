@@ -1398,9 +1398,34 @@ class CategoryList extends StatelessWidget {
           ),
         ],
       ),
-      child: IconButton(
-        icon: const Icon(Icons.add, color: Colors.redAccent, size: TextFontSize.size_28),
-        onPressed: onPressed,
+      child: InkWell(
+        onTap: onPressed,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Icon(
+                Icons.add,
+                color: Colors.redAccent,
+                size: TextFontSize.size_32),
+            Text(
+              TextConstants.add,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  color: Colors.redAccent,
+                  fontSize: 10
+              ),
+            ),
+            Text(
+              TextConstants.fastKey,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  color: Colors.redAccent,
+                  fontSize: 10
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

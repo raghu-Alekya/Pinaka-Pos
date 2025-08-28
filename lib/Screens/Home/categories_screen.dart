@@ -202,6 +202,8 @@ import '../../Database/order_panel_db_helper.dart';
 import '../../Constants/text.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../Auth/login_screen.dart';
+
 class CategoriesScreen extends StatefulWidget {
   final int? lastSelectedIndex;
 
@@ -243,6 +245,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
   bool isShowingSubCategories = false;
   StreamSubscription? _updateOrderSubscription;
   late OrderBloc orderBloc;
+  int _refreshCounter = 0; //Build #1.0.170: Added: Counter to trigger RightOrderPanel refresh only when needed
 
   @override
   void initState() {
@@ -254,11 +257,12 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
     reorderedIndices = List.filled(categoryProducts.length, null);
 
     _loadTopLevelCategories(); // Build #1.0.27 : Load top-level categories once
-    Future.delayed(const Duration(seconds: 3), () {
-      setState(() {
-        isLoading = false;
-      });
-    });
+    // Add delay to check shimmer effect
+    // Future.delayed(const Duration(seconds: 3), () {
+    //   setState(() {
+    //     isLoading = false;
+    //   });
+    // });
   }
 
   @override
@@ -317,6 +321,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
       if (response.status == Status.COMPLETED && response.data != null) {
         setState(() {
           categories = response.data!.categories;
+          isLoading = false;
         });
         // After loading categories, apply the last selected category
         // Build #1.0.166: Only after top categories are loaded, load last selected
@@ -325,6 +330,20 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
         }
         break; // Break after loading top-level categories
       } else if (response.status == Status.ERROR) {
+        //Build #1.0.179
+        if (response.message!.contains('Unauthorised')) {
+          if (kDebugMode) {
+            print("Unauthorised : response.message ${response.message!}");
+          }
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()));
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Unauthorised. Session is expired on this device."),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 2),
+          ),
+        );
         if (kDebugMode) {
           print("CategoriesScreen: Error loading top-level categories: ${response.message}");
         }
@@ -639,7 +658,12 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
   }
 
   void _refreshOrderList() {
-    setState(() {});
+    setState(() {
+      if (kDebugMode) {
+        print("##### _refreshOrderList: Incrementing _refreshCounter to $_refreshCounter to trigger RightOrderPanel refresh");
+      }
+      _refreshCounter++; //Build #1.0.170: Increment to signal refresh, causing didUpdateWidget to load with loader
+    });
   }
 
   bool get showBackButton => categoryProducts.isNotEmpty;
@@ -648,6 +672,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _categoryBloc.dispose();
+    orderBloc.dispose(); // Build 1.0.171
     fastKeyTabIdNotifier.dispose();
     super.dispose();
   }
@@ -797,6 +822,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
                     formattedTime: formattedTime,
                     quantities: quantities,
                     refreshOrderList: _refreshOrderList,
+                    refreshKey: _refreshCounter, //Build #1.0.170: Pass counter as refreshKey
                   ),
                 Expanded(
                   child: Column(
@@ -994,6 +1020,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
                     formattedTime: formattedTime,
                     quantities: quantities,
                     refreshOrderList: _refreshOrderList,
+                    refreshKey: _refreshCounter, //Build #1.0.170: Pass counter as refreshKey
                   ),
                 if (sidebarPosition == SidebarPosition.right)
                   custom_widgets.NavigationBar(

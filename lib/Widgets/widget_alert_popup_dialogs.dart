@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:pinaka_pos/Constants/text.dart';
+import 'package:pinaka_pos/Screens/Home/fast_key_screen.dart';
 import 'package:provider/provider.dart';
 
 import '../Helper/Extentions/theme_notifier.dart';
@@ -78,6 +79,28 @@ class CustomDialog {
         onButtonPressed: onRetry ?? () => Navigator.of(context).pop(),
       );
     }
+
+  static Future<void> showCloseShiftWarning(
+      BuildContext context, {
+        VoidCallback? onOk,
+      }) {
+    return _showSimpleDialog(
+      context,
+      title: TextConstants.closeShiftWarning, // You'll need to add this to TextConstants
+      description: TextConstants.closeShiftWarningDesc,
+      buttonText: TextConstants.ok, // Make sure this exists in TextConstants
+      iconPath: 'assets/svg/check_broken_info.svg', // Using same icon as other info dialogs
+      showCloseIcon: false, // No close icon since user must acknowledge
+      onButtonPressed: onOk ?? () {
+        Navigator.of(context).pop();
+        // Navigate to FastKeyScreen - adjust the route name as per your app
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => FastKeyScreen()),
+            (route) => false,
+        );
+      },
+    );
+  }
 
     //Build #1.0.67: code updated for removing the payout/coupon/discount based on
     static Future<bool?> showRemoveSpecialOrderItemsConfirmation(BuildContext context, {String? type, Function? confirm}) {

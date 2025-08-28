@@ -14,4 +14,7 @@ class SvgUtils {
   static const String addCouponIcon = 'assets/svg/add_coupon.svg';
   static const String addCustomItemIcon = 'assets/svg/add_custom_item.svg';
   static const String addPayoutIcon = 'assets/svg/add_payout.svg';
+  static const String themeIcon = 'assets/svg/theme_icon.svg';
+  static const String cashDrawerIcon = 'assets/svg/cash_drawer.svg';
+  static const String changeModeIcon = 'assets/svg/change_mode.svg';
 }

@@ -112,7 +112,8 @@ class OrderRepository {  // Build #1.0.25 - added by naveen
     // Encode for URL (spaces become '+', commas become '%2C')
     final encodedStatus = Uri.encodeQueryComponent(statusString);
     final url = "${UrlHelper.componentVersionUrl}${UrlMethodConstants.orders}"
-        "$getOrdersParameter$encodedStatus${UrlParameterConstants.getOrdersEndParameter}";
+        "$getOrdersParameter$encodedStatus";
+        //"${UrlParameterConstants.getOrdersEndParameter}"; # Build 1.0.172 removed them so that when applied date filter, data is fetching properly.
 
     if (kDebugMode) {
       print("OrderRepository - GET URL: $url");
@@ -163,7 +164,8 @@ class OrderRepository {  // Build #1.0.25 - added by naveen
     var getOrdersParameter = "?author=$userId&page=$pageNumber&per_page=$pageLimit&created_via=$orderType&after=$startDate&before=$endDate&search=&status="; //Build #1.0.134: updated new parameters startDate, endDate
     // Encode for URL (spaces become '+', commas become '%2C')
     final encodedStatus = Uri.encodeQueryComponent(statusString);
-    final url = "${UrlHelper.componentVersionUrl}${UrlMethodConstants.orders}/${UrlMethodConstants.totalOrders}$getOrdersParameter$encodedStatus${UrlParameterConstants.getOrdersEndParameter}";
+    final url = "${UrlHelper.componentVersionUrl}${UrlMethodConstants.orders}/${UrlMethodConstants.totalOrders}$getOrdersParameter$encodedStatus";
+        //"${UrlParameterConstants.getOrdersEndParameter}"; # Build 1.0.172 removed them so that when applied date filter, data is fetching properly.
 
     if (kDebugMode) {
       print("OrderRepository - GET URL: $url");

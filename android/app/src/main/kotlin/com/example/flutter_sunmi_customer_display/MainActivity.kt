@@ -299,13 +299,38 @@ class MainActivity : FlutterActivity() {
         fun showWelcomeLayout(storeId: String, storeName: String, storeLogoUrl: String?) {
             Log.d("CustomerDisplay", "➡ Switching back to Welcome layout")
 
-            setContentView(R.layout.welcome_layout)
-            welcomeText = findViewById(R.id.welcome_text)
+            Handler(Looper.getMainLooper()).post {
+                setContentView(R.layout.welcome_layout)
 
-            updateWelcomeWithStore(storeId, storeName, storeLogoUrl)
-            firstOrderShown = false
+                welcomeText = findViewById(R.id.welcome_text)
+                val footerText = findViewById<TextView>(R.id.footer_text)
+                val logoView = findViewById<ImageView>(R.id.welcome_logo)
+
+                welcomeText.text = if (storeName.isNotEmpty()) "Welcome to $storeName" else "👋 Welcome to Pinaka"
+                footerText.visibility = if (storeName.isNotEmpty()) View.VISIBLE else View.GONE
+                if (!storeLogoUrl.isNullOrEmpty()) {
+                    Thread {
+                        try {
+                            val input = URL(storeLogoUrl).openStream()
+                            val bitmap = BitmapFactory.decodeStream(input)
+                            Handler(Looper.getMainLooper()).post {
+                                logoView.setImageBitmap(bitmap)
+                                Log.d("CustomerDisplay", "✅ Welcome logo loaded")
+                            }
+                        } catch (e: Exception) {
+                            Handler(Looper.getMainLooper()).post {
+                                logoView.setImageResource(R.drawable.pinaka_logo)
+                                Log.e("CustomerDisplay", "❌ Failed to load Welcome logo: ${e.message}")
+                            }
+                        }
+                    }.start()
+                } else {
+                    logoView.setImageResource(R.drawable.pinaka_logo)
+                }
+
+                firstOrderShown = false
+            }
         }
-
         private fun formatCurrency(value: Double): String {
             return if (value < 0) {
                 "- $${"%.2f".format(value.absoluteValue)}"

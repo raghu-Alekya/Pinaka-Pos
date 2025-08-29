@@ -212,8 +212,8 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String coupons               = "Coupons";
   static const String customItem            = "Custom Item";
   static const String customItemCouldNotBeAddedDescription = "Please check the items and try again. Contact your manager if the issue continues.";
-  static const String applyDiscountToSale   = "Apply discount to sale";
-  static const String enterCouponCode       = "Enter coupon code";
+  static const String applyDiscountToSale   = "Apply Discount to Sale";
+  static const String enterCouponCode       = "Enter Coupon Code";
   static const String customItemName        = "Custom item name";
   static const String itemPrice             = "Item Price";
   static const String sku                   = "SKU";

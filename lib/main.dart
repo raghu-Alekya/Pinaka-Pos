@@ -49,6 +49,19 @@ class MyApp extends StatelessWidget {
           textTheme: GoogleFonts.interTextTheme(ThemeNotifier.darkTheme.textTheme),
         ),
         themeMode: themeHelper.themeMode,
+        builder: (context, child) {
+          // Widget error = const Text('...rendering error...');
+
+          // final scale = MediaQuery.of(context).textScaleFactor.clamp(0.9, 1.0);
+          final scale = MediaQuery.of(context)
+              .textScaler
+              .clamp(minScaleFactor: 0.9, maxScaleFactor: 1.0);
+          return MediaQuery(
+            // data: MediaQuery.of(context).copyWith(textScaleFactor: scale ), child: child!, //set desired text scale factor here
+            data: MediaQuery.of(context).copyWith(textScaler: scale),
+            child: child!, //set desired text scale factor here
+          );
+        },
         home: PopScope( // Build #1.0.187: Fixed - prevents back navigation / hardware back button
           canPop: Misc.enableHardwareBackButton, // Build #1.0.189: Added misc boolean value for enable/disable device back button
           child: Scaffold(

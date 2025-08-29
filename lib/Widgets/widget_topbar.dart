@@ -182,10 +182,12 @@ class _TopBarState extends State<TopBar> {
   void _showLoaderOverlay() {
     _removeOverlay();
     _overlayEntry = OverlayEntry(
-      builder: (context) => Container(
-        color: Colors.black.withOpacity(0.5),
-        child: const Center(
-          child: CircularProgressIndicator(),
+      builder: (context) => AbsorbPointer( // Build #1.0.200: Prevent dismissing by tapping outside
+        child: Container(
+          color: Colors.black.withOpacity(0.5),
+          child: const Center(
+            child: CircularProgressIndicator(),
+          ),
         ),
       ),
     );
@@ -391,7 +393,12 @@ class _TopBarState extends State<TopBar> {
                                   _productBloc.fetchProductVariations(product.id!);
                                   await showDialog(
                                     context: _context,
-                                    builder: (context) => StreamBuilder<APIResponse<List<ProductVariation>>>(
+                                      barrierDismissible: false, // Build #1.0.200: Prevent dismissing by tapping outside
+                                      builder: (context) => AbsorbPointer(
+                                      absorbing: isAddingItemLoading, // Block interactions when loading
+                                      child: Stack(
+                                      children: [
+                                        StreamBuilder<APIResponse<List<ProductVariation>>>(
                                       stream: _productBloc.variationStream,
                                       builder: (context, snapshot) {
                                         if (!snapshot.hasData || snapshot.data!.status == Status.LOADING) {
@@ -705,7 +712,9 @@ class _TopBarState extends State<TopBar> {
                                         return const SizedBox.shrink();
                                       },
                                     ),
-                                  );
+                                    ]
+                                    )
+                                  ));
                                 } else {
 
                                     // Add parent product only if no variants

@@ -149,5 +149,6 @@ class EndUrlConstants { // Build #1.0.13
   static const String assetsImages                = "/assets-images";
   static const String logoutById                  = "/logout-by-id";
   static const String voidOrderEndUrl             = "/void-order";  // Build #1.0.175
+  static const String addPayoutEndUrl             = "/add-payout";  // Build #1.0.175
 }
 

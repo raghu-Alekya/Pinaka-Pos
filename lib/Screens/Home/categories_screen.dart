@@ -471,6 +471,9 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
       isLoadingNestedContent = true; // Add this line to show shimmer
     });
 
+    if (kDebugMode) print("_onSubCategoryTapped: currentCategoryLevel -> $currentCategoryLevel");
+    if (kDebugMode) print("_onSubCategoryTapped: selectedSubCategory ID -> ${selectedSubCategory.id}"); // DEBUG
+    if (kDebugMode) print("_onSubCategoryTapped: subCategories length -> ${subCategories.length}");
     _loadSubCategories(selectedSubCategory.id);
   }
 
@@ -512,7 +515,10 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
     // fix for parent product also adding along with variant product , we have to restrict that like categories screen
     if(variantAdded == true){
       // Build #1.0.148: we have to show loader until product adds into order panel, then hide
-      Navigator.pop(context); // Hide Loader / VariationPopup dialog
+     // Navigator.pop(context); // Hide Loader / VariationPopup dialog
+      if (Navigator.canPop(context)) { // Build #1.0.197: Fixed [SCRUM - 345] -> Screen blackout when adding item to cart
+        Navigator.pop(context);
+      }
       _refreshOrderList(); // refresh UI
       return;
     }
@@ -559,7 +565,10 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
               const Center(child: CircularProgressIndicator());
             }else if (response.status == Status.COMPLETED) {
               // Build #1.0.148: we have to show loader until product adds into order panel, then hide
-              Navigator.pop(context); // Hide Loader / VariationPopup dialog
+             // Navigator.pop(context); // Hide Loader / VariationPopup dialog
+              if (Navigator.canPop(context)) { // Build #1.0.197: Fixed [SCRUM - 345] -> Screen blackout when adding item to cart
+                Navigator.pop(context);
+              }
               if (kDebugMode) print("Item added to order $dbOrderId via API");
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
@@ -666,7 +675,10 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
     });
   }
 
-  bool get showBackButton => categoryProducts.isNotEmpty;
+  // bool get showBackButton => categoryProducts.isNotEmpty;
+  // Build #1.0.197: Fixed [SCRUM - 341] -> Unnecessary "Back to Categories" Button
+  /// user is at least one level deep in the category hierarchy (e.g., inside a subcategory or deeper).
+  bool get showBackButton => currentCategoryLevel >= 2;
 
   @override
   void dispose() {
@@ -712,9 +724,8 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
           // Preserved debug prints and layout change logic.
           TopBar(
             screen: Screen.CATEGORY,
-            onModeChanged: () {
+            onModeChanged: () async{ /// Build #1.0.192: Fixed -> Exception -> setState() callback argument returned a Future. (onModeChanged in all screens)
               String newLayout;
-              setState(() async {
                 if (sidebarPosition == SidebarPosition.left) {
                   newLayout = SharedPreferenceTextConstants.navRightOrderLeft;
                 } else if (sidebarPosition == SidebarPosition.right) {
@@ -729,7 +740,8 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
                // _preferences.saveLayoutSelection(newLayout);
                 //Build #1.0.122: update layout mode change selection to DB
                 await UserDbHelper().saveUserSettings({AppDBConst.layoutSelection: newLayout}, modeChange: true);
-              });
+             // update UI
+              setState(() {});
             },
             onProductSelected: (product) async {
               double price;

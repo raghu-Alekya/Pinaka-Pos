@@ -645,7 +645,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
         orElse: () => {},
       );
       final itemType = item[AppDBConst.itemType]?.toString().toLowerCase() ?? '';
-      final isPayout = itemType.contains(TextConstants.payoutText);
+      final isPayout = false;//itemType.contains(TextConstants.payoutText);// Build #1.0.198: uncomment if want to delete payout from fee_lines
       final isCoupon = itemType.contains(TextConstants.couponText);
       final isCustomItem = itemType.contains(TextConstants.customItemText);
 
@@ -1325,7 +1325,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
             (order) => order[AppDBConst.orderServerId] == orderHelper.activeOrderId,
         orElse: () => {},
       );
-
+      if (orderItems.isNotEmpty && order.isNotEmpty) {
       // Get values from order or default to 0
       orderDiscount = order[AppDBConst.orderDiscount] as double? ?? 0.0;
       merchantDiscount = order[AppDBConst.merchantDiscount] as double? ?? 0.0;
@@ -1358,6 +1358,36 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
           // Fallback to raw data or default if parsing fails
           displayDate = order[AppDBConst.orderDate].toString().split(' ').first;
         }
+      }
+      } else {
+        if (kDebugMode) {
+          print("#### Reset values when orderItems is empty");
+          print("#### Order Items is empty -> ${orderItems.isNotEmpty} , Order is empty -> ${order.isNotEmpty}");
+          print("#### Discount ${order[AppDBConst.orderDiscount] as double? ?? 0.0}");
+          print("#### Tax ${order[AppDBConst.orderTax] as double? ?? 0.0}");
+          print("#### Total ${order[AppDBConst.orderTotal] as double? ?? 0.0}");
+        }
+        // Build #1.0.197: Fixed [SCRUM - 347] -> Net payable amount not updating to 0 when item quantity is set to zero
+        // Reset values when orderItems is empty
+        orderDiscount = 0.0;
+        merchantDiscount = 0.0;
+        orderTax = 0.0;
+        netTotal = 0.0;
+        netPayable = 0.0;
+
+        /// Optional : If required un-comment and use it !
+        // final db = await DBHelper.instance.database;
+        // await db.update(
+        //   AppDBConst.orderTable,
+        //   {
+        //     AppDBConst.orderTotal: 0.0,
+        //     AppDBConst.orderTax: 0.0,
+        //     AppDBConst.orderDiscount: 0.0,
+        //     AppDBConst.merchantDiscount: 0.0,
+        //   },
+        //   where: '${AppDBConst.orderServerId} = ?',
+        //   whereArgs: [orderHelper.activeOrderId],
+        // );
       }
       if (kDebugMode) {
         print("#### netPayable: $netPayable, orderTotal: ${order[AppDBConst.orderTotal] as double? ?? 0.0}");

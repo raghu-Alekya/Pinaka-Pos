@@ -1555,7 +1555,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                 
                                   // Quick amount buttons
                                   // Update the Row in _buildPaymentSection to use dynamic quick amounts
-                                  Row(
+                                  balanceAmount <= 0 ? SizedBox(height: 0,) : Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
                                       _buildQuickAmountButton('${TextConstants.currencySymbol}${balanceAmount.ceil()/*  toStringAsFixed(0)*/}'), // Match balance amount, show round greater value

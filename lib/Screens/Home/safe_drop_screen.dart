@@ -443,9 +443,8 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
             children: [
               TopBar(
                 screen: Screen.SAFE,
-                onModeChanged: () { //Build #1.0.84: Issue fixed: nav mode re-setting
+                onModeChanged: () async{ /// Build #1.0.192: Fixed -> Exception -> setState() callback argument returned a Future. (onModeChanged in all screens)
                   String newLayout;
-                  setState(() async {
                     if (sidebarPosition == SidebarPosition.left) {
                       newLayout = SharedPreferenceTextConstants.navRightOrderLeft;
                     } else if (sidebarPosition == SidebarPosition.right) {
@@ -460,7 +459,8 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
                    // _preferences.saveLayoutSelection(newLayout);
                     //Build #1.0.122: update layout mode change selection to DB
                     await UserDbHelper().saveUserSettings({AppDBConst.layoutSelection: newLayout}, modeChange: true);
-                  });
+                  // update UI
+                  setState(() {});
                 },
               ),
               Divider(
@@ -541,15 +541,15 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
                                     height: 1, // Minimal height
                                     endIndent: 70,
                                   ),
-                                  const SizedBox(height: 7),
+                                  const SizedBox(height: 15),
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.start,
-                                    mainAxisSize: MainAxisSize.max,
+                                    // mainAxisSize: MainAxisSize.max,
                                     crossAxisAlignment: CrossAxisAlignment.center,
                                     children: [
                                       Container(
-                                        width: MediaQuery.of(context).size.width * 0.325,
-                                        height: MediaQuery.of(context).size.height * 0.4,
+                                        width: MediaQuery.of(context).size.width * 0.308,
+                                        height: MediaQuery.of(context).size.height * 0.39,
                                         margin: EdgeInsets.only(left: 5),
                                         decoration: BoxDecoration(
                                           color: const Color(0xFFE8F5ED),
@@ -611,9 +611,14 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
                                         ),
                                       ),
                                       const SizedBox(width: 150),
-                                      SizedBox(
-                                        height: MediaQuery.of(context).size.height * 0.4,
-                                        width: MediaQuery.of(context).size.width * 0.325,
+                                      Container(
+                                        margin: EdgeInsets.only(left: 5),
+                                        decoration: BoxDecoration(
+                                          // color: Colors.red,//const Color(0xFFE8F5ED),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        width: MediaQuery.of(context).size.width * 0.328,
+                                        height: MediaQuery.of(context).size.height * 0.391,
                                         child: CustomNumPad(
                                           onDigitPressed: _handleNumberPress,
                                           onClearPressed: _handleClear,
@@ -625,7 +630,7 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 3),
+                                  const SizedBox(height: 1),
                                 ],
                               ),
                             ),

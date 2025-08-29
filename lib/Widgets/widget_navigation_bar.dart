@@ -40,9 +40,11 @@ class NavigationBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context); // Build #1.0.6 - Added theme for navigation bar
+    final theme =
+        Theme.of(context); // Build #1.0.6 - Added theme for navigation bar
     final themeHelper = Provider.of<ThemeNotifier>(context);
-    final logoutBloc = LogoutBloc(LogoutRepository());  // Build #1.0.163: Initialize LogoutBloc with repository
+    final logoutBloc = LogoutBloc(
+        LogoutRepository()); // Build #1.0.163: Initialize LogoutBloc with repository
     return Container(
       width: isVertical ? MediaQuery.of(context).size.width * 0.07 : null,
       height: isVertical ? null : MediaQuery.of(context).size.height * 0.125,
@@ -54,7 +56,8 @@ class NavigationBar extends StatelessWidget {
             color: theme.primaryColor,
             borderRadius: BorderRadius.all(Radius.circular(10)),
           ),
-          child: FutureBuilder<String?>( //Build #1.0.78: restrict user don't select any other nav buttons first login
+          child: FutureBuilder<String?>(
+            //Build #1.0.78: restrict user don't select any other nav buttons first login
             future: _getShiftId(),
             builder: (context, snapshot) {
               // if (snapshot.connectionState == ConnectionState.waiting) {
@@ -62,7 +65,8 @@ class NavigationBar extends StatelessWidget {
               // }
               final shiftId = snapshot.data;
               return isVertical
-                  ? _buildVerticalLayout(context, shiftId, logoutBloc)  // Build #1.0.163
+                  ? _buildVerticalLayout(
+                      context, shiftId, logoutBloc) // Build #1.0.163
                   : _buildHorizontalLayout(context, shiftId, logoutBloc);
             },
           ),
@@ -84,6 +88,7 @@ class NavigationBar extends StatelessWidget {
 
   Widget _buildVerticalLayout(BuildContext context, String? shiftId, LogoutBloc logoutBloc) {
     int lastSelectedIndex = 0;
+    final BuildContext scaffoldContext = context;
     final themeHelper = Provider.of<ThemeNotifier>(context);
     // Build #1.0.161: Fixed Issue - navigation bar icons are not disabled before create shift
     bool isShiftInvalid = shiftId == null || shiftId == "null" || shiftId.isEmpty;
@@ -243,145 +248,195 @@ class NavigationBar extends StatelessWidget {
               onTap: isShiftInvalid
                   ? () {}
                   : () {
-                onSidebarItemSelected(6);
-                if (kDebugMode) {
-                  print("nav logout called");
-                }
-                QuickAlert.show(
-                  backgroundColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : Colors.white ,
-                  context: context,
-                  type: QuickAlertType.custom,
-                  showCancelBtn: true,
-                  showConfirmBtn: true,
-                  title: TextConstants.logoutText,
-                  titleColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight,
-                  width: 450,
-                  text: TextConstants.doYouWantTo,
-                  textColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight,
-                  confirmBtnText: TextConstants.logoutText,
-                  cancelBtnText: TextConstants.cancelText,
-                  headerBackgroundColor: const Color(0xFF2CD9C5),
-                  confirmBtnColor: Colors.blue,
-                  confirmBtnTextStyle: const TextStyle(color: Colors.white, fontSize: 16),
-                  cancelBtnTextStyle: TextStyle(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.grey, fontSize: 16),
-
-                  customAsset: null,
-                  animType: QuickAlertAnimType.scale,
-                  barrierDismissible: false,
-
-                  // Widget for the Close Shift button
-                  widget: Padding(
-                    padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
-                    child: SwipeButton(
-                      thumb: const Icon(
-                        Icons.double_arrow_rounded,
-                        color: Colors.white,
-                      ),
-                      borderRadius: BorderRadius.circular(25),
-                      activeThumbColor: Colors.orangeAccent,
-                      activeTrackColor: Colors.orange,
-                      onSwipe: () async {
-                        // Get instance of OrderHelper
-                        final orderHelper = OrderHelper();
-                        // Load processing orders for the active user
-                        await orderHelper.loadProcessingData();
-                        // Check if there are any processing orders
-                        if (orderHelper.orders.isNotEmpty) { // Build #1.0.175: Added
-                          if (kDebugMode) {
-                            print("Processing Orders > 0 -> orders length: ${orderHelper.orders.length}");
-                          }
-                          Navigator.of(context).pop(); // dismiss logout alert
-                          // Show popup warning before closing shift
-                          CustomDialog.showCloseShiftWarning(context);
-                        } else {
-                        // Close shift functionality
-                        if (kDebugMode) {
-                          print("Shift closed");
-                        }
-                        ///Todo: call shift-open-close-balance screen and set the title to "Shift close balanse"
-                        ///
-                        Navigator.of(context).pop();
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ShiftOpenCloseBalanceScreen(),
-                            settings: RouteSettings(arguments: TextConstants.navLogout),  // Build #1.0.70
-                          ),
-                        );
+                      onSidebarItemSelected(6);
+                      if (kDebugMode) {
+                        print("nav logout called");
                       }
-                    },
-                      child: Text(
-                        TextConstants.swipeToCloseShift,
-                        style: TextStyle(color: Colors.white, fontSize: 16),
-                      ),
-                    ),
-                  ),
-                  onConfirmBtnTap: () async {
-                    if (kDebugMode) {
-                      print("Logout confirmed, initiating logout process");
-                    }
+                      QuickAlert.show(
+                        backgroundColor: themeHelper.themeMode == ThemeMode.dark
+                            ? ThemeNotifier.secondaryBackground
+                            : Colors.white,
+                        context: context,
+                        type: QuickAlertType.custom,
+                        showCancelBtn: true,
+                        showConfirmBtn: true,
+                        title: TextConstants.logoutText,
+                        titleColor: themeHelper.themeMode == ThemeMode.dark
+                            ? ThemeNotifier.textDark
+                            : ThemeNotifier.textLight,
+                        width: 450,
+                        text: TextConstants.doYouWantTo,
+                        textColor: themeHelper.themeMode == ThemeMode.dark
+                            ? ThemeNotifier.textDark
+                            : ThemeNotifier.textLight,
+                        confirmBtnText: TextConstants.logoutText,
+                        cancelBtnText: TextConstants.cancelText,
+                        headerBackgroundColor: const Color(0xFF2CD9C5),
+                        confirmBtnColor: Colors.blue,
+                        confirmBtnTextStyle:
+                            const TextStyle(color: Colors.white, fontSize: 16),
+                        cancelBtnTextStyle: TextStyle(
+                            color: themeHelper.themeMode == ThemeMode.dark
+                                ? ThemeNotifier.textDark
+                                : Colors.grey,
+                            fontSize: 16),
 
-                    // Build #1.0.163: call Logout API
-                    showDialog(
-                      context: context,
-                      barrierDismissible: false,
-                      builder: (BuildContext context) {
-                        bool isLoading = true; // Initial loading state
-                        logoutBloc.logoutStream.listen((response) {
-                          if (response.status == Status.COMPLETED) {
-                            if (kDebugMode) {
-                              print("Logout successful, navigating to LoginScreen");
-                            }
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(response.message ?? TextConstants.successfullyLogout),
-                                backgroundColor: Colors.green,
-                                duration: const Duration(seconds: 2),
-                              ),
-                            );
-                            // Update loading state and navigate
-                            isLoading = false;
-                            Navigator.of(context).pop(); // Close loader dialog
-                            Navigator.of(context).pop(); // Close QuickAlert dialog
-                            Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()),
-                            );
-                          } else if (response.status == Status.ERROR) {
-                            if (kDebugMode) {
-                              print("Logout failed: ${response.message}");
-                            }
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(response.message ?? TextConstants.failedToLogout),
-                                backgroundColor: Colors.red,
-                                duration: const Duration(seconds: 2),
-                              ),
-                            );
-                            // Update loading state
-                            isLoading = false;
-                            Navigator.of(context).pop(); // Close loader dialog
+                        customAsset: null,
+                        animType: QuickAlertAnimType.scale,
+                        barrierDismissible: false,
+
+                        // Widget for the Close Shift button
+                        widget: Padding(
+                          padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
+                          child: SwipeButton(
+                            thumb: const Icon(
+                              Icons.double_arrow_rounded,
+                              color: Colors.white,
+                            ),
+                            borderRadius: BorderRadius.circular(25),
+                            activeThumbColor: Colors.orangeAccent,
+                            activeTrackColor: Colors.orange,
+                            onSwipe: () async {
+                              // Get instance of OrderHelper
+                              final orderHelper = OrderHelper();
+                              // Load processing orders for the active user
+                              await orderHelper.loadProcessingData();
+                              // Check if there are any processing orders
+                              if (orderHelper.orders.isNotEmpty) {
+                                // Build #1.0.175: Added
+                                if (kDebugMode) {
+                                  print(
+                                      "Processing Orders > 0 -> orders length: ${orderHelper.orders.length}");
+                                }
+                                Navigator.of(context)
+                                    .pop(); // dismiss logout alert
+                                // Show popup warning before closing shift
+                                CustomDialog.showCloseShiftWarning(context);
+                              } else {
+                                // Close shift functionality
+                                if (kDebugMode) {
+                                  print("Shift closed");
+                                }
+
+                                ///Todo: call shift-open-close-balance screen and set the title to "Shift close balanse"
+                                ///
+                                Navigator.of(context).pop();
+                                Navigator.push(context,MaterialPageRoute(builder: (context) => ShiftOpenCloseBalanceScreen(),
+                                    settings: RouteSettings(
+                                        arguments: TextConstants
+                                            .navLogout), // Build #1.0.70
+                                  ),
+                                );
+                              }
+                            },
+                            child: Text(
+                              TextConstants.swipeToCloseShift,
+                              style:
+                                  TextStyle(color: Colors.white, fontSize: 16),
+                            ),
+                          ),
+                        ),
+                        onConfirmBtnTap: () async {
+                          final BuildContext scaffoldContext = context;
+                          if (kDebugMode) {
+                            print(
+                                "Logout confirmed, initiating logout process");
                           }
-                        });
 
-                        // Trigger logout API call
-                        logoutBloc.performLogout();
+                          // Build #1.0.163: call Logout API
+                          showDialog(
+                            context: scaffoldContext,
+                            barrierDismissible: false,
+                            builder: (BuildContext context) {
+                              bool isLoading = true; // Initial loading state
+                              logoutBloc.logoutStream.listen((response) {
+                                if (response.status == Status.COMPLETED) {
+                                  if (kDebugMode) {
+                                    print(
+                                        "Logout successful, navigating to LoginScreen");
+                                  }
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(response.message ??
+                                          TextConstants.successfullyLogout),
+                                      backgroundColor: Colors.green,
+                                      duration: const Duration(seconds: 2),
+                                    ),
+                                  );
+                                  // Update loading state and navigate
+                                  isLoading = false;
+                                  Navigator.of(context)
+                                      .pop(); // Close loader dialog
+                                  Navigator.of(context)
+                                      .pop(); // Close QuickAlert dialog
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (context) => LoginScreen()),
+                                  );
+                                } else if (response.status == Status.ERROR) {
+                                  if (response.message!.contains('Unauthorised')) {
+                                    if (kDebugMode) {
+                                      print("Unauthorised : response.message ${response.message!}");
+                                    }
+                                    isLoading = false;
+                                    Navigator.of(context).pop();
+                                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                                      if (scaffoldContext.mounted) {
+                                    Navigator.pushReplacement(scaffoldContext, MaterialPageRoute(builder: (context) => LoginScreen()));
 
-                        // Show circular loader
-                        return StatefulBuilder(
-                          builder: (context, setState) {
-                            return Center(
-                              child: CircularProgressIndicator(),
-                            );
-                          },
-                        );
-                      },
-                    );
-                  },
-                  onCancelBtnTap: () {
-                    /// cancel
-                    Navigator.of(context).pop();
-                  },
-                );
-              },
+                                    if (kDebugMode) {
+                                      print("message --- ${response.message}");
+                                    }
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text("Unauthorised. Session is expired on this device."),
+                                        backgroundColor: Colors.red,
+                                        duration: Duration(seconds: 2),
+                                      ),
+                                    );
+                                      }
+                                    });
+                                  }
+                                  else {
+                                    if (kDebugMode) {
+                                      print("Logout failed: ${response.message}");
+                                    }
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text(response.message ??
+                                            TextConstants.failedToLogout),
+                                        backgroundColor: Colors.red,
+                                        duration: const Duration(seconds: 2),
+                                      ),
+                                    );
+                                  }
+                                  // Update loading state
+                                  isLoading = false;
+                                  Navigator.of(context)
+                                      .pop(); // Close loader dialog
+                                }
+                              });
+
+                              // Trigger logout API call
+                              logoutBloc.performLogout();
+
+                              // Show circular loader
+                              return StatefulBuilder(
+                                builder: (context, setState) {
+                                  return Center(
+                                    child: CircularProgressIndicator(),
+                                  );
+                                },
+                              );
+                            },
+                          );
+                        },
+                        onCancelBtnTap: () {
+                          /// cancel
+                          Navigator.of(context).pop();
+                        },
+                      );
+                    },
               isVertical: isVertical,
               isDisabled: isShiftInvalid,
             ),
@@ -640,73 +695,100 @@ class NavigationBar extends StatelessWidget {
                   ),
                 ),
                 onConfirmBtnTap: () async {
+                  // You must capture the context BEFORE the dialog is even shown
                   // Trigger logout through BLoC
                   if (kDebugMode) {
                     print("Logout confirmed, initiating logout process");
                   }
 
-                  // Build #1.0.163: call Logout API
-                  // Use StatefulBuilder to manage loading state
-                  showDialog(
-                    context: context,
-                    barrierDismissible: false,
-                    builder: (BuildContext context) {
-                      bool isLoading = true; // Initial loading state
-                      logoutBloc.logoutStream.listen((response) {
-                        if (response.status == Status.COMPLETED) {
-                          if (kDebugMode) {
-                            print("Logout successful, navigating to LoginScreen");
-                          }
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(response.message ?? TextConstants.successfullyLogout),
-                              backgroundColor: Colors.green,
-                              duration: const Duration(seconds: 2),
-                            ),
-                          );
-                          // Update loading state and navigate
-                          isLoading = false;
-                          Navigator.of(context).pop(); // Close loader dialog
-                          Navigator.of(context).pop(); // Close QuickAlert dialog
-                          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()),
-                          );
-                        } else if (response.status == Status.ERROR) {
-                          if (kDebugMode) {
-                            print("Logout failed: ${response.message}");
-                          }
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(response.message ?? TextConstants.failedToLogout),
-                              backgroundColor: Colors.red,
-                              duration: const Duration(seconds: 2),
-                            ),
-                          );
-                          // Update loading state
-                          isLoading = false;
-                          Navigator.of(context).pop(); // Close loader dialog
-                        }
-                      });
+                        // Build #1.0.163: call Logout API
+                        // Use StatefulBuilder to manage loading state
+                        showDialog(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (BuildContext context) {
+                            bool isLoading = true; // Initial loading state
+                            logoutBloc.logoutStream.listen((response) {
+                              if (response.status == Status.COMPLETED) {
+                                if (kDebugMode) {
+                                  print(
+                                      "Logout successful, navigating to LoginScreen");
+                                }
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(response.message ??
+                                        TextConstants.successfullyLogout),
+                                    backgroundColor: Colors.green,
+                                    duration: const Duration(seconds: 2),
+                                  ),
+                                );
+                                // Update loading state and navigate
+                                isLoading = false;
+                                Navigator.of(context).pop(); // Close loader dialog
+                                Navigator.of(context).pop(); // Close QuickAlert dialog
+                                Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()),);
+                              } else if (response.status == Status.ERROR) {
+                                if (response.message!.contains('Unauthorised')) {
+                                  if (kDebugMode) {
+                                    print("Nav bar -- Unauthorised : response.message ${response.message!}");
+                                  }
+                                  isLoading = false;
+                                  Navigator.of(context).pop();
+                                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                                      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()));
 
-                      // Trigger logout API call
-                      logoutBloc.performLogout();
+                                      if (kDebugMode) {
+                                        print("message --- ${response.message}");
+                                      }
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text("Unauthorised. Session is expired on this device."),
+                                          backgroundColor: Colors.red,
+                                          duration: Duration(seconds: 2),
+                                        ),
+                                      );
+                                  });
+                                }
+                                else {
+                                  if (kDebugMode) {
+                                    print("Logout failed: ${response.message}");
+                                  }
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(response.message ??
+                                          TextConstants.failedToLogout),
+                                      backgroundColor: Colors.red,
+                                      duration: const Duration(seconds: 2),
+                                    ),
+                                  );
+                                }
+                                // Update loading state
+                                isLoading = false;
+                                Navigator.of(context)
+                                    .pop(); // Close loader dialog
+                              }
+                            });
 
-                      // Show circular loader
-                      return StatefulBuilder(
-                        builder: (context, setState) {
-                          return Center(
-                            child: CircularProgressIndicator(),
-                          );
-                        },
-                      );
-                    },
-                  );
-                },
-                onCancelBtnTap: () {
-                  /// cancel
-                  Navigator.of(context).pop();
-                },
-              );
-            },
+                            // Trigger logout API call
+                            logoutBloc.performLogout();
+
+                            // Show circular loader
+                            return StatefulBuilder(
+                              builder: (context, setState) {
+                                return Center(
+                                  child: CircularProgressIndicator(),
+                                );
+                              },
+                            );
+                          },
+                        );
+                      },
+                      onCancelBtnTap: () {
+                        /// cancel
+                        Navigator.of(context).pop();
+                      },
+                    );
+                  },
             isVertical: false,
             isDisabled: isShiftInvalid,
           ),
@@ -725,7 +807,8 @@ class NavigationBar extends StatelessWidget {
         );
 
         return Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 0), // Adjust padding as needed
+          padding: const EdgeInsets.fromLTRB(
+              16, 0, 16, 0), // Adjust padding as needed
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -769,7 +852,9 @@ class SidebarButton extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 0.0, horizontal: 0.0),
       child: GestureDetector(
         onTap: onTap,
-        child: isVertical ? _buildVerticalLayout(context) : _buildHorizontalLayout(),
+        child: isVertical
+            ? _buildVerticalLayout(context)
+            : _buildHorizontalLayout(),
       ),
     );
   }
@@ -779,7 +864,8 @@ class SidebarButton extends StatelessWidget {
       children: [
         Container(
           width: MediaQuery.of(context).size.width * 0.05,
-          padding: const EdgeInsets.only(top: 10.0,bottom: 10, left: 2,right: 2),
+          padding:
+              const EdgeInsets.only(top: 10.0, bottom: 10, left: 2, right: 2),
           decoration: BoxDecoration(
             shape: BoxShape.rectangle,
             color: isSelected ? Colors.red : Colors.transparent,
@@ -789,26 +875,27 @@ class SidebarButton extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               svgAsset != null
-                  ? SvgPicture.asset( // Build #1.0.148: Fixed Issue: Menu Bar Icons not matching with latest Figma Design , now using from assets/svg/navigation/
-                svgAsset!,
-                colorFilter: ColorFilter.mode(
-                  isSelected
-                      ? Colors.white
-                      : isDisabled
-                      ? Colors.grey.shade800
-                      : Colors.white70,
-                  BlendMode.srcIn,
-                ),
-                height: 20,
-              )
+                  ? SvgPicture.asset(
+                      // Build #1.0.148: Fixed Issue: Menu Bar Icons not matching with latest Figma Design , now using from assets/svg/navigation/
+                      svgAsset!,
+                      colorFilter: ColorFilter.mode(
+                        isSelected
+                            ? Colors.white
+                            : isDisabled
+                                ? Colors.grey.shade800
+                                : Colors.white70,
+                        BlendMode.srcIn,
+                      ),
+                      height: 20,
+                    )
                   : Icon(
-                icon,
-                color: isSelected
-                    ? Colors.white
-                    : isDisabled
-                    ? Colors.grey.shade800
-                    : Colors.white70,
-              ),
+                      icon,
+                      color: isSelected
+                          ? Colors.white
+                          : isDisabled
+                              ? Colors.grey.shade800
+                              : Colors.white70,
+                    ),
               const SizedBox(height: 7),
               Text(
                 label,
@@ -816,8 +903,8 @@ class SidebarButton extends StatelessWidget {
                   color: isSelected
                       ? Colors.white
                       : isDisabled
-                      ? Colors.grey.shade800
-                      : Colors.white70,
+                          ? Colors.grey.shade800
+                          : Colors.white70,
                   fontWeight: FontWeight.bold,
                   fontSize: 9,
                 ),
@@ -844,35 +931,37 @@ class SidebarButton extends StatelessWidget {
           child: Row(
             children: [
               svgAsset != null
-                  ? SvgPicture.asset( // Build #1.0.148: Fixed Issue: Menu Bar Icons not matching with latest Figma Design , now using from assets/svg/navigation/
-                svgAsset!,
-                colorFilter: ColorFilter.mode(
-                  isSelected
-                      ? Colors.white
-                      : isDisabled
-                      ? Colors.grey.shade800
-                      : Colors.white70,
-                  BlendMode.srcIn,
-                ),
-                height: 28,
-              )
+                  ? SvgPicture.asset(
+                      // Build #1.0.148: Fixed Issue: Menu Bar Icons not matching with latest Figma Design , now using from assets/svg/navigation/
+                      svgAsset!,
+                      colorFilter: ColorFilter.mode(
+                        isSelected
+                            ? Colors.white
+                            : isDisabled
+                                ? Colors.grey.shade800
+                                : Colors.white70,
+                        BlendMode.srcIn,
+                      ),
+                      height: 28,
+                    )
                   : Icon(
-                icon,
-                color: isSelected
-                    ? Colors.white
-                    : isDisabled
-                    ? Colors.grey.shade800
-                    : Colors.white,
-              ),
+                      icon,
+                      color: isSelected
+                          ? Colors.white
+                          : isDisabled
+                              ? Colors.grey.shade800
+                              : Colors.white,
+                    ),
               SizedBox(width: 10),
               Text(
                 label,
                 style: TextStyle(
                   color: isSelected
-                      ? Colors.white // Build #1.0.161: issue - updated red colour to white
+                      ? Colors
+                          .white // Build #1.0.161: issue - updated red colour to white
                       : isDisabled
-                      ? Colors.grey.shade800
-                      : Colors.white,
+                          ? Colors.grey.shade800
+                          : Colors.white,
                   fontWeight: FontWeight.bold,
                   fontSize: 14,
                 ),

@@ -1032,9 +1032,10 @@ packages:
   thermal_printer:
     dependency: "direct main"
     description:
-      path: "packages/thermal_printer"
-      relative: true
-    source: path
+      name: thermal_printer
+      sha256: "3e4b31a65b08388a426a4d2467980af9489678a348769bb3ebdccc6c180532e2"
+      url: "https://pub.dev"
+    source: hosted
     version: "1.0.5"
   typed_data:
     dependency: transitive

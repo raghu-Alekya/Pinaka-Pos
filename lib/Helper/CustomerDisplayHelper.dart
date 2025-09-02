@@ -42,19 +42,6 @@ class CustomerDisplayHelper {
       }
 
       final store = await getStoreInfo();
-      if (items.isEmpty) {
-        print("⚠️ No items in order #$serverOrderId → showing Welcome screen");
-        if (store != null) {
-          await CustomerDisplayService.showWelcomeWithStore(
-            storeId: store["id"].toString(),
-            storeName: store["name"].toString(),
-            storeLogoUrl: store["logoUrl"]?.toString(),
-          );
-        } else {
-          await CustomerDisplayService.showWelcome();
-        }
-        return;
-      }
       List<Map<String, dynamic>> parsedItems = [];
       double grossTotal = 0.0;
 
@@ -135,7 +122,6 @@ class CustomerDisplayHelper {
 
       print(
           "✅ Final Totals → netTotal=$netTotal, netPayable=$netPayable, discount=$discount, merchantDiscount=$merchantDiscount, tax=$tax");
-
       await CustomerDisplayService.showCustomerData(
         orderId: serverOrderId,
         items: parsedItems,

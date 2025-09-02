@@ -18,6 +18,7 @@ import io.flutter.plugin.common.MethodChannel
 import java.net.URL
 import android.graphics.BitmapFactory
 import android.graphics.Color
+import android.graphics.Typeface
 import android.view.Gravity
 import android.view.View
 import kotlin.math.absoluteValue
@@ -49,6 +50,7 @@ class MainActivity : FlutterActivity() {
                         result.error("NO_DISPLAY", "No secondary display found", null)
                     }
                 }
+
 
                 "showWelcomeWithStore" -> {
                     val storeId = call.argument<String>("storeId") ?: ""
@@ -259,20 +261,18 @@ class MainActivity : FlutterActivity() {
         }
 
         fun updateWelcomeWithStore(storeId: String, storeName: String, storeLogoUrl: String? = null) {
+            if (window?.decorView?.findViewById<TextView>(R.id.welcome_text) == null) {
+                setContentView(R.layout.welcome_layout)
+                welcomeText = findViewById(R.id.welcome_text)
+            }
+
             currentStoreId = storeId
             currentStoreName = storeName
             currentStoreLogoUrl = storeLogoUrl
 
-            Log.d("CustomerDisplay", "➡ Updating Welcome → storeId=$storeId, storeName=$storeName, logoUrl=$storeLogoUrl")
-
-            welcomeText.text = if (storeName.isNotEmpty()) {
-                "Welcome to $storeName"
-            } else {
-                "👋 Welcome to Pinaka"
-            }
-
+            welcomeText.text = if (storeName.isNotEmpty()) "Welcome to $storeName" else "👋 Welcome to Pinaka"
             val footerText = findViewById<TextView>(R.id.footer_text)
-            footerText.visibility = if (storeName.isNotEmpty()) View.VISIBLE else View.GONE
+            footerText?.visibility = if (storeName.isNotEmpty()) View.VISIBLE else View.GONE
 
             val logoView = findViewById<ImageView>(R.id.welcome_logo)
             if (!storeLogoUrl.isNullOrEmpty()) {
@@ -281,21 +281,22 @@ class MainActivity : FlutterActivity() {
                         val input = URL(storeLogoUrl).openStream()
                         val bitmap = BitmapFactory.decodeStream(input)
                         Handler(Looper.getMainLooper()).post {
-                            logoView.setImageBitmap(bitmap)
+                            logoView?.setImageBitmap(bitmap)
                             Log.d("CustomerDisplay", "✅ Welcome logo loaded from URL")
                         }
                     } catch (e: Exception) {
                         Handler(Looper.getMainLooper()).post {
-                            logoView.setImageResource(R.drawable.pinaka_logo)
+                            logoView?.setImageResource(R.drawable.pinaka_logo)
                             Log.e("CustomerDisplay", "❌ Failed to load Welcome logo: ${e.message}")
                         }
                     }
                 }.start()
             } else {
-                logoView.setImageResource(R.drawable.pinaka_logo)
+                logoView?.setImageResource(R.drawable.pinaka_logo)
                 Log.d("CustomerDisplay", "✅ Using default Welcome logo")
             }
         }
+
         fun showWelcomeLayout(storeId: String, storeName: String, storeLogoUrl: String?) {
             Log.d("CustomerDisplay", "➡ Switching back to Welcome layout")
 
@@ -393,8 +394,8 @@ class MainActivity : FlutterActivity() {
 
         fun updateCustomerData(
             orderId: Int,
-            storeId: String,
-            storeName: String,
+            storeId: String?,
+            storeName: String?,
             storeLogoUrl: String?,
             items: List<Map<String, Any>>,
             grossTotal: Double,
@@ -406,27 +407,87 @@ class MainActivity : FlutterActivity() {
             orderDate: String,
             orderTime: String
         ) {
-            currentStoreId = storeId
-            currentStoreName = storeName
-            currentStoreLogoUrl = storeLogoUrl
-            if (items.isEmpty()) {
-                Log.d("CustomerDisplay", "⚠ No items → showing Welcome for store $storeName")
-                showWelcomeLayout(storeId, storeName, storeLogoUrl)
-                firstOrderShown = false
+            val defaultStoreId = "STORE001"
+            val defaultStoreName = "Pinaka"
+            val defaultStoreLogoUrl = null
+
+            currentStoreId = storeId?.takeIf { it.isNotEmpty() } ?: defaultStoreId
+            currentStoreName = storeName?.takeIf { it.isNotEmpty() } ?: defaultStoreName
+            currentStoreLogoUrl = storeLogoUrl?.takeIf { it?.isNotEmpty() == true } ?: defaultStoreLogoUrl
+            Log.d("CustomerDisplay", "➡ Showing Customer Display layout")
+            setContentView(R.layout.customer_display_layout)
+            bindOrderViews()
+
+            updateStoreInfo(currentStoreId, currentStoreName, currentStoreLogoUrl, orderDate, orderTime)
+            val rootLayout = findViewById<LinearLayout>(R.id.customer_display_root)
+            val rightPanel = findViewById<LinearLayout>(R.id.right_panel)
+            val headerContainer = findViewById<LinearLayout>(R.id.header_container)
+
+            if (items.isEmpty() || grossTotal == 0.0) {
+                orderIdView.text = ""
+                rightPanel.visibility = View.GONE
+                headerContainer.visibility = View.GONE
+                rootLayout.setBackgroundColor(Color.parseColor("#3D506E"))
+
+                itemsContainer.removeAllViews()
+                val logoTextContainer = LinearLayout(context).apply {
+                    orientation = LinearLayout.VERTICAL
+                    gravity = Gravity.CENTER
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.MATCH_PARENT
+                    )
+                }
+                val logoView = ImageView(context).apply {
+                    layoutParams = LinearLayout.LayoutParams(200, 200).apply {
+                        topMargin = 120
+                        bottomMargin = 24
+                        gravity = Gravity.CENTER
+                    }
+                    scaleType = ImageView.ScaleType.FIT_CENTER
+                }
+
+                if (!currentStoreLogoUrl.isNullOrEmpty()) {
+                    Thread {
+                        try {
+                            val input = URL(currentStoreLogoUrl).openStream()
+                            val bitmap = BitmapFactory.decodeStream(input)
+                            Handler(Looper.getMainLooper()).post {
+                                logoView.setImageBitmap(bitmap)
+                            }
+                        } catch (e: Exception) {
+                            Handler(Looper.getMainLooper()).post {
+                                logoView.setImageResource(R.drawable.pinaka_logo)
+                            }
+                        }
+                    }.start()
+                } else {
+                    logoView.setImageResource(R.drawable.pinaka_logo)
+                }
+
+                val welcomeTextView = TextView(context).apply {
+                    text = "Welcome to $currentStoreName"
+                    textSize = 34f
+                    setTypeface(typeface, Typeface.BOLD)
+                    gravity = Gravity.CENTER
+                    setTextColor(Color.WHITE)
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    ).apply {
+                        bottomMargin = 40
+                    }
+                }
+                logoTextContainer.addView(logoView)
+                logoTextContainer.addView(welcomeTextView)
+
+                itemsContainer.addView(logoTextContainer)
+
+                Log.d("CustomerDisplay", "📢 No order data → showing welcome message + logo + footer for $currentStoreName")
                 return
             }
-            if (!firstOrderShown || window?.decorView?.findViewById<View>(R.id.customer_order_id) == null) {
-                Log.d("CustomerDisplay", "➡ Showing Customer Display layout for order #$orderId")
-                setContentView(R.layout.customer_display_layout)
-                bindOrderViews()
-                firstOrderShown = true
-            }
-            updateStoreInfo(currentStoreId, currentStoreName, currentStoreLogoUrl, orderDate, orderTime)
-
-            Log.d("CustomerDisplay", "➡ Updating order #$orderId with ${items.size} items")
             orderIdView.text = "Order #$orderId"
             itemsContainer.removeAllViews()
-
             var totalItemCount = 0
 
             for (item in items) {
@@ -443,12 +504,12 @@ class MainActivity : FlutterActivity() {
                     orientation = LinearLayout.HORIZONTAL
                     setPadding(6, 8, 6, 8)
                     background = context.getDrawable(R.drawable.item_card_background)
-                    val params = LinearLayout.LayoutParams(
+                    layoutParams = LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.MATCH_PARENT,
                         LinearLayout.LayoutParams.WRAP_CONTENT
-                    )
-                    params.setMargins(0, 4, 0, 4)
-                    layoutParams = params
+                    ).apply {
+                        setMargins(0, 4, 0, 4)
+                    }
                 }
 
                 val imageView = ImageView(context).apply {
@@ -456,38 +517,34 @@ class MainActivity : FlutterActivity() {
                     scaleType = ImageView.ScaleType.CENTER_CROP
                 }
 
-                if (name.equals("Payout", ignoreCase = true)) {
-                    imageView.setImageResource(R.drawable.ic_payout)
-                } else if (name.equals("Coupon", ignoreCase = true)) {
-                    imageView.setImageResource(R.drawable.ic_coupon)
-                } else {
-                    (item["image"] as? String)?.let { imageUrl ->
-                        Thread {
-                            try {
-                                val input = URL(imageUrl).openStream()
-                                val bitmap = BitmapFactory.decodeStream(input)
-                                Handler(Looper.getMainLooper()).post {
-                                    imageView.setImageBitmap(bitmap)
-                                    Log.d("CustomerDisplay", "✅ Item image loaded successfully for $name from $imageUrl")
+                when {
+                    name.equals("Payout", ignoreCase = true) -> imageView.setImageResource(R.drawable.ic_payout)
+                    name.equals("Coupon", ignoreCase = true) -> imageView.setImageResource(R.drawable.ic_coupon)
+                    else -> {
+                        (item["image"] as? String)?.let { imageUrl ->
+                            Thread {
+                                try {
+                                    val input = URL(imageUrl).openStream()
+                                    val bitmap = BitmapFactory.decodeStream(input)
+                                    Handler(Looper.getMainLooper()).post {
+                                        imageView.setImageBitmap(bitmap)
+                                    }
+                                } catch (e: Exception) {
+                                    Handler(Looper.getMainLooper()).post {
+                                        imageView.setImageResource(android.R.drawable.ic_menu_report_image)
+                                    }
                                 }
-                            } catch (e: Exception) {
-                                Handler(Looper.getMainLooper()).post {
-                                    imageView.setImageResource(android.R.drawable.ic_menu_report_image)
-                                    Log.e("CustomerDisplay", "❌ Failed to load item image for $name from $imageUrl: ${e.message}")
-                                }
-                            }
-                        }.start()
-                    } ?: Log.w("CustomerDisplay", "⚠ No image URL provided for item $name")
+                            }.start()
+                        }
+                    }
                 }
 
                 val detailsLayout = LinearLayout(context).apply {
                     orientation = LinearLayout.HORIZONTAL
-                    val params = LinearLayout.LayoutParams(
+                    layoutParams = LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.MATCH_PARENT,
                         LinearLayout.LayoutParams.WRAP_CONTENT
-                    )
-                    params.setMargins(8, 0, 0, 0)
-                    layoutParams = params
+                    ).apply { setMargins(8, 0, 0, 0) }
                     weightSum = 2f
                 }
 
@@ -509,17 +566,12 @@ class MainActivity : FlutterActivity() {
 
                 detailsLayout.addView(nameQtyView)
                 detailsLayout.addView(totalView)
-
                 cardLayout.addView(imageView)
                 cardLayout.addView(detailsLayout)
-
                 itemsContainer.addView(cardLayout)
             }
 
-            val totalItemsView = findViewById<TextView>(R.id.label_total_items)
-            totalItemsView.text = "Total Items : $totalItemCount"
-
-            // First code currency formatting
+            findViewById<TextView>(R.id.label_total_items).text = "Total Items : $totalItemCount"
             grossView.text = formatCurrency(grossTotal)
             discountView.text = formatCurrency(-discount)
             merchantDiscountView.text = formatCurrency(-merchantDiscount)

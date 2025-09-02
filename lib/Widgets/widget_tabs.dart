@@ -280,6 +280,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
                 ),
               ),
               const SizedBox(width: 10),
+              Padding(padding: EdgeInsets.only(right: 5), child:
               Text(
                 text,
                 style: TextStyle(
@@ -292,7 +293,8 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
                       : Colors.grey.shade700),
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 ),
-              ),
+              ),),
+
             ],
           ),
         ),
@@ -319,7 +321,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
   Widget _buildDiscountsTab() {
     final themeHelper = Provider.of<ThemeNotifier>(context);
     return Padding(
-      padding: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.only(top: 20),
       child: Column(
         children: [
           // Title
@@ -332,7 +334,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
             ),
           ),
 
-          const SizedBox(height: 10),
+          const SizedBox(height: 20),
 
           // Discount Input Toggle
           _buildDiscountToggle(),
@@ -347,7 +349,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
           // Custom Numpad
           SizedBox(
             width: MediaQuery.of(context).size.width / 2.75,
-            height: MediaQuery.of(context).size.height / 2.25,
+            height: MediaQuery.of(context).size.height / 2.5,
             child: CustomNumPad(
               onDigitPressed: (digit) {
                 setState(() { // Build #1.0.53 : updated code
@@ -390,7 +392,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
   Widget _buildCouponsTab() {
     final themeHelper = Provider.of<ThemeNotifier>(context);
     return Padding(
-      padding: const EdgeInsets.only(top: 25),
+      padding: const EdgeInsets.only(top: 20),
       child: Column(
         children: [
           // Title
@@ -709,16 +711,27 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
     final screenHeight = MediaQuery.of(context).size.height;
     final themeHelper = Provider.of<ThemeNotifier>(context);
 
-    return Container(
-      width: screenWidth * 0.75,
-      height: screenHeight * 0.75,
-      padding: const EdgeInsets.fromLTRB(20, 5, 20, 5),
-      decoration: BoxDecoration(
-          color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
+    // return Container(
+    //   width: screenWidth * 0.75,
+    //   height: screenHeight * 0.75,
+    //   padding: const EdgeInsets.fromLTRB(20, 0, 20, 5),
+    //   decoration: BoxDecoration(
+    //       color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground : Colors.red,
+    //     borderRadius: BorderRadius.circular(16),
+    //   ),
+    return Padding(
+      padding: const EdgeInsets.only(top: 20),
+      child:  Column(
         children: [
+          Text(
+            TextConstants.customItem,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Color(0xFF1E2745),
+            ),
+          ),
+          const SizedBox(height: 20,),
           Row(
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -758,7 +771,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
     return Center(
       child: SizedBox(
         width: MediaQuery.of(context).size.width / 2.75,
-        height: MediaQuery.of(context).size.height / 2.25,
+        height: MediaQuery.of(context).size.height / 2.75,
         child: CustomNumPad(
           onDigitPressed: (digit) {
             setState(() {
@@ -983,9 +996,17 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
   Widget _buildPayoutsTab() {
     final themeHelper = Provider.of<ThemeNotifier>(context);
     return Padding(
-      padding: const EdgeInsets.only(top: 25),
+      padding: const EdgeInsets.only(top: 20),
       child: Column(
         children: [
+          Text(
+            TextConstants.addPaymentAmount,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Color(0xFF1E2745),
+            ),
+          ),
           // Floating label input field
           SizedBox(
             height: 20,
@@ -1009,7 +1030,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
               ),
               decoration: InputDecoration(
                 floatingLabelAlignment: FloatingLabelAlignment.center,
-                labelText: TextConstants.addPaymentAmount,
+                //labelText: TextConstants.addPaymentAmount,
                 labelStyle: TextStyle(
                   fontSize: 20,
                   color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.grey,
@@ -2010,7 +2031,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
         }
       });
 
-      await orderBloc.addPayout(orderId: serverOrderId, dbOrderId: orderId!, amount: payoutAmount, isPayOut: true);
+      await orderBloc.addPayoutAsProduct(orderId: serverOrderId, dbOrderId: orderId!, amount: payoutAmount, isPayOut: true);
     } catch (e) {
       if (kDebugMode) print("Error processing payout: $e");
       setState(() => _isPayoutLoading = false);

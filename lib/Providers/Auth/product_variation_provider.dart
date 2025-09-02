@@ -34,7 +34,10 @@ class VariationPopup {
   Future<void> showVariantDialog({required BuildContext context}) async {
     return showDialog(
       context: context,
-      builder: (context) => Stack(
+      barrierDismissible: false, // Build #1.0.200: Prevent dismissing by tapping outside
+        builder: (context) => AbsorbPointer(
+      absorbing: _isAddingItemLoading, // Block interactions only when loading
+      child: Stack(
         children: [
           StreamBuilder<APIResponse<List<ProductVariation>>>(
             stream: _productBloc.variationStream,
@@ -208,6 +211,7 @@ class VariationPopup {
             ),
         ],
       ),
+     )
     );
   }
 
@@ -216,10 +220,12 @@ class VariationPopup {
   void _showLoaderOverlay(BuildContext context) {
     _removeLoaderOverlay();
     _loaderOverlay = OverlayEntry(
-      builder: (context) => Container(
-        color: Colors.black.withOpacity(0.5),
-        child: const Center(
-          child: CircularProgressIndicator(),
+      builder: (context) => AbsorbPointer( // Build #1.0.200: Prevent dismissing by tapping outside
+        child: Container(
+          color: Colors.black.withOpacity(0.5),
+          child: const Center(
+            child: CircularProgressIndicator(),
+          ),
         ),
       ),
     );

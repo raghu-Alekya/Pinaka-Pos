@@ -301,13 +301,25 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
     _productSearchController.addListener(_listenProductItemSearch);
 
     //Build #1.0.84: Initialize user ID and load tabs sequentially
-    getUserIdFromDB().then((_) {
-      if (kDebugMode) {
-        print("### FastKeyScreen: initState - User ID fetched, loading active tab");
-      }
-      _loadActiveFastKeyTabId();
-    });
+    // getUserIdFromDB().then((_) {
+    //   if (kDebugMode) {
+    //     print("### FastKeyScreen: initState - User ID fetched, loading active tab");
+    //   }
+    ///   _loadActiveFastKeyTabId(); // Don't need here , we are already calling inside getUserIdFromDB -> loadTabs -> _loadActiveFastKeyTabId
+    // });
+    _initializeData(); // Build #1.0.200: Code Updated for issue: Empty fastkey folders show at first logon to multiple fastkeys loaded on created by the user
     fastKeyTabIdNotifier.addListener(_onTabChanged);
+  }
+
+  Future<void> _initializeData() async {
+    try {
+      await getUserIdFromDB();
+        if (kDebugMode) {
+          print("### FastKeyScreen: _initializeData - User ID fetched");
+        }
+    } catch (e) {
+      if (kDebugMode) print("Initialization error: $e");
+    }
   }
 
   @override
@@ -476,16 +488,16 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
           print("### FastKeyScreen: Updated UI, selected tab ID: $_fastKeyTabId, index: $_selectedCategoryIndex");
         }
       });
-    } else {
+    } else if(response.status == Status.ERROR){ // Build #1.0.189: Only Show when it comes response as error
       // Handle API error
       if (kDebugMode) {
         print("### FastKeyScreen: API createFastKey failed: ${response.message}");
       }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(TextConstants.failedToCreateFastKey), // Build #1.0.144
+          content: Text(response.message ?? TextConstants.failedToCreateFastKey), // Build #1.0.189: Updated from api response - Proper error not showing while getting error in create fast key
           backgroundColor: Colors.red,
-          duration: const Duration(seconds: 2),
+          duration: const Duration(seconds: 4),
         ),
       );
     }
@@ -786,7 +798,10 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
     //Build #1.0.78: fix for parent product also adding along with variant product , we have to restrict that like categories screen
     if(variantAdded == true){
       // Build #1.0.148: we have to show loader until product adds into order panel, then hide
-      Navigator.pop(context); // Hide Loader / VariationPopup dialog
+      // Navigator.pop(context); // Hide Loader / VariationPopup dialog
+      if (Navigator.canPop(context)) { // Build #1.0.197: Fixed [SCRUM - 345] -> Screen blackout when adding item to cart
+        Navigator.pop(context);
+      }
       _refreshOrderList(); // refresh UI
       return;
     }
@@ -833,7 +848,10 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
             const Center(child: CircularProgressIndicator());
           }else if (response.status == Status.COMPLETED) {
             // Build #1.0.148: we have to show loader until product adds into order panel, then hide
-            Navigator.pop(context); // Hide Loader / VariationPopup dialog
+          //  Navigator.pop(context); // Hide Loader / VariationPopup dialog
+            if (Navigator.canPop(context)) { // Build #1.0.197: Fixed [SCRUM - 345] -> Screen blackout when adding item to cart
+              Navigator.pop(context);
+            }
          //   setState(() => isAddingItemLoading = false);
             if (kDebugMode) print("Item added to order $dbOrderId via API");
             ScaffoldMessenger.of(context).showSnackBar(
@@ -1269,11 +1287,11 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                                       width: 175,
                                       height: 150,
                                       decoration: BoxDecoration(
-                                        color: Colors.grey[100],
+                                        color: Colors.white,
                                         borderRadius: BorderRadius.circular(16),
                                         boxShadow: [
                                           BoxShadow(
-                                            color: Color(0xFFFFF7F7),
+                                            color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.orderPanelTabBackground : Color(0xFFFFF7F7),
                                             blurRadius: 3,
                                             spreadRadius: 3,
                                             offset: Offset(0,0),
@@ -1684,25 +1702,34 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
     if (imagePath.startsWith('assets/') && imagePath.endsWith('.svg')) {
       return _safeSvgPicture(imagePath);
     } else if (imagePath.startsWith('assets/')) {
-      return Image.asset(imagePath, height: 80, width: 80, fit: BoxFit.cover);
+      return
+        ClipRRect(
+            borderRadius: BorderRadius.circular(16.0),
+            child: Image.asset(imagePath, height: 80, width: 80, fit: BoxFit.cover));
     } else if (imagePath.startsWith("http")) {
-      return SizedBox(
+      return Container(
         width: 75,
         height: 75,
-        child: Image.network(
-          imagePath,
-          width: 75,
-          height: 75,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          color: Colors.white38
+        ),
+        child: ClipRRect(
+            borderRadius: BorderRadius.circular(16.0),
+            child: Image.network(
+              imagePath,
               width: 75,
               height: 75,
-              color: Colors.grey.shade300,
-              child: const Icon(Icons.broken_image, color: Colors.grey),
-            );
-          },
-        ),
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  width: 75,
+                  height: 75,
+                  color: Colors.grey.shade300,
+                  child: const Icon(Icons.broken_image, color: Colors.grey),
+                );
+              },
+        )),
       );
     } else {
       return Platform.isWindows
@@ -1723,15 +1750,19 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
 
   Widget _safeSvgPicture(String assetPath) {
     try {
-      return SvgPicture.asset(
+      return ClipRRect(
+          borderRadius: BorderRadius.circular(16.0),
+          child: SvgPicture.asset(
         assetPath,
         height: 80,
         width: 80,
         placeholderBuilder: (context) => const Icon(Icons.image, size: 40),
-      );
+      ));
     } catch (e) {
       debugPrint("FastKeyScreen: SVG Parsing Error: $e");
-      return Image.asset('assets/default.png', height: 80, width: 80);
+      return ClipRRect(
+          borderRadius: BorderRadius.circular(16.0),
+    child:Image.asset('assets/default.png', height: 80, width: 80));
     }
   }
 
@@ -1842,9 +1873,8 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
         children: [
           TopBar(
             screen: Screen.FASTKEY,
-            onModeChanged: () {
+            onModeChanged: () async{ /// Build #1.0.192: Fixed -> Exception -> setState() callback argument returned a Future. (onModeChanged in all screens)
               String newLayout;
-              setState(() async {
                 if (sidebarPosition == SidebarPosition.left) {
                   newLayout = SharedPreferenceTextConstants.navRightOrderLeft;
                 } else if (sidebarPosition == SidebarPosition.right) {
@@ -1859,7 +1889,8 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
              //   _preferences.saveLayoutSelection(newLayout);
                 //Build #1.0.122: update layout mode change selection to DB
                 await UserDbHelper().saveUserSettings({AppDBConst.layoutSelection: newLayout}, modeChange: true);
-              });
+              // update UI
+              setState(() {});
             },
             onProductSelected: (product) async {
               if (kDebugMode) print("#### FastKey onProductSelected");

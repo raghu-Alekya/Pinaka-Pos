@@ -20,6 +20,7 @@ import '../../Widgets/widget_add_vendor_payout_dialog.dart';
 import '../../Widgets/widget_alert_popup_dialogs.dart';
 import '../../Widgets/widget_navigation_bar.dart' as custom_widgets;
 import '../../Widgets/widget_topbar.dart';
+import '../Auth/login_screen.dart';
 
 class ShiftSummaryDashboardScreen extends StatefulWidget {
   final int? lastSelectedIndex;
@@ -98,9 +99,8 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
         children: [
           TopBar(
             screen: Screen.SHIFT,
-            onModeChanged: () { //Build #1.0.84: Issue fixed: nav mode re-setting
+            onModeChanged: () async{ /// Build #1.0.192: Fixed -> Exception -> setState() callback argument returned a Future. (onModeChanged in all screens)
               String newLayout;
-              setState(() async {
                 if (sidebarPosition == SidebarPosition.left) {
                   newLayout = SharedPreferenceTextConstants.navRightOrderLeft;
                 } else if (sidebarPosition == SidebarPosition.right) {
@@ -115,7 +115,8 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
                 // _preferences.saveLayoutSelection(newLayout);
                 //Build #1.0.122: update layout mode change selection to DB
                 await UserDbHelper().saveUserSettings({AppDBConst.layoutSelection: newLayout}, modeChange: true);
-              });
+              // update UI
+              setState(() {});
             },
           ),
           Divider(
@@ -353,12 +354,15 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
                 fontWeight: FontWeight.w500,
               ),
             ),
-            Text(
-              amount,
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: MediaQuery.of(context).size.width * 0.02,
-                fontWeight: FontWeight.bold,
+            FittedBox(
+              fit: BoxFit.contain,
+              child: Text(
+                amount,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: MediaQuery.of(context).size.width * 0.02,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ],

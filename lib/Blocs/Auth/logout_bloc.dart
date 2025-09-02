@@ -63,7 +63,10 @@ class LogoutBloc {
       // Handle various types of exceptions
       String errorMessage = TextConstants.failedToLogout;
 
-      if (e is http.ClientException) {
+      if (e.toString().contains('Unauthorised')) {
+        logoutSink.add(APIResponse.error("Unauthorised. Session is expired."));
+      }
+      else if (e is http.ClientException) {
         errorMessage = TextConstants.networkError;
       } else {
         try {
@@ -80,8 +83,9 @@ class LogoutBloc {
       if (kDebugMode) {
         print("LogoutBloc - Error during logout: $errorMessage");
       }
-
-      logoutSink.add(APIResponse.error(errorMessage));
+      if (!e.toString().contains('Unauthorised')) {
+        logoutSink.add(APIResponse.error(errorMessage));
+      }
     }
   }
 
@@ -117,7 +121,10 @@ class LogoutBloc {
       // Handle various types of exceptions
       String errorMessage = TextConstants.failedToLogout;
 
-      if (e is http.ClientException) {
+      if (e.toString().contains('UnauthorisedException')) {
+        logoutSink.add(APIResponse.error("Unauthorised. Session is expired."));
+      }
+      else if (e is http.ClientException) {
         errorMessage = TextConstants.networkError;
       } else {
         try {
@@ -134,8 +141,9 @@ class LogoutBloc {
       if (kDebugMode) {
         print("LogoutBloc, performLogoutByEmpPin - Error during logout: $errorMessage");
       }
-
-      logoutSink.add(APIResponse.error(errorMessage));
+      if (!e.toString().contains('UnauthorisedException')) {
+        logoutSink.add(APIResponse.error(errorMessage));
+      }
     }
   }
 

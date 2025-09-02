@@ -120,6 +120,7 @@ class FastKey {
   final dynamic fastkeyImage; // Can be bool or String
   final String fastkeyIndex;
   final int itemCount;
+  final List<FastKeyProduct>? products; // Build #1.0.197: updated for Fixed [SCRUM - 328] -> At first logon Empty items shows in fast keys for the selected folder
 
   FastKey({
     required this.fastkeyServerId,
@@ -127,7 +128,8 @@ class FastKey {
     required this.fastkeyTitle,
     required this.fastkeyImage,
     required this.fastkeyIndex,
-    required this.itemCount
+    required this.itemCount,
+    this.products
   });
 
   factory FastKey.fromJson(Map<String, dynamic> json) {
@@ -138,6 +140,9 @@ class FastKey {
       fastkeyImage: json['fastkey_image'],
       fastkeyIndex: json['fastkey_index']?.toString() ?? '0',
       itemCount: json['itemCount'] ?? 0,
+      products: (json['products'] as List<dynamic>?)
+          ?.map((item) => FastKeyProduct.fromJson(item))
+          .toList() ?? [],
     );
   }
 
@@ -148,6 +153,7 @@ class FastKey {
     dynamic fastkeyImage,
     String? fastkeyIndex,
     int? itemCount,
+    List<FastKeyProduct>? products
   }) {
     return FastKey(
       fastkeyServerId: fastkeyServerId ?? this.fastkeyServerId,
@@ -156,6 +162,7 @@ class FastKey {
       fastkeyImage: fastkeyImage ?? this.fastkeyImage,
       fastkeyIndex: fastkeyIndex ?? this.fastkeyIndex,
       itemCount: itemCount ?? this.itemCount,
+      products: products ?? this.products,
     );
   }
 }

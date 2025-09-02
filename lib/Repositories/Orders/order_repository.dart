@@ -367,8 +367,39 @@ class OrderRepository {  // Build #1.0.25 - added by naveen
   }
 
   // Build #1.0.53 : Add Payout to Order
+  @Deprecated("This API is deprecated, please use 'addPayoutAsProduct'")
   Future<OrderModel> addPayout({required int orderId, required AddPayoutRequestModel request}) async {
     final url = "${UrlHelper.componentVersionUrl}${UrlMethodConstants.orders}/$orderId";
+
+    if (kDebugMode) {
+      print("OrderRepository - POST URL for add payout: $url");
+      print("OrderRepository - Request Body: ${request.toJson()}");
+    }
+
+    final response = await _helper.post(url, request.toJson(), true);
+
+    if (kDebugMode) {
+      print("OrderRepository - Add Payout Raw Response: $response");
+    }
+
+    if (response is String) {
+      try {
+        final responseData = json.decode(response);
+        return OrderModel.fromJson(responseData);
+      } catch (e) {
+        if (kDebugMode) print("Error parsing add payout response: $e");
+        throw Exception("Failed to parse add payout response");
+      }
+    } else if (response is Map<String, dynamic>) {
+      return OrderModel.fromJson(response);
+    } else {
+      throw Exception("Unexpected response type in add payout POST");
+    }
+  }
+
+  // Build #1.0.198 : Add Payout as a product to Order
+  Future<OrderModel> addPayoutAsProduct({required int orderId, required AddPayoutAsProductRequestModel request}) async {
+    final url = "${UrlHelper.componentVersionUrl}${UrlMethodConstants.orders}${EndUrlConstants.addPayoutEndUrl}";
 
     if (kDebugMode) {
       print("OrderRepository - POST URL for add payout: $url");

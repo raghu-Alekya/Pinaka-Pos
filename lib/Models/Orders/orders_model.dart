@@ -603,6 +603,22 @@ class AddPayoutRequestModel { // Build #1.0.53 : Added
   };
 }
 
+class AddPayoutAsProductRequestModel {
+  // Build #1.0.198 : Added
+
+  final int? orderId;
+  final double amount;
+
+  AddPayoutAsProductRequestModel({required this.orderId, required this.amount});
+
+  Map<String, dynamic> toJson() {
+    return {
+      'order_id': orderId,
+      'amount': amount,
+    };
+  }
+}
+
 class RemoveFeeLinesRequestModel { // Build #1.0.53 : Added; Build #1.0.73: updated
   final List<FeeLine> feeLines;
 

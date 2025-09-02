@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:pinaka_pos/Helper/Extentions/text_extensions.dart';
 import 'package:pinaka_pos/Screens/Home/safe_open_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -321,9 +322,8 @@ class _ShiftOpenCloseBalanceScreenState extends State<ShiftOpenCloseBalanceScree
           children: [
             TopBar(
               screen: Screen.SHIFT,
-              onModeChanged: () { //Build #1.0.84: Issue fixed: nav mode re-setting
+              onModeChanged: () async{ /// Build #1.0.192: Fixed -> Exception -> setState() callback argument returned a Future. (onModeChanged in all screens)
                 String newLayout;
-                setState(() async {
                   if (sidebarPosition == SidebarPosition.left) {
                     newLayout = SharedPreferenceTextConstants.navRightOrderLeft;
                   } else if (sidebarPosition == SidebarPosition.right) {
@@ -338,7 +338,8 @@ class _ShiftOpenCloseBalanceScreenState extends State<ShiftOpenCloseBalanceScree
                 //  _preferences.saveLayoutSelection(newLayout);
                   //Build #1.0.122: update layout mode change selection to DB
                   await UserDbHelper().saveUserSettings({AppDBConst.layoutSelection: newLayout}, modeChange: true);
-                });
+                // update UI
+                setState(() {});
               },
             ),
             Divider(
@@ -503,7 +504,7 @@ class _ShiftOpenCloseBalanceScreenState extends State<ShiftOpenCloseBalanceScree
                                             const Text(
                                               TextConstants.notes,
                                               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                                            ),
+                                            ).poppins(),
                                             const SizedBox(height: 5),
 
                                             // Table headers
@@ -676,12 +677,13 @@ class _ShiftOpenCloseBalanceScreenState extends State<ShiftOpenCloseBalanceScree
                                                 const Text(
                                                   TextConstants.coins,
                                                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                                                ),
+                                                ).poppins(),
                                                 const SizedBox(height: 5),
 
                                                 // Table headers
                                                 Row(
                                                   mainAxisAlignment: MainAxisAlignment.center,
+                                                  crossAxisAlignment: CrossAxisAlignment.center,
                                                   children: [
                                                     Expanded(
                                                       flex:2,

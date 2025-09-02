@@ -1092,7 +1092,9 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                                               ],
                                             ),
                                             // Modified: Show quantity * price only for non-Payout/Coupon items
-                                            if (!isPayoutOrCouponOrCustomItem)
+                                            // Build #1.0.187 :Fixed - Quantity for Custom Item Not Displayed After Switching Screens [JIRA #319]
+                                            // we have to show price * qty for custom item also / condition updated, only dont show for payout and coupons
+                                            if (!isCouponOrPayout)
                                               Text(
                                                 "${TextConstants.currencySymbol} ${regularPrice.toStringAsFixed(2)} * ${orderItem[AppDBConst.itemCount]}", //Build #1.0.134: itemPrice updated
                                                 style:
@@ -1117,7 +1119,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                                             style: TextStyle(
                                               fontSize: 14,
                                               fontWeight: FontWeight.bold,
-                                              color: isPayoutOrCouponOrCustomItem ? Colors.red : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight, // Added: Red color for Payout/Coupon
+                                              color: isCouponOrPayout ? Colors.red : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight, // Build #1.0.187: Added: Red color for Payout/Coupon
                                             ),
                                           ),
                                         ],

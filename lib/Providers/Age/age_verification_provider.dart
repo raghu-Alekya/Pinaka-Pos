@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:pinaka_pos/Models/Search/product_by_sku_model.dart' as SKU;
 import 'package:pinaka_pos/Widgets/widget_age_verification_popup_dialog.dart';
 
+import '../../Widgets/widget_order_panel.dart';
+
 class AgeVerificationProvider {
   /// Checks if a product is age-restricted and shows the verification dialog if it is.
   ///
@@ -10,7 +12,10 @@ class AgeVerificationProvider {
   /// Returns `false` if the verification is cancelled or fails.
   Future<bool> ageRestrictedProduct(BuildContext context, SKU.ProductBySkuResponse product) async {
     var isVerified = false;
-
+    isOrderInForeground = false; // hold scanning untill age verify popup is dismissed
+    if (kDebugMode) {
+      print("##### AgeVerificationProvider.ageRestrictedProduct: before age verification isOrderInForeground = $isOrderInForeground");
+    }
     // Check if the product has the "Age Restricted" tag.
     final ageRestrictedTag = product.tags?.firstWhere(
           (element) => element.name == "Age Restricted",
@@ -21,7 +26,7 @@ class AgeVerificationProvider {
     final hasAgeRestriction = ageRestrictedTag?.name?.contains("Age Restricted");
 
     if (kDebugMode) {
-      print("AgeVerificationProvider: Product has age restriction: $hasAgeRestriction");
+      print("AgeVerificationProvider.ageRestrictedProduct: Product has age restriction: $hasAgeRestriction");
     }
 
     if (hasAgeRestriction ?? false) {
@@ -29,8 +34,9 @@ class AgeVerificationProvider {
       if (minimumAgeSlug == null || minimumAgeSlug.isEmpty) {
         // If the tag exists but the minimum age (slug) is missing, deny the sale for safety.
         if (kDebugMode) {
-          print("AgeVerificationProvider: Age restricted tag is missing a minimum age value");
+          print("AgeVerificationProvider.ageRestrictedProduct: Age restricted tag is missing a minimum age value");
         }
+        isOrderInForeground = true; // resume scanning in order panel again
         return isVerified;
       }
 
@@ -57,7 +63,10 @@ class AgeVerificationProvider {
       // No age restriction - add directly
       isVerified = true;
     }
-
+    isOrderInForeground = true; // resume scanning in order panel again
+    if (kDebugMode) {
+      print("##### AgeVerificationProvider.ageRestrictedProduct: after age verification, isVerified=$isVerified, isOrderInForeground = $isOrderInForeground");
+    }
     return isVerified;
   }
 
@@ -67,9 +76,11 @@ class AgeVerificationProvider {
     //     ZAZAAN.ZACN
 
     var isVerified = false;
+    isOrderInForeground = false; // hold scanning untill age verify popup is dismissed
     if (kDebugMode) {
-      print("Fast Key _ageRestrictedProduct hasAgeRestriction = $minAge");
+      print("##### AgeVerificationProvider.verifyAge: before age verification, hasAgeRestriction = $minAge isOrderInForeground = $isOrderInForeground");
     }
+
     var hasAgeRestriction = minAge != 0;
     if (hasAgeRestriction) {
       await AgeVerificationHelper.showAgeVerification(
@@ -94,6 +105,10 @@ class AgeVerificationProvider {
       );
     } else {
       isVerified = true;
+    }
+    isOrderInForeground = true; // resume scanning in order panel again
+    if (kDebugMode) {
+      print("##### AgeVerificationProvider.verifyAge: after age verification, isVerified = $isVerified, isOrderInForeground = $isOrderInForeground");
     }
     return isVerified;
   }

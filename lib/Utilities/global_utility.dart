@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
@@ -190,4 +191,23 @@ class GlobalUtility { //Build #1.0.126: Added for re-Use code at global level
     }
     return Icon(defaultIcon, color: defaultIconColor);
   }
-}
+
+  // Build #1.0.189: Added global error message extraction utility
+  static String extractErrorMessage(dynamic error) {
+    if (error.toString().contains('SocketException')) {
+      return "Network error. Please check your connection.";
+    }
+    try {
+      // Extract JSON part from error string
+      final jsonMatch = RegExp(r'\{.*\}').firstMatch(error.toString());
+      if (jsonMatch != null) {
+        final errorJson = jsonDecode(jsonMatch.group(0)!);
+        return errorJson['message']?.toString() ?? "Operation failed";
+      }
+      // Fallback to splitting error string
+      return error.toString().split('message":"').last.split('","').first;
+    } catch (_) {
+      return "Operation failed";
+    }
+   }
+  }

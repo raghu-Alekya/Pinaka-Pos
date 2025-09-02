@@ -293,6 +293,8 @@ class APIHelper { // Build #1.0.8, Naveen added
         throw UnauthorisedException(response.body);
       case 404:
         throw NotFoundException(response.body);
+      case 409: // Build #1.0.189: Added 409 for conflict errors
+        throw Exception(response.body);
       case 500:
         throw InternalServerErrorException(response.body);
       default:

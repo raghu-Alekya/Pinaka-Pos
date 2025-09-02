@@ -32,9 +32,9 @@ import '../Constants/layout_values.dart';
 import '../Constants/text.dart';
 import '../Database/db_helper.dart';
 import '../Database/order_panel_db_helper.dart';
-import '../Helper/CustomerDisplayHelper.dart';
 import '../Helper/Extentions/theme_notifier.dart';
 import '../Helper/api_response.dart';
+import '../Helper/customerdisplayhelper.dart';
 import '../Utilities/global_utility.dart';
 import '../Models/Orders/orders_model.dart';
 import '../Providers/Age/age_verification_provider.dart';
@@ -43,8 +43,9 @@ import '../Repositories/Orders/order_repository.dart';
 import '../Repositories/Search/product_search_repository.dart';
 import '../Screens/Home/add_screen.dart';
 import '../Screens/Home/edit_product_screen.dart';
-import '../services/CustomerDisplayService.dart';
+import '../services/customerdisplayservice.dart';
 
+bool isOrderInForeground = true;  ///Add visibility code to check if order panel is visible or not
 class RightOrderPanel extends StatefulWidget {
   final String formattedDate;
   final String formattedTime;
@@ -254,6 +255,9 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
           orderItems = [];// Build #1.0.104: Clear items if no tabs
         });
       }
+      _initializeTabController(); // Build #1.0.189: required here
+    }
+    if (mounted) {
       setState(() => _isLoading = false); // Hide loader
     }
   }
@@ -302,22 +306,35 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
       if (kDebugMode) {
         print("##### DEBUG: order panel fetchOrderItems - Fetching items for activeOrderId: ${orderHelper.activeOrderId}");
       }
-      try {
-        var order = await orderHelper.getOrderById(orderHelper.activeOrderId!);
+      try { // Build #1.0.189: Refresh tabs to reflect no active order
+        var orders = await orderHelper.getOrderById(orderHelper.activeOrderId!);
+        if (orders.isEmpty) {
+          if (kDebugMode) {
+            print("##### DEBUG: fetchOrderItems - No order found for activeOrderId: ${orderHelper.activeOrderId}, clearing items");
+          }
+          setState(() {
+            orderItems = []; // Clear items if no order exists
+            orderHelper.activeOrderId = null; // Reset activeOrderId
+          });
+       //   await orderHelper.saveLastActiveOrderId(null); // Clear saved activeOrderId
+          await _getOrderTabs(); // Refresh tabs to reflect no active order
+          return;
+        }
+
+        var order = orders.first;
         if (kDebugMode) {
           print("##### DEBUG: fetchOrderItems - Retrieved ${order.length}");
-          print("##### DEBUG: fetchOrderItems - Retrieved items: ${order.first[AppDBConst.orderServerId]}");
-          print("##### DEBUG: fetchOrderItems - Retrieved items: ${order.first[AppDBConst.itemProductId]}");
+          print("##### DEBUG: fetchOrderItems - Retrieved order: ${order[AppDBConst.orderServerId]}");
+          print("##### DEBUG: fetchOrderItems - Retrieved items: ${order[AppDBConst.itemProductId]}");
         }
-        List<Map<String, dynamic>> items = await orderHelper.getOrderItems(order.first[AppDBConst.orderServerId]);
-
+        List<Map<String, dynamic>> items = await orderHelper.getOrderItems(order[AppDBConst.orderServerId]);
         if (kDebugMode) {
           print("##### DEBUG: fetchOrderItems - Retrieved ${items.length} items: $items");
         }
 
         if (mounted) {
           setState(() {
-            orderItems = items; // Update the order items list
+            orderItems = List<Map<String, dynamic>>.from(items); // Create mutable copy
           });
         }
       } catch (e, s) {
@@ -326,7 +343,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
         }
         if (mounted) {
           setState(() {
-            orderItems.clear(); // Clear items on error
+            orderItems = []; // Clear items on error
           });
         }
       }
@@ -337,7 +354,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
       setState(() => _isLoading = false); // Build #1.0.104: Hide loader
       if (mounted) {
         setState(() {
-          orderItems.clear(); // Clear items if no active order
+          orderItems = []; // Clear items if no active order
         });
       }
     }
@@ -528,11 +545,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
       bool isRemovedTabActive = orderId == orderHelper.activeOrderId;
 
       setState(() => _isLoading = true); // Show loader
-      // final order = orderHelper.orders.firstWhere(
-      //       (order) => order[AppDBConst.orderServerId] == orderHelper.activeOrderId,
-      //   orElse: () => {},
-      // );
-      final serverOrderId = orderHelper.activeOrderId;//order[AppDBConst.orderServerId] as int?;
+      final serverOrderId = orderId; // Build #1.0.189: Use orderId directly
 
       if (serverOrderId != null) {
         _updateOrderSubscription?.cancel();
@@ -543,36 +556,46 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
             if (kDebugMode) {
               print("##### DEBUG: removeTab - Order $orderId successfully cancelled");
             }
+
+            await orderHelper.deleteOrder(orderId); // Build #1.0.189: Delete from database
+            orderHelper.cancelledOrderId = serverOrderId;
+            if (kDebugMode) {
+              print("##### TEST DD : cancelledOrderId -> ${orderHelper.cancelledOrderId}");
+            }
             setState(() {
-              tabs.removeAt(index);
+              tabs.removeAt(index); // Remove tab from UI
               for (int i = 0; i < tabs.length; i++) {
-                tabs[i]["subtitle"] = "Tab ${i + 1}";
+                tabs[i]["subtitle"] = "Tab ${i + 1}"; // Update tab subtitles
               }
             });
-            _initializeTabController();
+
             if (tabs.isNotEmpty) {
+              int newIndex = index >= tabs.length ? tabs.length - 1 : index;
+              int newActiveOrderId = tabs[newIndex]["orderId"] as int;
               if (isRemovedTabActive) {
-                int newIndex = index >= tabs.length ? tabs.length - 1 : index;
-                _tabController!.index = newIndex;
-                int newActiveOrderId = tabs[newIndex]["orderId"] as int;
-                await orderHelper.setActiveOrder(newActiveOrderId);
-                print("saveLastActiveOrderId removeTab serverOrderId: $serverOrderId, newActiveOrderId: $newActiveOrderId");
-                await orderHelper.saveLastActiveOrderId(newActiveOrderId); // Build #1.0.161
-              } else {
-                int currentActiveIndex = tabs.indexWhere((tab) => tab["orderId"] == orderHelper.activeOrderId);
-                if (currentActiveIndex != -1) {
-                  _tabController!.index = currentActiveIndex;
+                if (kDebugMode) {
+                  print("##### DEBUG: removeTab - Setting new active order: $newActiveOrderId");
                 }
+                await orderHelper.setActiveOrder(newActiveOrderId);
+                await orderHelper.saveLastActiveOrderId(newActiveOrderId);
               }
-              await fetchOrderItems(); // Refresh order items list
+              _initializeTabController();
+              _tabController!.index = newIndex;
+              await fetchOrderItems(); // Load items for new active order
             } else {
-              print("removeTab serverOrderId: $serverOrderId, orderHelper.activeOrderId to null");
-              orderHelper.activeOrderId = null;
+              if (kDebugMode) {
+                print("##### DEBUG: removeTab - No tabs left, clearing activeOrderId");
+              }
+              // await orderHelper.setActiveOrder(null);
+              // await orderHelper.saveLastActiveOrderId(null);
               setState(() {
-                orderItems = [];
+                orderHelper.activeOrderId = null;
+                orderItems = []; // Clear items
               });
-               _fetchOrders(); // Build #1.0.128: we have to refresh the orders , if orders are empty , otherwise if you add new item creating with new order and prev order also appear issue.
+              _initializeTabController();
             }
+
+            setState(() => _isLoading = false); // Hide loader
             _scaffoldMessenger.showSnackBar(
               SnackBar(
                 content: Text(TextConstants.orderCancelled),
@@ -596,7 +619,9 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
         });
         await orderBloc.changeOrderStatus(orderId: serverOrderId, status: TextConstants.cancelled);
       } else {
-        // Local deletion for orders without serverOrderId
+        if (kDebugMode) {
+          print("##### DEBUG: removeTab - Local deletion for orderId: $orderId");
+        }
         await orderHelper.deleteOrder(orderId);
         setState(() {
           tabs.removeAt(index);
@@ -604,29 +629,31 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
             tabs[i]["subtitle"] = "Tab ${i + 1}";
           }
         });
-        _initializeTabController();
+
         if (tabs.isNotEmpty) {
+          int newIndex = index >= tabs.length ? tabs.length - 1 : index;
+          int newActiveOrderId = tabs[newIndex]["orderId"] as int;
           if (isRemovedTabActive) {
-            int newIndex = index >= tabs.length ? tabs.length - 1 : index;
-            _tabController!.index = newIndex;
-            int newActiveOrderId = tabs[newIndex]["orderId"] as int;
-            await orderHelper.setActiveOrder(newActiveOrderId);
-            print("saveLastActiveOrderId removeTab serverOrderId: $serverOrderId, newActiveOrderId: $newActiveOrderId");
-            await orderHelper.saveLastActiveOrderId(newActiveOrderId); // Build #1.0.161
-          } else {
-            int currentActiveIndex = tabs.indexWhere((tab) => tab["orderId"] == orderHelper.activeOrderId);
-            if (currentActiveIndex != -1) {
-              _tabController!.index = currentActiveIndex;
+            if (kDebugMode) {
+              print("##### DEBUG: removeTab - Setting new active order: $newActiveOrderId");
             }
+            await orderHelper.setActiveOrder(newActiveOrderId);
+            await orderHelper.saveLastActiveOrderId(newActiveOrderId);
           }
+          _initializeTabController();
+          _tabController!.index = newIndex;
           await fetchOrderItems();
         } else {
-          // No orders left, reset active order and clear UI
-          print("removeTab serverOrderId: $serverOrderId, orderHelper.activeOrderId to null");
-          orderHelper.activeOrderId = null;
+          if (kDebugMode) {
+            print("##### DEBUG: removeTab - No tabs left, clearing activeOrderId");
+          }
+          // await orderHelper.setActiveOrder(null);
+          // await orderHelper.saveLastActiveOrderId(null);
           setState(() {
+            orderHelper.activeOrderId = null;
             orderItems = [];
           });
+          _initializeTabController();
         }
         setState(() => _isLoading = false); // Hide loader
         _scaffoldMessenger.showSnackBar(
@@ -669,7 +696,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
         orElse: () => {},
       );
       final itemType = item[AppDBConst.itemType]?.toString().toLowerCase() ?? '';
-      final isPayout = itemType.contains(TextConstants.payoutText);
+      final isPayout = false;//itemType.contains(TextConstants.payoutText);// Build #1.0.198: uncomment if want to delete payout from fee_lines
       final isCoupon = itemType.contains(TextConstants.couponText);
       final isCustomItem = itemType.contains(TextConstants.customItemText);
 
@@ -851,7 +878,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+
     final themeHelper = Provider.of<ThemeNotifier>(context);
     return BarcodeKeyboardListener( // Build #1.0.44 : Added - Wrap with BarcodeKeyboardListener for barcode scanning
       bufferDuration: Duration(milliseconds: 5000),
@@ -860,8 +887,12 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
       // Ensured loader is shown during API calls and hidden afterward.
       onBarcodeScanned: (barcode) async {
         if (kDebugMode) {
-          print("##### DEBUG: onBarcodeScanned - Scanned barcode: $barcode");
+          print("##### DEBUG: onBarcodeScanned - Scanned barcode: $barcode,  isOrderInForeground = $isOrderInForeground");
         }
+        if(!isOrderInForeground){ // to restrict order panel in background to scanner events
+          return;
+        }
+
         if (barcode.isNotEmpty) {
 
           /// Testing code: not working, Scanner will generate multiple tap events and call when scanned driving licence with PDF417 format irrespective of this code here
@@ -906,6 +937,8 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
               if(!mounted) {
                 return;
               }
+
+              ///Age Verification code
               final ageVerificationProvider = AgeVerificationProvider();
               var isVerified = await ageVerificationProvider.ageRestrictedProduct(context, product);
 
@@ -1343,7 +1376,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
             (order) => order[AppDBConst.orderServerId] == orderHelper.activeOrderId,
         orElse: () => {},
       );
-
+      if (orderItems.isNotEmpty && order.isNotEmpty) {
       // Get values from order or default to 0
       orderDiscount = order[AppDBConst.orderDiscount] as double? ?? 0.0;
       merchantDiscount = order[AppDBConst.merchantDiscount] as double? ?? 0.0;
@@ -1376,6 +1409,36 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
           // Fallback to raw data or default if parsing fails
           displayDate = order[AppDBConst.orderDate].toString().split(' ').first;
         }
+      }
+      } else {
+        if (kDebugMode) {
+          print("#### Reset values when orderItems is empty");
+          print("#### Order Items is empty -> ${orderItems.isNotEmpty} , Order is empty -> ${order.isNotEmpty}");
+          print("#### Discount ${order[AppDBConst.orderDiscount] as double? ?? 0.0}");
+          print("#### Tax ${order[AppDBConst.orderTax] as double? ?? 0.0}");
+          print("#### Total ${order[AppDBConst.orderTotal] as double? ?? 0.0}");
+        }
+        // Build #1.0.197: Fixed [SCRUM - 347] -> Net payable amount not updating to 0 when item quantity is set to zero
+        // Reset values when orderItems is empty
+        orderDiscount = 0.0;
+        merchantDiscount = 0.0;
+        orderTax = 0.0;
+        netTotal = 0.0;
+        netPayable = 0.0;
+
+        /// Optional : If required un-comment and use it !
+        // final db = await DBHelper.instance.database;
+        // await db.update(
+        //   AppDBConst.orderTable,
+        //   {
+        //     AppDBConst.orderTotal: 0.0,
+        //     AppDBConst.orderTax: 0.0,
+        //     AppDBConst.orderDiscount: 0.0,
+        //     AppDBConst.merchantDiscount: 0.0,
+        //   },
+        //   where: '${AppDBConst.orderServerId} = ?',
+        //   whereArgs: [orderHelper.activeOrderId],
+        // );
       }
       if (kDebugMode) {
         print("#### netPayable: $netPayable, orderTotal: ${order[AppDBConst.orderTotal] as double? ?? 0.0}");
@@ -1565,7 +1628,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                                 // Kept local updateItemQuantity for non-API orders.
                                 // Ensured loader is shown during API calls.
                                 onTap: () {
-                                  if (isPayoutOrCouponOrCustomItem) return;
+                                  if (isCouponOrPayout) return; // Build #1.0.187: Fixed - Updating Quantity for non payout or coupons
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
@@ -1573,6 +1636,29 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                                         orderItem: orderItem,
                                         onQuantityUpdated: (newQuantity) async {
                                           if (orderHelper.activeOrderId != null) {
+
+                                            if (orderHelper.cancelledOrderId != null) { // Build #1.0.189: Fixed -> Deleted Order Tab Reappears After Item Edit Flow
+                                              setState(() {
+                                                // Remove only the tab with the cancelledOrderId instead of clearing all tabs
+                                                tabs.removeWhere((tab) => tab["orderId"] == orderHelper.cancelledOrderId);
+
+                                                if (kDebugMode) {
+                                                  print("##### onQuantityUpdated: removing cancelled order tab");
+                                                  print("##### DEBUG : cancelledOrderId -> ${orderHelper.cancelledOrderId}");
+                                                  print("##### DEBUG : tabs -> $tabs");
+                                                }
+                                                // Reset cancelledOrderId after processing
+                                                orderHelper.cancelledOrderId = null;
+                                              });
+                                              // // If no tabs remain, fetch orders to refresh
+                                              // if (tabs.isEmpty) {
+                                              //   _fetchOrders();
+                                              // } else {
+                                              //   // Reinitialize tab controller and update UI
+                                              //   _initializeTabController();
+                                              //   await fetchOrderItems();
+                                              // }
+                                            }
                                             // final order = orderHelper.orders.firstWhere(
                                             //       (order) => order[AppDBConst.orderServerId] == orderHelper.activeOrderId,
                                             //   orElse: () => {},
@@ -1889,7 +1975,9 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                                 Row(
                                   spacing: 5,
                                   children: [
-                                    SvgPicture.asset("assets/svg/discount_star.svg", height: 12, width: 12),
+                                    SvgPicture.asset("assets/svg/discount_star.svg",
+                                      height: 12, width: 12,
+                                      colorFilter: ColorFilter.mode(Colors.blueAccent, BlendMode.srcIn),),
                                     Text(TextConstants.merchantDiscount, style: TextStyle(color: Colors.blue, fontSize: 10)),
                                     merchantDiscount.toStringAsFixed(2) == '0.00' ? SizedBox() : GestureDetector(
                                       onTap: () async {

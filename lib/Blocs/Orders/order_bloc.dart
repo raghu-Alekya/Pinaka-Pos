@@ -5,8 +5,8 @@ import 'package:flutter/foundation.dart';
 import '../../Constants/text.dart';
 import '../../Database/db_helper.dart';
 import '../../Database/order_panel_db_helper.dart';
-import '../../Helper/CustomerDisplayHelper.dart';
 import '../../Helper/api_response.dart';
+import '../../Helper/customerdisplayhelper.dart';
 import '../../Models/Orders/apply_discount_model.dart';
 import '../../Models/Orders/get_orders_model.dart' as model;
 import '../../Models/Orders/orders_model.dart';
@@ -219,6 +219,13 @@ class OrderBloc { // Build #1.0.25 - added by naveen
             where: '${AppDBConst.orderIdForeignKey} = ? AND ${AppDBConst.itemProductId} = ? AND ${AppDBConst.itemType} = ?',
             whereArgs: [serverOrderId, item.productId, ItemType.product.value],
           );
+          if(existingItem.isEmpty) { // Build #1.0.187: Fixed - Updating Quantity of Custom Item Creates Duplicate Line Item
+          existingItem = await db.query(
+            AppDBConst.purchasedItemsTable,
+            where: '${AppDBConst.orderIdForeignKey} = ? AND ${AppDBConst.itemProductId} = ? AND ${AppDBConst.itemType} = ?',
+            whereArgs: [serverOrderId, item.productId, ItemType.customProduct.value],
+          );
+         }
           if((existingItem.isNotEmpty && (existingItem.first[AppDBConst.itemVariationId] as int) > 0)){
             if (kDebugMode) {
               print(
@@ -299,6 +306,26 @@ class OrderBloc { // Build #1.0.25 - added by naveen
         where: '${AppDBConst.orderServerId} = ?',
         whereArgs: [serverOrderId],
       );
+
+      //DEBUG : query and print the updated data to verify
+      final updatedOrder = await db.query(
+        AppDBConst.orderTable,
+        where: '${AppDBConst.orderServerId} = ?',
+        whereArgs: [serverOrderId],
+      );
+
+      if (updatedOrder.isNotEmpty && kDebugMode) {
+        if (kDebugMode) {
+        print("#### OrderBloc - AFTER UPDATE - Order data for orderId $serverOrderId:");
+        print("Total: ${updatedOrder[0][AppDBConst.orderTotal]}");
+        print("Status: ${updatedOrder[0][AppDBConst.orderStatus]}");
+        print("Type: ${updatedOrder[0][AppDBConst.orderType]}");
+        print("Discount: ${updatedOrder[0][AppDBConst.orderDiscount]}");
+        print("Tax: ${updatedOrder[0][AppDBConst.orderTax]}");
+        print("Shipping: ${updatedOrder[0][AppDBConst.orderShipping]}");
+        print("========================================");
+      }
+     }
       // LineItems
       for (var lineItem in response.lineItems) {
         final String variationName = lineItem.productVariationData?.metaData?.firstWhere((e) => e.key == "custom_name", orElse: () => model.MetaData(id: 0, key: "", value: "")).value ?? "";
@@ -322,6 +349,12 @@ class OrderBloc { // Build #1.0.25 - added by naveen
             ? double.tryParse(lineItem.productVariationData?.price?.isNotEmpty == true ? lineItem.productVariationData!.price! : "0.0") ?? 0.0
             : double.tryParse(lineItem.productData.price?.isNotEmpty == true ? lineItem.productData.price! : "0.0") ?? 0.0;
         final double itemPrice = double.tryParse(lineItem.subtotal.isNotEmpty == true ? lineItem.subtotal : '0.0') ?? 0.0;
+        // Build #1.0.187: Fixed - Updating Quantity of Custom Item Creates Duplicate Line Item
+        // Check if the product has a tag named "Custom Item"
+        bool isCustomItem = lineItem.productData.tags.any((tag) => tag.name == TextConstants.customItem);
+        if (kDebugMode) {
+          print("#### isCustomItem 1022 : isCustomItem -> $isCustomItem");
+        }
 
         // final double itemPrice = double.parse(lineItem.subtotal ?? '0.0');//lineItem.productData.regularPrice == '' ?  double.parse(lineItem.productData.price ?? '0.0') : double.parse(lineItem.productData.regularPrice ?? '0.0');
         if (kDebugMode) {
@@ -338,7 +371,7 @@ class OrderBloc { // Build #1.0.25 - added by naveen
           serverOrderId,
           productId:lineItem.productId, // Build #1.0.80: newly added these two
           variationId:lineItem.variationId,
-          type: ItemType.product.value,
+          type: isCustomItem ? ItemType.customProduct.value : ItemType.product.value, // Build #1.0.187: Set type based on Custom Item tag
           variationName: variationName,
           variationCount: variationCount,
           combo: combo,
@@ -624,6 +657,7 @@ class OrderBloc { // Build #1.0.25 - added by naveen
     }
   }
   // 5. Delete Order Item
+  /// Build #1.0.192: Fixed -> After Deleting Item/Payout/Coupon/Discount , update response to db and update UI
   Future<void> deleteOrderItem({required int orderId, required List<OrderLineItem> lineItems, required int dbItemId}) async {
     if (_deleteOrderItemController.isClosed) return;
 
@@ -641,8 +675,8 @@ class OrderBloc { // Build #1.0.25 - added by naveen
         request: request,
       );
 
-      if(response == null){
-        updateOrderSink.add(APIResponse.error("Response is empty after deleting product from order $orderId"));
+      if (response == null) {
+        deleteOrderItemSink.add(APIResponse.error("Response is empty after deleting product from order $orderId"));
         return;
       }
       if (kDebugMode) {
@@ -650,29 +684,40 @@ class OrderBloc { // Build #1.0.25 - added by naveen
         print("OrderBloc - Updated total: ${response.total}");
         print("OrderBloc - Remaining items: ${response.lineItems.length}");
       }
-    // Build #1.0.92: updated code
+
+      // Build #1.0.78: Delete specific item from DB after successful API response
+      OrderHelper orderHelper = OrderHelper();
+      await orderHelper.deleteItem(dbItemId);
+
+      // Clear existing items for this order
+      await orderHelper.clearOrderItems(orderId);
+
+      // Debug print: Clearing order items
+      if (kDebugMode) {
+        print("#### OrderBloc - deleteOrderItem: Cleared existing items for orderId $orderId");
+      }
+
+      // Update order table with latest data
+      final db = await DBHelper.instance.database;
       double merchantDiscount = 0.0;
-      var merchantDiscountIds = "";
-      // if (response.lineItems.isEmpty) { ///TODO: do we need to reset merchant discount if we don't have line items in order panel
-      //   merchantDiscount = 0.0;
-      // } else
-      if (response.feeLines!.isNotEmpty) {
+      String merchantDiscountIds = "";
+      if (response.feeLines != null && response.feeLines!.isNotEmpty) {
         for (var feeLine in response.feeLines!) {
           if (feeLine.name == TextConstants.discountText) {
+            merchantDiscount += double.tryParse(feeLine.total ?? '0.0')?.abs() ?? 0.0;
+            merchantDiscountIds = merchantDiscountIds.isEmpty ? "${feeLine.id}" : "$merchantDiscountIds,${feeLine.id}";
             if (kDebugMode) {
-              print("#### TEST 5151");
+              print("#### OrderBloc - deleteOrderItem: Adding to merchantDiscount: ${feeLine.total}, new total: $merchantDiscount");
             }
-            merchantDiscount += double.parse(feeLine.total ?? '0.0').abs();
-            merchantDiscountIds = "$merchantDiscountIds,${feeLine.id}";
           }
         }
       }
+
+      // Debug print: Calculated merchant discount
       if (kDebugMode) {
-        print("#### OrderBloc - deleteOrderItem Setting merchantDiscount to $merchantDiscount AND discountsIds to $merchantDiscountIds for orderId $orderId");
+        print("#### OrderBloc - deleteOrderItem: Merchant discount calculated as $merchantDiscount with IDs: $merchantDiscountIds for orderId $orderId");
       }
 
-      // Build #1.0.92: updating order table
-      final db = await DBHelper.instance.database;
       await db.update(
         AppDBConst.orderTable,
         {
@@ -692,12 +737,101 @@ class OrderBloc { // Build #1.0.25 - added by naveen
         whereArgs: [orderId],
       );
 
-      //Build #1.0.78: Delete from DB after successful API response
-      OrderHelper orderHelper = OrderHelper();
-      await orderHelper.deleteItem(dbItemId);
-      await CustomerDisplayHelper.updateCustomerDisplay(orderId);
+      // Added updated line items from the API response
+      for (var lineItem in response.lineItems) {
+        final String variationName = lineItem.productVariationData?.metaData?.firstWhere(
+              (e) => e.key == "custom_name",
+          orElse: () => model.MetaData(id: 0, key: "", value: ""),
+        ).value ?? "";
+        final int variationCount = lineItem.productData.variations?.length ?? 0;
+        final String combo = lineItem.metaData.firstWhere(
+              (e) => e.value.contains('Combo'),
+          orElse: () => model.MetaData(id: 0, key: "", value: ""),
+        ).value.split(' ').first ?? "";
+        final bool hasVariations = lineItem.productData.variations != null && lineItem.productData.variations!.isNotEmpty;
+        final double salesPrice = hasVariations
+            ? double.tryParse(lineItem.productVariationData?.salePrice?.isNotEmpty == true ? lineItem.productVariationData!.salePrice! : "0.0") ?? 0.0
+            : double.tryParse(lineItem.productData.salePrice?.isNotEmpty == true ? lineItem.productData.salePrice! : "0.0") ?? 0.0;
+        final double regularPrice = hasVariations
+            ? double.tryParse(lineItem.productVariationData?.regularPrice?.isNotEmpty == true ? lineItem.productVariationData!.regularPrice! : "0.0") ?? 0.0
+            : double.tryParse(lineItem.productData.regularPrice?.isNotEmpty == true ? lineItem.productData.regularPrice! : "0.0") ?? 0.0;
+        final double unitPrice = hasVariations
+            ? double.tryParse(lineItem.productVariationData?.price?.isNotEmpty == true ? lineItem.productVariationData!.price! : "0.0") ?? 0.0
+            : double.tryParse(lineItem.productData.price?.isNotEmpty == true ? lineItem.productData.price! : "0.0") ?? 0.0;
+        final double itemPrice = double.tryParse(lineItem.subtotal.isNotEmpty == true ? lineItem.subtotal : '0.0') ?? 0.0;
+        bool isCustomItem = lineItem.productData.tags.any((tag) => tag.name == TextConstants.customItem);
 
-      deleteOrderItemSink.add(APIResponse.completed(response!));
+        if (kDebugMode) {
+          print("#### OrderBloc - deleteOrderItem: Adding lineItem ${lineItem.id}, orderId: $orderId, ProductId: ${lineItem.productId}, VariationId: ${lineItem.variationId}");
+          print("#### OrderBloc - deleteOrderItem: variationName $variationName, variationCount: $variationCount, combo: $combo, salesPrice: $salesPrice, regularPrice: $regularPrice, unitPrice: $unitPrice");
+        }
+
+        await orderHelper.addItemToOrder(
+          lineItem.id,
+          lineItem.name,
+          lineItem.image.src ?? '',
+          itemPrice,
+          lineItem.quantity,
+          lineItem.sku ?? '',
+          orderId,
+          productId: lineItem.productId,
+          variationId: lineItem.variationId,
+          type: isCustomItem ? ItemType.customProduct.value : ItemType.product.value,
+          variationName: variationName,
+          variationCount: variationCount,
+          combo: combo,
+          salesPrice: salesPrice,
+          regularPrice: regularPrice,
+          unitPrice: unitPrice,
+        );
+      }
+
+      // Added fee lines
+      for (var feeLine in response.feeLines ?? []) {
+        if (feeLine.name == TextConstants.payout) {
+          await orderHelper.addItemToOrder(
+            feeLine.id,
+            feeLine.name ?? '',
+            'assets/svg/payout.svg',
+            double.parse(feeLine.total ?? '0.0'),
+            1,
+            '',
+            orderId,
+            type: ItemType.payout.value,
+          );
+          if (kDebugMode) {
+            print("#### OrderBloc - deleteOrderItem: Added feeLine ${feeLine.id}, name: ${feeLine.name}, total: ${feeLine.total}");
+          }
+        }
+      }
+
+      // Added coupon lines
+      for (var couponLine in response.couponLines) {
+        await orderHelper.addItemToOrder(
+          couponLine.id,
+          couponLine.code ?? '',
+          'assets/svg/coupon.svg',
+          double.parse(couponLine.nominalAmount?.toString() ?? '0.0'),
+          1,
+          '',
+          orderId,
+          type: ItemType.coupon.value,
+        );
+        if (kDebugMode) {
+          print("#### OrderBloc - deleteOrderItem: Added couponLine ${couponLine.id}, code: ${couponLine.code}, amount: ${couponLine.nominalAmount}");
+        }
+      }
+
+      // Debug print: Final state of order items
+      if (kDebugMode) {
+        var itemsInDB = await orderHelper.getOrderItems(orderId);
+        for (var item in itemsInDB) {
+          print("#### OrderBloc - deleteOrderItem: Final items in DB - orderId: $orderId, productId: ${item[AppDBConst.itemProductId]}, variationId: ${item[AppDBConst.itemVariationId]}, itemId: ${item[AppDBConst.itemServerId]}");
+        }
+      }
+
+      await CustomerDisplayHelper.updateCustomerDisplay(orderId);
+      deleteOrderItemSink.add(APIResponse.completed(response));
     } catch (e) {
       deleteOrderItemSink.add(APIResponse.error(_extractErrorMessage(e)));
       if (kDebugMode) print("Exception in deleteOrderItem: $e");
@@ -729,6 +863,7 @@ class OrderBloc { // Build #1.0.25 - added by naveen
   }
 
   // Build #1.0.53 : Add Payout to Order
+  @Deprecated("This API is deprecated for payout, please use 'addPayoutAsProduct'. Use it only for adding Discount to order with isPauout = false.")
   Future<void> addPayout({required int orderId, required int dbOrderId, required double amount, required bool isPayOut}) async {
     if (_addPayoutController.isClosed) return;
 
@@ -814,9 +949,86 @@ class OrderBloc { // Build #1.0.25 - added by naveen
     }
   }
 
+  // Build #1.0.198 : Add Payout as product to Order
+  Future<void> addPayoutAsProduct({required int orderId, required int dbOrderId, required double amount, required bool isPayOut}) async {
+    if (_addPayoutController.isClosed) return;
+
+    addPayoutSink.add(APIResponse.loading(TextConstants.loading));
+    try {
+      final AddPayoutAsProductRequestModel request = AddPayoutAsProductRequestModel(
+        orderId: orderId,
+        amount: -amount,
+      );
+      final response = await _orderRepository.addPayoutAsProduct(orderId: orderId, request: request);
+
+      if (kDebugMode) {
+        print("OrderBloc - Payout added to order ID: ${response.id}");
+        print("OrderBloc - New total: ${response.total}");
+        print("OrderBloc - Line Items count: ${response.lineItems?.length ?? 0}");
+      }
+
+      // Build #1.0.92: Added payout/discount to DB after successful API response
+      OrderHelper orderHelper = OrderHelper();
+      final db = await DBHelper.instance.database;
+      double merchantDiscount = 0.0;
+      var merchantDiscountIds = "";
+      if (response.lineItems!.isNotEmpty) {
+        for (var lineItem in response.lineItems!) {
+          if (isPayOut && (lineItem.name == TextConstants.payout)) {  /// Build #1.0.138: check with 'AND' condition to check correctly , otherwise some times discount also adding into orderPanel as item issue
+            if (kDebugMode) {
+              print("#### OrderBloc - Adding payout item: id: ${response.lineItems!.last.id}, total: ${response.lineItems!.last.total}");
+            }
+            await orderHelper.addItemToOrder(
+              lineItem.id,
+              lineItem.name ?? '',
+              'assets/svg/payout.svg',
+              double.parse(lineItem.total ?? '0.0'),
+              1,
+              '',
+              orderId,
+              type: ItemType.payout.value,
+            );
+          }
+        }
+        if (kDebugMode) {
+          print("#### OrderBloc - addPayout Setting merchantDiscount to $merchantDiscount AND discountsIds to $merchantDiscountIds for orderId $orderId");
+        }
+      }
+      // Build #1.0.92
+      await db.update(
+        AppDBConst.orderTable,
+        {
+          AppDBConst.orderTotal: double.tryParse(response.total) ?? 0.0,
+          AppDBConst.orderStatus: response.status,
+          AppDBConst.orderType: response.createdVia ?? 'in-store',
+          AppDBConst.orderDate: response.dateCreated,
+          AppDBConst.orderTime: response.dateCreated,
+          AppDBConst.orderPaymentMethod: response.paymentMethod,
+          AppDBConst.orderDiscount: double.tryParse(response.discountTotal) ?? 0.0,
+          AppDBConst.orderTax: double.tryParse(response.totalTax) ?? 0.0,
+          AppDBConst.orderShipping: double.tryParse(response.shippingTotal) ?? 0.0,
+          AppDBConst.merchantDiscount: merchantDiscount,
+          AppDBConst.merchantDiscountIds: merchantDiscountIds,
+        },
+        where: '${AppDBConst.orderServerId} = ?',
+        whereArgs: [orderId],
+      );
+      await CustomerDisplayHelper.updateCustomerDisplay(orderId);
+
+      addPayoutSink.add(APIResponse.completed(response));
+    } catch (e, s) {
+      addPayoutSink.add(APIResponse.error(_extractErrorMessage(e)));
+      if (kDebugMode) print("Exception in addPayout: $e, Stack: $s");
+    }
+  }
+
+
   // Build #1.0.53 : Remove Payout from Order
   // Build #1.0.78: Added dbOrderId parameter to access the database.
   // Deleted the payout item and reset merchantDiscount after API success.
+  /// Build #1.0.192: Fixed -> After Deleting Item/Payout/Coupon/Discount , update response to db and update UI
+  /// Currently used to remove payout from order, where feeLineId is payoutId created
+  @Deprecated("This API is deprecated to use with Payout. Please use 'removePayoutAsProduct' instead.")
   Future<void> removeFeeLine({required int orderId, required int feeLineId}) async {
     if (_removePayoutController.isClosed) return;
 
@@ -832,28 +1044,37 @@ class OrderBloc { // Build #1.0.25 - added by naveen
         print("OrderBloc - New total: ${response.total}");
         print("OrderBloc - Remaining fee lines: ${response.feeLines?.length ?? 0}");
       }
-      // Build #1.0.92
+
+      // Clear existing items for this order
+      OrderHelper orderHelper = OrderHelper();
+      await orderHelper.clearOrderItems(orderId);
+
+      // Debug print: Clearing order items
+      if (kDebugMode) {
+        print("#### OrderBloc - removeFeeLine: Cleared existing items for orderId $orderId");
+      }
+
+      // Calculate merchant discount from remaining fee lines
       double merchantDiscount = 0.0;
-      var merchantDiscountIds = "";
-      if (response.feeLines!.isNotEmpty) {
+      String merchantDiscountIds = "";
+      if (response.feeLines != null && response.feeLines!.isNotEmpty) {
         for (var feeLine in response.feeLines!) {
           if (feeLine.name == TextConstants.discountText) {
+            merchantDiscount += double.tryParse(feeLine.total ?? '0.0')?.abs() ?? 0.0;
+            merchantDiscountIds = merchantDiscountIds.isEmpty ? "${feeLine.id}" : "$merchantDiscountIds,${feeLine.id}";
             if (kDebugMode) {
-              print("#### TEST 3131");
+              print("#### OrderBloc - removeFeeLine: Adding to merchantDiscount: ${feeLine.total}, new total: $merchantDiscount");
             }
-            merchantDiscount += double.parse(feeLine.total ?? '0.0').abs();
-            merchantDiscountIds = "$merchantDiscountIds,${feeLine.id}";
-          }else
-          if (feeLine.name == TextConstants.payout) {
-           // merchantDiscount += double.parse(feeLine.total ?? '0.0').abs();
           }
         }
       }
+
+      // Debug print: Calculated merchant discount
       if (kDebugMode) {
-        print("#### OrderBloc - removeFeeLine Setting merchantDiscount to $merchantDiscount AND discountsIds to $merchantDiscountIds for orderId $orderId");
+        print("#### OrderBloc - removeFeeLine: Merchant discount calculated as $merchantDiscount with IDs: $merchantDiscountIds for orderId $orderId");
       }
-      // Build #1.1.0: Update order table and reset merchantDiscount
-      OrderHelper orderHelper = OrderHelper();
+
+      // Update order table with latest data
       final db = await DBHelper.instance.database;
       await db.update(
         AppDBConst.orderTable,
@@ -887,6 +1108,100 @@ class OrderBloc { // Build #1.0.25 - added by naveen
         await orderHelper.deleteItem(payoutItem.first[AppDBConst.itemServerId] as int);
       }
 
+      // Added updated line items from the API response
+      for (var lineItem in response.lineItems) {
+        final String variationName = lineItem.productVariationData?.metaData?.firstWhere(
+              (e) => e.key == "custom_name",
+          orElse: () => model.MetaData(id: 0, key: "", value: ""),
+        ).value ?? "";
+        final int variationCount = lineItem.productData.variations?.length ?? 0;
+        final String combo = lineItem.metaData.firstWhere(
+              (e) => e.value.contains('Combo'),
+          orElse: () => model.MetaData(id: 0, key: "", value: ""),
+        ).value.split(' ').first ?? "";
+        final bool hasVariations = lineItem.productData.variations != null && lineItem.productData.variations!.isNotEmpty;
+        final double salesPrice = hasVariations
+            ? double.tryParse(lineItem.productVariationData?.salePrice?.isNotEmpty == true ? lineItem.productVariationData!.salePrice! : "0.0") ?? 0.0
+            : double.tryParse(lineItem.productData.salePrice?.isNotEmpty == true ? lineItem.productData.salePrice! : "0.0") ?? 0.0;
+        final double regularPrice = hasVariations
+            ? double.tryParse(lineItem.productVariationData?.regularPrice?.isNotEmpty == true ? lineItem.productVariationData!.regularPrice! : "0.0") ?? 0.0
+            : double.tryParse(lineItem.productData.regularPrice?.isNotEmpty == true ? lineItem.productData.regularPrice! : "0.0") ?? 0.0;
+        final double unitPrice = hasVariations
+            ? double.tryParse(lineItem.productVariationData?.price?.isNotEmpty == true ? lineItem.productVariationData!.price! : "0.0") ?? 0.0
+            : double.tryParse(lineItem.productData.price?.isNotEmpty == true ? lineItem.productData.price! : "0.0") ?? 0.0;
+        final double itemPrice = double.tryParse(lineItem.subtotal.isNotEmpty == true ? lineItem.subtotal : '0.0') ?? 0.0;
+        bool isCustomItem = lineItem.productData.tags.any((tag) => tag.name == TextConstants.customItem);
+
+        if (kDebugMode) {
+          print("#### OrderBloc - removeFeeLine: Adding lineItem ${lineItem.id}, orderId: $orderId, ProductId: ${lineItem.productId}, VariationId: ${lineItem.variationId}");
+          print("#### OrderBloc - removeFeeLine: variationName $variationName, variationCount: $variationCount, combo: $combo, salesPrice: $salesPrice, regularPrice: $regularPrice, unitPrice: $unitPrice");
+        }
+
+        await orderHelper.addItemToOrder(
+          lineItem.id,
+          lineItem.name,
+          lineItem.image.src ?? '',
+          itemPrice,
+          lineItem.quantity,
+          lineItem.sku ?? '',
+          orderId,
+          productId: lineItem.productId,
+          variationId: lineItem.variationId,
+          type: isCustomItem ? ItemType.customProduct.value : ItemType.product.value,
+          variationName: variationName,
+          variationCount: variationCount,
+          combo: combo,
+          salesPrice: salesPrice,
+          regularPrice: regularPrice,
+          unitPrice: unitPrice,
+        );
+      }
+
+      // Added remaining fee lines
+      for (var feeLine in response.feeLines ?? []) {
+        if (feeLine.name == TextConstants.payout) {
+          await orderHelper.addItemToOrder(
+            feeLine.id,
+            feeLine.name ?? '',
+            'assets/svg/payout.svg',
+            double.parse(feeLine.total ?? '0.0'),
+            1,
+            '',
+            orderId,
+            type: ItemType.payout.value,
+          );
+          if (kDebugMode) {
+            print("#### OrderBloc - removeFeeLine: Added feeLine ${feeLine.id}, name: ${feeLine.name}, total: ${feeLine.total}");
+          }
+        }
+      }
+
+      // Add coupon lines
+      for (var couponLine in response.couponLines) {
+        await orderHelper.addItemToOrder(
+          couponLine.id,
+          couponLine.code ?? '',
+          'assets/svg/coupon.svg',
+          double.parse(couponLine.nominalAmount?.toString() ?? '0.0'),
+          1,
+          '',
+          orderId,
+          type: ItemType.coupon.value,
+        );
+        if (kDebugMode) {
+          print("#### OrderBloc - removeFeeLine: Added couponLine ${couponLine.id}, code: ${couponLine.code}, amount: ${couponLine.nominalAmount}");
+        }
+      }
+
+      // Debug print: Final state of order items
+      if (kDebugMode) {
+        var itemsInDB = await orderHelper.getOrderItems(orderId);
+        for (var item in itemsInDB) {
+          print("#### OrderBloc - removeFeeLine: Final items in DB - orderId: $orderId, productId: ${item[AppDBConst.itemProductId]}, variationId: ${item[AppDBConst.itemVariationId]}, itemId: ${item[AppDBConst.itemServerId]}");
+        }
+      }
+      await CustomerDisplayHelper.updateCustomerDisplay(orderId);
+
       removePayoutSink.add(APIResponse.completed(response));
     } catch (e, s) {
       removePayoutSink.add(APIResponse.error(_extractErrorMessage(e)));
@@ -895,6 +1210,8 @@ class OrderBloc { // Build #1.0.25 - added by naveen
   }
 
 //Build #1.0.94
+  /// Build #1.0.192: Fixed -> After Deleting Item/Payout/Coupon/Discount , update response to db and update UI
+  /// Currently used to remove merchant discount from fee lines
   Future<void> removeFeeLines({required int orderId, required List<String> feeLineIds}) async {
     if (_removePayoutController.isClosed) return;
 
@@ -902,10 +1219,10 @@ class OrderBloc { // Build #1.0.25 - added by naveen
     try {
       ///Create FeeLine array to delete from order
       List<FeeLine> feeLines = [];
-      for(var feeLineId in feeLineIds){
+      for (var feeLineId in feeLineIds) {
         feeLines.add(FeeLine(id: int.parse(feeLineId), name: null));
       }
-      ///Create a request to delete FeeLines
+      // Create a request to delete FeeLines
       final request = RemoveFeeLinesRequestModel(
         feeLines: feeLines,
       );
@@ -916,28 +1233,37 @@ class OrderBloc { // Build #1.0.25 - added by naveen
         print("OrderBloc - New total: ${response.total}");
         print("OrderBloc - Remaining fee lines: ${response.feeLines?.length ?? 0}");
       }
-      // Build #1.0.92
+
+      // Clear existing items for this order
+      OrderHelper orderHelper = OrderHelper();
+      await orderHelper.clearOrderItems(orderId);
+
+      // Debug print: Clearing order items
+      if (kDebugMode) {
+        print("#### OrderBloc - removeFeeLines: Cleared existing items for orderId $orderId");
+      }
+
+      // Calculate merchant discount from remaining fee lines
       double merchantDiscount = 0.0;
-      var merchantDiscountIds = "";
-      if (response.feeLines!.isNotEmpty) {
+      String merchantDiscountIds = "";
+      if (response.feeLines != null && response.feeLines!.isNotEmpty) {
         for (var feeLine in response.feeLines!) {
           if (feeLine.name == TextConstants.discountText) {
+            merchantDiscount += double.tryParse(feeLine.total ?? '0.0')?.abs() ?? 0.0;
+            merchantDiscountIds = merchantDiscountIds.isEmpty ? "${feeLine.id}" : "$merchantDiscountIds,${feeLine.id}";
             if (kDebugMode) {
-              print("#### TEST 3131");
+              print("#### OrderBloc - removeFeeLines: Adding to merchantDiscount: ${feeLine.total}, new total: $merchantDiscount");
             }
-            merchantDiscount += double.parse(feeLine.total ?? '0.0').abs();
-            merchantDiscountIds = "$merchantDiscountIds,${feeLine.id}";
-          }else
-          if (feeLine.name == TextConstants.payout) {
-            // merchantDiscount += double.parse(feeLine.total ?? '0.0').abs();
           }
         }
       }
+
+      // Debug print: Calculated merchant discount
       if (kDebugMode) {
-        print("#### OrderBloc - removeFeeLines Setting merchantDiscount to $merchantDiscount AND discountsIds to $merchantDiscountIds for orderId $orderId");
+        print("#### OrderBloc - removeFeeLines: Merchant discount calculated as $merchantDiscount with IDs: $merchantDiscountIds for orderId $orderId");
       }
-      // Build #1.1.0: Update order table and reset merchantDiscount
-      OrderHelper orderHelper = OrderHelper();
+
+      // Update order table with latest data
       final db = await DBHelper.instance.database;
       await db.update(
         AppDBConst.orderTable,
@@ -958,8 +1284,8 @@ class OrderBloc { // Build #1.0.25 - added by naveen
         whereArgs: [orderId],
       );
 
-      // Build #1.1.0: Delete payout item from DB
-      for(var feeLineId in feeLineIds){
+      // Build #1.1.0: Delete payout items from DB
+      for (var feeLineId in feeLineIds) {
         final payoutItem = await db.query(
           AppDBConst.purchasedItemsTable,
           where: '${AppDBConst.itemServerId} = ? AND ${AppDBConst.itemType} = ?',
@@ -972,16 +1298,111 @@ class OrderBloc { // Build #1.0.25 - added by naveen
           await orderHelper.deleteItem(payoutItem.first[AppDBConst.itemServerId] as int);
         }
       }
+
+      // Add updated line items from the API response
+      for (var lineItem in response.lineItems) {
+        final String variationName = lineItem.productVariationData?.metaData?.firstWhere(
+              (e) => e.key == "custom_name",
+          orElse: () => model.MetaData(id: 0, key: "", value: ""),
+        ).value ?? "";
+        final int variationCount = lineItem.productData.variations?.length ?? 0;
+        final String combo = lineItem.metaData.firstWhere(
+              (e) => e.value.contains('Combo'),
+          orElse: () => model.MetaData(id: 0, key: "", value: ""),
+        ).value.split(' ').first ?? "";
+        final bool hasVariations = lineItem.productData.variations != null && lineItem.productData.variations!.isNotEmpty;
+        final double salesPrice = hasVariations
+            ? double.tryParse(lineItem.productVariationData?.salePrice?.isNotEmpty == true ? lineItem.productVariationData!.salePrice! : "0.0") ?? 0.0
+            : double.tryParse(lineItem.productData.salePrice?.isNotEmpty == true ? lineItem.productData.salePrice! : "0.0") ?? 0.0;
+        final double regularPrice = hasVariations
+            ? double.tryParse(lineItem.productVariationData?.regularPrice?.isNotEmpty == true ? lineItem.productVariationData!.regularPrice! : "0.0") ?? 0.0
+            : double.tryParse(lineItem.productData.regularPrice?.isNotEmpty == true ? lineItem.productData.regularPrice! : "0.0") ?? 0.0;
+        final double unitPrice = hasVariations
+            ? double.tryParse(lineItem.productVariationData?.price?.isNotEmpty == true ? lineItem.productVariationData!.price! : "0.0") ?? 0.0
+            : double.tryParse(lineItem.productData.price?.isNotEmpty == true ? lineItem.productData.price! : "0.0") ?? 0.0;
+        final double itemPrice = double.tryParse(lineItem.subtotal.isNotEmpty == true ? lineItem.subtotal : '0.0') ?? 0.0;
+        bool isCustomItem = lineItem.productData.tags.any((tag) => tag.name == TextConstants.customItem);
+
+        if (kDebugMode) {
+          print("#### OrderBloc - removeFeeLines: Adding lineItem ${lineItem.id}, orderId: $orderId, ProductId: ${lineItem.productId}, VariationId: ${lineItem.variationId}");
+          print("#### OrderBloc - removeFeeLines: variationName $variationName, variationCount: $variationCount, combo: $combo, salesPrice: $salesPrice, regularPrice: $regularPrice, unitPrice: $unitPrice");
+        }
+
+        await orderHelper.addItemToOrder(
+          lineItem.id,
+          lineItem.name,
+          lineItem.image.src ?? '',
+          itemPrice,
+          lineItem.quantity,
+          lineItem.sku ?? '',
+          orderId,
+          productId: lineItem.productId,
+          variationId: lineItem.variationId,
+          type: isCustomItem ? ItemType.customProduct.value : ItemType.product.value,
+          variationName: variationName,
+          variationCount: variationCount,
+          combo: combo,
+          salesPrice: salesPrice,
+          regularPrice: regularPrice,
+          unitPrice: unitPrice,
+        );
+      }
+
+      // Add remaining fee lines
+      for (var feeLine in response.feeLines ?? []) {
+        if (feeLine.name == TextConstants.payout) {
+          await orderHelper.addItemToOrder(
+            feeLine.id,
+            feeLine.name ?? '',
+            'assets/svg/payout.svg',
+            double.parse(feeLine.total ?? '0.0'),
+            1,
+            '',
+            orderId,
+            type: ItemType.payout.value,
+          );
+          if (kDebugMode) {
+            print("#### OrderBloc - removeFeeLines: Added feeLine ${feeLine.id}, name: ${feeLine.name}, total: ${feeLine.total}");
+          }
+        }
+      }
+
+      // Add coupon lines
+      for (var couponLine in response.couponLines) {
+        await orderHelper.addItemToOrder(
+          couponLine.id,
+          couponLine.code ?? '',
+          'assets/svg/coupon.svg',
+          double.parse(couponLine.nominalAmount?.toString() ?? '0.0'),
+          1,
+          '',
+          orderId,
+          type: ItemType.coupon.value,
+        );
+        if (kDebugMode) {
+          print("#### OrderBloc - removeFeeLines: Added couponLine ${couponLine.id}, code: ${couponLine.code}, amount: ${couponLine.nominalAmount}");
+        }
+      }
+
+      // Debug print: Final state of order items
+      if (kDebugMode) {
+        var itemsInDB = await orderHelper.getOrderItems(orderId);
+        for (var item in itemsInDB) {
+          print("#### OrderBloc - removeFeeLines: Final items in DB - orderId: $orderId, productId: ${item[AppDBConst.itemProductId]}, variationId: ${item[AppDBConst.itemVariationId]}, itemId: ${item[AppDBConst.itemServerId]}");
+        }
+      }
+      await CustomerDisplayHelper.updateCustomerDisplay(orderId);
       removePayoutSink.add(APIResponse.completed(response));
-    } catch (e,s) {
+    } catch (e, s) {
       removePayoutSink.add(APIResponse.error(_extractErrorMessage(e)));
-      if (kDebugMode) print("Exception in removeFeeLine: $e, Stack: $s");
+      if (kDebugMode) print("Exception in removeFeeLines: $e, Stack: $s");
     }
   }
 
   // Build #1.0.64: Remove Coupon Function
   // Build #1.0.78: Added dbOrderId parameter for consistency.
   // Deleted the coupon item from the database after API success.
+  /// Build #1.0.192: Fixed -> After Deleting Item/Payout/Coupon/Discount , update response to db and update UI
   Future<void> removeCoupon({required int orderId, required String couponCode}) async {
     if (_removeCouponController.isClosed) return;
 
@@ -998,8 +1419,36 @@ class OrderBloc { // Build #1.0.25 - added by naveen
         print("OrderBloc - Remaining coupon lines: ${response.couponLines.length}");
       }
 
-      // Build #1.0.92: Update order table with API response
+      // Clear existing items for this order
       OrderHelper orderHelper = OrderHelper();
+      await orderHelper.clearOrderItems(orderId);
+
+      // Debug print: Clearing order items
+      if (kDebugMode) {
+        print("#### OrderBloc - removeCoupon: Cleared existing items for orderId $orderId");
+      }
+
+      // Calculate merchant discount from remaining fee lines
+      double merchantDiscount = 0.0;
+      String merchantDiscountIds = "";
+      if (response.feeLines != null && response.feeLines!.isNotEmpty) {
+        for (var feeLine in response.feeLines!) {
+          if (feeLine.name == TextConstants.discountText) {
+            merchantDiscount += double.tryParse(feeLine.total ?? '0.0')?.abs() ?? 0.0;
+            merchantDiscountIds = merchantDiscountIds.isEmpty ? "${feeLine.id}" : "$merchantDiscountIds,${feeLine.id}";
+            if (kDebugMode) {
+              print("#### OrderBloc - removeCoupon: Adding to merchantDiscount: ${feeLine.total}, new total: $merchantDiscount");
+            }
+          }
+        }
+      }
+
+      // Debug print: Calculated merchant discount
+      if (kDebugMode) {
+        print("#### OrderBloc - removeCoupon: Merchant discount calculated as $merchantDiscount with IDs: $merchantDiscountIds for orderId $orderId");
+      }
+
+      // Update order table with latest data
       final db = await DBHelper.instance.database;
       await db.update(
         AppDBConst.orderTable,
@@ -1013,6 +1462,8 @@ class OrderBloc { // Build #1.0.25 - added by naveen
           AppDBConst.orderDiscount: double.tryParse(response.discountTotal) ?? 0.0,
           AppDBConst.orderTax: double.tryParse(response.totalTax) ?? 0.0,
           AppDBConst.orderShipping: double.tryParse(response.shippingTotal) ?? 0.0,
+          AppDBConst.merchantDiscount: merchantDiscount,
+          AppDBConst.merchantDiscountIds: merchantDiscountIds,
         },
         where: '${AppDBConst.orderServerId} = ?',
         whereArgs: [orderId],
@@ -1029,6 +1480,99 @@ class OrderBloc { // Build #1.0.25 - added by naveen
           print("#### OrderBloc - Deleting coupon item with code: $couponCode, serverId: ${couponItem.first[AppDBConst.itemServerId]}");
         }
         await orderHelper.deleteItem(couponItem.first[AppDBConst.itemServerId] as int);
+      }
+
+      // Add updated line items from the API response
+      for (var lineItem in response.lineItems) {
+        final String variationName = lineItem.productVariationData?.metaData?.firstWhere(
+              (e) => e.key == "custom_name",
+          orElse: () => model.MetaData(id: 0, key: "", value: ""),
+        ).value ?? "";
+        final int variationCount = lineItem.productData.variations?.length ?? 0;
+        final String combo = lineItem.metaData.firstWhere(
+              (e) => e.value.contains('Combo'),
+          orElse: () => model.MetaData(id: 0, key: "", value: ""),
+        ).value.split(' ').first ?? "";
+        final bool hasVariations = lineItem.productData.variations != null && lineItem.productData.variations!.isNotEmpty;
+        final double salesPrice = hasVariations
+            ? double.tryParse(lineItem.productVariationData?.salePrice?.isNotEmpty == true ? lineItem.productVariationData!.salePrice! : "0.0") ?? 0.0
+            : double.tryParse(lineItem.productData.salePrice?.isNotEmpty == true ? lineItem.productData.salePrice! : "0.0") ?? 0.0;
+        final double regularPrice = hasVariations
+            ? double.tryParse(lineItem.productVariationData?.regularPrice?.isNotEmpty == true ? lineItem.productVariationData!.regularPrice! : "0.0") ?? 0.0
+            : double.tryParse(lineItem.productData.regularPrice?.isNotEmpty == true ? lineItem.productData.regularPrice! : "0.0") ?? 0.0;
+        final double unitPrice = hasVariations
+            ? double.tryParse(lineItem.productVariationData?.price?.isNotEmpty == true ? lineItem.productVariationData!.price! : "0.0") ?? 0.0
+            : double.tryParse(lineItem.productData.price?.isNotEmpty == true ? lineItem.productData.price! : "0.0") ?? 0.0;
+        final double itemPrice = double.tryParse(lineItem.subtotal.isNotEmpty == true ? lineItem.subtotal : '0.0') ?? 0.0;
+        bool isCustomItem = lineItem.productData.tags.any((tag) => tag.name == TextConstants.customItem);
+
+        if (kDebugMode) {
+          print("#### OrderBloc - removeCoupon: Adding lineItem ${lineItem.id}, orderId: $orderId, ProductId: ${lineItem.productId}, VariationId: ${lineItem.variationId}");
+          print("#### OrderBloc - removeCoupon: variationName $variationName, variationCount: $variationCount, combo: $combo, salesPrice: $salesPrice, regularPrice: $regularPrice, unitPrice: $unitPrice");
+        }
+
+        await orderHelper.addItemToOrder(
+          lineItem.id,
+          lineItem.name,
+          lineItem.image.src ?? '',
+          itemPrice,
+          lineItem.quantity,
+          lineItem.sku ?? '',
+          orderId,
+          productId: lineItem.productId,
+          variationId: lineItem.variationId,
+          type: isCustomItem ? ItemType.customProduct.value : ItemType.product.value,
+          variationName: variationName,
+          variationCount: variationCount,
+          combo: combo,
+          salesPrice: salesPrice,
+          regularPrice: regularPrice,
+          unitPrice: unitPrice,
+        );
+      }
+
+      // Add fee lines
+      for (var feeLine in response.feeLines ?? []) {
+        if (feeLine.name == TextConstants.payout) {
+          await orderHelper.addItemToOrder(
+            feeLine.id,
+            feeLine.name ?? '',
+            'assets/svg/payout.svg',
+            double.parse(feeLine.total ?? '0.0'),
+            1,
+            '',
+            orderId,
+            type: ItemType.payout.value,
+          );
+          if (kDebugMode) {
+            print("#### OrderBloc - removeCoupon: Added feeLine ${feeLine.id}, name: ${feeLine.name}, total: ${feeLine.total}");
+          }
+        }
+      }
+
+      // Add remaining coupon lines
+      for (var couponLine in response.couponLines) {
+        await orderHelper.addItemToOrder(
+          couponLine.id,
+          couponLine.code ?? '',
+          'assets/svg/coupon.svg',
+          double.parse(couponLine.nominalAmount?.toString() ?? '0.0'),
+          1,
+          '',
+          orderId,
+          type: ItemType.coupon.value,
+        );
+        if (kDebugMode) {
+          print("#### OrderBloc - removeCoupon: Added couponLine ${couponLine.id}, code: ${couponLine.code}, amount: ${couponLine.nominalAmount}");
+        }
+      }
+
+      // Debug print: Final state of order items
+      if (kDebugMode) {
+        var itemsInDB = await orderHelper.getOrderItems(orderId);
+        for (var item in itemsInDB) {
+          print("#### OrderBloc - removeCoupon: Final items in DB - orderId: $orderId, productId: ${item[AppDBConst.itemProductId]}, variationId: ${item[AppDBConst.itemVariationId]}, itemId: ${item[AppDBConst.itemServerId]}");
+        }
       }
       await CustomerDisplayHelper.updateCustomerDisplay(orderId);
 

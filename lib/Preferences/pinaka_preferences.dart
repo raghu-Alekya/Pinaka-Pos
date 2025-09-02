@@ -17,7 +17,6 @@ class PinakaPreferences { // Build #1.0.7 , Naveen - added PinakaPreferences cod
     _prefs = await SharedPreferences.getInstance();
     layoutSelectionNotifier =  ValueNotifier<String>('');
   }
-
   static Future<void> saveLoggedInStore({
     required String storeId,
     required String storeName,

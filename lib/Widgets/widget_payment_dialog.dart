@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart'; // For displaying SVG images
 import 'package:pinaka_pos/Constants/text.dart';
+import 'package:pinaka_pos/Helper/Extentions/text_extensions.dart';
 import 'package:provider/provider.dart';
 
 import '../Helper/Extentions/theme_notifier.dart'; // Contains text constants for UI
@@ -232,7 +233,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
         fontWeight: FontWeight.w700, // Bold title
         color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : widget.status == PaymentStatus.exitConfirmation ? Colors.black87 : Colors.blueGrey[800],
       ),
-    );
+    ).poppins();
   }
 
   Widget _buildPaymentInfo() {
@@ -308,7 +309,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
                     fontWeight: FontWeight.w600,
                     color: Color(0xFF4C5F7D),
                   ),
-                ),
+                ).poppins(),
                 Text(
                   '${TextConstants.currencySymbol}${widget.amount!.toStringAsFixed(2)}',
                   style: const TextStyle(
@@ -316,7 +317,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
                     fontWeight: FontWeight.w800,
                     color: Color(0xFF4C5F7D),
                   ),
-                ),
+                ).poppins(),
               ],
             ),
           ),
@@ -346,7 +347,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
                       fontWeight: FontWeight.w600,
                       color: Color(0xFF1BA672),
                     ),
-                  ),
+                  ).poppins(),
                   Text(
                     '${TextConstants.currencySymbol}${widget.changeAmount!.toStringAsFixed(2)}',
                     style: const TextStyle(
@@ -354,7 +355,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
                       fontWeight: FontWeight.w800,
                       color: Color(0xFF1BA672),
                     ),
-                  ),
+                  ).poppins(),
                 ],
               ),
             ),
@@ -647,7 +648,7 @@ class _PaymentDialogState extends State<PaymentDialog> {
           fontSize: 20,
           fontWeight: FontWeight.w700,
         ),
-      ),
+      ).poppins(),
     );
   }
 

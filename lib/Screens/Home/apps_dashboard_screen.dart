@@ -60,9 +60,8 @@ class _AppsDashboardScreenState extends State<AppsDashboardScreen> with LayoutSe
           // Top Bar
           TopBar(
             screen: Screen.APPS,
-            onModeChanged: () { //Build #1.0.84: Issue fixed: nav mode re-setting
+            onModeChanged: () async{ /// Build #1.0.192: Fixed -> Exception -> setState() callback argument returned a Future. (onModeChanged in all screens)
               String newLayout;
-              setState(() async {
                 if (sidebarPosition == SidebarPosition.left) {
                   newLayout = SharedPreferenceTextConstants.navRightOrderLeft;
                 } else if (sidebarPosition == SidebarPosition.right) {
@@ -77,7 +76,8 @@ class _AppsDashboardScreenState extends State<AppsDashboardScreen> with LayoutSe
                // _preferences.saveLayoutSelection(newLayout);
                 //Build #1.0.122: update layout mode change selection to DB
                 await UserDbHelper().saveUserSettings({AppDBConst.layoutSelection: newLayout}, modeChange: true);
-              });
+              // update UI
+              setState(() {});
             },
           ),
           Divider(

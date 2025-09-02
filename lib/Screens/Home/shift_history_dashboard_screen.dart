@@ -16,6 +16,7 @@ import '../../Screens/Home/shift_summary_dashboard_screen.dart';
 import '../../Widgets/widget_topbar.dart';
 import '../../Widgets/widget_navigation_bar.dart' as custom_widgets;
 import '../../Helper/api_response.dart';
+import '../Auth/login_screen.dart';
 
 class ShiftHistoryDashboardScreen extends StatefulWidget {
   final int? lastSelectedIndex;
@@ -29,6 +30,8 @@ class _ShiftHistoryDashboardScreenState extends State<ShiftHistoryDashboardScree
   int _selectedSidebarIndex = 4;
   late ShiftBloc shiftBloc; //Build #1.0.74
   final PinakaPreferences _preferences = PinakaPreferences(); // Added this
+  List<Shift> _cachedShifts = []; // Store previously loaded shifts
+  bool _isDataLoaded = false; // // Build #1.0.192: ADDED: Flag to track if data has been loaded at least once
   @override
   void initState() {
     super.initState();
@@ -49,19 +52,23 @@ class _ShiftHistoryDashboardScreenState extends State<ShiftHistoryDashboardScree
 
   @override
   void dispose() {
+    shiftBloc.dispose(); // Build #1.0.192 : bloc dispose
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (kDebugMode) { //DEBUG
+      print("ShiftHistoryDashboardScreen: Widget build");
+    }
     return Scaffold(
       body: Column(
         children: [
           TopBar(
             screen: Screen.SHIFT,
-            onModeChanged: () { //Build #1.0.84: Issue fixed: nav mode re-setting
+            onModeChanged: () async { /// Build #1.0.192: Fixed -> Exception -> setState() callback argument returned a Future. (onModeChanged in all screens)
               String newLayout;
-              setState(() async {
+
                 if (sidebarPosition == SidebarPosition.left) {
                   newLayout = SharedPreferenceTextConstants.navRightOrderLeft;
                 } else if (sidebarPosition == SidebarPosition.right) {
@@ -76,7 +83,9 @@ class _ShiftHistoryDashboardScreenState extends State<ShiftHistoryDashboardScree
                // _preferences.saveLayoutSelection(newLayout);
                 //Build #1.0.122: update layout mode change selection to DB
                 await UserDbHelper().saveUserSettings({AppDBConst.layoutSelection: newLayout}, modeChange: true);
-              });
+
+                // Update UI state
+                 setState(() {});
             },
           ),
           Divider(
@@ -243,143 +252,65 @@ class _ShiftHistoryDashboardScreenState extends State<ShiftHistoryDashboardScree
                   child: StreamBuilder<APIResponse<ShiftsByUserResponse>>(
                     stream: shiftBloc.shiftsByUserStream,
                     builder: (context, snapshot) {
-                      if (snapshot.hasData) {
+                      if (snapshot.hasData) { /// Build #1.0.192: Fixed -> JIRA - 331 , Shift Summary screen stuck on continuous loading when mode is changed Summary
+                        // Update flag when we get data
+                        _isDataLoaded = true;
+
                         switch (snapshot.data!.status) {
                           case Status.LOADING:
+                          // If data already loaded, show cached data instead of loading indicator
+                            if (_isDataLoaded && _cachedShifts.isNotEmpty) {
+                              return _buildShiftListView(_cachedShifts, themeHelper);
+                            }
                             return Center(child: CircularProgressIndicator());
                           case Status.COMPLETED:
                             final shifts = snapshot.data!.data!.shifts;
                             if (shifts.isEmpty) {
                               return Center(child: Text('No shifts found'));
                             }
-                            return ListView.builder(
-                              itemCount: shifts.length,
-                              itemBuilder: (context, index) {
-                                final shift = shifts[index];
-                                return InkWell(
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => ShiftSummaryDashboardScreen(
-                                          lastSelectedIndex: _selectedSidebarIndex,
-                                          shiftId: shift.shiftId,
-                                        ),
+                            // STORE THE DATA WHEN WE HAVE IT
+                            if (snapshot.data!.data != null) {
+                              _cachedShifts = snapshot.data!.data!.shifts;
+                            }
+                            return _buildShiftListView(shifts, themeHelper);
+                          case Status.ERROR:
+                            if (kDebugMode) {
+                              print(" Test --- Unauthorised : response.message ${snapshot.data!.message ?? " "}");
+                            }
+                            if (snapshot.data!.message != null) {
+                              if (snapshot.data!.message!
+                                  .contains('Unauthorised')) {
+                                if (kDebugMode) {
+                                  print(
+                                      "Unauthorised : response.message ${snapshot.data!.message!}");
+                                }
+                                WidgetsBinding.instance.addPostFrameCallback((_) {
+                                  if (mounted) {
+                                    Navigator.pushReplacement(context, MaterialPageRoute(
+                                        builder: (context) => LoginScreen()));
+
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                            "Unauthorised. Session is expired on this device."),
+                                        backgroundColor: Colors.red,
+                                        duration: Duration(seconds: 2),
                                       ),
                                     );
-                                  },
-                                  child: Container(
-                                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                                    decoration: BoxDecoration(
-                                      color: themeHelper.themeMode == ThemeMode.dark
-                                          ? ThemeNotifier.tabsBackground : null,
-                                      border: Border(
-                                        bottom: BorderSide(
-                                          color:themeHelper.themeMode == ThemeMode.dark
-                                              ? Colors.white38 :  Colors.grey.shade200,
-                                          width: 1,
-                                          style: BorderStyle.solid,
-                                        ),
-                                      ),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                          flex: 2,
-                                          child: Text(
-                                            DateTimeHelper.extractDate(shift.startTime),
-                                            style: _cellStyle(context),
-                                          ),
-                                        ),
-                                        Expanded(
-                                          flex: 2,
-                                          child: Text(
-                                            DateTimeHelper.calculateDuration(shift.startTime, shift.endTime),
-                                            style: _cellStyle(context),
-                                          ),
-                                        ),
-                                        Expanded(
-                                          flex: 2,
-                                          child: Text(
-                                            DateTimeHelper.extractTime(shift.startTime),
-                                            style: _cellStyle(context),
-                                          ),
-                                        ),
-                                        Expanded(
-                                          flex: 2,
-                                          child: Text(
-                                            shift.endTime.isEmpty ? '' : DateTimeHelper.extractTime(shift.endTime),
-                                            style: _cellStyle(context),
-                                          ),
-                                        ),
-                                        Expanded(
-                                          flex: 2,
-                                          child: Text(
-                                            '${TextConstants.currencySymbol}${shift.totalSaleAmount.toStringAsFixed(2)}',
-                                            style: _cellStyle(context),
-                                          ),
-                                        ),
-                                        Expanded(
-                                          flex: 2,
-                                          child: Text(
-                                            '${shift.overShort < 0 ? '-' : ''}${TextConstants.currencySymbol}${shift.overShort.abs().toStringAsFixed(2)}',
-                                            style: TextStyle(
-                                              color: shift.overShort >= 0 ? Colors.green : Colors.red, //Fix: all values are showing red , only show negative values as red text
-                                              fontSize: 14,
-                                            ),
-                                          ),
-                                        ),
-                                        Expanded(
-                                          flex: 1,
-                                          child: SizedBox(),
-                                          // Row(
-                                          //   mainAxisSize: MainAxisSize.min,
-                                          //   children: [
-                                          //     InkWell(
-                                          //       onTap: () {
-                                          //         if (kDebugMode) {
-                                          //           print('Edit shift ID: ${shift.shiftId}');
-                                          //         }
-                                          //       },
-                                          //       child: Container(
-                                          //         padding: EdgeInsets.all(4),
-                                          //         child: Icon(
-                                          //           Icons.edit_outlined,
-                                          //           color: Colors.blue,
-                                          //           size: 18,
-                                          //         ),
-                                          //       ),
-                                          //     ),
-                                          //     SizedBox(width: 8),
-                                          //     InkWell(
-                                          //       onTap: () {
-                                          //         _showDeleteConfirmation(index);
-                                          //       },
-                                          //       child: Container(
-                                          //         padding: EdgeInsets.all(4),
-                                          //         child: Icon(
-                                          //           Icons.delete_outline,
-                                          //           color: Colors.red,
-                                          //           size: 18,
-                                          //         ),
-                                          //       ),
-                                          //     ),
-                                          //   ],
-                                          // ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              },
-                            );
-                          case Status.ERROR:
-                            return Center(child: Text(TextConstants.failedToFetchShifts)); // Build #1.0.144
+                                  }
+                                });
+                              }
+                            } else {
+                              return Center(child: Text(TextConstants.failedToFetchShifts)); // Build #1.0.144
+                            }
                           default:
                             return SizedBox();
                         }
                       }
-                      return Center(child: CircularProgressIndicator());
+                      // If no data yet but UI is rebuilding, show loading only if no data loaded before
+                      return _isDataLoaded && _cachedShifts.isNotEmpty
+                          ? _buildShiftListView(_cachedShifts, themeHelper) // Show cached data
+                          : Center(child: CircularProgressIndicator()); // Show loading for first time
                     },
                   ),
                 ),
@@ -388,6 +319,97 @@ class _ShiftHistoryDashboardScreenState extends State<ShiftHistoryDashboardScree
           ),
         ),
       ],
+    );
+  }
+
+  /// Build #1.0.192: Fixed -> JIRA - 331 , Shift Summary screen stuck on continuous loading when mode is changed Summary
+  Widget _buildShiftListView(List<Shift> shifts, ThemeNotifier themeHelper) {
+    return ListView.builder(
+      itemCount: shifts.length,
+      itemBuilder: (context, index) {
+        final shift = shifts[index];
+        return InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ShiftSummaryDashboardScreen(
+                  lastSelectedIndex: _selectedSidebarIndex,
+                  shiftId: shift.shiftId,
+                ),
+              ),
+            );
+          },
+          child: Container(
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            decoration: BoxDecoration(
+              color: themeHelper.themeMode == ThemeMode.dark
+                  ? ThemeNotifier.tabsBackground : null,
+              border: Border(
+                bottom: BorderSide(
+                  color: themeHelper.themeMode == ThemeMode.dark
+                      ? Colors.white38 : Colors.grey.shade200,
+                  width: 1,
+                  style: BorderStyle.solid,
+                ),
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    DateTimeHelper.extractDate(shift.startTime),
+                    style: _cellStyle(context),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    DateTimeHelper.calculateDuration(shift.startTime, shift.endTime),
+                    style: _cellStyle(context),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    DateTimeHelper.extractTime(shift.startTime),
+                    style: _cellStyle(context),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    shift.endTime.isEmpty ? '' : DateTimeHelper.extractTime(shift.endTime),
+                    style: _cellStyle(context),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    '${TextConstants.currencySymbol}${shift.totalSaleAmount.toStringAsFixed(2)}',
+                    style: _cellStyle(context),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    '${shift.overShort < 0 ? '-' : ''}${TextConstants.currencySymbol}${shift.overShort.abs().toStringAsFixed(2)}',
+                    style: TextStyle(
+                      color: shift.overShort >= 0 ? Colors.green : Colors.red,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 1,
+                  child: SizedBox(),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 

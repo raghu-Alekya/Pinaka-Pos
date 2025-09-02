@@ -1,11 +1,14 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import '../../Constants/text.dart';
 import '../../Helper/api_response.dart';
 import '../../Models/FastKey/fastkey_model.dart';
+import '../../Models/FastKey/fastkey_product_model.dart';
 import '../../Repositories/FastKey/fastkey_repository.dart';
 import '../../Database/fast_key_db_helper.dart';
 import '../../Database/db_helper.dart';
+import '../../Utilities/global_utility.dart';
 
 class FastKeyBloc { // Build #1.0.15
   final FastKeyRepository _fastKeyRepository;
@@ -81,11 +84,13 @@ class FastKeyBloc { // Build #1.0.15
       }
       createFastKeySink.add(APIResponse.completed(response));
     } catch (e) {
-      if (e.toString().contains('SocketException')) {
-        createFastKeySink.add(APIResponse.error("Network error. Please check your connection."));
-      } else {
-        createFastKeySink.add(APIResponse.error("Failed to create FastKey: ${e.toString()}"));
+      if (e.toString().contains('Unauthorised')) {
+        createFastKeySink.add(APIResponse.error("Unauthorised. Session is expired."));
       }
+      else {
+        createFastKeySink.add(
+            APIResponse.error(GlobalUtility.extractErrorMessage(e)));
+      }//Build #1.0.189: Proper error not showing while getting error in create fast key
       if (kDebugMode) print("Exception in createFastKey: $e");
     }
   }
@@ -112,9 +117,34 @@ class FastKeyBloc { // Build #1.0.15
       }
       // if(fastKeyTabs.length != response.fastkeys.length){
         ///if all the data mismatches then delete all db contents and replace with API response
-        fastKeyDBHelper.deleteAllFastKeyTab(userId);
+      // Build #1.0.200: Clear existing data "await" added, everywhere we have added await while deleting data!
+      // Code Updated : Empty fastkey folders show at first logon to multiple fastkeys loaded on created by the user
+       await fastKeyDBHelper.deleteAllFastKeyTab(userId);
         for(var fastkey in response.fastkeys){
           await fastKeyDBHelper.addFastKeyTab(userId, fastkey.fastkeyTitle, fastkey.fastkeyImage, 0, int.parse(fastkey.fastkeyIndex), fastkey.fastkeyServerId );
+
+          // Build #1.0.197: Fixed [SCRUM - 328] -> At first logon Empty items shows in fast keys for the selected folder
+          /// Added FastKey items for this tab from API response
+          if (kDebugMode) {
+            print("#### Processing ${fastkey.products?.length} products for FastKey serverId: ${fastkey.fastkeyServerId}");
+          }
+          for (var product in fastkey.products ?? []) {
+            var tagg = product.tags?.firstWhere((element) => element.name == "Age Restricted", orElse: () => Tags());
+            var hasAgeRestriction = tagg?.name?.contains("Age Restricted") ?? false;
+            if (kDebugMode) {
+              print("#### Adding FastKey item: ${product.name}, productId: ${product.productId}, hasAgeRestriction: $hasAgeRestriction");
+            }
+            await fastKeyDBHelper.addFastKeyItem(
+              fastkey.fastkeyServerId,
+              product.name,
+              product.image,
+              product.price,
+              product.productId,
+              minAge: int.parse(tagg?.slug ?? "0"),
+              slNumber: product.slNumber,
+              hasVariant: product.hasVariant ?? false,
+            );
+          }
         }
       // } else {
       //   ///else just update the data for each fast key
@@ -146,7 +176,10 @@ class FastKeyBloc { // Build #1.0.15
       // }
       getFastKeysSink.add(APIResponse.completed(response));
     } catch (e, s) {
-      if (e.toString().contains('SocketException')) {
+      if (e.toString().contains('Unauthorised')) {
+        getFastKeysSink.add(APIResponse.error("Unauthorised. Session is expired."));
+      }
+      else if (e.toString().contains('SocketException')) {
         getFastKeysSink.add(APIResponse.error("Network error. Please check your connection."));
       } else {
         getFastKeysSink.add(APIResponse.error("Failed to fetch FastKeys: ${e.toString()}"));
@@ -185,7 +218,10 @@ class FastKeyBloc { // Build #1.0.15
       }
       deleteFastKeySink.add(APIResponse.completed(response));
     } catch (e) {
-      if (e.toString().contains('SocketException')) {
+      if (e.toString().contains('Unauthorised')) {
+        deleteFastKeySink.add(APIResponse.error("Unauthorised. Session is expired."));
+      }
+      else if (e.toString().contains('SocketException')) {
         deleteFastKeySink.add(APIResponse.error("Network error. Please check your connection."));
       } else {
         deleteFastKeySink.add(APIResponse.error("Failed to delete FastKey: ${e.toString()}"));
@@ -235,11 +271,13 @@ class FastKeyBloc { // Build #1.0.15
       updateFastKeySink.add(APIResponse.completed(response)); // Build #1.0.184
        //no need of user id to pass
     } catch (e, s) {
-      if (e.toString().contains('SocketException')) {
-        updateFastKeySink.add(APIResponse.error("Network error. Please check your connection."));
-      } else {
-        updateFastKeySink.add(APIResponse.error("Failed to update FastKey"));
+      if (e.toString().contains('Unauthorised')) {
+        updateFastKeySink.add(APIResponse.error("Unauthorised. Session is expired."));
       }
+      else {
+        updateFastKeySink.add(
+            APIResponse.error(GlobalUtility.extractErrorMessage(e)));
+      }//Build #1.0.189: Proper error not showing while getting error in update fast key
       if (kDebugMode) print("Exception in updateFastKey: $e, Stack: $s");
     }
   }

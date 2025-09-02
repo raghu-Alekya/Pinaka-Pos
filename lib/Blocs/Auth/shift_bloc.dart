@@ -49,7 +49,10 @@ class ShiftBloc { //Build #1.0.74: Updated Code
       }
       shiftsByUserSink.add(APIResponse.completed(response));
     } catch (e) {
-      if (e.toString().contains('SocketException')) {
+      if (e.toString().contains('Unauthorised')) {
+        shiftsByUserSink.add(APIResponse.error("Unauthorised. Session is expired."));
+      }
+      else if (e.toString().contains('SocketException')) {
         shiftsByUserSink.add(APIResponse.error("Network error. Please check your connection."));
       } else {
         shiftsByUserSink.add(APIResponse.error("Failed to fetch shifts: ${e.toString()}"));
@@ -70,7 +73,10 @@ class ShiftBloc { //Build #1.0.74: Updated Code
       }
       shiftByIdSink.add(APIResponse.completed(response));
     } catch (e) {
-      if (e.toString().contains('SocketException')) {
+      if (e.toString().contains('Unauthorised')) {
+        shiftsByUserSink.add(APIResponse.error("Unauthorised. Session is expired."));
+      }
+      else if (e.toString().contains('SocketException')) {
         shiftByIdSink.add(APIResponse.error("Network error. Please check your connection."));
       } else {
         shiftByIdSink.add(APIResponse.error("Failed to fetch shift: ${e.toString()}"));
@@ -88,7 +94,10 @@ class ShiftBloc { //Build #1.0.74: Updated Code
       ShiftResponse response = await _shiftRepository.manageShift(request);
       shiftSink.add(APIResponse.completed(response));
     } catch (e) {
-      if (e.toString().contains('SocketException')) {
+      if (e.toString().contains('Unauthorised')) {
+        shiftsByUserSink.add(APIResponse.error("Unauthorised. Session is expired."));
+      }
+      else if (e.toString().contains('SocketException')) {
         shiftSink.add(APIResponse.error("Network error. Please check your connection."));
       } else {
         shiftSink.add(APIResponse.error("Failed to manage shift: ${e.toString()}"));

@@ -7,7 +7,7 @@ import '../../Models/Payment/payment_model.dart';
 import '../../Models/Payment/send_order_details_model.dart';
 import '../../Models/Payment/void_payment_model.dart';
 import '../../Repositories/Payment/payment_repository.dart';
-import '../../services/CustomerDisplayService.dart';
+import '../../services/customerdisplayservice.dart';
 
 class PaymentBloc {  // Build #1.0.25 - added by naveen
   final PaymentRepository _paymentRepository;

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:pinaka_pos/Constants/misc_features.dart';
 import 'package:pinaka_pos/Helper/Extentions/extensions.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:thermal_printer/esc_pos_utils_platform/esc_pos_utils_platform.dart';
 import '../../Blocs/Auth/safe_drop_bloc.dart';
@@ -12,6 +13,7 @@ import '../../Database/db_helper.dart';
 import '../../Database/printer_db_helper.dart';
 import '../../Database/user_db_helper.dart';
 import '../../Helper/Extentions/nav_layout_manager.dart';
+import '../../Helper/Extentions/theme_notifier.dart';
 import '../../Helper/api_response.dart';
 import '../../Models/Assets/asset_model.dart';
 import '../../Models/Auth/safe_drop_model.dart';
@@ -433,7 +435,7 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
 
   @override
   Widget build(BuildContext context) {
-
+    final themeHelper = Provider.of<ThemeNotifier>(context);
     return Scaffold(
       body: Stack( //Build #1.0.74
         children: [
@@ -441,9 +443,8 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
             children: [
               TopBar(
                 screen: Screen.SAFE,
-                onModeChanged: () { //Build #1.0.84: Issue fixed: nav mode re-setting
+                onModeChanged: () async{ /// Build #1.0.192: Fixed -> Exception -> setState() callback argument returned a Future. (onModeChanged in all screens)
                   String newLayout;
-                  setState(() async {
                     if (sidebarPosition == SidebarPosition.left) {
                       newLayout = SharedPreferenceTextConstants.navRightOrderLeft;
                     } else if (sidebarPosition == SidebarPosition.right) {
@@ -458,7 +459,8 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
                    // _preferences.saveLayoutSelection(newLayout);
                     //Build #1.0.122: update layout mode change selection to DB
                     await UserDbHelper().saveUserSettings({AppDBConst.layoutSelection: newLayout}, modeChange: true);
-                  });
+                  // update UI
+                  setState(() {});
                 },
               ),
               Divider(
@@ -502,9 +504,10 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment: MainAxisAlignment.start,
                                 children: [
                                   Column(
+                                    mainAxisAlignment: MainAxisAlignment.spaceAround,
                                     children: [
                                       // Modified: Replaced static rows with GridView
                                       _safeDenominations.isEmpty
@@ -531,21 +534,23 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
                                       ),
                                     ],
                                   ),
+                                  const SizedBox(height: 3),
                                   Divider(
                                     color: Colors.grey, // Light grey color
                                     thickness: 0.4, // Very thin line
                                     height: 1, // Minimal height
-                                    endIndent: 150,
+                                    endIndent: 70,
                                   ),
-                                  const SizedBox(height: 5),
+                                  const SizedBox(height: 15),
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.start,
-                                    mainAxisSize: MainAxisSize.max,
+                                    // mainAxisSize: MainAxisSize.max,
                                     crossAxisAlignment: CrossAxisAlignment.center,
                                     children: [
                                       Container(
-                                        width: MediaQuery.of(context).size.width * 0.325,
-                                        height: MediaQuery.of(context).size.height * 0.4,
+                                        width: MediaQuery.of(context).size.width * 0.308,
+                                        height: MediaQuery.of(context).size.height * 0.39,
+                                        margin: EdgeInsets.only(left: 5),
                                         decoration: BoxDecoration(
                                           color: const Color(0xFFE8F5ED),
                                           borderRadius: BorderRadius.circular(8),
@@ -553,7 +558,12 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
                                         child: Column(
                                           mainAxisAlignment: MainAxisAlignment.center,
                                           children: [
-                                            const Text("Total Notes", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                            Text("Total Notes",
+                                                style: TextStyle(
+                                                    fontSize: 18,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: ThemeNotifier.textLight
+                                                    )),
                                             const SizedBox(height: 10),
                                             SizedBox(
                                               width: MediaQuery.of(context).size.width * 0.25,
@@ -563,17 +573,22 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
                                                 textAlign: TextAlign.center,
                                                 decoration: InputDecoration(
                                                   filled: true,
-                                                  fillColor: Colors.white,
+                                                  fillColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.circularNavBackground : Colors.white,
                                                   border: OutlineInputBorder(
                                                     borderRadius: BorderRadius.circular(8),
-                                                    borderSide: BorderSide(color: Colors.grey.shade300),
+                                                    borderSide: BorderSide(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.borderColor : Colors.grey.shade300),
                                                   ),
                                                   contentPadding: const EdgeInsets.symmetric(vertical: 12),
                                                 ),
                                               ),
                                             ),
                                             const SizedBox(height: 10),
-                                            const Text("Total Cash", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                            Text("Total Cash",
+                                                style: TextStyle(
+                                                    fontSize: 18,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: ThemeNotifier.textLight
+                                                )),
                                             const SizedBox(height: 10),
                                             SizedBox(
                                               width: MediaQuery.of(context).size.width * 0.25,
@@ -583,10 +598,10 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
                                                 textAlign: TextAlign.center,
                                                 decoration: InputDecoration(
                                                   filled: true,
-                                                  fillColor: Colors.white,
+                                                  fillColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.circularNavBackground : Colors.white,
                                                   border: OutlineInputBorder(
                                                     borderRadius: BorderRadius.circular(8),
-                                                    borderSide: BorderSide(color: Colors.grey.shade300),
+                                                    borderSide: BorderSide(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.borderColor : Colors.grey.shade300),
                                                   ),
                                                   contentPadding: const EdgeInsets.symmetric(vertical: 12),
                                                 ),
@@ -596,20 +611,26 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
                                         ),
                                       ),
                                       const SizedBox(width: 150),
-                                      SizedBox(
-                                        height: MediaQuery.of(context).size.height * 0.4,
-                                        width: MediaQuery.of(context).size.width * 0.325,
+                                      Container(
+                                        margin: EdgeInsets.only(left: 5),
+                                        decoration: BoxDecoration(
+                                          // color: Colors.red,//const Color(0xFFE8F5ED),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        width: MediaQuery.of(context).size.width * 0.328,
+                                        height: MediaQuery.of(context).size.height * 0.391,
                                         child: CustomNumPad(
                                           onDigitPressed: _handleNumberPress,
                                           onClearPressed: _handleClear,
                                           onAddPressed: _handleAdd,
                                           actionButtonType: ActionButtonType.add,
+                                          isDarkTheme: true,
                                           isLoading: _isApiLoading, // Pass the loading state here
                                         ),
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 5),
+                                  const SizedBox(height: 1),
                                 ],
                               ),
                             ),
@@ -687,10 +708,11 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
   }
 
   Widget _buildDenominationField(String assetPath, String denomination, TextEditingController controller, {bool isResult = false}) {
+    final themeHelper = Provider.of<ThemeNotifier>(context);
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 3, horizontal: 4),
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground :Colors.grey.shade300),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -719,9 +741,9 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
             height: MediaQuery.of(context).size.height * 0.075,
             decoration: BoxDecoration(
               shape: BoxShape.rectangle,
-              border: Border.all(color: Colors.grey.shade300),
+              border: Border.all(color:themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.borderColor : Colors.grey.shade300),
               borderRadius: BorderRadius.circular(5),
-              color: Colors.white,
+              color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.circularNavBackground : Colors.white,
             ),
             child: TextField(
               controller: controller,

@@ -104,7 +104,7 @@ class ThemeNotifier with ChangeNotifier { // Build #1.0.6 - Added Theme code & a
     floatingActionButtonTheme: const FloatingActionButtonThemeData(
       backgroundColor: Colors.blue,
     ),
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       color: cardLight,
       elevation: 2,
       shadowColor: Colors.grey[300],
@@ -164,7 +164,7 @@ class ThemeNotifier with ChangeNotifier { // Build #1.0.6 - Added Theme code & a
     floatingActionButtonTheme: const FloatingActionButtonThemeData(
       backgroundColor: Colors.blue,
     ),
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       color: cardDark,
       elevation: 2,
       shadowColor: Colors.grey[900],

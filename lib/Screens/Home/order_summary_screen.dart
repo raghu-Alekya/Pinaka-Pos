@@ -1980,7 +1980,15 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
         Navigator.of(context).pop(); // Close void confirmation dialog
         Navigator.of(context).pop(); // Close payment dialog
         if (!isPartial) {
-          Navigator.of(context).pop(TextConstants.refresh); // Navigate back for complete void
+          if (kDebugMode) {
+            print("_handleVoidPayment -> 1: ${response.data!.message}");
+          }
+          // Navigator.of(context).pop(TextConstants.refresh); // Navigate back for complete void
+          OrderHelper.isOrderPanelLoaded = false;
+          Navigator.pushReplacement(result: TextConstants.refresh,
+            context,
+            MaterialPageRoute(builder: (_) => FastKeyScreen()),
+          );
         }
       } else if (response.status == Status.ERROR) {
         if (kDebugMode) {
@@ -2059,7 +2067,16 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
         // Build #1.0.175
         Navigator.of(context).pop(); // Close void confirmation dialog
         Navigator.of(context).pop(); // Close payment dialog
-        Navigator.of(context).pop(TextConstants.refresh); // Navigate back to previous screen
+        // Navigator.of(context).pop(TextConstants.refresh); // Navigate back to previous screen
+        if (kDebugMode) {
+          print("_handleVoidOrder -> 2: ${response.data!.message}");
+        }
+        ///This is for voiding completed payment
+        OrderHelper.isOrderPanelLoaded = false;
+        Navigator.pushReplacement(result: TextConstants.refresh,
+          context,
+          MaterialPageRoute(builder: (_) => FastKeyScreen()),
+        );
       } else if (response.status == Status.ERROR) {
         if (kDebugMode) {
           print("_handleVoidOrder -> Void order failed: ${response.data!.message}");
@@ -2611,7 +2628,16 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
       /// Build #1.0.175: No need change status to completed API call
      /// It was handling from backend
        Navigator.of(context).pop();  // Dismiss the receipt dialog
-       Navigator.of(context).pop(TextConstants.refresh); // Dismiss back to the previous screen with a refresh signal
+       // Navigator.of(context).pop(TextConstants.refresh); // Dismiss back to the previous screen with a refresh signal
+    if (kDebugMode) {
+      print("changeStatusToCompletedAndExit -> 3:");
+    }
+    ///Completed order
+      OrderHelper.isOrderPanelLoaded = false;
+      Navigator.pushReplacement(result: TextConstants.refresh,
+        context,
+        MaterialPageRoute(builder: (_) => FastKeyScreen()),
+      );
 
        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -2709,9 +2735,14 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
             if (kDebugMode) {
               print("_showExitPaymentConfirmation -> User confirmed exit, navigating back");
             }
+            ///Partial payment back button exit
             Navigator.of(context).pop(); // Close exit confirmation dialog
-            Navigator.of(context).pop(TextConstants.refresh); // Navigate back to previous screen
-
+            // Navigator.of(context).pop(TextConstants.refresh); // Navigate back to previous screen
+            OrderHelper.isOrderPanelLoaded = false;
+            Navigator.pushReplacement(result: TextConstants.refresh,
+              context,
+              MaterialPageRoute(builder: (_) => FastKeyScreen()),
+            );
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(

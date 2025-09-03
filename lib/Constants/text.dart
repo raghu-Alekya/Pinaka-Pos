@@ -89,7 +89,7 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String deleteConfirmText     = "Do you want to delete this tab permanently?";
   static const String noText                = "No";
   static const String yesText               = "Yes";
-  static const String retryText               = "Retry";
+  static const String retryText             = "Retry";
 
   static const String clearText             = "Clear";
   static const String okText                = "OK";
@@ -371,6 +371,10 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String invalidPayoutError = "Please enter a valid Payout Amount";
   static const String payoutAlreadyAdded = "A payout has already been added for this order";
   static const String payoutAddedSuccess = "Payout added successfully";
+
+  static const String unAuthMessage = "Unauthorised.Session is expired on this device.";
+  static const String unAuth = "Unauthorised";
+
 
 }
 

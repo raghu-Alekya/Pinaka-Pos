@@ -498,155 +498,164 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
                 Expanded(
                   child: Column(
                     //mainAxisAlignment: MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.end,
+                    // crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       // Filters
-                      Wrap(
-                        spacing: 8.0,
+                      Row(
                         children: [
-                          // User Filter
-                          FilterChipWidget(
-                            label: "User",
-                            options: _filterUsers.map((filter) => filter.displayName ?? "").toList(),
-                            selectedValue: _selectedUserFilter,
-                            onSelected: (value) {
-                              setState(() {
-                                _selectedUserFilter = value;
-                                _currentPage = 1;
-                                _fetchOrders();
-                                debugPrint("OrdersScreen: User filter changed to $value");
-                              });
-                            },
-                          ),
-                          // Status Filter
-                          FilterChipWidget(
-                            label: "Status",
-                            options: _filterStatuses.map((filter) => filter.name).toList(),
-                            selectedValue: _selectedStatusFilter,
-                            onSelected: (value) {
-                              setState(() {
-                                _selectedStatusFilter = value;
-                                _currentPage = 1;
-                                _fetchOrders();
-                                debugPrint("OrdersScreen: Status filter changed to $value");
-                              });
-                            },
-                          ),
-                          // Order Type Filter
-                          FilterChipWidget(
-                            label: "OrderType",
-                            options: _filterOrderType.map((e) => e.name).toList(),
-                            selectedValue: _selectedOrderTypeFilter,
-                            onSelected: (value) {
-                              setState(() {
-                                _selectedOrderTypeFilter = value;
-                                _currentPage = 1;
-                                _fetchOrders();
-                                debugPrint("OrdersScreen: Order type filter changed to $value");
-                              });
-                            },
-                          ),
-                          // Range Filter
-                          // Container(
-                          //   height: MediaQuery.of(context).size.height * 0.06,
-                          //   margin: EdgeInsets.symmetric(vertical: 10),
-                          //   padding: const EdgeInsets.symmetric(horizontal: 4),
-                          //   child: ChoiceChip(
-                          //     shape: const RoundedRectangleBorder(
-                          //       side: BorderSide(color: Colors.black),
-                          //       borderRadius: BorderRadius.all(Radius.circular(10.0)),
-                          //     ),
-                          //     visualDensity: VisualDensity.compact,
-                          //     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          //     padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-                          //     label: Row(
-                          //       mainAxisSize: MainAxisSize.min,
-                          //       children: [
-                          //         Text(
-                          //           "Select Range",
-                          //           style: TextStyle(
-                          //             color: isRangeFilterApplied
-                          //                 ? Colors.white
-                          //                 : Colors.black,
-                          //           ),
-                          //         ),
-                          //         const SizedBox(width: 4),
-                          //         Icon(
-                          //           Icons.filter_list,
-                          //           size: 18,
-                          //           color: isRangeFilterApplied
-                          //               ? Colors.white
-                          //               : Colors.black,
-                          //         ),
-                          //       ],
-                          //     ),
-                          //     showCheckmark: false,
-                          //     selected: isRangeFilterApplied,
-                          //     selectedColor: Colors.redAccent,
-                          //     backgroundColor: Colors.grey[200],
-                          //     onSelected: (selected) {
-                          //       _openRangeFilterDialog();
-                          //       _currentPage = 1;
-                          //     },
-                          //   ),
-                          // ),
-                          // Date Range Filter
-                          Container(
-                            margin: EdgeInsets.symmetric(vertical: 10),
-                            child: GestureDetector(
-                              onTap: _openDateRangePickerDialog,
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  // if (_isDateRangeApplied) ...[
-                                  //   Text(
-                                  //     "${DateFormat('dd/MM').format(_startDate!)} - ${DateFormat('dd/MM').format(_endDate!)}",
-                                  //     style: TextStyle(
-                                  //       color: _isDateRangeApplied ? Colors.white : Colors.black,
-                                  //       fontSize: 14,
-                                  //     ),
-                                  //   ),
-                                  //   const SizedBox(width: 8),
-                                  // ],
-                                  SvgPicture.asset(
-                                    'assets/svg/filter_calendar.svg',
-                                    width: MediaQuery.of(context).size.width * 0.1,
-                                    height: MediaQuery.of(context).size.height * 0.06,
-                                    colorFilter: ColorFilter.mode(
-                                      _isDateRangeApplied ? Colors.redAccent :themeHelper.themeMode == ThemeMode.dark
-                                          ? ThemeNotifier.textDark : Colors.black,
-                                      BlendMode.srcIn,
-                                    ),
-                                    //color: _isDateRangeApplied ? Colors.white : Colors.black,
+                          Spacer(),
+                          Wrap(
+                            spacing: 8.0,
+                            crossAxisAlignment: WrapCrossAlignment.end,
+                            alignment: WrapAlignment.end,
+                            runAlignment: WrapAlignment.end,
+                            children: [
+                              // User Filter
+                              FilterChipWidget(
+                                label: "User",
+                                options: _filterUsers.map((filter) => filter.displayName ?? "").toList(),
+                                selectedValue: _selectedUserFilter,
+                                onSelected: (value) {
+                                  setState(() {
+                                    _selectedUserFilter = value;
+                                    _currentPage = 1;
+                                    _fetchOrders();
+                                    debugPrint("OrdersScreen: User filter changed to $value");
+                                  });
+                                },
+                              ),
+                              // Status Filter
+                              FilterChipWidget(
+                                label: "Status",
+                                options: _filterStatuses.map((filter) => filter.name).toList(),
+                                selectedValue: _selectedStatusFilter,
+                                onSelected: (value) {
+                                  setState(() {
+                                    _selectedStatusFilter = value;
+                                    _currentPage = 1;
+                                    _fetchOrders();
+                                    debugPrint("OrdersScreen: Status filter changed to $value");
+                                  });
+                                },
+                              ),
+                              // Order Type Filter
+                              FilterChipWidget(
+                                label: "OrderType",
+                                options: _filterOrderType.map((e) => e.name).toList(),
+                                selectedValue: _selectedOrderTypeFilter,
+                                onSelected: (value) {
+                                  setState(() {
+                                    _selectedOrderTypeFilter = value;
+                                    _currentPage = 1;
+                                    _fetchOrders();
+                                    debugPrint("OrdersScreen: Order type filter changed to $value");
+                                  });
+                                },
+                              ),
+                              // Range Filter
+                              // Container(
+                              //   height: MediaQuery.of(context).size.height * 0.06,
+                              //   margin: EdgeInsets.symmetric(vertical: 10),
+                              //   padding: const EdgeInsets.symmetric(horizontal: 4),
+                              //   child: ChoiceChip(
+                              //     shape: const RoundedRectangleBorder(
+                              //       side: BorderSide(color: Colors.black),
+                              //       borderRadius: BorderRadius.all(Radius.circular(10.0)),
+                              //     ),
+                              //     visualDensity: VisualDensity.compact,
+                              //     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              //     padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                              //     label: Row(
+                              //       mainAxisSize: MainAxisSize.min,
+                              //       children: [
+                              //         Text(
+                              //           "Select Range",
+                              //           style: TextStyle(
+                              //             color: isRangeFilterApplied
+                              //                 ? Colors.white
+                              //                 : Colors.black,
+                              //           ),
+                              //         ),
+                              //         const SizedBox(width: 4),
+                              //         Icon(
+                              //           Icons.filter_list,
+                              //           size: 18,
+                              //           color: isRangeFilterApplied
+                              //               ? Colors.white
+                              //               : Colors.black,
+                              //         ),
+                              //       ],
+                              //     ),
+                              //     showCheckmark: false,
+                              //     selected: isRangeFilterApplied,
+                              //     selectedColor: Colors.redAccent,
+                              //     backgroundColor: Colors.grey[200],
+                              //     onSelected: (selected) {
+                              //       _openRangeFilterDialog();
+                              //       _currentPage = 1;
+                              //     },
+                              //   ),
+                              // ),
+                              // Date Range Filter
+                              Container(
+                                margin: EdgeInsets.symmetric(vertical: 10),
+                                child: GestureDetector(
+                                  onTap: _openDateRangePickerDialog,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      // if (_isDateRangeApplied) ...[
+                                      //   Text(
+                                      //     "${DateFormat('dd/MM').format(_startDate!)} - ${DateFormat('dd/MM').format(_endDate!)}",
+                                      //     style: TextStyle(
+                                      //       color: _isDateRangeApplied ? Colors.white : Colors.black,
+                                      //       fontSize: 14,
+                                      //     ),
+                                      //   ),
+                                      //   const SizedBox(width: 8),
+                                      // ],
+                                      SvgPicture.asset(
+                                        'assets/svg/filter_calendar.svg',
+                                        width: MediaQuery.of(context).size.width * 0.1,
+                                        height: MediaQuery.of(context).size.height * 0.06,
+                                        colorFilter: ColorFilter.mode(
+                                          _isDateRangeApplied ? Colors.redAccent :themeHelper.themeMode == ThemeMode.dark
+                                              ? ThemeNotifier.textDark : Colors.black,
+                                          BlendMode.srcIn,
+                                        ),
+                                        //color: _isDateRangeApplied ? Colors.white : Colors.black,
+                                      ),
+                                      // if (!_isDateRangeApplied) ...[
+                                      //   const SizedBox(width: 8),
+                                      //   Text(
+                                      //     "Date Range",
+                                      //     style: TextStyle(
+                                      //       color: Colors.black,
+                                      //       fontSize: 14,
+                                      //     ),
+                                      //   ),
+                                      // ],
+                                    ],
                                   ),
-                                  // if (!_isDateRangeApplied) ...[
-                                  //   const SizedBox(width: 8),
-                                  //   Text(
-                                  //     "Date Range",
-                                  //     style: TextStyle(
-                                  //       color: Colors.black,
-                                  //       fontSize: 14,
-                                  //     ),
-                                  //   ),
-                                  // ],
-                                ],
-                              ),
-                            ),
-                          ),
-                          // Clear Filters
-                          if (isFilterApplied || isRangeFilterApplied || _isDateRangeApplied)
-                            Container(
-                              margin:EdgeInsets.symmetric(vertical: 5),
-                              child: IconButton(
-                                icon: Icon(
-                                  Icons.clear,
-                                  color: isFilterApplied || isRangeFilterApplied || _isDateRangeApplied
-                                      ? Colors.redAccent
-                                      : Colors.black,
                                 ),
-                                onPressed: _clearFilters,
                               ),
-                            ),
+                              // Clear Filters
+                              if (isFilterApplied || isRangeFilterApplied || _isDateRangeApplied)
+                                Container(
+                                  margin:EdgeInsets.symmetric(vertical: 5),
+                                  child: IconButton(
+                                    icon: Icon(
+                                      Icons.clear,
+                                      color: isFilterApplied || isRangeFilterApplied || _isDateRangeApplied
+                                          ? Colors.redAccent
+                                          : Colors.black,
+                                    ),
+                                    onPressed: _clearFilters,
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(width: 20),
                         ],
                       ),
                       const SizedBox(height: 10),

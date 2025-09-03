@@ -107,7 +107,10 @@ class FastKeyProductBloc {  // Build #1.0.15
       }
       addProductsSink.add(APIResponse.completed(response));
     } catch (e, s) {
-      if (e.toString().contains('SocketException')) {
+      if (e.toString().contains('Unauthorised')) {
+        addProductsSink.add(APIResponse.error("Unauthorised. Session is expired."));
+      }
+      else if (e.toString().contains('SocketException')) {
         addProductsSink.add(APIResponse.error("Network error. Please check your connection."));
       } else {
         addProductsSink.add(APIResponse.error("Failed to add products: ${e.toString()}"));
@@ -189,7 +192,10 @@ class FastKeyProductBloc {  // Build #1.0.15
 
       getProductsSink.add(APIResponse.completed(response));
     } catch (e,s) {
-      if (e.toString().contains('SocketException')) {
+      if (e.toString().contains('Unauthorised')) {
+        getProductsSink.add(APIResponse.error("Unauthorised. Session is expired."));
+      }
+      else if (e.toString().contains('SocketException')) {
         getProductsSink.add(APIResponse.error("Network error. Please check your connection."));
       } else {
         getProductsSink.add(APIResponse.error("Failed to fetch products in fast key."));
@@ -223,7 +229,10 @@ class FastKeyProductBloc {  // Build #1.0.15
 
       deleteProductSink.add(APIResponse.completed(response));
     } catch (e) {
-      if (e.toString().contains('SocketException')) {
+      if (e.toString().contains('Unauthorised')) {
+        deleteProductSink.add(APIResponse.error("Unauthorised. Session is expired."));
+      }
+      else if (e.toString().contains('SocketException')) {
         deleteProductSink.add(APIResponse.error("Network error. Please check your connection."));
       } else {
         deleteProductSink.add(APIResponse.error("Failed to delete product: ${e.toString()}"));

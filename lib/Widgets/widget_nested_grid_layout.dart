@@ -750,6 +750,7 @@ import 'package:pinaka_pos/Widgets/widget_variants_dialog.dart';
 import 'package:provider/provider.dart';
 import '../Blocs/Orders/order_bloc.dart';
 import '../Blocs/Search/product_search_bloc.dart';
+import '../Constants/misc_features.dart';
 import '../Constants/text.dart';
 import '../Database/db_helper.dart';
 import '../Database/order_panel_db_helper.dart';
@@ -777,6 +778,8 @@ class NestedGridWidget extends StatelessWidget {
   final Function(int) onDeleteItem;
   final bool showDeleteButton;
   final Function() onCancelReorder;
+  final bool? enableIcons; // Build #1.0.204: Added this
+  final Function(int)? onLongPress; // Added this
   final ProductBloc? productBloc; //Build 1.1.36
   final OrderBloc? orderBloc;
   final OrderHelper? orderHelper;
@@ -797,6 +800,8 @@ class NestedGridWidget extends StatelessWidget {
     required this.onDeleteItem,
     this.showDeleteButton = true,
     required this.onCancelReorder,
+    this.enableIcons,
+    this.onLongPress,
     this.productBloc,
     this.orderBloc,
     this.orderHelper,
@@ -874,7 +879,8 @@ class NestedGridWidget extends StatelessWidget {
                 childAspectRatio: 2.2,
               ),
               itemCount: totalCount,
-              onReorder: onReorder,
+              dragEnabled: Misc.enableReordering, // Build #1.0.204: Disable Re-Order for grid & Added this line to control drag functionality
+              onReorder: Misc.enableReordering ? onReorder : (oldIndex, newIndex) {}, // Disable reorder callback if not enabled
               itemBuilder: (context, index) {
                 // Handle "Add" button if enabled
                 if (showAddButton && index == 0) {
@@ -1060,6 +1066,18 @@ class NestedGridWidget extends StatelessWidget {
                           //   );
                           // }
                         },
+                        onLongPress: () {
+                          if (onLongPress != null) { // Build #1.0.204
+                            onLongPress!(itemIndex); // Safe to use ! since we checked for null
+                            if (kDebugMode) {
+                              print("### TEST onLongPress");
+                            }
+                          } else {
+                            if (kDebugMode) {
+                              print("### onLongPress is null, skipping");
+                            }
+                          }
+                        },
                         child: Card(
                           color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground :Colors.white,
                           elevation: 4,
@@ -1118,7 +1136,7 @@ class NestedGridWidget extends StatelessWidget {
                           ),
                         ),
                       ),
-                      if (isReordered)
+                      if (enableIcons == true && itemIndex == selectedItemIndex) // Build #1.0.204: Show icons only for long-pressed item
                         Positioned(
                           top: -5,
                           right: -2,

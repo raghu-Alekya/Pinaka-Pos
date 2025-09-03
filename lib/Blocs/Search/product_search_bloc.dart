@@ -58,7 +58,10 @@ class ProductBloc { // Build #1.0.13: Added Product Search Bloc
       productSink.add(APIResponse.completed(products));
 
     } catch (e) {
-      if (e.toString().contains('SocketException')) {
+      if (e.toString().contains('Unauthorised')) {
+        productSink.add(APIResponse.error("Unauthorised. Session is expired."));
+      }
+      else if (e.toString().contains('SocketException')) {
         productSink.add(APIResponse.error("Network error. Please check your connection."));
       } else {
         productSink.add(APIResponse.error("No products found"));
@@ -87,7 +90,10 @@ class ProductBloc { // Build #1.0.13: Added Product Search Bloc
       variationSink.add(APIResponse.completed(variations));
 
     } catch (e) {
-      if (e.toString().contains('SocketException')) {
+      if (e.toString().contains('Unauthorised')) {
+        variationSink.add(APIResponse.error("Unauthorised. Session is expired."));
+      }
+      else if (e.toString().contains('SocketException')) {
         variationSink.add(APIResponse.error("Network error. Please check your connection."));
       } else {
         variationSink.add(APIResponse.error("Failed to fetch variations"));
@@ -114,7 +120,10 @@ class ProductBloc { // Build #1.0.13: Added Product Search Bloc
         productBySkuSink.add(APIResponse.error("No products found for SKU: $sku"));
       }
     } catch (e) {
-      if (e.toString().contains('SocketException')) {
+      if (e.toString().contains('Unauthorised')) {
+        productBySkuSink.add(APIResponse.error("Unauthorised. Session is expired."));
+      }
+      else if (e.toString().contains('SocketException')) {
         productBySkuSink.add(APIResponse.error("Network error. Please check your connection."));
       } else {
         productBySkuSink.add(APIResponse.error("Failed to fetch product by SKU"));
@@ -134,7 +143,10 @@ class ProductBloc { // Build #1.0.13: Added Product Search Bloc
       }
       addCustomItemSink.add(APIResponse.completed(product));
     } catch (e) {
-      if (e.toString().contains('SocketException')) {
+      if (e.toString().contains('Unauthorised')) {
+        addCustomItemSink.add(APIResponse.error("Unauthorised. Session is expired."));
+      }
+      else if (e.toString().contains('SocketException')) {
         addCustomItemSink.add(APIResponse.error("Network error. Please check your connection."));
       } else {
         addCustomItemSink.add(APIResponse.error("Failed to create product"));

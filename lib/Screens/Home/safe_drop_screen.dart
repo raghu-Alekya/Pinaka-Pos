@@ -27,6 +27,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:image/image.dart' as img;
 import '../../Widgets/widget_navigation_bar.dart' as custom_widgets;
+import '../Auth/login_screen.dart';
 import 'Settings/image_utils.dart';
 import 'Settings/printer_setup_screen.dart';
 
@@ -96,11 +97,36 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
         if(!Misc.disablePrinter) {
           _printTicket();
         }
-      } else if (response.status == Status.ERROR) {
-        if (kDebugMode) print("#### SafeDropScreen: Error creating safe drop: ${response.message}");
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(response.message ?? 'Failed to create safe drop')),
-        );
+      }
+      else if (response.status == Status.ERROR) {
+        if (kDebugMode) {
+          print("safe drop screen --- Unauthorised : ${response.message ?? " "}");
+        }
+        if (response.message!.contains('Unauthorised')) {
+          if (kDebugMode) {
+            print("Unauthorised : ${response.message}");
+          }
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              Navigator.pushReplacement(context, MaterialPageRoute(
+                  builder: (context) => LoginScreen()));
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text("Unauthorised. Session is expired on this device."),
+                  backgroundColor: Colors.red,
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            }
+          });
+        } else {
+          if (kDebugMode) print("#### SafeDropScreen: Error creating safe drop: ${response.message}");
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(
+                response.message ?? 'Failed to create safe drop')),
+          );
+        }
       }
     });
 
@@ -617,7 +643,7 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
                                           // color: Colors.red,//const Color(0xFFE8F5ED),
                                           borderRadius: BorderRadius.circular(8),
                                         ),
-                                        width: MediaQuery.of(context).size.width * 0.328,
+                                        width: MediaQuery.of(context).size.width * 0.326,
                                         height: MediaQuery.of(context).size.height * 0.391,
                                         child: CustomNumPad(
                                           onDigitPressed: _handleNumberPress,

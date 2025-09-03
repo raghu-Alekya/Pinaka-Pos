@@ -249,7 +249,36 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
         print("#### DEBUG: syncOrdersFromApi - Counts do not match, deleting DB orders");
       }
       // Build #1.0.80: Delete all orders in the database
-      await db.delete(AppDBConst.orderTable);
+     // await db.delete(AppDBConst.orderTable);
+    /// Build #1.0.207: Fixed -> No popup warning for open orders when closing shift via Vendor Payouts [SCRUM- 360]
+    /// When ever navigating to orderPanel to orderScreenPanel related screen's, deleting all orders
+    /// If we go to order screen - prev all processing orders will remove that the cause of checking processing orders while closing shift
+    if (apiOrders.isNotEmpty) {
+      // Check if we're syncing processing orders
+      final isSyncingProcessingOrders = apiOrders.any((order) => order.status == 'processing');
+      if (kDebugMode) {
+        print("#### DEBUG: isSyncingProcessingOrders $isSyncingProcessingOrders");
+      }
+      if (isSyncingProcessingOrders) {
+        // If syncing processing orders, only delete processing orders
+        // when ever orderPanel calls like - fastKey/categories/add screens prev processing orders will remove and re-adding below
+        await db.delete(
+          AppDBConst.orderTable,
+          where: '${AppDBConst.userId} = ? AND ${AppDBConst.orderStatus} = ?',
+          whereArgs: [activeUserId ?? 1, 'processing'],
+        );
+      } else {
+        // If syncing non-processing orders, only delete non-processing orders
+        // when ever orderScreenPanel calls like - order screen prev non-processing orders will remove and re-adding below
+        await db.delete(
+          AppDBConst.orderTable,
+          where: '${AppDBConst.userId} = ? AND ${AppDBConst.orderStatus} != ?',
+          whereArgs: [activeUserId ?? 1, 'processing'],
+        );
+      }
+    } else {
+      await db.delete(AppDBConst.orderTable); // If no orders available clear order table
+    }
       //  delete purchasedItemsTable related data
       await db.delete(AppDBConst.purchasedItemsTable);
       OrderHelper.isOrderPanelLoaded = false;/// set 'false' to load 'processing' orders in order panel again, if db is empty by orders screen loading.
@@ -326,6 +355,9 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
       await updateOrderItems(apiOrder.id, apiOrder.lineItems);
       // await updateOrderPayoutItems(apiOrder.id, apiOrder.feeLines ?? []); // Build #1.0.64
       await updateOrderPayoutItem(apiOrder.id, apiOrder.lineItems); // Build #1.0.198
+      // Build #1.0.207: Fixed Issue - Always Merchant discount showing "0"
+      // Ex: updateOrderPayoutItem modified to lineItems but discount we are getting in fee lines only , we are not using this, that's why merchant discount calculation is 0.
+      await updateOrderMerchantDiscount(apiOrder.id, apiOrder.feeLines ?? []);
       await updateOrderCouponItems(apiOrder.id, apiOrder.couponLines ?? []);
     }
 
@@ -747,6 +779,32 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
         print("#### DEBUG: Deleted obsolete payout item ID: ${item[AppDBConst.itemServerId]} for order $orderId");
       }
     }
+  }
+
+  // Build #1.0.207: Fixed Issue - Always Merchant discount showing "0"
+  // Ex: updateOrderPayoutItem modified to lineItems but discount we are getting in fee lines only , we are not using this, that's why merchant discount calculation is 0.
+  // Added this function to handle merchant discounts from feeLines
+  Future<void> updateOrderMerchantDiscount(int orderId, List<model.FeeLine> feeLines) async {
+    final db = await DBHelper.instance.database;
+    double merchantDiscount = 0.0;
+    var merchantDiscountIds = "";
+
+    for (var feeLine in feeLines) {
+      if (feeLine.name == TextConstants.discountText) {
+        merchantDiscount += double.parse(feeLine.total ?? '0.0').abs();
+        merchantDiscountIds = "$merchantDiscountIds,${feeLine.id}";
+      }
+    }
+
+    await db.update(
+      AppDBConst.orderTable,
+      {
+        AppDBConst.merchantDiscount: merchantDiscount,
+        AppDBConst.merchantDiscountIds: merchantDiscountIds,
+      },
+      where: '${AppDBConst.orderServerId} = ?',
+      whereArgs: [orderId],
+    );
   }
 
   // Build #1.0.64 : Modified updateOrderCouponItems to align with updateOrderItems

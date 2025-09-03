@@ -207,7 +207,8 @@ class _ShiftHistoryDashboardScreenState extends State<ShiftHistoryDashboardScree
           child: Container(
             margin: EdgeInsets.fromLTRB(16, 16, 16, 16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: themeHelper.themeMode == ThemeMode.dark
+                  ? ThemeNotifier.primaryBackground : Colors.white,
               borderRadius: BorderRadius.circular(8.0),
               boxShadow: [
                 BoxShadow(
@@ -243,7 +244,7 @@ class _ShiftHistoryDashboardScreenState extends State<ShiftHistoryDashboardScree
                   ),
                 ),
                 Container(
-                  margin: EdgeInsets.only(left: 10),
+                  // margin: EdgeInsets.only(left: 10, right: 10),
                   height: 1,
                   color: themeHelper.themeMode == ThemeMode.dark
                       ?  Colors.white70 :Colors.grey.shade300,
@@ -341,6 +342,7 @@ class _ShiftHistoryDashboardScreenState extends State<ShiftHistoryDashboardScree
             );
           },
           child: Container(
+            // margin: EdgeInsets.only(left: 10, right: 10),
             padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             decoration: BoxDecoration(
               color: themeHelper.themeMode == ThemeMode.dark

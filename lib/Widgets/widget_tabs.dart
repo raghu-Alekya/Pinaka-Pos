@@ -167,7 +167,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
           decoration: BoxDecoration(
             color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground : Colors.white,
             borderRadius: BorderRadius.circular(16.0),
-            border: Border.all(color: Colors.grey.shade400),
+            border: Border.all(color: Colors.grey.shade500),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.05),
@@ -790,6 +790,15 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
               _customItemPriceController.text = "";
             });
           },
+          onDeletePressed: () {
+            setState(() {
+              if (_customItemPrice.isNotEmpty) {
+                _customItemPrice =
+                    _customItemPrice.substring(0, _customItemPrice.length - 1);
+                _customItemPriceController.text = _customItemPrice;
+              }
+            });
+          },
           actionButtonType: ActionButtonType.add,
           onAddPressed: () {
             if (kDebugMode) {
@@ -828,7 +837,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
         ),
         const SizedBox(height: 5),
         Container(
-          height: MediaQuery.of(context).size.height / 17,
+          height: MediaQuery.of(context).size.height / 14,
           width: MediaQuery.of(context).size.width * 0.2,
           padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 10),
           decoration: BoxDecoration(
@@ -867,7 +876,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
         ),
         const SizedBox(height: 5),
         Container(
-          height: MediaQuery.of(context).size.height / 17,
+          height: MediaQuery.of(context).size.height / 14,
           width: MediaQuery.of(context).size.width * 0.2,
           decoration: BoxDecoration(
             border: Border.all(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.borderColor : Colors.grey.shade300),
@@ -932,7 +941,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
         const SizedBox(height: 5),
         Container(
           alignment: Alignment.topLeft,
-          height: MediaQuery.of(context).size.height / 17,
+          height: MediaQuery.of(context).size.height / 14,
           width: MediaQuery.of(context).size.width * 0.2,
           padding: const EdgeInsets.symmetric(horizontal: 10,vertical: 0),
           decoration: BoxDecoration(
@@ -972,7 +981,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
               });
             },
             decoration: InputDecoration(
-             contentPadding: const EdgeInsets.only(top: 0, bottom: 10), // left + vertical center
+             contentPadding: const EdgeInsets.only(top: 0, bottom: 5), // left + vertical center
               border: InputBorder.none, // No border at all
               enabledBorder: InputBorder.none,
               focusedBorder: InputBorder.none,

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pinaka_pos/Screens/Home/shift_history_dashboard_screen.dart';
@@ -45,6 +47,13 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
   List<String> _purposes = [];
   final PinakaPreferences _preferences = PinakaPreferences(); // Added this
 
+  //state variables for API response and subscription
+  APIResponse<ShiftByIdResponse>? apiResponse;
+  StreamSubscription? _shiftSubscription; // build 1.0.206 We changed the code to store the shift summary data within the screen's state,
+                                          // which prevents the UI from getting stuck on a loading indicator after you change the display mode.
+
+
+
   @override
   void initState() {
     super.initState();
@@ -52,6 +61,14 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
     shiftBloc = ShiftBloc(ShiftRepository());
     vendorPaymentBloc = VendorPaymentBloc(VendorPaymentRepository()); //Build #1.0.74
     if (widget.shiftId != null) {
+      // Manually listen to the stream and trigger the fetch
+      _shiftSubscription = shiftBloc.shiftByIdStream.listen((response) {
+        if (mounted) {
+          setState(() {
+            apiResponse = response;
+          });
+        }
+      });
       shiftBloc.getShiftById(widget.shiftId!);
       _loadVendorData(); // Load vendor data from AssetDBHelper
       if (kDebugMode) print("ShiftSummaryDashboardScreen: Initialized with shiftId ${widget.shiftId}");
@@ -87,6 +104,8 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
 
   @override
   void dispose() {
+   // Cancel the stream subscription
+    _shiftSubscription?.cancel();
     shiftBloc.dispose();
     vendorPaymentBloc.dispose();
     super.dispose();
@@ -172,57 +191,157 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
     return Scaffold(
       resizeToAvoidBottomInset: true,
       body: SafeArea(
-        child: StreamBuilder<APIResponse<ShiftByIdResponse>>( //Build #1.0.74
-          stream: shiftBloc.shiftByIdStream,
-          builder: (context, snapshot) {
-            if (snapshot.hasData) {
-              switch (snapshot.data!.status) {
-                case Status.LOADING:
-                  return Center(child: CircularProgressIndicator());
-                case Status.COMPLETED:
-                  final shift = snapshot.data!.data!.shift;
-                  return SingleChildScrollView(
-                    child: Padding(
-                      padding: EdgeInsets.all(8),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Column(
-                                mainAxisAlignment: MainAxisAlignment.start,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _buildHeader(),
-                                  _buildTimeTrackingSection(shift),
-                                ],
-                              ),
-                              SizedBox(width: MediaQuery.of(context).size.width * 0.02),
-                              _buildFinancialSummaryCards(shift),
-                            ],
-                          ),
-                          SizedBox(height: MediaQuery.of(context).size.height * 0.02),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildSafeDropSection(shift),
-                              SizedBox(width: MediaQuery.of(context).size.width * 0.02),
-                              _buildVendorPayoutsSection(shift),
-                            ],
-                          ),
-                        ],
-                      ),
+        child: () {
+          // Use the _apiResponse state variable instead of a StreamBuilder
+          if (apiResponse == null || apiResponse!.status == Status.LOADING) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (apiResponse!.status == Status.ERROR) {
+            if (apiResponse!.message!.contains('Unauthorised')) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("Unauthorised. Session is expired on this device."),
+                      backgroundColor: Colors.red,
+                      duration: Duration(seconds: 2),
                     ),
                   );
-                case Status.ERROR:
-                  return Center(child: Text('Error: ${snapshot.data!.message}'));
-                default:
-                  return SizedBox();
-              }
+                }
+              });
+              return const Center(child: CircularProgressIndicator()); // Show loader while redirecting
+            } else {
+              return Center(child: Text('Error: ${apiResponse!.message}'));
             }
-            return Center(child: CircularProgressIndicator());
-          },
-        ),
+          }
+
+          if (apiResponse!.status == Status.COMPLETED) {
+            final shift = apiResponse!.data!.shift;
+            return SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Column(
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildHeader(),
+                            _buildTimeTrackingSection(shift),
+                          ],
+                        ),
+                        SizedBox(width: MediaQuery.of(context).size.width * 0.02),
+                        _buildFinancialSummaryCards(shift),
+                      ],
+                    ),
+                    SizedBox(height: MediaQuery.of(context).size.height * 0.02),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildSafeDropSection(shift),
+                        SizedBox(width: MediaQuery.of(context).size.width * 0.02),
+                        _buildVendorPayoutsSection(shift),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+
+        // StreamBuilder<APIResponse<ShiftByIdResponse>>( //Build #1.0.74
+        //   stream: shiftBloc.shiftByIdStream,
+        //   builder: (context, snapshot) {
+        //     if (kDebugMode) {
+        //       print("data is coming --- $snapshot");
+        //     }
+        //     if (kDebugMode) {
+        //       print("data is coming ---- ${snapshot.hasData}");
+        //     }
+        //     if (snapshot.hasData) {
+        //       // if (kDebugMode) {
+        //       //   print("data is coming ${snapshot.data}");
+        //       // }
+        //       switch (snapshot.data!.status) {
+        //         case Status.LOADING:
+        //           return Center(child: CircularProgressIndicator());
+        //         case Status.COMPLETED:
+        //           final shift = snapshot.data!.data!.shift;
+        //           return SingleChildScrollView(
+        //             child: Padding(
+        //               padding: EdgeInsets.all(8),
+        //               child: Column(
+        //                 crossAxisAlignment: CrossAxisAlignment.start,
+        //                 children: [
+        //                   Row(
+        //                     children: [
+        //                       Column(
+        //                         mainAxisAlignment: MainAxisAlignment.start,
+        //                         crossAxisAlignment: CrossAxisAlignment.start,
+        //                         children: [
+        //                           _buildHeader(),
+        //                           _buildTimeTrackingSection(shift),
+        //                         ],
+        //                       ),
+        //                       SizedBox(width: MediaQuery.of(context).size.width * 0.02),
+        //                       _buildFinancialSummaryCards(shift),
+        //                     ],
+        //                   ),
+        //                   SizedBox(height: MediaQuery.of(context).size.height * 0.02),
+        //                   Row(
+        //                     crossAxisAlignment: CrossAxisAlignment.start,
+        //                     children: [
+        //                       _buildSafeDropSection(shift),
+        //                       SizedBox(width: MediaQuery.of(context).size.width * 0.02),
+        //                       _buildVendorPayoutsSection(shift),
+        //                     ],
+        //                   ),
+        //                 ],
+        //               ),
+        //             ),
+        //           );
+        //         case Status.ERROR:
+        //           if (kDebugMode) {
+        //             print(" Test --- Unauthorised : response.message ${snapshot.data!.message ?? " "}");
+        //           }
+        //             if (snapshot.data!.message!.contains('Unauthorised')) {
+        //               if (kDebugMode) {
+        //                 print("Unauthorised : response.message ${snapshot.data!.message!}");
+        //               }
+        //               WidgetsBinding.instance.addPostFrameCallback((_) {
+        //                 if (mounted) {
+        //                   Navigator.pushReplacement(context, MaterialPageRoute(
+        //                       builder: (context) => LoginScreen()));
+        //
+        //                   ScaffoldMessenger.of(context).showSnackBar(
+        //                     const SnackBar(
+        //                       content: Text("Unauthorised. Session is expired on this device."),
+        //                       backgroundColor: Colors.red,
+        //                       duration: Duration(seconds: 2),
+        //                     ),
+        //                   );
+        //                 }
+        //               });
+        //             } else {
+        //             return Center(
+        //                 child: Text('Error: ${snapshot.data!.message}'));
+        //           }
+        //         default:
+        //           return SizedBox();
+        //       }
+        //     }
+        //     return Center(child: CircularProgressIndicator());
+        //   },
+        // ),
+          // Default fallback
+          return const SizedBox.shrink();
+        }(),
       ),
     );
   }
@@ -857,17 +976,42 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
                 duration: Duration(seconds: 2),
               ),
             );
-          } else if (response.status == Status.ERROR) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  response.message ?? 'Failed to delete vendor payout',
-                  style: TextStyle(color: Colors.white),
+          }
+          else if (response.status == Status.ERROR) {
+            if (response.message!.contains('Unauthorised')) {
+              if (kDebugMode) {
+                print("shift summary screen -- Unauthorised : response.message ${response.message!}");
+              }
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  Navigator.pushReplacement(context,
+                      MaterialPageRoute(builder: (context) => LoginScreen()));
+                  if (kDebugMode) {
+                    print("message --- ${response.message}");
+                  }
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                          "Unauthorised. Session is expired on this device."),
+                      backgroundColor: Colors.red,
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                }
+              });
+            }
+            else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    response.message ?? 'Failed to delete vendor payout',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  backgroundColor: Colors.red,
+                  duration: Duration(seconds: 2),
                 ),
-                backgroundColor: Colors.red,
-                duration: Duration(seconds: 2),
-              ),
-            );
+              );
+            }
           }
           break;
         }
@@ -907,17 +1051,44 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
                       duration: Duration(seconds: 2),
                     ),
                   );
-                } else if (response.status == Status.ERROR) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        response.message ?? 'Failed to update vendor payout',
-                        style: TextStyle(color: Colors.white),
+                }
+                else if (response.status == Status.ERROR) {
+                  if (response.message!.contains('Unauthorised')) {
+                    if (kDebugMode) {
+                      print("Unauthorised : response.message ${response.message!}");
+                    }
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted) {
+                        Navigator.pushReplacement(
+                            context, MaterialPageRoute(
+                            builder: (context) => LoginScreen()));
+
+                        if (kDebugMode) {
+                          print("message --- ${response.message}");
+                        }
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                                "Unauthorised. Session is expired on this device."),
+                            backgroundColor: Colors.red,
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                      }
+                    });
+                  }
+                  else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          response.message ?? 'Failed to update vendor payout',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                        backgroundColor: Colors.red,
+                        duration: Duration(seconds: 2),
                       ),
-                      backgroundColor: Colors.red,
-                      duration: Duration(seconds: 2),
-                    ),
-                  );
+                    );
+                  }
                 }
                 break; // Exit after handling the response
               }
@@ -938,16 +1109,42 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
                     ),
                   );
                 } else if (response.status == Status.ERROR) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        response.message ?? 'Failed to add vendor payout',
-                        style: TextStyle(color: Colors.white),
+                  if (response.message!.contains('Unauthorised')) {
+                    if (kDebugMode) {
+                      print("Unauthorised : response.message ${response.message!}");
+                    }
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted) {
+                        Navigator.pushReplacement(
+                            context, MaterialPageRoute(
+                            builder: (context) => LoginScreen()));
+
+                        if (kDebugMode) {
+                          print("message --- ${response.message}");
+                        }
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                                "Unauthorised. Session is expired on this device."),
+                            backgroundColor: Colors.red,
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                      }
+                    });
+                  }
+                  else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          response.message ?? 'Failed to add vendor payout',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                        backgroundColor: Colors.red,
+                        duration: Duration(seconds: 2),
                       ),
-                      backgroundColor: Colors.red,
-                      duration: Duration(seconds: 2),
-                    ),
-                  );
+                    );
+                  }
                 }
                 break; // Exit after handling the response
               }

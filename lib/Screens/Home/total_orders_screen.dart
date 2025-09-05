@@ -483,11 +483,11 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
                 // Replace your OrderScreenPanel instances with:
                   OrderScreenPanel(
                     fetchOrders: !isLoading, // Sync with parent's loading state
-                    key: ValueKey(orderHelper.activeOrderId ?? 0),
+                    key: ValueKey('left_${orderHelper.activeOrderId}'),
                     formattedDate: '',
                     formattedTime: '',
                     quantities: quantities,
-                    activeOrderId: orderHelper.activeOrderId,
+                    activeOrderId: orderHelper.activeOrderId ?? _selectedOrderId,  /// <- ADDED NULL CHECK // BUILD 1.0.213: FIXED RE-OPENED ISSUE [SCRUM-356]: Order items not displaying in Bottom Mode
                     refreshOrderList: _refreshOrderList, // Build #1.0.143: Fixed Issue : After return from order summary screen , total order screen not refreshing with updated response
                   ),
 
@@ -839,11 +839,11 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
                 // Replace your OrderScreenPanel instances with:
                   OrderScreenPanel(
                     fetchOrders: !isLoading, // Sync with parent's loading state
-                    key: ValueKey(orderHelper.activeOrderId ?? 0),
+                    key: ValueKey('right_${orderHelper.activeOrderId}'),
                     formattedDate: '',
                     formattedTime: '',
                     quantities: quantities,
-                    activeOrderId: orderHelper.activeOrderId,
+                    activeOrderId: orderHelper.activeOrderId ?? _selectedOrderId,  /// <- ADDED NULL CHECK // BUILD 1.0.213: FIXED RE-OPENED ISSUE [SCRUM-356]: Order items not displaying in Bottom Mode
                     refreshOrderList: _refreshOrderList, // Build #1.0.143: Fixed Issue : After return from order summary screen , total order screen not refreshing with updated response
                   ),
 

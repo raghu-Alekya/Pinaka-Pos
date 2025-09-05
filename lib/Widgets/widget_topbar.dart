@@ -92,8 +92,12 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:pinaka_pos/Utilities/printer_settings.dart';
 import 'package:pinaka_pos/Widgets/widget_variants_dialog.dart';
 import 'package:provider/provider.dart';
+import 'package:sunmi_printer_plus/core/sunmi/sunmi_drawer.dart';
+import 'package:sunmi_printer_plus/sunmi_printer_plus.dart';
+import 'package:sunmi_printer_plus/sunmi_printer_plus_platform_interface.dart';
 import 'package:thermal_printer/esc_pos_utils_platform/src/capability_profile.dart';
 import 'package:thermal_printer/esc_pos_utils_platform/src/enums.dart';
 import 'package:thermal_printer/esc_pos_utils_platform/src/generator.dart';
@@ -1082,18 +1086,40 @@ class _TopBarState extends State<TopBar> {
                   GestureDetector(
                     // onTap: widget.onThemeChanged,
                     onTap: () async {
-                      final profile = await CapabilityProfile.load(name: 'XP-N160I');
-                      var bytes = Generator(PaperSize.mm80, profile).drawer(); /// open drawer
+                     ///Deprecated code, moved to PrinterSettings now
+                      //  // final profile = await CapabilityProfile.load(name: 'default');
+                     //  // var bytes = Generator(PaperSize.mm80, profile).drawer(pin: PosDrawer.pin5); /// open drawer
+                     //  // if (kDebugMode) {
+                     //  //   print("TopBar onTap of cash drawer open tapped with profile: ${profile.name} and bytes return $bytes");
+                     //  // }
+                     // // var sunmi = SunmiPrinterPlus();
+                     // // SunmiDrawer.openDrawer();
+                     // var result = await SunmiPrinterPlusPlatform.instance.openDrawer();
+                     // // sunmi.openDrawer();
+                     //  // bool isOpen = await sunmi.isDrawerOpen();
+                     //  if (kDebugMode) {
+                     //    print("Drawer is open $result");
+                     //  }
+                     //  ScaffoldMessenger.of(context).showSnackBar(
+                     //    const SnackBar(
+                     //      content: Text(TextConstants.cashDrawerIsOpening),
+                     //      backgroundColor: Colors.orange,
+                     //      duration: Duration(seconds: 2),
+                     //    ),
+                     //  );
+
+                      ///Use below code if only openDrawer is needed
+                      // PrinterSettings.openDrawer(context: context);
+                      ///As per Shravan's suggestion, we are now calling printTicket to open drawer from topbar which will automatically invoke open drawer
+                      var printerSettings =  PrinterSettings();
+                      List<int> bytes = [];
+
+                      final ticket =  await printerSettings.getTicket();
+                      bytes += ticket.feed(1);
+                      final result = await printerSettings.printTicket(bytes, ticket);
                       if (kDebugMode) {
-                        print("TopBar onTap of cash drawer open tapped with profile: ${profile.name} and bytes return $bytes");
+                        print(">>>> TopBar printer result $result");
                       }
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(TextConstants.cashDrawerIsOpening),
-                          backgroundColor: Colors.orange,
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
                     },
                     child: SvgPicture.asset(
                       SvgUtils.cashDrawerIcon,

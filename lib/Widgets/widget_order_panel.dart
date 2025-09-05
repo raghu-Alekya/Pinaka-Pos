@@ -34,6 +34,7 @@ import '../Database/db_helper.dart';
 import '../Database/order_panel_db_helper.dart';
 import '../Helper/Extentions/theme_notifier.dart';
 import '../Helper/api_response.dart';
+import '../Screens/Auth/login_screen.dart';
 import '../Utilities/global_utility.dart';
 import '../Models/Orders/orders_model.dart';
 import '../Providers/Age/age_verification_provider.dart';
@@ -82,6 +83,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
   bool _showFullSummary = false;
   late ScaffoldMessengerState _scaffoldMessenger;
   bool _isFetchingInitialData = false; // Build #1.0.128: Added this flag to track if we're in the middle of initial fetch
+  int _listVersion = 0;  // Build 1.0.214: Added this version counter
 
   void _toggleSummary() {
     setState(() {
@@ -276,19 +278,45 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
         OrderHelper.isOrderPanelLoaded = true;
         //_fetchOrdersSubscription?.cancel();
       } else if (response.status == Status.ERROR) {
-        if (kDebugMode) {
-          print("##### ERROR: Fetch orders failed - ${response.message}");
+        if (response.message!.contains('Unauthorised')) {
+          if (kDebugMode) {
+            print("categories screen 1  ---- Unauthorised : ${response.message!}");
+          }
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              Navigator.pushReplacement(context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()));
+
+              if (kDebugMode) {
+                print("message 1 --- ${response.message}");
+              }
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                      "Unauthorised. Session is expired on this device."),
+                  backgroundColor: Colors.red,
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            }
+          });
         }
-        setState(() {
-          _isLoading = false;
-          _isFetchingInitialData = false; // Build #1.0.128
-        }); // Build #1.0.104: Hide loader
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(response.message ?? "Failed to fetch orders"),
-            backgroundColor: Colors.red, // ✅ Added red background for error
-            duration: const Duration(seconds: 2),
-          ),
-        );
+        else {
+          if (kDebugMode) {
+            print("##### ERROR: Fetch orders failed - ${response.message}");
+          }
+          setState(() {
+            _isLoading = false;
+            _isFetchingInitialData = false; // Build #1.0.128
+          }); // Build #1.0.104: Hide loader
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response.message ?? "Failed to fetch orders"),
+              backgroundColor: Colors.red, // ✅ Added red background for error
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
       }
     });
 
@@ -333,6 +361,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
         if (mounted) {
           setState(() {
             orderItems = List<Map<String, dynamic>>.from(items); // Create mutable copy
+            _listVersion++; // Build 1.0.214: Increment version when items change
           });
         }
       } catch (e, s) {
@@ -353,6 +382,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
       if (mounted) {
         setState(() {
           orderItems = []; // Clear items if no active order
+          _listVersion++; // Build 1.0.214: Increment version when items change
         });
       }
     }
@@ -452,17 +482,43 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
           ),
         );
       } else if (response.status == Status.ERROR) {
-        setState(() => _isLoading = false); //Build #1.0.99: Hide loader
-        if (kDebugMode) {
-          print("##### ERROR: addNewTab - Failed to create order: ${response.message}");
+        if (response.message!.contains('Unauthorised')) {
+          if (kDebugMode) {
+            print("categories screen 2  ---- Unauthorised : ${response.message!}");
+          }
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              Navigator.pushReplacement(context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()));
+
+              if (kDebugMode) {
+                print("message 2 --- ${response.message}");
+              }
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                      "Unauthorised. Session is expired on this device."),
+                  backgroundColor: Colors.red,
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            }
+          });
         }
-        _scaffoldMessenger.showSnackBar(
-          SnackBar(
-            content: Text(response.message ?? "Failed to create order"),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 2),
-          ),
-        );
+        else {
+          setState(() => _isLoading = false); //Build #1.0.99: Hide loader
+          if (kDebugMode) {
+            print("##### ERROR: addNewTab - Failed to create order: ${response
+                .message}");
+          }
+          _scaffoldMessenger.showSnackBar(
+            SnackBar(
+              content: Text(response.message ?? "Failed to create order"),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
       }
     });
 
@@ -553,17 +609,43 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
               ),
             );
           } else if (response.status == Status.ERROR) {
-            setState(() => _isLoading = false); //Build #1.0.99: Hide loader
-            if (kDebugMode) {
-              print("##### ERROR: removeTab - Cancel failed: ${response.message}");
+            if (response.message!.contains('Unauthorised')) {
+              if (kDebugMode) {
+                print("categories screen 3  ---- Unauthorised : ${response.message!}");
+              }
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  Navigator.pushReplacement(context,
+                      MaterialPageRoute(builder: (context) => LoginScreen()));
+
+                  if (kDebugMode) {
+                    print("message 3 --- ${response.message}");
+                  }
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                          "Unauthorised. Session is expired on this device."),
+                      backgroundColor: Colors.red,
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                }
+              });
             }
-            _scaffoldMessenger.showSnackBar(
-              SnackBar(
-                content: Text(response.message ?? "Failed to cancel order"),
-                backgroundColor: Colors.red,
-                duration: const Duration(seconds: 2),
-              ),
-            );
+            else {
+              setState(() => _isLoading = false); //Build #1.0.99: Hide loader
+              if (kDebugMode) {
+                print("##### ERROR: removeTab - Cancel failed: ${response
+                    .message}");
+              }
+              _scaffoldMessenger.showSnackBar(
+                SnackBar(
+                  content: Text(response.message ?? "Failed to cancel order"),
+                  backgroundColor: Colors.red,
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            }
           }
         });
         await orderBloc.changeOrderStatus(orderId: serverOrderId, status: TextConstants.cancelled);
@@ -824,6 +906,28 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
     }
   }
 
+  /// Extract DOB from barcode: expects "DBBMMDDYYYY"
+  DateTime? parseDOBFromBarcode(String barcodeData) {
+    try {
+      if (kDebugMode) {
+        print("Order Panel parseDOBFromBarcode: $barcodeData");
+      }
+      final dobMatch = RegExp(r'DBB(\d{8})').firstMatch(barcodeData);
+      if (dobMatch != null) {
+        final dobStr = dobMatch.group(1)!;
+        final month = int.parse(dobStr.substring(0, 2));
+        final day = int.parse(dobStr.substring(2, 4));
+        final year = int.parse(dobStr.substring(4, 8));
+        if (kDebugMode) {
+          print("Order Panel parseDOBFromBarcode: $month/$day/$year");
+        }
+        return DateTime(year, month, day);
+      }
+    } catch (e) {
+      if (kDebugMode) print("Error parsing DOB: $e");
+    }
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -834,31 +938,38 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
       //Build #1.0.78: Removed orderHelper.addItemToOrder from the API success block, as it’s now in OrderBloc.updateOrderProducts.
       // Kept local addItemToOrder for non-API orders.
       // Ensured loader is shown during API calls and hidden afterward.
+      useKeyDownEvent: true,
       onBarcodeScanned: (barcode) async {
+        barcode = barcode.trim().replaceAll(' ', '');
         if (kDebugMode) {
-          print("##### DEBUG: onBarcodeScanned - Scanned barcode: $barcode,  isOrderInForeground = $isOrderInForeground");
+          print("##### DEBUG: onBarcodeScanned - Scanned barcode: -$barcode, isOrderInForeground = $isOrderInForeground");
         }
         if(!isOrderInForeground){ // to restrict order panel in background to scanner events
           return;
         }
 
         if (barcode.isNotEmpty) {
-
+          var dobScanned = "";
           /// Testing code: not working, Scanner will generate multiple tap events and call when scanned driving licence with PDF417 format irrespective of this code here
-          // if (barcode.startsWith('@') || barcode.contains('\n') || barcode.startsWith('ansi') || barcode.startsWith('2') ) {
-          //   // if (barcode.startsWith('@') || barcode.contains('\n')) {
-          //   // PDF417 often includes structured data with newlines or starts with '@' (AAMVA standard)
-          //   if (kDebugMode) {
-          //     print('PDF417 Detected: $barcode');
-          //   }
-          //   return;
-          // } else {
-          //   if (kDebugMode) {
-          //     print('Non-PDF417 Barcode: $barcode');
-          //   }
-          // }
+          if (barcode.startsWith('@') || barcode.contains('\n') || barcode.startsWith('ansi') || barcode.startsWith('2') || barcode.startsWith('DBB')) {
+            // if (barcode.startsWith('@') || barcode.contains('\n')) {
+            // PDF417 often includes structured data with newlines or starts with '@' (AAMVA standard)
+            if (kDebugMode) {
+              print('PDF417 Detected: $barcode');
+            }
+            var date = parseDOBFromBarcode(barcode);
+            dobScanned = "${date?.month}/${date?.day}/${date?.year}";
+            if (kDebugMode) {
+              print("##### DEBUG: onBarcodeScanned - Scanned barcode: $barcode, $dobScanned");
+            }
+            return;
+          } else {
+            if (kDebugMode) {
+              print('Non-PDF417 Barcode: $barcode');
+            }
+          }
           if (kDebugMode) {
-            print("##### DEBUG: onBarcodeScanned - Scanned barcode: $barcode");
+            print("##### DEBUG: onBarcodeScanned - Scanned barcode: $barcode, $dobScanned");
           }
 
           // Create new order if none exists
@@ -944,17 +1055,46 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                         ),
                       );
                     } else if (response.status == Status.ERROR) {
-                      setState(() => _isLoading = false); //Build #1.0.99 : Hide loader
-                      if (kDebugMode) {
-                        print("##### ERROR: onBarcodeScanned - Failed to add product: ${response.message}");
+                      if (response.message!.contains('Unauthorised')) {
+                        if (kDebugMode) {
+                          print("categories 4 ---- Unauthorised : ${response.message!}");
+                        }
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted) {
+                            Navigator.pushReplacement(context,
+                                MaterialPageRoute(builder: (context) => LoginScreen()));
+
+                            if (kDebugMode) {
+                              print("message 4 --- ${response.message}");
+                            }
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                    "Unauthorised. Session is expired on this device."),
+                                backgroundColor: Colors.red,
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                          }
+                        });
                       }
-                      _scaffoldMessenger.showSnackBar(
-                        SnackBar(
-                          content: Text(response.message ?? "Failed to add product"),
-                          backgroundColor: Colors.red,
-                          duration: const Duration(seconds: 2),
-                        ),
-                      );
+                      else {
+                        setState(() =>
+                        _isLoading = false); //Build #1.0.99 : Hide loader
+                        if (kDebugMode) {
+                          print(
+                              "##### ERROR: onBarcodeScanned - Failed to add product: ${response
+                                  .message}");
+                        }
+                        _scaffoldMessenger.showSnackBar(
+                          SnackBar(
+                            content: Text(
+                                response.message ?? "Failed to add product"),
+                            backgroundColor: Colors.red,
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      }
                     }
                   });
                   await orderBloc.updateOrderProducts(
@@ -1215,35 +1355,65 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
       await fetchOrderItems();
       widget.refreshOrderList?.call();
     } else if (response.status == Status.ERROR) {
-      setState(() => _isLoading = false); //Build #1.0.99 : hide loader
-      _scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Text("Failed to remove ${isPayout ? 'payout' : isCoupon ? 'coupon' : isCustomItem ? 'custom item' : 'item'}"),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 2),
-        ),
-      );
-      if (isPayout) {
-        await CustomDialog.showDiscountNotApplied(
-          context,
-          errorMessageTitle: TextConstants.removePayoutFailed,
-          errorMessageDes: response.message ?? TextConstants.discountNotAppliedDescription,
-          onRetry: retryCallback, // Pass retry callback
+      if (response.message!.contains('Unauthorised')) {
+        if (kDebugMode) {
+          print("categories screen 5 ---- Unauthorised : ${response.message!}");
+        }
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            Navigator.pushReplacement(context,
+                MaterialPageRoute(builder: (context) => LoginScreen()));
+
+            if (kDebugMode) {
+              print("message 5 --- ${response.message}");
+            }
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                    "Unauthorised. Session is expired on this device."),
+                backgroundColor: Colors.red,
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
+        });
+      }
+      else {
+        setState(() => _isLoading = false); //Build #1.0.99 : hide loader
+        _scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Text("Failed to remove ${isPayout ? 'payout' : isCoupon
+                ? 'coupon'
+                : isCustomItem ? 'custom item' : 'item'}"),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 2),
+          ),
         );
-      } else if (isCoupon) {
-        await CustomDialog.showCouponNotApplied(
-          context,
-          errorMessageTitle: TextConstants.removeCouponFailed,
-          errorMessageDes: response.message ?? TextConstants.couponNotAppliedDescription,
-          onRetry: retryCallback, // Pass retry callback
-        );
-      } else if (isCustomItem) {
-        await CustomDialog.showCustomItemNotAdded(
-          context,
-          errorMessageTitle: TextConstants.removeCustomItemFailed,
-          errorMessageDes: response.message ?? TextConstants.customItemCouldNotBeAddedDescription,
-          onRetry: retryCallback,
-        );
+        if (isPayout) {
+          await CustomDialog.showDiscountNotApplied(
+            context,
+            errorMessageTitle: TextConstants.removePayoutFailed,
+            errorMessageDes: response.message ??
+                TextConstants.discountNotAppliedDescription,
+            onRetry: retryCallback, // Pass retry callback
+          );
+        } else if (isCoupon) {
+          await CustomDialog.showCouponNotApplied(
+            context,
+            errorMessageTitle: TextConstants.removeCouponFailed,
+            errorMessageDes: response.message ??
+                TextConstants.couponNotAppliedDescription,
+            onRetry: retryCallback, // Pass retry callback
+          );
+        } else if (isCustomItem) {
+          await CustomDialog.showCustomItemNotAdded(
+            context,
+            errorMessageTitle: TextConstants.removeCustomItemFailed,
+            errorMessageDes: response.message ??
+                TextConstants.customItemCouldNotBeAddedDescription,
+            onRetry: retryCallback,
+          );
+        }
       }
     }
   }
@@ -1535,13 +1705,13 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
 
                         return ClipRRect(
                         // Build #1.0.151: FIXED - change ensures that sliding an item in one order does not affect the Slidable state of items at the same index in other orders.
-                        key: ValueKey('${orderHelper.activeOrderId}_$index'), // Updated key to include order ID
+                          key: ValueKey('${orderItem[AppDBConst.itemServerId]}_$_listVersion'), // Build 1.0.214: Fixed Issue [SCRUM - 366] -> Swipe-to-Delete UI State Not Resetting After Add/Delete Operations // Updated key to include order ID
                           borderRadius: BorderRadius.circular(20),
                           child: SizedBox(
                             height: MediaQuery.of(context).size.height * 0.12,
                             child: Slidable(
                               // Build #1.0.151: FIXED - change ensures that sliding an item in one order does not affect the Slidable state of items at the same index in other orders.
-                              key: ValueKey('${orderHelper.activeOrderId}_$index'), // Updated key to include order ID
+                              key: ValueKey('${orderItem[AppDBConst.itemServerId]}_$_listVersion'), // Build 1.0.214: Fixed Issue [SCRUM - 366] -> Swipe-to-Delete UI State Not Resetting After Add/Delete Operations // Updated key to include order ID
                               closeOnScroll: true,
                               direction: Axis.horizontal,
                               endActionPane: ActionPane(
@@ -1643,16 +1813,46 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                                                     ),
                                                   );
                                                 } else if (response.status == Status.ERROR) {
-                                                  if (kDebugMode) {
-                                                    print("##### ERROR: EditProductScreen - Failed to update quantity: ${response.message}");
+                                                  await fetchOrderItems(); // Build 1.0.214: Fixed Issue [SCRUM - 364] -> Item reappears in cart after being deleted while edit screen is open
+                                                  if (response.message!.contains('Unauthorised')) {
+                                                    if (kDebugMode) {
+                                                      print("categories screen 6 ---- Unauthorised : ${response.message!}");
+                                                    }
+                                                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                                                      if (mounted) {
+                                                        Navigator.pushReplacement(context, MaterialPageRoute(
+                                                            builder: (context) => LoginScreen()));
+
+                                                        if (kDebugMode) {
+                                                          print("message 6 --- ${response.message}");
+                                                        }
+                                                        ScaffoldMessenger.of(context).showSnackBar(
+                                                          const SnackBar(
+                                                            content: Text("Unauthorised. Session is expired on this device."),
+                                                            backgroundColor: Colors.red,
+                                                            duration: Duration(seconds: 2),
+                                                          ),
+                                                        );
+                                                      }
+                                                    });
+                                                  } else {
+                                                    if (kDebugMode) {
+                                                      print(
+                                                          "##### ERROR: EditProductScreen - Failed to update quantity: ${response.message}");
+                                                    }
+                                                    _scaffoldMessenger
+                                                        .showSnackBar(
+                                                      SnackBar(
+                                                        content: Text(
+                                                            "Failed to update quantity"),
+                                                        backgroundColor:
+                                                            Colors.red,
+                                                        duration:
+                                                            const Duration(
+                                                                seconds: 2),
+                                                      ),
+                                                    );
                                                   }
-                                                  _scaffoldMessenger.showSnackBar(
-                                                    SnackBar(
-                                                      content: Text("Failed to update quantity"),
-                                                      backgroundColor: Colors.red,
-                                                      duration: const Duration(seconds: 2),
-                                                    ),
-                                                  );
                                                   setState(() => _isLoading = false); //Build #1.0.92: Fixed Issue: Loader in order panel does not stop on edit item
                                                 }
                                               });
@@ -1986,18 +2186,41 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                                                               ),
                                                             );
                                                           } else if (response.status == Status.ERROR) {
-                                                            if (kDebugMode) {
-                                                              print("###### Delete Discount API error");
-                                                            }
-                                                            setState(() => _isLoading = false);
-                                                            _scaffoldMessenger.showSnackBar(
-                                                              SnackBar(
-                                                                content: Text("Failed to remove discount"),
-                                                                backgroundColor: Colors.red,
-                                                                duration: const Duration(seconds: 2),
-                                                              ),
-                                                            );
-                                                            await CustomDialog.showDiscountNotApplied(context,
+                                                                  if (response.message!.contains('Unauthorised')) {
+                                                                    if (kDebugMode) {
+                                                                      print("categories screen 7 ---- Unauthorised : ${response.message!}");
+                                                                    }
+                                                                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                                                                      if (mounted) {
+                                                                        Navigator.pushReplacement(context,
+                                                                            MaterialPageRoute(builder: (context) => LoginScreen()));
+
+                                                                        if (kDebugMode) {
+                                                                          print("message 7 --- ${response.message}");
+                                                                        }
+                                                                        ScaffoldMessenger.of(context).showSnackBar(
+                                                                          const SnackBar(
+                                                                            content: Text("Unauthorised. Session is expired on this device."),
+                                                                            backgroundColor: Colors.red,
+                                                                            duration: Duration(seconds: 2),
+                                                                          ),
+                                                                        );
+                                                                      }
+                                                                    });
+                                                                  } else {
+                                                                    if (kDebugMode) {
+                                                                      print("###### Delete Discount API error");
+                                                                    }
+                                                                    setState(() => _isLoading = false);
+                                                                    _scaffoldMessenger.showSnackBar(
+                                                                      SnackBar(
+                                                                        content: Text("Failed to remove discount"),
+                                                                        backgroundColor: Colors.red,
+                                                                        duration: const Duration(seconds: 2),
+                                                                      ),
+                                                                    );
+                                                                  }
+                                                                  await CustomDialog.showDiscountNotApplied(context,
                                                               errorMessageTitle: TextConstants.removeDiscountFailed,
                                                               errorMessageDes: response.message ?? TextConstants.discountNotAppliedDescription,
                                                               onRetry: retryCallback,

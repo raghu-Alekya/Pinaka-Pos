@@ -252,6 +252,13 @@ class OrderBloc { // Build #1.0.25 - added by naveen
             print("OrderBloc - Existing item found ID: ${existingItem.first[AppDBConst.itemServerId]}, updated quantity: ${currentQuantity + item.quantity}");
           }
         } else { // NEW Product
+          if(isEditQuantity){ // Build 1.0.214: Fixed Issue [SCRUM - 364] -> Item reappears in cart after being deleted while edit screen is open
+            if (kDebugMode) {
+              print("OrderBloc - Existing item not found in order, isEditQuantity is $isEditQuantity, skipping update for item");
+            }
+            updateOrderSink.add(APIResponse.error("Cannot update quantity: Item not found in order."));
+            return;
+          }
           itemsToAdd.add(OrderLineItem(
             productId: item.productId,
             quantity: item.quantity,

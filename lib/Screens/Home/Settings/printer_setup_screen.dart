@@ -12,15 +12,25 @@ import 'package:thermal_printer/thermal_printer.dart';
 import 'package:image/image.dart' as img;
 // import 'package:dart_ping_ios/dart_ping_ios.dart';
 import '../../../Constants/text.dart';
+import '../../../Preferences/pinaka_preferences.dart';
 import 'image_utils.dart';
 
-// void main() {
-//   // Register DartPingIOS
-//   if (Platform.isIOS) {
-//     DartPingIOS.register();
-//   }
-//   runApp(const MyApp());
-// }
+void main() async {
+  // Register DartPingIOS
+  // if (Platform.isIOS) {
+  //   DartPingIOS.register();
+  // }
+  WidgetsFlutterBinding.ensureInitialized(); // Ensure Flutter services are ready
+  await PinakaPreferences.prepareSharedPref();
+  ThemeNotifier themeNotifier = ThemeNotifier();
+  await themeNotifier.initializeThemeMode();
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => themeNotifier,
+      child: const PrinterSetup(),
+    ),
+  );
+}
 
 class PrinterSetup extends StatefulWidget {
   const PrinterSetup({Key? key}) : super(key: key);
@@ -274,6 +284,10 @@ class _PrinterSetupState extends State<PrinterSetup> {
     var connectedTCP = false;
     if (selectedPrinter == null) return;
     var bluetoothPrinter = selectedPrinter!;
+
+    if (kDebugMode) {
+      print(">>>>> PrinterSettings printTicket selected printer is '${selectedPrinter?.isBle}' ${selectedPrinter?.deviceName}, ${selectedPrinter?.productId ?? selectedPrinter?.address}, ${selectedPrinter?.vendorId}, ${selectedPrinter?.typePrinter}");
+    }
 
     switch (bluetoothPrinter.typePrinter) {
       case PrinterType.usb:

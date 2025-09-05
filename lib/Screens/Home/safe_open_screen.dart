@@ -319,7 +319,7 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMix
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Padding(
-                            padding: EdgeInsets.only(top: sidebarPosition == SidebarPosition.bottom ? 5 : 16, right: 16, left: 16),
+                            padding: EdgeInsets.only(top: sidebarPosition == SidebarPosition.bottom ? 3 : 16, right: 16, left: 16,),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [

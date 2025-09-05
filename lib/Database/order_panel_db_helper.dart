@@ -277,7 +277,13 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
         );
       }
     } else {
-      await db.delete(AppDBConst.orderTable); // If no orders available clear order table
+      ///  BUILD 1.0.213: FIXED RE-OPENED ISSUE [SCRUM-360]: No popup warning for open orders when closing shift via Vendor Payouts
+      // DON'T delete all orders when apiOrders is empty
+      // Just skip the deletion and proceed with sync (which will do nothing)
+      if (kDebugMode) {
+        print("#### DEBUG: syncOrdersFromApi - No orders to sync, skipping deletion");
+      }
+     // await db.delete(AppDBConst.orderTable); // NO NEED TO DELETE COMPLETE ORDER TABLE
     }
       //  delete purchasedItemsTable related data
       await db.delete(AppDBConst.purchasedItemsTable);

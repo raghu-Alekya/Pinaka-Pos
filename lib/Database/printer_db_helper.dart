@@ -24,16 +24,16 @@ class PrinterDBHelper {
       ///insert
       device = await db.insert(AppDBConst.printerTable, {
         AppDBConst.printerDeviceName: printer.deviceName,
-        AppDBConst.printerProductId: printer.productId,
-        AppDBConst.printerVendorId: printer.vendorId,
+        AppDBConst.printerProductId: printer.productId ?? printer.address,
+        AppDBConst.printerVendorId: printer.vendorId ?? 'bluetooth',
         AppDBConst.printerType: EnumToString.convertToString(printer.typePrinter),
       });
     } else {
       ///update
       device = await db.update(AppDBConst.printerTable, {
         AppDBConst.printerDeviceName: printer.deviceName,
-        AppDBConst.printerProductId: printer.productId,
-        AppDBConst.printerVendorId: printer.vendorId,
+        AppDBConst.printerProductId: printer.productId ?? printer.address,
+        AppDBConst.printerVendorId: printer.vendorId ?? 'bluetooth',
         AppDBConst.printerType: EnumToString.convertToString(printer.typePrinter),
       },
         where: '${AppDBConst.printerId} = ?',

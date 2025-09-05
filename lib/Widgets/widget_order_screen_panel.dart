@@ -1684,7 +1684,20 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
       bytes += ticket.imageRaster(grayscaleImage, align: PosAlign.center);
       bytes += ticket.feed(1);
     }
-///Header
+
+    //Header
+    ///New changes in Header on 2-Sep-2025
+    ///Date and Time
+    ///Store Id
+    ///Address
+    //         "Store name": "Kumar Swa D",
+    //         "address": "Q No: D 1847, Shirkey Colony",
+    //         "city": "Mancherial",
+    //         "state": "Telangana",
+    //         "country": "",
+    //         "zip_code": "504302",
+    //         "phone_number": false
+
     bytes += ticket.row([
       PosColumn(text: "$header", width: 12),
     ]);
@@ -1694,11 +1707,11 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
     //Item header
     bytes += ticket.row([
       PosColumn(text: "#", width: 1),
-      PosColumn(text: "Description", width:5),
-      PosColumn(text: "Qty", width: 1),
-      PosColumn(text: "Rate", width: 2),
-      PosColumn(text: "Dis", width: 1),
-      PosColumn(text: "Amt", width: 2),
+      PosColumn(text: "Description", width:6),
+      PosColumn(text: "Qty", width: 1, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: "Rate", width: 2, styles: PosStyles(align: PosAlign.right)),
+      // PosColumn(text: "Dis", width: 1), ///removed based on request on 3-Sep-25
+      PosColumn(text: "Amt", width: 2, styles: PosStyles(align: PosAlign.right)),
     ]);
     bytes += ticket.feed(1);
 
@@ -1729,11 +1742,11 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
 
       bytes += ticket.row([
         PosColumn(text: "${i+1}", width: 1),
-        PosColumn(text: "${orderItem[AppDBConst.itemName]}", width:5),
-        PosColumn(text: "${orderItem[AppDBConst.itemCount]}", width: 1),
-        PosColumn(text: "$salesPrice", width:2),
-        PosColumn(text: "${(regularPrice - salesPrice).toStringAsFixed(2)}", width: 1),
-        PosColumn(text: "${(orderItem[AppDBConst.itemCount] * salesPrice).toStringAsFixed(2)}", width: 2),
+        PosColumn(text: "${orderItem[AppDBConst.itemName]}", width:6),
+        PosColumn(text: "${orderItem[AppDBConst.itemCount]}", width: 1,styles: PosStyles(align: PosAlign.right)),
+        PosColumn(text: "${salesPrice.toStringAsFixed(2)}", width:2, styles: PosStyles(align: PosAlign.right)),
+        // PosColumn(text: "${(regularPrice - salesPrice).toStringAsFixed(2)}", width: 1, styles: PosStyles(align: PosAlign.right)), ///removed based on request on 3-Sep-25
+        PosColumn(text: "${(orderItem[AppDBConst.itemCount] * salesPrice).toStringAsFixed(2)}", width: 2, styles: PosStyles(align: PosAlign.right)),
       ]);
       // bytes += ticket.feed(1);
     }
@@ -1755,22 +1768,22 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
 
     bytes += ticket.row([
       PosColumn(text: TextConstants.grossTotal, width: 10),
-      PosColumn(text: total.toStringAsFixed(2), width:2),
+      PosColumn(text: total.toStringAsFixed(2), width:2, styles: PosStyles(align: PosAlign.right)),
     ]);
     // bytes += ticket.feed(1);
     bytes += ticket.row([
-      PosColumn(text: TextConstants.discountText, width: 10), // Build #1.0.148
-      PosColumn(text: discount.toStringAsFixed(2), width:2),
+      PosColumn(text: TextConstants.discountText, width: 10), // Build #1.0.148: deleted duplicate discount string from constants , already we have discountText using !
+      PosColumn(text: discount.toStringAsFixed(2), width:2, styles: PosStyles(align: PosAlign.right)),
     ]);
     // bytes += ticket.feed(1);
     bytes += ticket.row([
       PosColumn(text: TextConstants.merchantDiscount, width: 10),
-      PosColumn(text: merchantDiscount.toStringAsFixed(2), width:2),
+      PosColumn(text: merchantDiscount.toStringAsFixed(2), width:2, styles: PosStyles(align: PosAlign.right)),
     ]);
     // bytes += ticket.feed(1);
     bytes += ticket.row([
       PosColumn(text: TextConstants.taxText, width: 10),
-      PosColumn(text: tax.toStringAsFixed(2), width:2),
+      PosColumn(text: tax.toStringAsFixed(2), width:2, styles: PosStyles(align: PosAlign.right)),
     ]);
     // bytes += ticket.feed(1);
     //line
@@ -1782,7 +1795,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
     //Net Payable
     bytes += ticket.row([
       PosColumn(text: TextConstants.netPayable, width: 10),
-      PosColumn(text: balanceAmount.toStringAsFixed(2), width:2),
+      PosColumn(text: balanceAmount.toStringAsFixed(2), width:2, styles: PosStyles(align: PosAlign.right)),
     ]);
     // ///Todo: get pay by cash amount
     // // bytes += ticket.feed(1);

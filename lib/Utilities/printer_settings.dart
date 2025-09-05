@@ -3,11 +3,14 @@ import 'dart:io';
 
 import 'package:enum_to_string/enum_to_string.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:pinaka_pos/Constants/text.dart';
 import 'package:pinaka_pos/Database/db_helper.dart';
 import 'package:pinaka_pos/Database/printer_db_helper.dart';
 import 'package:pinaka_pos/Preferences/pinaka_preferences.dart';
 import 'package:pinaka_pos/Utilities/result_utility.dart';
+import 'package:sunmi_printer_plus/core/sunmi/sunmi_drawer.dart';
+import 'package:sunmi_printer_plus/sunmi_printer_plus_platform_interface.dart';
 import 'package:thermal_printer/esc_pos_utils_platform/src/capability_profile.dart';
 import 'package:thermal_printer/esc_pos_utils_platform/src/enums.dart';
 import 'package:thermal_printer/esc_pos_utils_platform/src/generator.dart';
@@ -28,6 +31,40 @@ class PrinterSettings {
   var printerManager = PrinterManager.instance;
   List<int>? pendingTask;
   final PrinterDBHelper _printerDBHelper = PrinterDBHelper();
+
+  static Future<void> openDrawer({BuildContext? context}) async {
+    //Old code
+    // final profile = await CapabilityProfile.load(name: 'default');
+    // var bytes = Generator(PaperSize.mm80, profile).drawer(pin: PosDrawer.pin5); /// open drawer
+    // if (kDebugMode) {
+    //   print("TopBar onTap of cash drawer open tapped with profile: ${profile.name} and bytes return $bytes");
+    // }
+    //
+    //New code
+    try {
+      // var sunmi = SunmiPrinterPlus();
+      // sunmi.openDrawer();
+      // bool isOpen = await sunmi.isDrawerOpen();
+      // SunmiDrawer.openDrawer();
+      var result = await SunmiPrinterPlusPlatform.instance.openDrawer();
+      if (kDebugMode) {
+        print("Drawer is open $result");
+      }
+    } catch(e,s){
+      if (kDebugMode) {
+        print("Exception at PrinterSetting.openDrawer as :: $e :: Stack :: $s");
+      }
+    }
+    if(context != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(TextConstants.cashDrawerIsOpening),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
 
   Future<void> loadPrinter() async{
     await setSelectedPrinterFromDB();
@@ -50,7 +87,7 @@ class PrinterSettings {
   Future<void> saveSelectedPrinterToDB() async {
     if (kDebugMode) {
       ///Printer Settings saveSelectedPrinter: printer-80, 22339, 1155, PrinterType.usb
-      print(">>>>> PrinterSettings before saveSelectedPrinterToDB: ${selectedPrinter?.deviceName}, ${selectedPrinter?.productId}, ${selectedPrinter?.vendorId}, ${selectedPrinter?.typePrinter}");
+      print(">>>>> PrinterSettings before saveSelectedPrinterToDB: ${selectedPrinter?.deviceName}, ${selectedPrinter?.productId ?? selectedPrinter?.address}, ${selectedPrinter?.vendorId}, ${selectedPrinter?.typePrinter}");
     }
     int printerId = await _printerDBHelper.addPrinterToDB(selectedPrinter!);
 
@@ -74,10 +111,13 @@ class PrinterSettings {
     }
     BluetoothPrinter printer = BluetoothPrinter();
 
-    printer.deviceName = printerDB.first[AppDBConst.printerDeviceName];
+    printer.deviceName = printerDB.first[AppDBConst.printerDeviceName]; //BluetoothPrinter
     printer.productId = printerDB.first[AppDBConst.printerProductId];
     printer.vendorId = printerDB.first[AppDBConst.printerVendorId];
+    printer.address = printerDB.first[AppDBConst.printerProductId] ?? ""; //00:11:22:33:44:55
     printer.typePrinter = EnumToString.fromString(PrinterType.values, printerDB.first[AppDBConst.printerType]) ?? PrinterType.usb;
+    printer.isBle =  false;//printer.typePrinter == PrinterType.bluetooth;
+    _currentStatus = (printer.typePrinter == PrinterType.bluetooth && printer.address != "")  ? BTStatus.connected : BTStatus.none;
 
     selectedPrinter = printer;
 
@@ -140,6 +180,7 @@ class PrinterSettings {
                 address: selectedPrinter!.address!,
                 isBle: selectedPrinter!.isBle ?? false,
                 autoConnect: _reconnect));
+        isConnected = true;
         break;
       case PrinterType.network:
         await printerManager.connect(type: selectedPrinter!.typePrinter, model: TcpPrinterInput(ipAddress: selectedPrinter!.address!));
@@ -154,7 +195,7 @@ class PrinterSettings {
   Future<Result<BluetoothPrinter>> printTicket(List<int> bytes, Generator generator) async {
     var connectedTCP = false;
     if (kDebugMode) {
-      print(">>>>> PrinterSettings printTicket selected printer is '${selectedPrinter?.deviceName}'");
+      print(">>>>> PrinterSettings printTicket selected printer is '${selectedPrinter?.isBle}' ${selectedPrinter?.deviceName}, ${selectedPrinter?.productId ?? selectedPrinter?.address}, ${selectedPrinter?.vendorId}, ${selectedPrinter?.typePrinter}");
     }
     if (selectedPrinter == null) return Result.error(Exception(TextConstants.noPrinter));
     if (selectedPrinter?.deviceName == null) return Result.error(Exception(TextConstants.noPrinter));
@@ -170,6 +211,7 @@ class PrinterSettings {
         pendingTask = null;
         break;
       case PrinterType.bluetooth:
+        bytes += generator.feed(2);
         bytes += generator.cut();
         await printerManager.connect(
             type: bluetoothPrinter.typePrinter,
@@ -180,6 +222,9 @@ class PrinterSettings {
                 autoConnect: _reconnect));
         pendingTask = null;
         if (Platform.isAndroid) pendingTask = bytes;
+        if (kDebugMode) {
+          print(' --- bluetooth connection is ok ---');
+        }
         break;
       case PrinterType.network:
         bytes += generator.feed(2);
@@ -189,14 +234,24 @@ class PrinterSettings {
         break;
       default:
     }
+    if (kDebugMode) {
+      print(' --- PrinterSettings printing in if condition ${bluetoothPrinter.typePrinter == PrinterType.bluetooth && Platform.isAndroid}, _currentStatus: ${_currentStatus == BTStatus.connected}---');
+    }
     if (bluetoothPrinter.typePrinter == PrinterType.bluetooth && Platform.isAndroid) {
       if (_currentStatus == BTStatus.connected) {
+        if (kDebugMode) {
+          print(' --- PrinterSettings printing in if condition ---');
+        }
         printerManager.send(type: bluetoothPrinter.typePrinter, bytes: bytes);
         pendingTask = null;
       }
     } else {
+      if (kDebugMode) {
+        print(' --- PrinterSettings  printing in else condition ---');
+      }
       printerManager.send(type: bluetoothPrinter.typePrinter, bytes: bytes);
     }
+    openDrawer();
     return Result.ok(bluetoothPrinter);
   }
 }

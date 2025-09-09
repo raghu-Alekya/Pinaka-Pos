@@ -793,14 +793,17 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
   Future<void> updateOrderMerchantDiscount(int orderId, List<model.FeeLine> feeLines) async {
     final db = await DBHelper.instance.database;
     double merchantDiscount = 0.0;
-    var merchantDiscountIds = "";
+   // Use a list instead of string concatenation
+    List<String> merchantDiscountIdsList = []; // Build #1.0.216: FIXED Issue - Merchant discount not deleting, showing error "Payout ID not found"
 
     for (var feeLine in feeLines) {
       if (feeLine.name == TextConstants.discountText) {
         merchantDiscount += double.parse(feeLine.total ?? '0.0').abs();
-        merchantDiscountIds = "$merchantDiscountIds,${feeLine.id}";
+        merchantDiscountIdsList.add(feeLine.id.toString()); // Added to list
       }
     }
+    // Build #1.0.216: Join with commas and ensure no leading comma
+    String merchantDiscountIds = merchantDiscountIdsList.join(',');
 
     await db.update(
       AppDBConst.orderTable,

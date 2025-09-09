@@ -1902,31 +1902,79 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
       return;
     }
 
-    final orderId = OrderHelper().activeOrderId; //Build #1.0.134: get activeOrderId
-    if (orderId == null) {
-      if (kDebugMode) print("No active order selected");
-      ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
-        const SnackBar(
-          content: Text(TextConstants.noActiveOrderError), // Build #1.0.181: Added through TextConstants
-          backgroundColor: Colors.red,
-          duration: Duration(seconds: 2),
-        ),
-      );
-      return;
-    }
-
     setState(() => _isPayoutLoading = true);
-
+   ///  Build #1.0.219 -> FIXED ISSUE [SCRUM - 377] : Unable to Add Payouts When No Orders Exist
+    ///  Adding payout -> if no order exit, creating new order then adding or else adding into existing order
     try {
-      final db = await DBHelper.instance.database;
-      final orderData = await db.query(
-        AppDBConst.orderTable,
-        where: '${AppDBConst.orderServerId} = ?',
-        whereArgs: [orderId],
-      );
+      // Check if we have an active order, if not create one first
+      int? orderId = OrderHelper().activeOrderId;
+      int? serverOrderId;
 
-      if (orderData.isEmpty) {
-        if (kDebugMode) print("Order $orderId not found in database");
+      if (orderId == null) {
+        // No active order exists, create a new order
+        OrderBloc orderBloc = OrderBloc(OrderRepository());
+        StreamSubscription? createSubscription;
+
+        // Listen for order creation completion
+        final completer = Completer<void>();
+        createSubscription = orderBloc.createOrderStream.listen((response) async {
+          if (!mounted) {
+            createSubscription?.cancel();
+            completer.complete();
+            return;
+          }
+
+          if (response.status == Status.COMPLETED) {
+            // Order created successfully, now proceed with adding payout
+            orderId = OrderHelper().activeOrderId;
+            serverOrderId = response.data!.id;
+
+            // Fetch the order data to get serverOrderId
+            final db = await DBHelper.instance.database;
+            final orderData = await db.query(
+              AppDBConst.orderTable,
+              where: '${AppDBConst.orderServerId} = ?',
+              whereArgs: [orderId],
+            );
+
+            if (orderData.isNotEmpty) {
+              serverOrderId = orderData.first[AppDBConst.orderServerId] as int?;
+            }
+
+            completer.complete();
+          } else if (response.status == Status.ERROR) {
+            setState(() => _isPayoutLoading = false);
+            ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
+              SnackBar(
+                content: Text("Failed to create order: ${response.message}"),
+                backgroundColor: Colors.red,
+                duration: const Duration(seconds: 2),
+              ),
+            );
+            completer.complete();
+          }
+        });
+
+        // Create the order
+        await orderBloc.createOrder();
+        await completer.future;
+        createSubscription?.cancel();
+      } else {
+        // Existing order found, get serverOrderId
+        final db = await DBHelper.instance.database;
+        final orderData = await db.query(
+          AppDBConst.orderTable,
+          where: '${AppDBConst.orderServerId} = ?',
+          whereArgs: [orderId],
+        );
+
+        if (orderData.isNotEmpty) {
+          serverOrderId = orderData.first[AppDBConst.orderServerId] as int?;
+        }
+      }
+
+      // If we still don't have a valid orderId/serverOrderId, show error
+      if (orderId == null || serverOrderId == null) {
         setState(() => _isPayoutLoading = false);
         ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
           const SnackBar(
@@ -1938,11 +1986,11 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
         return;
       }
 
-      final serverOrderId = orderData.first[AppDBConst.orderServerId] as int?;
       double payoutAmount = double.parse(_payoutAmount);
 
       //Build #1.0.78: FIX - Check for existing payout for the order
       // DON'T ADD PAYOUT SAME ORDER IF ALREADY HAVE IT
+      final db = await DBHelper.instance.database;
       final existingPayouts = await db.query(
         AppDBConst.purchasedItemsTable,
         where: '${AppDBConst.orderIdForeignKey} = ? AND ${AppDBConst.itemType} = ?',
@@ -1957,44 +2005,6 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
             content: Text(TextConstants.payoutAlreadyAdded), // Build #1.0.181: Added through TextConstants
             backgroundColor: Colors.orange,
             duration: Duration(seconds: 2),
-          ),
-        );
-        return;
-      }
-
-
-      if (serverOrderId == null) {
-        /// For non-API orders, insert locally
-        // await db.insert(AppDBConst.purchasedItemsTable, {
-        //   AppDBConst.orderIdForeignKey: orderId!,
-        //   AppDBConst.itemName: TextConstants.payout,
-        //   AppDBConst.itemSKU: '',
-        //   AppDBConst.itemPrice: payoutAmount,
-        //   AppDBConst.itemCount: 1,
-        //   AppDBConst.itemSumPrice: payoutAmount,
-        //   AppDBConst.itemImage: 'assets/svg/payout.svg',
-        //   AppDBConst.itemType: ItemType.payout.value,
-        // });
-        // setState(() {
-        //   _payoutAmount = "";
-        //   _isPayoutLoading = false;
-        // });
-        // ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
-        //   SnackBar(
-        //     content: Text("Payout of \$$payoutAmount added successfully"),
-        //     backgroundColor: Colors.green,
-        //     duration: const Duration(seconds: 2),
-        //   ),
-        // );
-        // await _orderHelper.loadData();
-        // await _loadOrderData();
-        // widget.refreshOrderList?.call();
-///Show error instead adding to local DB and return
-        ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
-          SnackBar(
-            content: Text("Payout of ${TextConstants.currencySymbol}$payoutAmount did not add, as of Order Id did not fount."),
-            backgroundColor: Colors.orange,
-            duration: const Duration(seconds: 2),
           ),
         );
         return;
@@ -2040,7 +2050,8 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
         }
       });
 
-      await orderBloc.addPayoutAsProduct(orderId: serverOrderId, dbOrderId: orderId!, amount: payoutAmount, isPayOut: true);
+      await orderBloc.addPayoutAsProduct(orderId: serverOrderId!, dbOrderId: orderId!, amount: payoutAmount, isPayOut: true);
+
     } catch (e) {
       if (kDebugMode) print("Error processing payout: $e");
       setState(() => _isPayoutLoading = false);

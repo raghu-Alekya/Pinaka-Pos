@@ -225,6 +225,9 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String skuGeneratedSuccessfully = "SKU generated successfully";
   static const String chooseVariants        = "Choose Variants";
   static const String backToCategories      = "Back to Categories";
+  static const String areYouSureExitShiftDescription = "Are you sure you want to exit the shift screen?";
+  static const String yesExit               = "Yes, Exit";
+  static const String noStay                = "No, Stay"; // Build #1.0.221
 
   static const String login                 = "LOGIN"; // Build #1.0.8
   static const String loading               = "loading";

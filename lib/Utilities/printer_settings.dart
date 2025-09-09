@@ -198,7 +198,13 @@ class PrinterSettings {
       print(">>>>> PrinterSettings printTicket selected printer is '${selectedPrinter?.isBle}' ${selectedPrinter?.deviceName}, ${selectedPrinter?.productId ?? selectedPrinter?.address}, ${selectedPrinter?.vendorId}, ${selectedPrinter?.typePrinter}");
     }
     if (selectedPrinter == null) return Result.error(Exception(TextConstants.noPrinter));
+    if (kDebugMode) {
+      print('>>>>> PrinterSettings selectedPrinter is $selectedPrinter ---');
+    }
     if (selectedPrinter?.deviceName == null) return Result.error(Exception(TextConstants.noPrinter));
+    if (kDebugMode) {
+      print('>>>>> PrinterSettings selectedPrinter?.deviceName is ${selectedPrinter?.deviceName} ---');
+    }
     var bluetoothPrinter = selectedPrinter!;
 
     switch (bluetoothPrinter.typePrinter) {

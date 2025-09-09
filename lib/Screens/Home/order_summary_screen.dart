@@ -1361,6 +1361,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
       amountColor = Colors.blue[600]!;
       leadingIcon = SvgPicture.asset(
         'assets/svg/discount_star.svg',
+        colorFilter: ColorFilter.mode(Colors.blueAccent, BlendMode.srcIn),
         // width: ResponsiveLayout.getIconSize(16),
         // height: ResponsiveLayout.getIconSize(16),
         // color: Colors.blue[600],
@@ -1567,11 +1568,11 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                                   balanceAmount <= 0 ? SizedBox(height: 0,) : Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
-                                      _buildQuickAmountButton('${TextConstants.currencySymbol}${balanceAmount.ceil()/*  toStringAsFixed(0)*/}'), // Match balance amount, show round greater value
-                                      _buildQuickAmountButton('${TextConstants.currencySymbol}${(balanceAmount + 2).toStringAsFixed(0)}'), // Slightly above
-                                      _buildQuickAmountButton('${TextConstants.currencySymbol}${(balanceAmount + 12).toStringAsFixed(0)}'), // More above
-                                      _buildQuickAmountButton('${TextConstants.currencySymbol}${((balanceAmount ~/ 10 + 1) * 10).toStringAsFixed(0)}'), // Round up to next 10
-                                      _buildQuickAmountButton('${TextConstants.currencySymbol}${((balanceAmount ~/ 50 + 1) * 50).toStringAsFixed(0)}'), // Round up to next 50
+                                      _buildQuickAmountButton('${TextConstants.currencySymbol} ${balanceAmount.toStringAsFixed(2)}'), // Match balance amount, show round greater value
+                                      _buildQuickAmountButton('${TextConstants.currencySymbol} ${(balanceAmount.ceil()).toStringAsFixed(0)}'), // Slightly above
+                                      _buildQuickAmountButton('${TextConstants.currencySymbol} ${((balanceAmount ~/ 5 + 1) * 5).toStringAsFixed(0)}'), // More above
+                                      _buildQuickAmountButton('${TextConstants.currencySymbol} ${((balanceAmount ~/ 5 + 2) * 5).toStringAsFixed(0)}'), // Round up to next 10
+                                      _buildQuickAmountButton('${TextConstants.currencySymbol} ${((balanceAmount ~/ 10 + 2) * 10).toStringAsFixed(0)}'), // Round up to next 50
                                     ],
                                   ),
                 
@@ -1597,7 +1598,8 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                                           _amountErrorText = null;
                                         });
                                       }
-                                      amountController.text = (amountController.text + value).replaceAll(r'$', '');
+                                      String cleanText = amountController.text.replaceAll(TextConstants.currencySymbol, '');
+                                      amountController.text = '${TextConstants.currencySymbol}'+ cleanText + value;
                                       setState(() {});
                                     },
                                     onClearPressed: () {
@@ -1808,8 +1810,9 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     return GestureDetector(
       onTap: () {
         // Remove '$' and ensure the value is numeric
-        String cleanAmount = amount.replaceAll('${TextConstants.currencySymbol}', '');
-        amountController.text = cleanAmount;
+        String cleanAmount = amount.replaceAll(TextConstants.currencySymbol, '');
+        double numericValue = double.parse(cleanAmount);
+        amountController.text = '${TextConstants.currencySymbol} ${numericValue.toStringAsFixed(2)}';
         setState(() {});
       },
       child: Container(
@@ -1994,10 +1997,11 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
           }
           // Navigator.of(context).pop(TextConstants.refresh); // Navigate back for complete void
           OrderHelper.isOrderPanelLoaded = false;
-          Navigator.pushReplacement(result: TextConstants.refresh,
-            context,
-            MaterialPageRoute(builder: (_) => FastKeyScreen()),
-          );
+          ///Update! on 9-Sep-25: asked by Shravan, void button click will result in cancelling of payment only, no need to change order status to cancelled now. If balance amount is changed then order will be pending else it will be processing
+          // Navigator.pushReplacement(result: TextConstants.refresh,
+          //   context,
+          //   MaterialPageRoute(builder: (_) => FastKeyScreen()),
+          // );
         }
       } else if (response.status == Status.ERROR) {
         if (kDebugMode) {
@@ -2082,10 +2086,11 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
         }
         ///This is for voiding completed payment
         OrderHelper.isOrderPanelLoaded = false;
-        Navigator.pushReplacement(result: TextConstants.refresh,
-          context,
-          MaterialPageRoute(builder: (_) => FastKeyScreen()),
-        );
+        ///Update! on 9-Sep-25: asked by Shravan, void button click will result in cancelling of payment only, no need to change order status to cancelled now. If balance amount is changed then order will be pending else it will be processing
+        // Navigator.pushReplacement(result: TextConstants.refresh,
+        //   context,
+        //   MaterialPageRoute(builder: (_) => FastKeyScreen()),
+        // );
       } else if (response.status == Status.ERROR) {
         if (kDebugMode) {
           print("_handleVoidOrder -> Void order failed: ${response.data!.message}");
@@ -2266,11 +2271,15 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
       print(" >>>>> PrintOrder  cashierRole $cashierRole ");
     }
 
-    bytes += ticket.row([
-      PosColumn(text: "$header", width: 12),
-    ]);
-
-    bytes += ticket.feed(1);
+    if(header != "") {
+      bytes += ticket.row([
+        PosColumn(
+            text: "$header",
+            width: 12,
+            styles: PosStyles(align: PosAlign.center)),
+      ]);
+      bytes += ticket.feed(1);
+    }
 
     //Store Name
     bytes += ticket.row([
@@ -2285,6 +2294,10 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
       PosColumn(text: "$storePhone", width: 12, styles: PosStyles(align: PosAlign.center)),
     ]);
 
+    bytes += ticket.feed(1);
+    bytes += ticket.row([
+      PosColumn(text: "-----------------------------------------------", width: 12),
+    ]);
     bytes += ticket.feed(1);
 
     //store id and  Date
@@ -2376,6 +2389,10 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     }
 
     bytes += ticket.feed(1);
+    bytes += ticket.row([
+      PosColumn(text: "-----------------------------------------------", width: 12),
+    ]);
+    bytes += ticket.feed(1);
 
     if (kDebugMode) {
       print(" >>>>> Printer Order balanceAmount  $balanceAmount ");
@@ -2451,11 +2468,14 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     //   PosColumn(text: "Thank You, Visit Again", width: 12),
     // ]);
 
-    bytes += ticket.row([
-      PosColumn(text: "$footer", width: 12),
-    ]);
-
-    bytes += ticket.feed(1);
+    if(footer != "") {
+      bytes += ticket.row([
+        PosColumn(text: "$footer",
+            width: 12,
+            styles: PosStyles(align: PosAlign.center)),
+      ]);
+      bytes += ticket.feed(1);
+    }
   }
 
   Future _printTicket() async{
@@ -2505,7 +2525,9 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                 print("OrderSummaryScreen - printer setup is NOT done, or user cancels printer setup");
               }
               // Build #1.0.168: If user cancels printer setup, show receipt dialog again
-              _showReceiptDialog(context, paidAmount);
+              if(mounted) {
+                _showReceiptDialog(context, paidAmount);
+              }
             }
           });
         });
@@ -2810,7 +2832,8 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
             if (kDebugMode) {
               print("showVoidExitConfirmation -> Complete payment void: calling voidOrder API");
             }
-            _handleVoidOrder(context);
+            // _handleVoidOrder(context);
+            _handleVoidPayment(context, isPartial: true);
           }
         },
       ),

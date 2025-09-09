@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:pinaka_pos/Helper/Extentions/text_extensions.dart';
 import 'package:pinaka_pos/Screens/Home/shift_history_dashboard_screen.dart';
 import 'package:provider/provider.dart';
@@ -739,7 +740,7 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
                   child: SingleChildScrollView(
                                 scrollDirection: Axis.vertical,
                                 child: DataTable(
-                  columnSpacing: MediaQuery.of(context).size.width * 0.06,
+                  columnSpacing: MediaQuery.of(context).size.width * 0.055,
                   horizontalMargin: MediaQuery.of(context).size.width * 0.015,
                   headingRowHeight: MediaQuery.of(context).size.height * 0.085,
                   dataRowHeight: MediaQuery.of(context).size.height * 0.085,
@@ -820,7 +821,7 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
                             style: TextStyle(
                               color:themeHelper.themeMode == ThemeMode.dark
                                   ? ThemeNotifier.textDark : Colors.black,
-                              fontSize: 12,
+                              fontSize: 11,
                               //fontWeight: FontWeight.w500,
                             ),
                           ).poppins(),
@@ -831,7 +832,7 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
                             style: TextStyle(
                               color: themeHelper.themeMode == ThemeMode.dark
                                   ? ThemeNotifier.textDark : Colors.black,
-                              fontSize: 12,
+                              fontSize: 11,
                              // fontWeight: FontWeight.w500,
                             ),
                           ).poppins(),
@@ -846,15 +847,15 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
                             borderRadius: BorderRadius.circular(8),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.2),
-                                blurRadius: 8,
-                                offset: const Offset(0, 4),
+                                color: Colors.black.withValues(alpha: 0.2),
+                                blurRadius: 4,
+                                offset: const Offset(0, 0),
                               ),
                             ],
                           ),
                           textStyle: const TextStyle(
                             color: Colors.white,
-                            fontSize: 13,
+                            fontSize: 12,
                             fontFamily: 'Poppins',
                             fontWeight: FontWeight.w400,
                           ),
@@ -865,7 +866,7 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
                             style: TextStyle(
                               color: themeHelper.themeMode == ThemeMode.dark
                                   ? ThemeNotifier.textDark : ThemeNotifier.textLight,
-                              fontSize: 12,
+                              fontSize: 11,
                               //fontWeight: FontWeight.w500,
                             ),
                             overflow: TextOverflow.ellipsis,
@@ -880,7 +881,7 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
                             style: TextStyle(
                               color: themeHelper.themeMode == ThemeMode.dark
                                   ? ThemeNotifier.textDark :  Colors.black,
-                              fontSize: 12,
+                              fontSize: 11,
                               //fontWeight: FontWeight.w500,
                             ),
                           ).poppins(),
@@ -897,21 +898,18 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
                                   _showDeleteConfirmation(index, item.id);
                                 },
                                 borderRadius: BorderRadius.circular(4),
-                                child: Padding(
-                                  padding: EdgeInsets.all(MediaQuery.of(context).size.width * 0.004),
-                                  child: Container(
-                                    height:30,
-                                    width:30,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.rectangle,
-                                      borderRadius: BorderRadius.circular(8.0),
-                                      color: Colors.red.shade50,
-                                    ),
-                                    child: Icon(
-                                      Icons.delete_outline,
-                                      color: shift.shiftStatus == 'closed' ? Colors.grey : Colors.red.shade400,
-                                      size: 18,
-                                    ),
+                                child: Container(
+                                  height:30,
+                                  width:30,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.rectangle,
+                                    borderRadius: BorderRadius.circular(8.0),
+                                    color: Colors.red.shade50,
+                                  ),
+                                  child: Icon(
+                                    Icons.delete_outline,
+                                    color: shift.shiftStatus == 'closed' ? Colors.grey : Colors.red.shade400,
+                                    size: 18,
                                   ),
                                 ),
                               ),

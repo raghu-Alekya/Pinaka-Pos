@@ -8,16 +8,19 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../Constants/text.dart';
 import '../../Database/assets_db_helper.dart';
 import '../../Database/db_helper.dart';
+import '../../Database/order_panel_db_helper.dart';
 import '../../Database/user_db_helper.dart';
 import '../../Helper/Extentions/nav_layout_manager.dart';
 import '../../Helper/Extentions/theme_notifier.dart';
 import '../../Models/Assets/asset_model.dart';
 import '../../Preferences/pinaka_preferences.dart';
+import '../../Widgets/widget_alert_popup_dialogs.dart';
 import '../../Widgets/widget_custom_num_pad.dart';
 import '../../Widgets/widget_topbar.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../Widgets/widget_navigation_bar.dart' as custom_widgets;
+import 'fast_key_screen.dart';
 
 class ShiftOpenCloseBalanceScreen extends StatefulWidget {
   final int? lastSelectedIndex;
@@ -405,7 +408,28 @@ class _ShiftOpenCloseBalanceScreenState extends State<ShiftOpenCloseBalanceScree
                                               width: MediaQuery.of(context).size.width * 0.1,
                                               child: OutlinedButton(
                                                 onPressed: ((_shiftId == null || _shiftId!.isEmpty) && (previousScreen != TextConstants.navCashier)) ? null : () {
-                                                  Navigator.pop(context);
+
+                                                  // Build #1.0.221 : Fixed Issue
+                                                  // enable back button for close and update time and show "are you sure ? " dialog then exit to fast key screen
+                                                  CustomDialog.showAreYouSure(
+                                                    context,
+                                                    confirm: () {
+                                                      if (kDebugMode) {
+                                                        print("##### DEBUG Back Button confirm Tapped");
+                                                      }
+                                                      //  Navigator.pop(context); // Close the dialog
+                                                      // Use a slight delay to ensure dialog is fully closed before navigating
+                                                      Future.delayed(Duration(milliseconds: 100), () {
+                                                        Navigator.push(
+                                                          context,
+                                                          MaterialPageRoute(builder: (context) => FastKeyScreen(lastSelectedIndex: 0)),
+                                                        );
+                                                      });
+                                                    },
+                                                    description: TextConstants.areYouSureExitShiftDescription,
+                                                    confirmText: TextConstants.yesExit,
+                                                    cancelText: TextConstants.noStay,
+                                                  );
                                                 },
                                                 style: OutlinedButton.styleFrom(
                                                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

@@ -92,6 +92,9 @@ class NavigationBar extends StatelessWidget {
     final themeHelper = Provider.of<ThemeNotifier>(context);
     // Build #1.0.161: Fixed Issue - navigation bar icons are not disabled before create shift
     bool isShiftInvalid = shiftId == null || shiftId == "null" || shiftId.isEmpty;
+    // Build #1.0.221 : Fixed Issue -> Disable navigation bar menu icons while shift create,update,close
+    bool isShiftScreen = ModalRoute.of(context)?.settings.arguments == TextConstants.navLogout ||
+        ModalRoute.of(context)?.settings.arguments == TextConstants.navShiftHistory;
     return LayoutBuilder(
       builder: (context, constraints) {
            if (kDebugMode) {
@@ -103,7 +106,7 @@ class NavigationBar extends StatelessWidget {
             svgAsset: selectedSidebarIndex == 0 ? SvgUtils.fastKeySelectedIcon : SvgUtils.fastKeyIcon, // Build #1.0.148: Fixed Issue: Menu Bar Icons not matching with latest Figma Design , now using from assets/svg/navigation/
             label: TextConstants.fastKeyText,
             isSelected: selectedSidebarIndex == 0,
-            onTap: isShiftInvalid
+            onTap: isShiftInvalid || isShiftScreen
                 ? () {}
                 : () {
               if (kDebugMode) {
@@ -119,14 +122,14 @@ class NavigationBar extends StatelessWidget {
               );
             },
             isVertical: isVertical,
-            isDisabled: isShiftInvalid,
+            isDisabled: isShiftInvalid || isShiftScreen,
           ),
           const SizedBox(height: 10),
           SidebarButton(
             svgAsset: SvgUtils.categoriesIcon,
             label: TextConstants.categoriesText,
             isSelected: selectedSidebarIndex == 1,
-            onTap: isShiftInvalid
+            onTap: isShiftInvalid || isShiftScreen
                 ? () {}
                 : () {
               if (kDebugMode) {
@@ -142,14 +145,14 @@ class NavigationBar extends StatelessWidget {
               );
             },
             isVertical: isVertical,
-            isDisabled: isShiftInvalid,
+            isDisabled: isShiftInvalid || isShiftScreen,
           ),
           const SizedBox(height: 10),
           SidebarButton(
             svgAsset: SvgUtils.addIcon,
             label: TextConstants.addText,
             isSelected: selectedSidebarIndex == 2,
-            onTap: isShiftInvalid
+            onTap: isShiftInvalid || isShiftScreen
                 ? () {}
                 : () {
               if (kDebugMode) {
@@ -161,14 +164,14 @@ class NavigationBar extends StatelessWidget {
               );
             },
             isVertical: isVertical,
-            isDisabled: isShiftInvalid,
+            isDisabled: isShiftInvalid || isShiftScreen,
           ),
           const SizedBox(height: 10),
           SidebarButton(
             svgAsset: SvgUtils.ordersIcon,
             label: TextConstants.ordersText,
             isSelected: selectedSidebarIndex == 3,
-            onTap: isShiftInvalid
+            onTap: isShiftInvalid || isShiftScreen
                 ? () {}
                 : () {
               if (kDebugMode) {
@@ -184,7 +187,7 @@ class NavigationBar extends StatelessWidget {
               );
             },
             isVertical: isVertical,
-            isDisabled: isShiftInvalid,
+            isDisabled: isShiftInvalid || isShiftScreen,
           ),
           const SizedBox(height: 10),
           SidebarButton(
@@ -217,7 +220,7 @@ class NavigationBar extends StatelessWidget {
               svgAsset: SvgUtils.settingsIcon,
               label: TextConstants.settingsHeaderText,
               isSelected: selectedSidebarIndex == 5,
-              onTap: isShiftInvalid
+              onTap: isShiftInvalid || isShiftScreen
                   ? () {}
                   : () {
                 if (kDebugMode) {
@@ -238,14 +241,14 @@ class NavigationBar extends StatelessWidget {
                 });
               },
               isVertical: isVertical,
-              isDisabled: isShiftInvalid,
+              isDisabled: isShiftInvalid || isShiftScreen,
             ),
             const SizedBox(height: 10),
             SidebarButton(
               svgAsset: SvgUtils.logoutIcon,
               label: TextConstants.logoutText,
               isSelected: selectedSidebarIndex == 6,
-              onTap: isShiftInvalid
+              onTap: isShiftInvalid || isShiftScreen
                   ? () {}
                   : () {
                       onSidebarItemSelected(6);
@@ -438,7 +441,7 @@ class NavigationBar extends StatelessWidget {
                       );
                     },
               isVertical: isVertical,
-              isDisabled: isShiftInvalid,
+              isDisabled: isShiftInvalid || isShiftScreen,
             ),
             const SizedBox(height: 10),
           ],
@@ -468,6 +471,9 @@ class NavigationBar extends StatelessWidget {
     final themeHelper = Provider.of<ThemeNotifier>(context);
     // Build #1.0.161: Fixed Issue - navigation bar icons are not disabled before create shift
     bool isShiftInvalid = shiftId == null || shiftId == "null" || shiftId.isEmpty;
+    // Build #1.0.221 : Fixed Issue -> Disable navigation bar menu icons while shift create,update,close
+    bool isShiftScreen = ModalRoute.of(context)?.settings.arguments == TextConstants.navLogout ||
+        ModalRoute.of(context)?.settings.arguments == TextConstants.navShiftHistory;
     return LayoutBuilder(
       builder: (context, constraints) {
         if (kDebugMode) {
@@ -479,7 +485,7 @@ class NavigationBar extends StatelessWidget {
             svgAsset: selectedSidebarIndex == 0 ? SvgUtils.fastKeySelectedIcon : SvgUtils.fastKeyIcon, // Build #1.0.148: Fixed Issue: Menu Bar Icons not matching with latest Figma Design , now using from assets/svg/navigation/
             label: TextConstants.fastKeyText,
             isSelected: selectedSidebarIndex == 0,
-            onTap: isShiftInvalid
+            onTap: isShiftInvalid || isShiftScreen
                 ? () {}
                 : () {
               if (kDebugMode) {
@@ -495,14 +501,14 @@ class NavigationBar extends StatelessWidget {
               );
             },
             isVertical: false, //Build #1.0.54: updated
-            isDisabled: isShiftInvalid,
+            isDisabled: isShiftInvalid || isShiftScreen,
           ),
           const SizedBox(height: 10),
           SidebarButton(
             svgAsset: SvgUtils.categoriesIcon,
             label: TextConstants.categoriesText,
             isSelected: selectedSidebarIndex == 1,
-            onTap: isShiftInvalid
+            onTap: isShiftInvalid || isShiftScreen
                 ? () {}
                 : () {
               if (kDebugMode) {
@@ -518,14 +524,14 @@ class NavigationBar extends StatelessWidget {
               );
             },
             isVertical: false,
-            isDisabled: isShiftInvalid,
+            isDisabled: isShiftInvalid || isShiftScreen,
           ),
           const SizedBox(height: 10),
           SidebarButton(
             svgAsset: SvgUtils.addIcon,
             label: TextConstants.addText,
             isSelected: selectedSidebarIndex == 2,
-            onTap: isShiftInvalid
+            onTap: isShiftInvalid || isShiftScreen
                 ? () {}
                 : () {
               if (kDebugMode) {
@@ -539,14 +545,14 @@ class NavigationBar extends StatelessWidget {
               );
             },
             isVertical: false,
-            isDisabled: isShiftInvalid,
+            isDisabled: isShiftInvalid || isShiftScreen,
           ),
           const SizedBox(height: 10),
           SidebarButton(
             svgAsset: SvgUtils.ordersIcon,
             label: TextConstants.ordersText,
             isSelected: selectedSidebarIndex == 3,
-            onTap: isShiftInvalid
+            onTap: isShiftInvalid || isShiftScreen
                 ? () {}
                 : () {
               if (kDebugMode) {
@@ -562,7 +568,7 @@ class NavigationBar extends StatelessWidget {
               );
             },
             isVertical: false,
-            isDisabled: isShiftInvalid,
+            isDisabled: isShiftInvalid || isShiftScreen,
           ),
           const SizedBox(height: 10),
           SidebarButton(
@@ -592,7 +598,7 @@ class NavigationBar extends StatelessWidget {
             svgAsset: SvgUtils.settingsIcon,
             label: TextConstants.settingsHeaderText,
             isSelected: selectedSidebarIndex == 5,
-            onTap: isShiftInvalid
+            onTap: isShiftInvalid || isShiftScreen
                 ? () {}
                 : () {
               if (kDebugMode) {
@@ -611,14 +617,14 @@ class NavigationBar extends StatelessWidget {
               });
             },
             isVertical: false,
-            isDisabled: isShiftInvalid,
+            isDisabled: isShiftInvalid || isShiftScreen,
           ),
           const SizedBox(width: 10),
           SidebarButton(
             svgAsset: SvgUtils.logoutIcon,
             label: TextConstants.logoutText,
             isSelected: selectedSidebarIndex == 6,
-            onTap: isShiftInvalid
+            onTap: isShiftInvalid || isShiftScreen
                 ? () {}
                 : () {
               onSidebarItemSelected(6);
@@ -790,7 +796,7 @@ class NavigationBar extends StatelessWidget {
                     );
                   },
             isVertical: false,
-            isDisabled: isShiftInvalid,
+            isDisabled: isShiftInvalid || isShiftScreen,
           ),
           const SizedBox(width: 10),
         ];

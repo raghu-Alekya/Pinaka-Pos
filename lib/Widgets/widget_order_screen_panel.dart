@@ -18,15 +18,20 @@ import 'package:pinaka_pos/Widgets/widget_order_status.dart';
 import 'package:pinaka_pos/Widgets/widget_alert_popup_dialogs.dart';
 import 'package:provider/provider.dart';
 import '../Blocs/Orders/order_bloc.dart';
+import '../Blocs/Payment/payment_bloc.dart';
 import '../Blocs/Search/product_search_bloc.dart';
 import '../Constants/misc_features.dart';
 import '../Constants/text.dart';
+import '../Database/assets_db_helper.dart';
 import '../Database/db_helper.dart';
 import '../Database/order_panel_db_helper.dart';
 import '../Database/printer_db_helper.dart';
+import '../Database/store_db_helper.dart';
 import '../Database/user_db_helper.dart';
 import '../Helper/Extentions/theme_notifier.dart';
 import '../Helper/api_response.dart';
+import '../Models/Payment/payment_model.dart';
+import '../Repositories/Payment/payment_repository.dart';
 import '../Utilities/global_utility.dart';
 import '../Models/Orders/orders_model.dart';
 import '../Repositories/Auth/store_validation_repository.dart';
@@ -79,6 +84,24 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
   late ScaffoldMessengerState _scaffoldMessenger;
   var _printerReceipt;
 
+  // Build #1.0.221 : Added these variables
+  late PaymentBloc paymentBloc;
+  StreamSubscription? _paymentListSubscription;
+  double payByCash = 0.0;
+  double payByOther = 0.0;
+  double tenderAmount = 0.0;
+  double changeAmount = 0.0;
+  String orderStatus = TextConstants.processing;
+  int? orderServerId; // Server order ID for API calls
+  double total = 0.0;
+  double balanceAmount = 0.0;
+  double paidAmount = 0.0;
+  double discount = 0.0; // Add this to track discount
+  double merchantDiscount = 0.0; // Add this to track merchant discount
+  double tax = 0.0; // AddED tax variable
+  final _printerSettings =  PrinterSettings();
+  List<int> bytes = [];
+
   void _toggleSummary() {
     setState(() {
       _showFullSummary = !_showFullSummary;
@@ -97,7 +120,88 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
    // _getOrderTabs(); //Build #1.0.40: Load existing orders into tabs
     //_fetchOrders(); //Build #1.0.40: Fetch orders on initialization
     loadPrinterData();
+    // Initialize payment bloc
+    paymentBloc = PaymentBloc(PaymentRepository());
+  }
 
+  // Build #1.0.221 : getPaymentsByOrderId API call for payment details
+  // we need to call payment by order id api in order screen panel and load the details payByCash, payByOther, tender amount, change amount
+  void _fetchPaymentsByOrderId() {
+    if (kDebugMode) {
+      print("###### _fetchPaymentsByOrderId - OrderScreenPanel");
+    }
+
+    if (orderServerId != null) {
+      paymentBloc.getPaymentsByOrderId(orderServerId!);
+
+      _paymentListSubscription?.cancel();
+      _paymentListSubscription = paymentBloc.paymentsListStream.listen((response) {
+        if (response.status == Status.COMPLETED) {
+          if (kDebugMode) {
+            print("###### _fetchPaymentsByOrderId Api call COMPLETED - OrderScreenPanel");
+            print("###### Response data: ${response.data}");
+          }
+
+          if (response.data!.isNotEmpty) {
+            orderStatus = response.data?.first.orderStatus ?? TextConstants.processing;
+            if (kDebugMode) {
+              print("###### Order status updated to: $orderStatus");
+            }
+          }
+
+          _processPaymentList(response.data!);
+        } else if (response.status == Status.ERROR) {
+          if (kDebugMode) {
+            print("Error fetching payments: ${response.message}");
+          }
+        }
+
+      });
+    } else {
+      if (kDebugMode) {
+        print("###### orderServerId is null - Cannot fetch payments");
+      }
+    }
+  }
+
+  // Build #1.0.221 Process payment list and update UI
+  void _processPaymentList(List<PaymentListModel> payments) {
+    double cashTotal = 0.0;
+    double otherTotal = 0.0;
+
+    for (var payment in payments) {
+      double amount = double.tryParse(payment.amount) ?? 0.0;
+      if (payment.paymentMethod == TextConstants.cash && payment.voidStatus == false) {
+        cashTotal += amount;
+      } else if (payment.paymentMethod != TextConstants.cash && payment.voidStatus == false) {
+        otherTotal += amount;
+      }
+    }
+
+    if (kDebugMode) {
+      print("###### _processPaymentList - OrderScreenPanel");
+      print("###### Cash Total: $cashTotal, Other Total: $otherTotal");
+    }
+
+    setState(() {
+      payByCash = cashTotal;
+      payByOther = otherTotal;
+      tenderAmount = payByCash + payByOther;
+
+      // Update balanceAmount based on order total and payments
+      double orderTotal = (_order[AppDBConst.orderTotal] as num?)?.toDouble() ?? 0.0;
+      balanceAmount = orderTotal - payByCash - payByOther;
+
+      // Calculate change amount
+      var isBalanceZero = balanceAmount <= 0;
+      changeAmount = isBalanceZero && (orderStatus != TextConstants.processing) ? balanceAmount.abs() : 0.0;
+      balanceAmount = isBalanceZero && (orderStatus != TextConstants.processing) ? 0 : balanceAmount;
+    });
+
+    if (kDebugMode) {
+      print("###### Updated values - PayByCash: $payByCash, PayByOther: $payByOther");
+      print("###### TenderAmount: $tenderAmount, ChangeAmount: $changeAmount, BalanceAmount: $balanceAmount");
+    }
   }
 
   Future<void> loadPrinterData() async {
@@ -151,8 +255,20 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
             (o) => o[AppDBConst.orderServerId] == widget.activeOrderId,
         orElse: () => {AppDBConst.orderStatus: ''},
       );
+      // Extract server order ID for API calls
+      orderServerId = _order[AppDBConst.orderServerId] as int?;
+
+      if (kDebugMode) {
+        print("###### OrderScreenPanel - Fetched order server ID: $orderServerId");
+      }
+
+      // Build #1.0.221 : Fetch payment details after getting order server ID
+      if (orderServerId != null) {
+        _fetchPaymentsByOrderId();
+      }
     } else {
       _order = {AppDBConst.orderStatus: ''};
+      orderServerId = null;
     }
   }
 
@@ -451,6 +567,8 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
     _tabController?.dispose();
     _productBySkuSubscription?.cancel(); // Build #1.0.44 : Added Cancel product subscription
     productBloc.dispose(); // Added: Dispose ProductBloc
+    _paymentListSubscription?.cancel();  // Build #1.0.221
+    paymentBloc.dispose();
     super.dispose();
   }
 
@@ -1196,7 +1314,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                             children: [
                               Row(spacing: 5,
                                 children: [
-                                  SvgPicture.asset("assets/svg/discount_star.svg",height: 12, width: 12,),
+                                  SvgPicture.asset("assets/svg/discount_star.svg",height: 12, width: 12,colorFilter: ColorFilter.mode(Colors.blueAccent, BlendMode.srcIn),),
                                   Text(TextConstants.merchantDiscount, style: TextStyle(color: Colors.blue, fontSize: 10)),
 
                                   // GestureDetector(
@@ -1349,18 +1467,6 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                             ],
                           ),
                           SizedBox(height: 2,),
-                          const DottedLine(),
-                          SizedBox(height: 2,),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Text(TextConstants.netTotalText,style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),),
-                              Text("${TextConstants.currencySymbol}${netTotal.toStringAsFixed(2)}",
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight )),
-                            ],
-                          ),
-                          SizedBox(height: 2,),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             crossAxisAlignment: CrossAxisAlignment.center,
@@ -1370,9 +1476,22 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10, color: themeHelper.themeMode == ThemeMode.dark ? Colors.white54 : Colors.grey)),
                             ],
                           ),
-                          SizedBox(height: 2,),
                           const DottedLine(),
+                          // SizedBox(height: 2,),
+                          // Row(
+                          //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          //   crossAxisAlignment: CrossAxisAlignment.center,
+                          //   children: [
+                          //     Text(TextConstants.netTotalText,style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),),
+                          //     Text("${TextConstants.currencySymbol}${netTotal.toStringAsFixed(2)}",
+                          //         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight )),
+                          //   ],
+                          // ),
                           SizedBox(height: 2,),
+
+                          // SizedBox(height: 2,),
+                          // const DottedLine(),
+                          // SizedBox(height: 2,),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             crossAxisAlignment: CrossAxisAlignment.center,
@@ -1380,6 +1499,42 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                               Text(TextConstants.netPayable, style: TextStyle(fontWeight: FontWeight.bold)),
                               Text("${TextConstants.currencySymbol}${netPayable.toStringAsFixed(2)}",
                                   style: TextStyle(fontWeight: FontWeight.bold, color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight)),
+                            ],
+                          ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Text(TextConstants.payByCash,style: TextStyle(fontSize: 11),),
+                              Text("${TextConstants.currencySymbol}${payByCash.toStringAsFixed(2)}",
+                                  style: TextStyle(fontSize: 11, color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight)),
+                            ],
+                          ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Text(TextConstants.payByOther, style: TextStyle(fontSize: 11)),
+                              Text("${TextConstants.currencySymbol}${payByOther.toStringAsFixed(2)}",
+                                  style: TextStyle(fontSize: 11,color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight)),
+                            ],
+                          ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Text(TextConstants.tenderAmount, style: TextStyle(fontSize: 11)),
+                              Text("${TextConstants.currencySymbol}${tenderAmount.toStringAsFixed(2)}",
+                                  style: TextStyle(fontSize: 11,color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight)),
+                            ],
+                          ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Text(TextConstants.change, style: TextStyle(fontSize: 11)),
+                              Text("${TextConstants.currencySymbol}${changeAmount.toStringAsFixed(2)}",
+                                  style: TextStyle(fontSize: 11,color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight)),
                             ],
                           ),
                         ],
@@ -1606,18 +1761,6 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
     );
   }
 
-  double total = 0.0;
-  double balanceAmount = 0.0;
-  double tenderAmount = 0.0; // Build #1.0.33 : added new variables
-  double paidAmount = 0.0;
-  double changeAmount = 0.0;
-  double discount = 0.0; // Add this to track discount
-  double merchantDiscount = 0.0; // Add this to track merchant discount
-  double tax = 0.0; // AddED tax variable
-  double payByCash = 0.0;
-  double payByOther = 0.0;
-  final _printerSettings =  PrinterSettings();
-  List<int> bytes = [];
   Future _preparePrintTicket() async{
     var header = _printerReceipt?[AppDBConst.receiptHeaderText] ?? "";
     var footer = _printerReceipt?[AppDBConst.receiptFooterText] ?? "";
@@ -1698,10 +1841,103 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
     //         "zip_code": "504302",
     //         "phone_number": false
 
+
+    var dateToPrint = "";
+    var timeToPrint = "";
+
+    if (_order.isNotEmpty && _order[AppDBConst.orderDate] != null) {
+      try {
+        final DateTime createdDateTime = DateTime.parse(_order[AppDBConst.orderDate].toString());
+        dateToPrint = DateFormat("EEE, MMM d, yyyy").format(createdDateTime);
+        timeToPrint = DateFormat('hh:mm:ss a').format(createdDateTime);
+      } catch (e) {
+        if (kDebugMode) {
+          print("Error parsing order creation date: $e");
+        }
+        // Fallback to raw data or default if parsing fails
+        // displayDate = order[AppDBConst.orderDate].toString().split(' ').first;
+      }
+    }
+
+    var merchantDetails = await StoreDbHelper.instance.getStoreValidationData();
+    var storeId = "Store ID ${merchantDetails?[AppDBConst.storeId]}";
+    var storePhone = "Phone ${merchantDetails?[AppDBConst.storePhone]}";
+
+    var storeDetails = await AssetDBHelper.instance.getStoreDetails();
+    var storeName = "${storeDetails?.name}";
+    var address = "${storeDetails?.address},${storeDetails?.city},${storeDetails?.state},${storeDetails?.country},${storeDetails?.zipCode}";
+    var orderIdToPrint = '${TextConstants.orderId} #${orderHelper.activeOrderId}';
+
+    final userData = await UserDbHelper().getUserData();
+    var cashierName = "Cashier ${userData?[AppDBConst.userDisplayName] ?? "Unknown Name"}";
+    var cashierRole = "${userData?[AppDBConst.userRole] ?? "Unknown Role"}";
+
+    if (kDebugMode) {
+      print(" >>>>> PrintOrder  dateToPrint $dateToPrint ");
+      print(" >>>>> PrintOrder  timeToPrint $timeToPrint ");
+      print(" >>>>> PrintOrder  storeId $storeId ");
+      print(" >>>>> PrintOrder  storeName $storeName ");
+      print(" >>>>> PrintOrder  address $address ");
+      print(" >>>>> PrintOrder  storePhone $storePhone ");
+      print(" >>>>> PrintOrder  orderIdToPrint $orderIdToPrint ");
+      print(" >>>>> PrintOrder  cashierName $cashierName ");
+      print(" >>>>> PrintOrder  cashierRole $cashierRole ");
+    }
+
+    if(header != "") {
+      bytes += ticket.row([
+        PosColumn(
+            text: "$header",
+            width: 12,
+            styles: PosStyles(align: PosAlign.center)),
+      ]);
+      bytes += ticket.feed(1);
+    }
+
+    //Store Name
     bytes += ticket.row([
-      PosColumn(text: "$header", width: 12),
+      PosColumn(text: "$storeName", width: 12, styles: PosStyles(align: PosAlign.center)),
+    ]);
+    //Address
+    bytes += ticket.row([
+      PosColumn(text: "$address", width: 12, styles: PosStyles(align: PosAlign.center)),
+    ]);
+    //Store Phone
+    bytes += ticket.row([
+      PosColumn(text: "$storePhone", width: 12, styles: PosStyles(align: PosAlign.center)),
     ]);
 
+    bytes += ticket.feed(1);
+    bytes += ticket.row([
+      PosColumn(text: "-----------------------------------------------", width: 12),
+    ]);
+    bytes += ticket.feed(1);
+
+    //store id and  Date
+    bytes += ticket.row([
+      PosColumn(text: "$storeId", width: 5),
+      PosColumn(text: "Date", width: 2, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: "$dateToPrint", width: 5, styles: PosStyles(align: PosAlign.right)),
+    ]);
+
+    //order Id and  Time
+    bytes += ticket.row([
+      PosColumn(text: "$orderIdToPrint", width: 5),
+      PosColumn(text: "Time", width: 2, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: "$timeToPrint", width: 5, styles: PosStyles(align: PosAlign.right)),
+    ]);
+
+    //cashier and role
+    bytes += ticket.row([
+      PosColumn(text: "$cashierName", width: 5),
+      PosColumn(text: "Role", width: 2, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: "$cashierRole", width: 5, styles: PosStyles(align: PosAlign.right)),
+    ]);
+
+    bytes += ticket.feed(1);
+    bytes += ticket.row([
+      PosColumn(text: "-----------------------------------------------", width: 12),
+    ]);
     bytes += ticket.feed(1);
 
     //Item header
@@ -1710,7 +1946,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
       PosColumn(text: "Description", width:6),
       PosColumn(text: "Qty", width: 1, styles: PosStyles(align: PosAlign.right)),
       PosColumn(text: "Rate", width: 2, styles: PosStyles(align: PosAlign.right)),
-      // PosColumn(text: "Dis", width: 1), ///removed based on request on 3-Sep-25
+      // PosColumn(text: "Dis", width: 1, styles: PosStyles(align: PosAlign.right)), ///removed based on request on 3-Sep-25
       PosColumn(text: "Amt", width: 2, styles: PosStyles(align: PosAlign.right)),
     ]);
     bytes += ticket.feed(1);
@@ -1725,6 +1961,13 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
 
       var orderItem = orderItems[i];
 
+      final itemType = orderItem[AppDBConst.itemType]?.toString().toLowerCase() ?? '';
+      final isPayout = itemType.contains(TextConstants.payoutText);
+      final isCoupon = itemType.contains(TextConstants.couponText);
+      final isCustomItem = itemType.contains(TextConstants.customItemText);
+      final isPayoutOrCouponOrCustomItem = isPayout || isCoupon || isCustomItem;
+      final isCouponOrPayout = isPayout || isCoupon;
+
       final salesPrice =
       (orderItem[AppDBConst.itemSalesPrice] == null || (orderItem[AppDBConst.itemSalesPrice]?.toDouble() ?? 0.0) == 0.0)
           ? (orderItem[AppDBConst.itemRegularPrice] == null || (orderItem[AppDBConst.itemRegularPrice]?.toDouble() ?? 0.0) == 0.0)
@@ -1737,7 +1980,12 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
           : orderItem[AppDBConst.itemRegularPrice]!.toDouble();
 
       if (kDebugMode) {
-        print(" >>>>> Adding item ${orderItem[AppDBConst.itemName]} to print with salesPrice $salesPrice");
+        if(isCouponOrPayout){
+          print(" >>>>> Adding item ${orderItem[AppDBConst.itemName]} to print with salesPrice ${(orderItem[AppDBConst.itemCount] * orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}");
+        }
+        else {
+          print(" >>>>> Adding item ${orderItem[AppDBConst.itemName]} to print with salesPrice ${(orderItem[AppDBConst.itemCount] * salesPrice).toStringAsFixed(2)}");
+        }
       }
 
       bytes += ticket.row([
@@ -1745,16 +1993,23 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
         PosColumn(text: "${orderItem[AppDBConst.itemName]}", width:6),
         PosColumn(text: "${orderItem[AppDBConst.itemCount]}", width: 1,styles: PosStyles(align: PosAlign.right)),
         PosColumn(text: "${salesPrice.toStringAsFixed(2)}", width:2, styles: PosStyles(align: PosAlign.right)),
-        // PosColumn(text: "${(regularPrice - salesPrice).toStringAsFixed(2)}", width: 1, styles: PosStyles(align: PosAlign.right)), ///removed based on request on 3-Sep-25
-        PosColumn(text: "${(orderItem[AppDBConst.itemCount] * salesPrice).toStringAsFixed(2)}", width: 2, styles: PosStyles(align: PosAlign.right)),
+        // PosColumn(text: "${(regularPrice - salesPrice).toStringAsFixed(2)}", width: 1, styles: PosStyles(align: PosAlign.right)),, ///removed based on request on 3-Sep-25
+        PosColumn(text: isCouponOrPayout
+            ? "${(orderItem[AppDBConst.itemCount] * orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}"
+            : "${(orderItem[AppDBConst.itemCount] * salesPrice).toStringAsFixed(2)}", width: 2, styles: PosStyles(align: PosAlign.right)),
       ]);
       // bytes += ticket.feed(1);
     }
 
     bytes += ticket.feed(1);
+    bytes += ticket.row([
+      PosColumn(text: "-----------------------------------------------", width: 12),
+    ]);
+    bytes += ticket.feed(1);
 
     if (kDebugMode) {
       print(" >>>>> Printer Order balanceAmount  $balanceAmount ");
+      // print(" >>>>> Printer Order orderTotal  $orderTotal ");
       print(" >>>>> Printer Order tenderAmount $tenderAmount ");
       print(" >>>>> Printer Order changeAmount $changeAmount ");
       print(" >>>>> Printer Order paidAmount $paidAmount ");
@@ -1797,39 +2052,43 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
       PosColumn(text: TextConstants.netPayable, width: 10),
       PosColumn(text: balanceAmount.toStringAsFixed(2), width:2, styles: PosStyles(align: PosAlign.right)),
     ]);
-    // ///Todo: get pay by cash amount
-    // // bytes += ticket.feed(1);
-    // bytes += ticket.row([
-    //   PosColumn(text: TextConstants.payByCash, width: 8),
-    //   PosColumn(text: payByCash.toStringAsFixed(2), width:4),
-    // ]);
-    // ///Todo: get pay by other amount
-    // // bytes += ticket.feed(1);
-    // bytes += ticket.row([
-    //   PosColumn(text: TextConstants.payByOther, width: 8),
-    //   PosColumn(text: payByOther.toStringAsFixed(2), width:4),
-    // ]);
-    // // bytes += ticket.feed(1);
-    // bytes += ticket.row([
-    //   PosColumn(text: TextConstants.tenderAmount, width: 8),
-    //   PosColumn(text: tenderAmount.toStringAsFixed(2), width:4),
-    // ]);
-    // // bytes += ticket.feed(1);
-    // bytes += ticket.row([
-    //   PosColumn(text: TextConstants.change, width: 8),
-    //   PosColumn(text: changeAmount.toStringAsFixed(2), width:4),
-    // ]);
+    ///Todo: get pay by cash amount
+    // bytes += ticket.feed(1);
+    bytes += ticket.row([
+      PosColumn(text: TextConstants.payByCash, width: 10),
+      PosColumn(text: payByCash.toStringAsFixed(2), width:2,styles: PosStyles(align: PosAlign.right)),
+    ]);
+    ///Todo: get pay by other amount
+    // bytes += ticket.feed(1);
+    bytes += ticket.row([
+      PosColumn(text: TextConstants.payByOther, width: 10),
+      PosColumn(text: payByOther.toStringAsFixed(2), width:2, styles: PosStyles(align: PosAlign.right)),
+    ]);
+    // bytes += ticket.feed(1);
+    bytes += ticket.row([
+      PosColumn(text: TextConstants.tenderAmount, width: 10),
+      PosColumn(text: tenderAmount.toStringAsFixed(2), width:2, styles: PosStyles(align: PosAlign.right)),
+    ]);
+    // bytes += ticket.feed(1);
+    bytes += ticket.row([
+      PosColumn(text: TextConstants.change, width: 10),
+      PosColumn(text: changeAmount.toStringAsFixed(2), width:2, styles: PosStyles(align: PosAlign.right)),
+    ]);
     bytes += ticket.feed(1);
 
     //Footer
     // bytes += ticket.row([
     //   PosColumn(text: "Thank You, Visit Again", width: 12),
     // ]);
-    bytes += ticket.row([
-      PosColumn(text: "$footer", width: 12),
-    ]);
 
-    bytes += ticket.feed(1);
+    if(footer != "") {
+      bytes += ticket.row([
+        PosColumn(text: "$footer",
+            width: 12,
+            styles: PosStyles(align: PosAlign.center)),
+      ]);
+      bytes += ticket.feed(1);
+    }
   }
 
   Future _printTicket() async{

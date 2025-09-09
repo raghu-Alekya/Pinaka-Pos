@@ -485,6 +485,16 @@ class OrderBloc { // Build #1.0.25 - added by naveen
       if (kDebugMode) {
         print("OrderBloc - fetchOrders calling syncOrdersFromApi with ${response.orders.length} orders");
       }
+       // Build #1.0.219 -> FIXED ISSUE [SCRUM - 370] : Same Order ID displayed in fast keys, after successfully payment done with completed status.
+      if(response.orders.isEmpty) {
+        if (orderHelper.activeOrderId != null) {
+          if (kDebugMode) {
+            print("fetchOrders, orderId: ${orderHelper.activeOrderId}");
+            print("Deleting Completed/Pending/Cancelled order from cart if exit/showing, because fetchOrders api only returns processing orders, here its getting empty");
+          }
+          orderHelper.deleteOrder(orderHelper.activeOrderId ?? 0);
+        }
+      }
       await orderHelper.syncOrdersFromApi(response.orders); //Build #1.0.78: sync data from bloc, no need in UI screen
       fetchOrdersSink.add(APIResponse.completed(response));
     } catch (e, s) {

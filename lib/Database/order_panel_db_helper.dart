@@ -286,7 +286,8 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
      // await db.delete(AppDBConst.orderTable); // NO NEED TO DELETE COMPLETE ORDER TABLE
     }
       //  delete purchasedItemsTable related data
-      await db.delete(AppDBConst.purchasedItemsTable);
+     /// Build #1.0.226: purchasedItemsTable foreign key has ON DELETE CASCADE which means when a parent order is deleted, all child purchased items are automatically deleted
+     // await db.delete(AppDBConst.purchasedItemsTable); // NO NEED HERE
       OrderHelper.isOrderPanelLoaded = false;/// set 'false' to load 'processing' orders in order panel again, if db is empty by orders screen loading.
     // }
     // if(!isProcessing) {

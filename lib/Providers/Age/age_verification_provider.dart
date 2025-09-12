@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:pinaka_pos/Constants/text.dart';
 import 'package:pinaka_pos/Models/Search/product_by_sku_model.dart' as SKU;
 import 'package:pinaka_pos/Widgets/widget_age_verification_popup_dialog.dart';
 
@@ -18,12 +19,12 @@ class AgeVerificationProvider {
     }
     // Check if the product has the "Age Restricted" tag.
     final ageRestrictedTag = product.tags?.firstWhere(
-          (element) => element.name == "Age Restricted",
+          (element) => element.name == TextConstants.age_restricted,
       orElse: () => SKU.Tags(),
     );
 
     //final hasAgeRestriction = ageRestrictedTag?.name != null;
-    final hasAgeRestriction = ageRestrictedTag?.name?.contains("Age Restricted");
+    final hasAgeRestriction = ageRestrictedTag?.name?.contains(TextConstants.age_restricted);
 
     if (kDebugMode) {
       print("AgeVerificationProvider.ageRestrictedProduct: Product has age restriction: $hasAgeRestriction");

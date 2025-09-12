@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart';
 
 class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedPreferenceTextConstants classes
 
+  static const String age_restricted              = 'Age Restricted';
   static String currencySymbol              =  '\u{20AC}';//"\u{20B9}"; //  \\u{20AC})
   static const String loginBtnText          = "Login";
   static const String settingsHeaderText    = "Settings";

@@ -31,16 +31,16 @@ import 'package:quickalert/quickalert.dart';
 
 import '../Auth/login_screen.dart';
 
-class OrdersScreen extends StatefulWidget { //Build #1.0.54: updated
+class TotalOrdersScreen extends StatefulWidget { // Build #1.0.226: updated class name
   final int? lastSelectedIndex;
 
-  const OrdersScreen({super.key, this.lastSelectedIndex});
+  const TotalOrdersScreen({super.key, this.lastSelectedIndex});
 
   @override
-  State<OrdersScreen> createState() => _OrdersScreenState();
+  State<TotalOrdersScreen> createState() => _OrdersScreenState();
 }
 
-class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
+class _OrdersScreenState extends State<TotalOrdersScreen> with LayoutSelectionMixin {
   late OrderBloc _orderBloc;
   List<model.OrderModel> _orders = []; // Use model.OrderModel
   int _selectedSidebarIndex = 3;
@@ -74,6 +74,9 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
   DateTime? _startDate;
   DateTime? _endDate;
   bool _isDateRangeApplied = false;
+  String? panelDate;
+  String? panelTime;  // Build #1.0.226: UPDATED to widget level to class level declaration // ADD this logic to determine the date and time for the panel
+
 
   // Add these variables for pagination
   int _currentPage = 1;
@@ -93,8 +96,8 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
     //_fetchOrders();
     _orderScreenPanel = OrderScreenPanel(
       key: ValueKey(orderHelper.activeOrderId ?? 0),
-      formattedDate: '',
-      formattedTime: '',
+      formattedDate: panelDate ?? '', // Build #1.0.226
+      formattedTime: panelTime ?? '',
       quantities: quantities,
       activeOrderId: orderHelper.activeOrderId, // Pass activeOrderId
       fetchOrders: false, // Show shimmer initially
@@ -484,8 +487,8 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
                   OrderScreenPanel(
                     fetchOrders: !isLoading, // Sync with parent's loading state
                     key: ValueKey('left_${orderHelper.activeOrderId}'),
-                    formattedDate: '',
-                    formattedTime: '',
+                    formattedDate: panelDate ?? '', // Build #1.0.226: updated values
+                    formattedTime: panelTime ?? '',
                     quantities: quantities,
                     activeOrderId: orderHelper.activeOrderId ?? _selectedOrderId,  /// <- ADDED NULL CHECK // BUILD 1.0.213: FIXED RE-OPENED ISSUE [SCRUM-356]: Order items not displaying in Bottom Mode
                     refreshOrderList: _refreshOrderList, // Build #1.0.143: Fixed Issue : After return from order summary screen , total order screen not refreshing with updated response
@@ -746,7 +749,7 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
                                             _buildDataCell(_filterOrderType.firstWhere((e) => e.slug == order.createdVia.toString()).name), //AppDBConst.orderType
                                             _buildDataCell(formattedDate),
                                             _buildDataCell(formattedTime),
-                                            _buildDataCell('${order.currencySymbol}${order.total}'),
+                                            _buildDataCell('${TextConstants.currencySymbol}${order.total}'),
                                             //  _buildDataCell('N/A'), // Over/short not in API response
                                             _buildDataCell(order.status, isStatus: true),
                                             // Add action buttons if needed
@@ -840,8 +843,8 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
                   OrderScreenPanel(
                     fetchOrders: !isLoading, // Sync with parent's loading state
                     key: ValueKey('right_${orderHelper.activeOrderId}'),
-                    formattedDate: '',
-                    formattedTime: '',
+                    formattedDate: panelDate ?? '', // Build #1.0.226: updated values
+                    formattedTime: panelTime ?? '',
                     quantities: quantities,
                     activeOrderId: orderHelper.activeOrderId ?? _selectedOrderId,  /// <- ADDED NULL CHECK // BUILD 1.0.213: FIXED RE-OPENED ISSUE [SCRUM-356]: Order items not displaying in Bottom Mode
                     refreshOrderList: _refreshOrderList, // Build #1.0.143: Fixed Issue : After return from order summary screen , total order screen not refreshing with updated response
@@ -886,9 +889,6 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
     debugPrint("OrdersScreen: _onOrderRowSelected id $orderId");
     // Explicitly declare selectedOrder as a nullable OrderModel
     model.OrderModel? selectedOrder;
-    // ADD this logic to determine the date and time for the panel
-    String panelDate;
-    String panelTime;
 
     if(orderId == -1){
       orderId = _orders.first.id; //Build #1.0.165: to fix issue in windows, not able to save lastActiveOrderID
@@ -942,8 +942,8 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
     }
     _orderScreenPanel = OrderScreenPanel(
       key: ValueKey(orderId), // Use orderId as key
-      formattedDate: panelDate,
-      formattedTime: panelTime,
+      formattedDate: panelDate ?? '', // Build #1.0.226: updated values
+      formattedTime: panelTime ?? '',
       quantities: quantities,
       activeOrderId: orderId, // Pass activeOrderId
       fetchOrders: !isLoading,

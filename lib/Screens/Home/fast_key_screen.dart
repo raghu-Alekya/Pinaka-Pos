@@ -1018,6 +1018,9 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
             _refreshOrderList();
             subscription?.cancel();
           } else if (response.status == Status.ERROR) {
+            if (Navigator.canPop(context)) { // Build #1.0.197: Fixed [SCRUM - 345] -> Screen blackout when adding item to cart
+              Navigator.pop(context);
+            }
             if (response.message!.contains('Unauthorised')) {
               if (kDebugMode) {
                 print("Fast key 6---- Unauthorised : ${response.message!}");
@@ -1045,7 +1048,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
               if (kDebugMode) print("Failed to add item to order: ${response.message}");
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text(TextConstants.failedToAddItemToOrder),
+                  content: Text(response.message ?? TextConstants.failedToAddItemToOrder),
                   // Build #1.0.144
                   backgroundColor: Colors.red,
                   duration: const Duration(seconds: 2),
@@ -1308,7 +1311,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                                             subtitle: Text('${TextConstants.currencySymbol}${double.tryParse(product.price.toString())?.toStringAsFixed(2) ?? "0.00"}'),
                                             onTap: () {
                                               setStateDialog(() {
-                                                var tag = product.tags?.firstWhere((element) => element.name == "Age Restricted", orElse: () => SKU.Tags());
+                                                var tag = product.tags?.firstWhere((element) => element.name == TextConstants.age_restricted, orElse: () => SKU.Tags());
                                                 if (kDebugMode) {
                                                   print("FaskKey setStateDialog hasAgeRestriction tag = ${tag?.id}, ${tag?.name}, ${tag?.slug}");
                                                   print("FaskKey setStateDialog ${product.name ?? 'Unknown'}");
@@ -1686,7 +1689,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                           child: TextButton(
                             onPressed: () {
                               nameController.clear();
-                              Navigator.pop(context); //Build #1.0.68: Close dialog on clear
+                              //Navigator.pop(context); //Build #1.0.68: Close dialog on clear, Updated Build #1.0.229; SCRUM-386
                             },
                             // => Navigator.pop(context),
                             style: TextButton.styleFrom(

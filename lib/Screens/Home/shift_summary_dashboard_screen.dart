@@ -740,8 +740,8 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
                   child: SingleChildScrollView(
                                 scrollDirection: Axis.vertical,
                                 child: DataTable(
-                  columnSpacing: MediaQuery.of(context).size.width * 0.055,
-                  horizontalMargin: MediaQuery.of(context).size.width * 0.015,
+                  //columnSpacing: MediaQuery.of(context).size.width * 0.055,
+                  //horizontalMargin: MediaQuery.of(context).size.width * 0.015,
                   headingRowHeight: MediaQuery.of(context).size.height * 0.085,
                   dataRowHeight: MediaQuery.of(context).size.height * 0.085,
 
@@ -754,52 +754,67 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
 
                   columns: [
                     DataColumn(
-                      label: Text(
-                        TextConstants.amount,
-                        style: TextStyle(
-                          color: Colors.grey.shade500,
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
+                      label: Container(
+                        width: MediaQuery.of(context).size.width * 0.05,
+                        child: Text(
+                          TextConstants.amount,
+                          style: TextStyle(
+                            color: Colors.grey.shade500,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
                     DataColumn(
-                      label: Text(
-                        TextConstants.vendor,
-                        style: TextStyle(
-                          color: Colors.grey.shade500,
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
+                      label: Container(
+                        width: MediaQuery.of(context).size.width * 0.05,
+                        child: Text(
+                          TextConstants.vendor,
+                          style: TextStyle(
+                            color: Colors.grey.shade500,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
                     DataColumn(
-                      label: Text(
-                        TextConstants.note,
-                        style: TextStyle(
-                          color: Colors.grey.shade500,
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
+                      label: Container(
+                        width: MediaQuery.of(context).size.width * 0.135,
+                        child: Text(
+                          TextConstants.note,
+                          style: TextStyle(
+                            color: Colors.grey.shade500,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
                     DataColumn(
-                      label: Text(
-                       TextConstants.purpose,
-                        style: TextStyle(
-                          color: Colors.grey.shade500,
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
+                      label: Container(
+                        width: MediaQuery.of(context).size.width * 0.05,
+                        child: Text(
+                         TextConstants.purpose,
+                          style: TextStyle(
+                            color: Colors.grey.shade500,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
                     DataColumn(
-                      label: Text(
-                        '',
-                        style: TextStyle(
-                          color: Colors.grey.shade500,
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
+                      label: Container(
+                        width: MediaQuery.of(context).size.width * 0.12,
+                        child: Text(
+                          '',
+                          style: TextStyle(
+                            color: Colors.grey.shade500,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
@@ -815,154 +830,168 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
                         ),
                     cells: [
                         DataCell(
-                          Text(
-                            '${TextConstants.currencySymbol}${item.amount.toStringAsFixed(2)}',
-                            textAlign: TextAlign.right,
-                            style: TextStyle(
-                              color:themeHelper.themeMode == ThemeMode.dark
-                                  ? ThemeNotifier.textDark : Colors.black,
-                              fontSize: 11,
-                              //fontWeight: FontWeight.w500,
-                            ),
-                          ).poppins(),
+                          Container(
+                            width: MediaQuery.of(context).size.width * 0.05,
+                            child: Text(
+                              '${TextConstants.currencySymbol}${item.amount.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                color:themeHelper.themeMode == ThemeMode.dark
+                                    ? ThemeNotifier.textDark : Colors.black,
+                                fontSize: 11,
+                                //fontWeight: FontWeight.w500,
+                              ),
+                            ).poppins(),
+                          ),
                         ),
                         DataCell(
-                          Text(
-                            item.vendorName,
-                            style: TextStyle(
-                              color: themeHelper.themeMode == ThemeMode.dark
-                                  ? ThemeNotifier.textDark : Colors.black,
-                              fontSize: 11,
-                             // fontWeight: FontWeight.w500,
-                            ),
-                          ).poppins(),
+                          Container(
+                            width: MediaQuery.of(context).size.width * 0.05,
+                            child: Text(
+                              item.vendorName,
+                              style: TextStyle(
+                                color: themeHelper.themeMode == ThemeMode.dark
+                                    ? ThemeNotifier.textDark : Colors.black,
+                                fontSize: 11,
+                               // fontWeight: FontWeight.w500,
+                              ),
+                            ).poppins(),
+                          ),
                         ),
                       DataCell(
-                        Tooltip(
-                          message: item.note.isEmpty ? 'No note' : item.note,
-                          decoration: BoxDecoration(
-                            color: themeHelper.themeMode == ThemeMode.dark
-                                ? ThemeNotifier.searchBarBackground
-                                : Colors.grey,
-                            borderRadius: BorderRadius.circular(8),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.2),
-                                blurRadius: 4,
-                                offset: const Offset(0, 0),
-                              ),
-                            ],
-                          ),
-                          textStyle: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontFamily: 'Poppins',
-                            fontWeight: FontWeight.w400,
-                          ),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          margin: const EdgeInsets.all(8),
-                          child: Text(
-                            item.note.isEmpty ? 'No note' : item.note,
-                            style: TextStyle(
+                        Container(
+                          width: MediaQuery.of(context).size.width * 0.135,
+                          child: Tooltip(
+                            message: item.note.isEmpty ? 'No note' : item.note,
+                            decoration: BoxDecoration(
                               color: themeHelper.themeMode == ThemeMode.dark
-                                  ? ThemeNotifier.textDark : ThemeNotifier.textLight,
-                              fontSize: 11,
-                              //fontWeight: FontWeight.w500,
+                                  ? ThemeNotifier.searchBarBackground
+                                  : Colors.grey,
+                              borderRadius: BorderRadius.circular(8),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.2),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 0),
+                                ),
+                              ],
                             ),
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 2,
-                            softWrap: true,
-                          ).poppins(),
+                            textStyle: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontFamily: 'Poppins',
+                              fontWeight: FontWeight.w400,
+                            ),
+                            //padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            //margin: const EdgeInsets.all(8),
+                            child: Text(
+                              item.note.isEmpty ? 'No note' : item.note,
+                              style: TextStyle(
+                                color: themeHelper.themeMode == ThemeMode.dark
+                                    ? ThemeNotifier.textDark : ThemeNotifier.textLight,
+                                fontSize: 11,
+                                //fontWeight: FontWeight.w500,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 2,
+                              softWrap: true,
+                            ).poppins(),
+                          ),
                         ),
                       ),
                         DataCell(
-                          Text(
-                            item.serviceType,
-                            style: TextStyle(
-                              color: themeHelper.themeMode == ThemeMode.dark
-                                  ? ThemeNotifier.textDark :  Colors.black,
-                              fontSize: 11,
-                              //fontWeight: FontWeight.w500,
-                            ),
-                          ).poppins(),
+                          Container(
+                            width: MediaQuery.of(context).size.width * 0.05,
+                            child: Text(
+                              item.serviceType,
+                              style: TextStyle(
+                                color: themeHelper.themeMode == ThemeMode.dark
+                                    ? ThemeNotifier.textDark :  Colors.black,
+                                fontSize: 11,
+                                //fontWeight: FontWeight.w500,
+                              ),
+                            ).poppins(),
+                          ),
                         ),
                         DataCell(
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              InkWell(
-                                onTap: shift.shiftStatus == 'closed'
-                                    ? null
-                                    : () {
-                                  if (kDebugMode) print('ShiftSummaryDashboardScreen: Delete vendor payout at index $index with ID ${item.id}');
-                                  _showDeleteConfirmation(index, item.id);
-                                },
-                                borderRadius: BorderRadius.circular(4),
-                                child: Container(
-                                  height:30,
-                                  width:30,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.rectangle,
-                                    borderRadius: BorderRadius.circular(8.0),
-                                    color: Colors.red.shade50,
-                                  ),
-                                  child: Icon(
-                                    Icons.delete_outline,
-                                    color: shift.shiftStatus == 'closed' ? Colors.grey : Colors.red.shade400,
-                                    size: 18,
-                                  ),
-                                ),
-                              ),
-                              SizedBox(width: MediaQuery.of(context).size.width * 0.005),
-                              InkWell(
-                                onTap: shift.shiftStatus == 'closed'
-                                    ? null
-                                    : () {
-                                  if (kDebugMode) print('ShiftSummaryDashboardScreen: Edit vendor payout at index $index with ID ${item.id}');
-                                  _showAddVendorPayoutDialog(payment: item);
-                                },
-                                borderRadius: BorderRadius.circular(4),
-                                child: Padding(
-                                  padding: EdgeInsets.all(MediaQuery.of(context).size.width * 0.004),
+                          Container(
+                            width: MediaQuery.of(context).size.width * 0.12,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                InkWell(
+                                  onTap: shift.shiftStatus == 'closed'
+                                      ? null
+                                      : () {
+                                    if (kDebugMode) print('ShiftSummaryDashboardScreen: Delete vendor payout at index $index with ID ${item.id}');
+                                    _showDeleteConfirmation(index, item.id);
+                                  },
+                                  borderRadius: BorderRadius.circular(4),
                                   child: Container(
                                     height:30,
                                     width:30,
                                     decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: Colors.blue.shade50,
+                                      shape: BoxShape.rectangle,
+                                      borderRadius: BorderRadius.circular(8.0),
+                                      color: Colors.red.shade50,
                                     ),
                                     child: Icon(
-                                      Icons.edit_outlined,
-                                      color: shift.shiftStatus == 'closed' ? Colors.grey : Colors.blue.shade400,
+                                      Icons.delete_outline,
+                                      color: shift.shiftStatus == 'closed' ? Colors.grey : Colors.red.shade400,
                                       size: 18,
                                     ),
                                   ),
                                 ),
-                              ),
-                              SizedBox(width: MediaQuery.of(context).size.width * 0.005),
-                              InkWell(
-                                onTap: () {
-                                  if (kDebugMode) print('ShiftSummaryDashboardScreen: Print vendor payout at index $index');
-                                },
-                                borderRadius: BorderRadius.circular(4),
-                                child: Padding(
-                                  padding: EdgeInsets.all(MediaQuery.of(context).size.width * 0.004),
-                                  child: Container(
-                                    height:30,
-                                    width:30,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: Colors.grey.shade200,
-                                    ),
-                                    child: Icon(
-                                      Icons.print_outlined,
-                                      color: Colors.grey.shade600,
-                                      size: 20,
+                                SizedBox(width: MediaQuery.of(context).size.width * 0.005),
+                                InkWell(
+                                  onTap: shift.shiftStatus == 'closed'
+                                      ? null
+                                      : () {
+                                    if (kDebugMode) print('ShiftSummaryDashboardScreen: Edit vendor payout at index $index with ID ${item.id}');
+                                    _showAddVendorPayoutDialog(payment: item);
+                                  },
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: Padding(
+                                    padding: EdgeInsets.all(MediaQuery.of(context).size.width * 0.004),
+                                    child: Container(
+                                      height:30,
+                                      width:30,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: Colors.blue.shade50,
+                                      ),
+                                      child: Icon(
+                                        Icons.edit_outlined,
+                                        color: shift.shiftStatus == 'closed' ? Colors.grey : Colors.blue.shade400,
+                                        size: 18,
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                            ],
+                                SizedBox(width: MediaQuery.of(context).size.width * 0.005),
+                                InkWell(
+                                  onTap: () {
+                                    if (kDebugMode) print('ShiftSummaryDashboardScreen: Print vendor payout at index $index');
+                                  },
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: Padding(
+                                    padding: EdgeInsets.all(MediaQuery.of(context).size.width * 0.004),
+                                    child: Container(
+                                      height:30,
+                                      width:30,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: Colors.grey.shade200,
+                                      ),
+                                      child: Icon(
+                                        Icons.print_outlined,
+                                        color: Colors.grey.shade600,
+                                        size: 20,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ],

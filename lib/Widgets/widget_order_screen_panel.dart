@@ -301,11 +301,11 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
   //
   //   if (tabs.isNotEmpty) {
   //     int index = 0;
-  //     if (orderHelper.activeOrderId != null) {
-  //       index = orderHelper.orderIds.indexOf(orderHelper.activeOrderId!);
+  //     if (widget.activeOrderId != null) {
+  //       index = orderHelper.orderIds.indexOf(widget.activeOrderId!);
   //       if (index == -1) {
   //         if (kDebugMode) {
-  //           print("##### DEBUG: _getOrderTabs - Active order ID ${orderHelper.activeOrderId} not found, defaulting to last tab");
+  //           print("##### DEBUG: _getOrderTabs - Active order ID ${widget.activeOrderId} not found, defaulting to last tab");
   //         }
   //         index = tabs.length - 1;
   //         await orderHelper.setActiveOrder(tabs[index]["orderId"] as int);
@@ -320,7 +320,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
   //     if (mounted && _tabController != null) {
   //       _tabController?.index = index;
   //       if (kDebugMode) {
-  //         print("##### DEBUG: _getOrderTabs - Set tab index to $index, activeOrderId: ${orderHelper.activeOrderId}");
+  //         print("##### DEBUG: _getOrderTabs - Set tab index to $index, activeOrderId: ${widget.activeOrderId}");
   //       }
   //     }
   //     await fetchOrderItems(); // Load items for active order
@@ -362,12 +362,15 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
 
   // Build #1.0.10: Fetches order items for the active order
   Future<void> fetchOrderItems() async {
-    if (orderHelper.activeOrderId != null) {
+    // Build #1.0.226: Updated -> using widget.activeOrderId rather than orderHelper.activeOrderId
+    // some times while building widgets orderHelper.activeOrderId  can be null
+    // widget.activeOrderId value comes from total orders screen with orderHelper.activeOrderId value only along with default value selectedOrder.
+    if (widget.activeOrderId != null) {
       if (kDebugMode) {
-        print("##### DEBUG: Order screen panel  fetchOrderItems - Fetching items for activeOrderId: ${orderHelper.activeOrderId}");
+        print("##### DEBUG: Order screen panel  fetchOrderItems - Fetching items for activeOrderId: ${widget.activeOrderId}");
       }
       try {
-        List<Map<String, dynamic>> items = await orderHelper.getOrderItems(orderHelper.activeOrderId!);
+        List<Map<String, dynamic>> items = await orderHelper.getOrderItems(widget.activeOrderId!);
 
         if (kDebugMode) {
           print("##### DEBUG: fetchOrderItems - Retrieved ${items.length} items: $items");
@@ -478,7 +481,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
   //     // Fetch items for new order
   //     await fetchOrderItems();
   //     if (kDebugMode) {
-  //       print("##### DEBUG: addNewTab - Added tab for orderId: ${orderHelper.activeOrderId}");
+  //       print("##### DEBUG: addNewTab - Added tab for orderId: ${widget.activeOrderId}");
   //     }
   //   }
   // }
@@ -500,7 +503,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
   // void removeTab(int index) async {
   //   if (tabs.isNotEmpty) {
   //     int orderId = tabs[index]["orderId"] as int;
-  //     bool isRemovedTabActive = orderId == orderHelper.activeOrderId;
+  //     bool isRemovedTabActive = orderId == widget.activeOrderId;
   //
   //     await orderHelper.deleteOrder(orderId); // Delete order from DB
   //
@@ -524,7 +527,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
   //         await orderHelper.setActiveOrder(newActiveOrderId);
   //       } else {
   //         // Keep the currently active tab
-  //         int currentActiveIndex = tabs.indexWhere((tab) => tab["orderId"] == orderHelper.activeOrderId);
+  //         int currentActiveIndex = tabs.indexWhere((tab) => tab["orderId"] == widget.activeOrderId);
   //         if (currentActiveIndex != -1) {
   //           _tabController!.index = currentActiveIndex;
   //         }
@@ -533,7 +536,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
   //       fetchOrderItems(); // Refresh order items list
   //     } else {
   //       // No orders left, reset active order and clear UI
-  //       orderHelper.activeOrderId = null;
+  //       widget.activeOrderId = null;
   //       setState(() {
   //         orderItems = []; // Clear order items
   //       });
@@ -543,7 +546,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
 
   // Build #1.0.10: Deletes an item from the active order
   // void deleteItemFromOrder(int itemId) async {
-  //   if (orderHelper.activeOrderId != null) {
+  //   if (widget.activeOrderId != null) {
   //     await orderHelper.deleteItem(itemId); // Delete item from DB
   //     fetchOrderItems(); // Refresh the order items list
   //   }
@@ -684,7 +687,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
   Widget build(BuildContext context) {
 
     final themeHelper = Provider.of<ThemeNotifier>(context);
-    final RightOrderPanel orderScreenPanel = RightOrderPanel(formattedDate: '', formattedTime: '', quantities: []);
+   // final RightOrderPanel orderScreenPanel = RightOrderPanel(formattedDate: '', formattedTime: '', quantities: []);
 
     // If no order is active, display a blank panel.
     return (!widget.fetchOrders) ? _buildShimmerEffect()
@@ -720,7 +723,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text("#${orderHelper.activeOrderId ?? 'N/A'}",style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),),
+                      Text("#${widget.activeOrderId ?? 'N/A'}",style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),),
                       StatusWidget(
                         status: _order?[AppDBConst.orderStatus] ?? '',
                       ),
@@ -799,9 +802,9 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
     final themeHelper = Provider.of<ThemeNotifier>(context);
     final ScrollController _scrollController = ScrollController();
     // Fetch the specific order if in history mode
-    final order = orderHelper.activeOrderId != null
+    final order = widget.activeOrderId != null
         ? orderHelper.orders.firstWhere(
-          (o) => o[AppDBConst.orderServerId] == orderHelper.activeOrderId,
+          (o) => o[AppDBConst.orderServerId] == widget.activeOrderId,
       orElse: () => {},
     )
         : {};
@@ -835,9 +838,9 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
     num netPayable = 0.0;  //Build #1.0.67
 
     // Update the calculation section in buildCurrentOrder:
-    // if (orderHelper.activeOrderId != null) {
+    // if (widget.activeOrderId != null) {
       // final order = orderHelper.orders.firstWhere(
-      //       (order) => order[AppDBConst.orderServerId] == orderHelper.activeOrderId,
+      //       (order) => order[AppDBConst.orderServerId] == widget.activeOrderId,
       //   orElse: () => {},
       // );
 
@@ -859,7 +862,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
     netPayable = netPayable < 0 ? 0.0 : netPayable;
 
     if (kDebugMode) {  //Build #1.0.67
-      // print("#### ACTIVE ORDER ID: ${orderHelper.activeOrderId}");
+      // print("#### ACTIVE ORDER ID: ${widget.activeOrderId}");
       // print("#### orderItems: $orderItems");
       // print("#### grossTotal: $grossTotal");
       // print("#### orderDiscount: $orderDiscount");
@@ -879,7 +882,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  if(orderHelper.activeOrderId != null)
+                  if(widget.activeOrderId != null)
                   Row(
                     spacing: 4,
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -1029,13 +1032,13 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                                   //       orderItem: orderItem,
                                   //       onQuantityUpdated: (newQuantity) async {
                                   //
-                                  //         if (orderHelper.activeOrderId != null) {
+                                  //         if (widget.activeOrderId != null) {
                                   //           final order = orderHelper.orders.firstWhere(
-                                  //                 (order) => order[AppDBConst.orderId] == orderHelper.activeOrderId,
+                                  //                 (order) => order[AppDBConst.orderId] == widget.activeOrderId,
                                   //             orElse: () => {},
                                   //           );
                                   //           final serverOrderId = order[AppDBConst.orderServerId] as int?;
-                                  //           final dbOrderId = orderHelper.activeOrderId;
+                                  //           final dbOrderId = widget.activeOrderId;
                                   //           // final lineItemId = orderItem[AppDBConst.itemServerId] as int?;
                                   //           final productId = orderItem[AppDBConst.itemServerId] as int?;
                                   //
@@ -1323,7 +1326,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                                   //       print("####################### Merchant Discount onTap");
                                   //     }
                                   //
-                                  //     if (orderHelper.activeOrderId != null) {
+                                  //     if (widget.activeOrderId != null) {
                                   //       // Step 1: Show confirmation dialog
                                   //       bool? confirmed = await CustomDialog.showRemoveDiscountConfirmation(context);
                                   //       if (confirmed != true) return;
@@ -1332,7 +1335,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                                   //       setState(() => _isLoading = true);
                                   //
                                   //       final order = orderHelper.orders.firstWhere(
-                                  //             (order) => order[AppDBConst.orderId] == orderHelper.activeOrderId,
+                                  //             (order) => order[AppDBConst.orderId] == widget.activeOrderId,
                                   //         orElse: () => {},
                                   //       );
                                   //       final serverOrderId = order[AppDBConst.orderServerId] as int?;
@@ -1342,7 +1345,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                                   //         final payoutItem = await db.query(
                                   //           AppDBConst.purchasedItemsTable,
                                   //           where: '${AppDBConst.orderIdForeignKey} = ? AND ${AppDBConst.itemType} = ?',
-                                  //           whereArgs: [orderHelper.activeOrderId, ItemType.payout.value],
+                                  //           whereArgs: [widget.activeOrderId, ItemType.payout.value],
                                   //         );
                                   //
                                   //         if (payoutItem.isNotEmpty) {
@@ -1358,7 +1361,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                                   //                     AppDBConst.orderTable,
                                   //                     {AppDBConst.merchantDiscount: 0.0},
                                   //                     where: '${AppDBConst.orderId} = ?',
-                                  //                     whereArgs: [orderHelper.activeOrderId],
+                                  //                     whereArgs: [widget.activeOrderId],
                                   //                   );
                                   //                   await orderHelper.deleteItem(payoutItem.first[AppDBConst.itemId] as int);
                                   //                   fetchOrderItems();
@@ -1397,7 +1400,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                                   //                   AppDBConst.orderTable,
                                   //                   {AppDBConst.merchantDiscount: 0.0},
                                   //                   where: '${AppDBConst.orderId} = ?',
-                                  //                   whereArgs: [orderHelper.activeOrderId],
+                                  //                   whereArgs: [widget.activeOrderId],
                                   //                 );
                                   //                 await orderHelper.deleteItem(payoutItem.first[AppDBConst.itemId] as int);
                                   //                 fetchOrderItems();
@@ -1542,7 +1545,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                     )
                         : SizedBox.shrink(),
                   ),
-                  if(orderHelper.activeOrderId != null)
+                  if(widget.activeOrderId != null)
                   GestureDetector(
                     onTap: _toggleSummary,
                     child: Container(
@@ -1573,7 +1576,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                     SizedBox(),
 
                   // Payment button - outside the container
-                  if (orderHelper.activeOrderId != null)
+                  if (widget.activeOrderId != null)
                     Container(
                     margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     width: double.infinity,
@@ -1583,7 +1586,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                         ?
                     ElevatedButton( //Build 1.1.36: on pay tap calling updateOrderProducts api call
                       onPressed: () async {
-                        if (orderHelper.activeOrderId != null) {
+                        if (widget.activeOrderId != null) {
                           setState(() {
                             _isPayBtnLoading = true;
                           });
@@ -1649,7 +1652,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                         :
                     ElevatedButton( //Build 1.1.36: on pay tap calling updateOrderProducts api call
                       onPressed: netPayable >= 0 && orderItems.isNotEmpty ? () async {
-                        if (orderHelper.activeOrderId != null) {
+                        if (widget.activeOrderId != null) {
                           setState(() => _isPayBtnLoading = true);
                           _initialFetchDone = false; // Build #1.0.143: Track initial fetch of fetchOrdersData
                           // await Navigator.push(
@@ -1714,7 +1717,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                       //
                       //     // Call API
                       //     await orderBloc.updateOrderProducts(
-                      //       dbOrderId: orderHelper.activeOrderId!,
+                      //       dbOrderId: widget.activeOrderId!,
                       //       orderId: serverOrderId,
                       //       lineItems: lineItems,
                       //     );
@@ -1779,13 +1782,13 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
         tax = (_order[AppDBConst.orderTax] as num?)?.toDouble() ?? 0.0;
         var balanceAmt = total - discount - merchantDiscount + tax;
         if (kDebugMode) {
-          print("Fetched orderServerId: $orderId, Discount: $discount for activeOrderId: ${orderHelper.activeOrderId}, Time: $orderDateTime");
+          print("Fetched orderServerId: $orderId, Discount: $discount for activeOrderId: ${widget.activeOrderId}, Time: $orderDateTime");
           print("Balance amount calculated is $balanceAmt and balance from API is $balanceAmount");
         }
       });
     } else {
       if (kDebugMode) {
-        print("No orderServerId found for activeOrderId: ${orderHelper.activeOrderId}");
+        print("No orderServerId found for activeOrderId: ${widget.activeOrderId}");
       }
     }
 
@@ -1866,7 +1869,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
     var storeDetails = await AssetDBHelper.instance.getStoreDetails();
     var storeName = "${storeDetails?.name}";
     var address = "${storeDetails?.address},${storeDetails?.city},${storeDetails?.state},${storeDetails?.country},${storeDetails?.zipCode}";
-    var orderIdToPrint = '${TextConstants.orderId} #${orderHelper.activeOrderId}';
+    var orderIdToPrint = '${TextConstants.orderId} #${widget.activeOrderId}';
 
     final userData = await UserDbHelper().getUserData();
     var cashierName = "Cashier ${userData?[AppDBConst.userDisplayName] ?? "Unknown Name"}";
@@ -2008,6 +2011,8 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
     bytes += ticket.feed(1);
 
     if (kDebugMode) {
+      print(" >>>>> Printer Order merchantDiscount -${merchantDiscount.toStringAsFixed(2)} ");
+      print(" >>>>> Printer Order discount -${discount.toStringAsFixed(2)} ");
       print(" >>>>> Printer Order balanceAmount  $balanceAmount ");
       // print(" >>>>> Printer Order orderTotal  $orderTotal ");
       print(" >>>>> Printer Order tenderAmount $tenderAmount ");
@@ -2028,12 +2033,12 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
     // bytes += ticket.feed(1);
     bytes += ticket.row([
       PosColumn(text: TextConstants.discountText, width: 10), // Build #1.0.148: deleted duplicate discount string from constants , already we have discountText using !
-      PosColumn(text: discount.toStringAsFixed(2), width:2, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: "-${discount.toStringAsFixed(2)}", width:2, styles: PosStyles(align: PosAlign.right)),
     ]);
     // bytes += ticket.feed(1);
     bytes += ticket.row([
       PosColumn(text: TextConstants.merchantDiscount, width: 10),
-      PosColumn(text: merchantDiscount.toStringAsFixed(2), width:2, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: "-${merchantDiscount.toStringAsFixed(2)}", width:2, styles: PosStyles(align: PosAlign.right)),
     ]);
     // bytes += ticket.feed(1);
     bytes += ticket.row([

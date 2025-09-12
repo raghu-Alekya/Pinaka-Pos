@@ -74,6 +74,9 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
   final TextEditingController _customItemPriceController = TextEditingController();
   final TextEditingController _skuController = TextEditingController();
 
+  // Add this boolean variable to track when user is entering item price
+  bool _isEnteringItemPrice = false;
+
   // Function to check if the item name is empty
   bool _isItemNameEmpty() {
     return _customItemNameController.text.trim().isEmpty;
@@ -91,7 +94,6 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
       _customItemPrice = _customItemPriceController.text;
     });
     _skuController.addListener(() {
-      _sku = widget.barcode ?? "";
       _sku = _skuController.text;
     });
     _loadOrderData(); // Load order data on initialization
@@ -104,10 +106,24 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
     });
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    ///It will load sku and text field both with barcode from scanner initially
+    if (kDebugMode) {
+      print("WidgetTabs.didChangeDependencies assign text field with barcode value ${_skuController.text} = ${widget.barcode}");
+    }
+    _skuController.text = widget.barcode ?? "";
+    _sku = widget.barcode ?? "";
+    if (kDebugMode) {
+      print("WidgetTabs.didChangeDependencies are text field and sku same?  ${_skuController.text} = $_sku");
+    }
+  }
+
   Future<void> _loadTaxSlabs() async {
     try {
       List<Tax> taxes = await _assetDBHelper.getTaxList();
-      if (kDebugMode) print("#### _loadTaxSlabs: Loaded ${taxes.length} taxes: ${taxes.map((t) => t.toMap()).toList()}");
+      if (kDebugMode) print("#### _loadTaxSlabs: Loaded ${taxes.length} taxes: ${taxes.map((t) => t.toMap()).toList()},  widget.barcode: -${widget.barcode},");
       setState(() {
         _taxSlabOptions = taxes.map((tax) => tax.name).toSet().toList();
         if (_taxSlabOptions.isNotEmpty) {
@@ -248,6 +264,10 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
           setState(() {
             // Update the state variable instead of widget property
             _selectedTabIndex = index;
+            // Reset highlighting when switching away from custom item tab
+            if (index != 2) {
+              _isEnteringItemPrice = false;
+            }
           });
         },
         child: Container(
@@ -364,7 +384,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
               },
               onClearPressed: () {
                 setState(() {
-                  _discountValue = _isPercentageSelected ? "0%" : "0";
+                  _discountValue = _isPercentageSelected ? "0%" : "0.00";
                 });
               },
               onDeletePressed: () { // Build #1.0.53 : updated code
@@ -752,9 +772,10 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
             children: [
               _buildLabeledTextField(
                 title: TextConstants.itemPrice,
-                hintText: TextConstants.enterThePrice,
+                hintText: "${TextConstants.currencySymbol} 0.00",//TextConstants.enterThePrice,
                 controller: _customItemPriceController,
                 readOnly: true,
+                isHighlighted: _isEnteringItemPrice,  // Use dynamic highlighting instead of hardcoded true
               ),
               const SizedBox(width: 20),
               _buildTaxDropdown(),
@@ -775,6 +796,8 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
         child: CustomNumPad(
           onDigitPressed: (digit) {
             setState(() {
+              // Set highlighting to true when user starts entering price
+              _isEnteringItemPrice = true;
               if (_customItemPrice == "0.00") {
                 _customItemPrice = digit;
                 _customItemPriceController.text = digit;
@@ -786,12 +809,16 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
           },
           onClearPressed: () {
             setState(() {
+              // dismiss the highlight when clearing
+              _isEnteringItemPrice = false;
               _customItemPrice = "";
               _customItemPriceController.text = "";
             });
           },
           onDeletePressed: () {
             setState(() {
+              // Keep highlighting when deleting
+              _isEnteringItemPrice = true;
               if (_customItemPrice.isNotEmpty) {
                 _customItemPrice =
                     _customItemPrice.substring(0, _customItemPrice.length - 1);
@@ -804,6 +831,10 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
             if (kDebugMode) {
               print("#### DEBUG 11@33 onAddPressed");
             }
+            // Remove highlighting when add is pressed (interaction complete)
+            setState(() {
+              _isEnteringItemPrice = false;
+            });
             _handleAddCustomItem();
           },
           isLoading: _isCustomItemLoading,
@@ -820,8 +851,14 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
     required String hintText,
     required TextEditingController controller,
     bool readOnly = false,
+    bool isHighlighted = false,
   }) {
     final themeHelper = Provider.of<ThemeNotifier>(context);
+    // Conditionally set the border color and width based on the highlight status
+    final borderColor = isHighlighted
+        ? Colors.deepPurpleAccent
+        : (themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.borderColor : Colors.grey.shade300);
+    final borderWidth = isHighlighted ? 2.0 : 1.0;
     return Column(
      crossAxisAlignment: CrossAxisAlignment.start,
       // mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -842,7 +879,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
           padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 10),
           decoration: BoxDecoration(
             color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.paymentEntryContainerColor : null,
-            border: Border.all(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.borderColor :  Colors.grey.shade300),
+            border: Border.all(color: borderColor, width: borderWidth),
             borderRadius: BorderRadius.circular(10),
           ),
           child: TextField(
@@ -1827,7 +1864,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
               if (kDebugMode) print("Failed to update order: ${updateResponse.message}");
               ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
                 SnackBar(
-                  content: Text("Failed to update order"), //Build #1.0.92
+                  content: Text(response.message ?? "Failed to update order"), //Build #1.0.92
                   backgroundColor: Colors.red,
                   duration: const Duration(seconds: 2),
                 ),

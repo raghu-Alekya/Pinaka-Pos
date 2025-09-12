@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:pinaka_pos/Constants/text.dart';
 
 import 'orders_model.dart';
 
@@ -119,7 +120,7 @@ class OrderModel {
       paymentMethod: json['payment_method'] ?? '',
       createdVia: json['created_via'] ?? '',
       number: json['number'] ?? '',
-      currencySymbol: json['currency_symbol'] ?? '₹',
+      currencySymbol: json['currency_symbol'] ?? TextConstants.currencySymbol,
     );
   }
 }
@@ -410,6 +411,12 @@ class MetaData {
     required this.key,
     required this.value,
   });
+
+  // {
+  // "id": 3962,
+  // "key": "age_restricted",
+  // "value": "18" true/false
+  // },
 
   factory MetaData.fromJson(Map<String, dynamic> json) {
     return MetaData(

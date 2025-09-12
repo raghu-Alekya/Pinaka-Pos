@@ -7,6 +7,12 @@ class OrderMetaData {  //Build 1.1.36: Updated
   static const String posPlacedBy = "pos_placed_by";
   static const String shiftId     = "shift_id"; //Build #1.0.78: added shift id to order meta data
 
+  // {
+  // "id": 3962,
+  // "key": "age_restricted",
+  // "value": "18"
+  // },
+
   OrderMetaData({required this.key, required this.value});
 
   Map<String, dynamic> toJson() => {'key': key, 'value': value};

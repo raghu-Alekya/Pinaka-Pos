@@ -308,6 +308,9 @@ class _TopBarState extends State<TopBar> {
                             child: Text('No products found'),
                           );
                         }
+                        if (kDebugMode) {
+                          print("TopBar - result found product with search text COMPLETED ${products.length}");
+                        }
                         return ListView.builder(
                           shrinkWrap: true,
                           itemCount: products.length,
@@ -372,11 +375,11 @@ class _TopBarState extends State<TopBar> {
                                   // Build #1.0.108: Fixed Issue: Verify Age and proceed else return
                                   final ageVerificationProvider = AgeVerificationProvider();
                                   final ageRestrictedTag = product.tags?.firstWhere(
-                                        (element) => element.name == TextConstants.ageRestricted,
+                                        (element) => element.name == TextConstants.age_restricted,
                                     orElse: () => SKU.Tags(),
                                   );
                                   // Check if product has age restriction
-                                  final hasAgeRestriction = ageRestrictedTag?.name?.contains(TextConstants.ageRestricted) ?? false;
+                                  final hasAgeRestriction = ageRestrictedTag?.name?.contains(TextConstants.age_restricted) ?? false;
                                   if (kDebugMode) {
                                     print("TopBar - AgeVerification: Product has age restriction: $hasAgeRestriction, product.variations : ${product.variations!.isNotEmpty}");
                                   }
@@ -519,6 +522,9 @@ class _TopBarState extends State<TopBar> {
                                                                           2),
                                                             ),
                                                           );
+                                                          Navigator.pop(
+                                                              context);
+                                                          _clearSearch();
                                                           _updateOrderSubscription
                                                               ?.cancel();
                                                         }
@@ -635,6 +641,7 @@ class _TopBarState extends State<TopBar> {
                                                     } else if (response
                                                             .status ==
                                                         Status.ERROR) {
+                                                      setState(() => isAddingItemLoading = false);
                                                       if (kDebugMode)
                                                         print(
                                                             "Error adding product: ${response.message}");
@@ -652,6 +659,9 @@ class _TopBarState extends State<TopBar> {
                                                                   seconds: 2),
                                                         ),
                                                       );
+                                                      Navigator.pop(
+                                                          context);
+                                                      _clearSearch();
                                                       _updateOrderSubscription
                                                           ?.cancel();
                                                     }
@@ -832,6 +842,7 @@ class _TopBarState extends State<TopBar> {
                                                   widget.onProductSelected?.call(product);
                                                   _updateOrderSubscription?.cancel();
                                                 } else if (response.status == Status.ERROR) {
+                                                  _clearSearch();
                                                   if (kDebugMode)
                                                     print("Error adding product: ${response.message}");
                                                   WidgetsBinding.instance.addPostFrameCallback((timeStamp) {

@@ -8,6 +8,7 @@ import 'package:flutter_svg/svg.dart';
 import 'package:pinaka_pos/Screens/Home/Settings/printer_setup_screen.dart';
 import 'package:pinaka_pos/Utilities/printer_settings.dart';
 import 'package:provider/provider.dart';
+import 'package:thermal_printer/thermal_printer.dart';
 
 import '../../../Constants/text.dart';
 import '../../../Database/db_helper.dart';
@@ -54,17 +55,43 @@ class _SettingsScreenState extends State<SettingsScreen> {
   TextEditingController deviceIdController = TextEditingController();
   TextEditingController posNoController = TextEditingController();
   final PinakaPreferences _preferences = PinakaPreferences(); // Create an instance
-
+  final PrinterSettings _printerSettings = PrinterSettings(); // Build #1.0.226
   @override
   void initState() {
     super.initState();
     _themeHelper = Provider.of<ThemeNotifier>(context, listen: false); // Build #1.0.207: Initialize here
     _loadUserDataFromDB();
     _loadPrinterData(); //Build #1.0.122: Updated code: data loading from db
-
+    // Build #1.0.226: Load printer settings & ensure initialization
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadPrinterSettings();
+    });
      _addThemeListener();   // Build #1.0.207: Fixed -> theme options is not updating in settings screen when updated from other screen top bar
   }
 
+  // Build #1.0.226: Added this method to load printer settings
+  Future<void> _loadPrinterSettings() async { // Changed to async
+    if (kDebugMode) {
+      print("#### [LOAD] Loading printer settings...");
+    }
+
+    try {
+      await _printerSettings.loadPrinter(); // Added await
+
+      if (mounted) {
+        setState(() {
+          if (kDebugMode) {
+            print("#### [LOAD] Printer settings loaded: ${_printerSettings.selectedPrinter?.deviceName ?? 'None'}");
+            print("#### [LOAD] Printer state: ${_printerSettings.selectedPrinter?.state}");
+          }
+        });
+      }
+    } catch (error) {
+      if (kDebugMode) {
+        print("#### [ERROR] Failed to load printer settings: $error");
+      }
+    }
+  }
   // Build #1.0.207: Added this method to listen for theme changes
   void _addThemeListener() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -147,8 +174,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       final printerData = await printerDBHelper.getPrinterFromDB();
       if (kDebugMode) {
-        print("#### Loaded printer data: $printerData");
+        print("#### [LOAD] Printer data retrieved: ${printerData.length} records");
       }
+
       if (printerData.isNotEmpty) {
         setState(() {
           headerController.text = printerData.first[AppDBConst.receiptHeaderText] ?? "";
@@ -157,10 +185,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _selectedReceiptIcon = File(printerData.first[AppDBConst.receiptIconPath]); // Change to _selectedReceiptIcon
           }
         });
+
+        if (kDebugMode) {// Build #1.0.226
+          print("#### [LOAD] Receipt settings loaded: Header='${headerController.text}', Footer='${footerController.text}'");
+        }
+      } else {
+        if (kDebugMode) {
+          print("#### [LOAD] No printer data found in database");
+        }
       }
     } catch (e) {
       if (kDebugMode) {
-        print("#### Error loading printer data: $e");
+        print("#### [ERROR] Error loading printer data: $e");
       }
     }
   }
@@ -276,6 +312,102 @@ class _SettingsScreenState extends State<SettingsScreen> {
     deviceIdController.dispose();
     super.dispose();
   }
+
+  // Build #1.0.226: Added this method to remove printer from DB and clear from settings
+  Future<void> _removePrinter() async {
+    try {
+      if (kDebugMode) {
+        print("#### [DEBUG] Removing printer from database...");
+      }
+
+      final db = await DBHelper.instance.database;
+      int result = await db.delete(
+        AppDBConst.printerTable,
+        where: '${AppDBConst.printerId} = ?',
+        whereArgs: [1],
+      );
+
+      if (kDebugMode) {
+        print("#### [DEBUG] Delete operation result: $result rows affected");
+      }
+
+      // Clear from printer settings
+      _printerSettings.selectedPrinter = null;
+
+      // Clear receipt settings controllers
+      setState(() {
+        headerController.clear();
+        footerController.clear();
+        _selectedReceiptIcon = null;
+      });
+
+      if (kDebugMode) {
+        print("#### [DEBUG] Printer removed successfully from DB and settings cleared");
+        print("#### [DEBUG] Current selected printer: ${_printerSettings.selectedPrinter}");
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Printer removed successfully"),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 3),
+        ),
+      );
+
+    } catch (e) {
+      if (kDebugMode) {
+        print("#### [ERROR] Error removing printer: $e");
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Failed to remove printer"),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+///  Build #1.0.226: TESTING FUNCTION - REMOVE IN PRODUCTION
+/// This bypasses actual printer connection for testing
+//   Future<void> _addTestPrinter() async {
+//     if (kDebugMode) {
+//       print("#### [TEST] Adding test printer for development...");
+//       print("#### [TEST] No physical printer required");
+//     }
+//
+//     try {
+//       final testPrinter = BluetoothPrinter(
+//         deviceName: "Test",
+//         productId: "001",
+//         vendorId: "002",
+//         typePrinter: PrinterType.bluetooth,
+//         state: true,
+//       );
+//
+//       // Add to database
+//       await printerDBHelper.addPrinterToDB(testPrinter);
+//
+//       // Update settings
+//       _printerSettings.selectedPrinter = testPrinter;
+//
+//       setState(() {
+//         if (kDebugMode) {
+//           print("#### [TEST] Test printer added successfully: ${testPrinter.deviceName}");
+//           print("#### [TEST] Printer state: ${testPrinter.state}");
+//         }
+//       });
+//
+//       ScaffoldMessenger.of(context).showSnackBar(
+//         SnackBar(content: Text('Test printer added (Dev Mode)')),
+//       );
+//
+//     } catch (e) {
+//       if (kDebugMode) {
+//         print("#### [TEST ERROR] Failed to add test printer: $e");
+//       }
+//     }
+//   }
 
   @override
   Widget build(BuildContext context) {
@@ -756,13 +888,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ],
     );
   }
-  final _printerSettings =  PrinterSettings();
   Widget _buildPrinterSettingsSection() {
     var name = _printerSettings.selectedPrinter?.deviceName ?? '';
     var connection = _printerSettings.selectedPrinter?.state ?? false;
 
     if (kDebugMode) {
-      print("SettingScreen - printer ${_printerSettings.selectedPrinter}, name: $name, connection: $connection");
+      print("#### [UI] Building printer section - Name: '$name', Connected: $connection");
+      print("#### [UI] Selected printer object: ${_printerSettings.selectedPrinter}");
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -770,6 +902,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         Row(
           children: [
             Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(TextConstants.printerSettText,
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
@@ -778,22 +911,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
             Spacer(),
-            _printerSettings.selectedPrinter != null ? SizedBox() : ElevatedButton(
+            // Build #1.0.226: Always show add button - users can swap printers anytime
+            ElevatedButton(
               onPressed: () {
                 /// call printer setup screen
                 if (kDebugMode) {
-                  print("call printer setup screen");
+                  print("#### [ACTION] Add printer button pressed");
+                  print("#### [ACTION] Navigating to PrinterSetup screen");
                 }
+
                 Navigator.push(context, MaterialPageRoute(
                   builder: (context) => PrinterSetup(),
                 )).then((result) {
-                  if (result == TextConstants.refresh) {  // Build #1.0.175: Added refresh constant string into TextConstants
-                    _printerSettings.loadPrinter();
-                    setState(() {
-                      // Update state to refresh the UI
-                      if (kDebugMode) {
-                        print("SettingScreen - printer setup is done, connected printer is ${_printerSettings.selectedPrinter?.deviceName}");
-                      }
+                  if (result == TextConstants.refresh) {
+                    if (kDebugMode) {
+                      print("#### [ACTION] Returning from PrinterSetup - refreshing data");
+                    }
+
+                    // Build #1.0.226: Reload everything to ensure UI is updated
+                    _printerSettings.loadPrinter().then((_) {
+                      _loadPrinterData(); // Reload receipt settings
+                      setState(() {
+                        if (kDebugMode) {
+                          print("#### [ACTION] UI refreshed after printer setup");
+                          print("#### [ACTION] Current printer: ${_printerSettings.selectedPrinter?.deviceName ?? 'None'}");
+                        }
+                      });
                     });
                   }
                 });
@@ -821,26 +964,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
         SizedBox(height: 10),
         ///Todo: show connected printer or Add printer button
         _printerSettings.selectedPrinter != null
-            ?
-        Center(child: Row(
-          children: [
-            Text(name,
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-            ),),
-            Spacer(),
-            Icon(
-              Icons.check_circle,
-              color: ThemeNotifier.buttonDark,
-              size: 25,
-            ),
-          ],
-        ),)
-            :
+            ? Container(
+          padding: EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.grey[800],
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: [
+              Text(
+                name,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),),
+              Spacer(),
+              Icon(
+                Icons.check_circle,
+                color: ThemeNotifier.buttonDark,
+                size: 25,
+              ),
+              // Remove printer button (X)
+              IconButton( // Build #1.0.226: added close button
+                icon: Icon(Icons.close, color: Colors.red, size: 20),
+                onPressed: _removePrinter,
+                tooltip: "Remove Printer",
+              ),
+            ],
+          ),
+        ) :
         SizedBox(),
-        // Center(
+        //     : Center(
         //   child: Column(
         //     children: [
         //       SvgPicture.asset(
@@ -857,42 +1012,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
         //           fontWeight: FontWeight.bold,
         //         ),
         //       ),
-        //       SizedBox(height: 10),
-        //       // Text(
-        //       //   TextConstants.add3PrintersText,
-        //       //   style: TextStyle(
-        //       //     color: Colors.grey,
-        //       //     fontSize: 14,
+        //       SizedBox(height: 20),
+        //       /// Build #1.0.226: TEST BUTTON - REMOVE IN PRODUCTION
+        //       // ElevatedButton(
+        //       //   onPressed: _addTestPrinter,
+        //       //   style: ElevatedButton.styleFrom(
+        //       //     backgroundColor: Colors.blueGrey,
+        //       //   ),
+        //       //   child: Text(
+        //       //     "Add Test Printer (Dev)",
+        //       //     style: TextStyle(color: Colors.white),
         //       //   ),
         //       // ),
-        //       SizedBox(height: 20),
-        //       ElevatedButton(
-        //         onPressed: () {
-        //           /// call printer setup screen
-        //           if (kDebugMode) {
-        //             print("call printer setup screen");
-        //           }
-        //           Navigator.push(context, MaterialPageRoute(
-        //             builder: (context) => PrinterSetup(),
-        //           ));
-        //         },
-        //         style: ElevatedButton.styleFrom(
-        //           backgroundColor: Color(0xFF00FFAA),
-        //           shape: RoundedRectangleBorder(
-        //             borderRadius: BorderRadius.circular(8),
-        //           ),
-        //           padding:
-        //           const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
-        //         ),
-        //         child: Text(
-        //           TextConstants.addBtnText,
-        //           style: TextStyle(
-        //             color: Colors.black,
-        //             fontSize: 16,
-        //             fontWeight: FontWeight.bold,
-        //           ),
-        //         ),
-        //       ),
         //     ],
         //   ),
         // ),

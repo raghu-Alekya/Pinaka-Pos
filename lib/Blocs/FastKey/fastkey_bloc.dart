@@ -137,8 +137,8 @@ class FastKeyBloc { // Build #1.0.15
             print("#### Processing ${fastkey.products?.length} products for FastKey serverId: ${fastkey.fastkeyServerId}");
           }
           for (var product in fastkey.products ?? []) {
-            var tagg = product.tags?.firstWhere((element) => element.name == "Age Restricted", orElse: () => Tags());
-            var hasAgeRestriction = tagg?.name?.contains("Age Restricted") ?? false;
+            var tagg = product.tags?.firstWhere((element) => element.name == TextConstants.age_restricted, orElse: () => Tags());
+            var hasAgeRestriction = tagg?.name?.contains(TextConstants.age_restricted) ?? false;
             if (kDebugMode) {
               print("#### Adding FastKey item: ${product.name}, productId: ${product.productId}, hasAgeRestriction: $hasAgeRestriction");
             }

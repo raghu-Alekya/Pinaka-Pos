@@ -125,7 +125,7 @@ class VariationPopup {
                                     duration: const Duration(seconds: 2),
                                   ),
                                 );
-                                onProductSelected?.call(isVariant: false);
+                                onProductSelected?.call(isVariant: true);
                                 _updateOrderSubscription?.cancel();
                               }
                             },
@@ -185,7 +185,7 @@ class VariationPopup {
                       }
                     },
                   );
-                } else {
+                } else { ///if variation is empty, it will add main product
                   if (kDebugMode) {
                     print("#### TEST  111 variations");
                   }

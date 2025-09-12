@@ -183,7 +183,7 @@ class NavigationBar extends StatelessWidget {
               /// OrdersScreen
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(builder: (context) => OrdersScreen(lastSelectedIndex: lastSelectedIndex)),
+                MaterialPageRoute(builder: (context) => TotalOrdersScreen(lastSelectedIndex: lastSelectedIndex)), // Build #1.0.226: Updated class name
               );
             },
             isVertical: isVertical,
@@ -564,7 +564,7 @@ class NavigationBar extends StatelessWidget {
               /// OrdersScreen
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(builder: (context) => OrdersScreen(lastSelectedIndex: lastSelectedIndex)),
+                MaterialPageRoute(builder: (context) => TotalOrdersScreen(lastSelectedIndex: lastSelectedIndex)), // Build #1.0.226: Updated class name
               );
             },
             isVertical: false,

@@ -66,8 +66,8 @@ class FastKeyProductBloc {  // Build #1.0.15
         }
 
         for (FastKeyProduct product in response.products ?? []) {
-          var tagg = product.tags?.firstWhere((element) => element.name == "Age Restricted", orElse: () => Tags());
-          var hasAgeRestriction = tagg?.name?.contains("Age Restricted");
+          var tagg = product.tags?.firstWhere((element) => element.name == TextConstants.age_restricted, orElse: () => Tags());
+          var hasAgeRestriction = tagg?.name?.contains(TextConstants.age_restricted);
           if (kDebugMode) {
             print("FastkeyBloc: fetchProductsByFastKeyId New Product added, hasAgeRestriction $hasAgeRestriction, minAge: ${tagg?.slug ?? "0"}");
           }
@@ -145,8 +145,8 @@ class FastKeyProductBloc {  // Build #1.0.15
         ///if all the data mismatches then delete all db contents and replace with API response
         fastKeyDBHelper.deleteAllFastKeyProductItems(fastKeyId);
         for(var product in response.products){ ///Naveen: add few paramter as product_id, sl_number, and make price as string only
-          var tagg = product.tags?.firstWhere((element) => element.name == "Age Restricted", orElse: () => Tags());
-          var hasAgeRestriction = tagg?.name?.contains("Age Restricted");
+          var tagg = product.tags?.firstWhere((element) => element.name == TextConstants.age_restricted, orElse: () => Tags());
+          var hasAgeRestriction = tagg?.name?.contains(TextConstants.age_restricted);
           if (kDebugMode) {
             print("FastkeyBloc: fetchProductsByFastKeyId New Product added, hasAgeRestriction $hasAgeRestriction for product ${product.name} ${product.productId}, minAge: ${tagg?.slug ?? "0"}");
           }
@@ -168,8 +168,8 @@ class FastKeyProductBloc {  // Build #1.0.15
         // Using productId & fastKey server id to match API response products with database records, ensuring updates are applied to the correct items.
        // var i=0;
         for(var product in response.products){
-          var tagg = product.tags?.firstWhere((element) => element.name == "Age Restricted", orElse: () => Tags());
-          var hasAgeRestriction = tagg?.name?.contains("Age Restricted");
+          var tagg = product.tags?.firstWhere((element) => element.name == TextConstants.age_restricted, orElse: () => Tags());
+          var hasAgeRestriction = tagg?.name?.contains(TextConstants.age_restricted);
           if (kDebugMode) {
             print("FastkeyBloc: fetchProductsByFastKeyId product already present and updating, hasAgeRestriction $hasAgeRestriction, minAge: ${tagg?.slug ?? "0"}");
           }

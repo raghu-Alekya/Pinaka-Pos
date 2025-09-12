@@ -122,7 +122,7 @@ class UrlParameterConstants { // Build #1.0.13
 }
 
 class EndUrlConstants { // Build #1.0.13
-  static const  String productSearchEndUrl = "&page=1&limit=10";
+  static const  String productSearchEndUrl = "&page=1&limit=100&per_page=100";
   static const  String createFastKeyEndUrl        = "/create";  // Build #1.0.15
   static const  String getFastKeyEndUrl           = "/get-by-user";
   static const  String addFastKeyProductEndUrl    = "/add-products";

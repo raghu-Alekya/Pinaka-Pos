@@ -946,9 +946,10 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
         //Build #1.0.78: Removed orderHelper.addItemToOrder from the API success block, as it’s now in OrderBloc.updateOrderProducts.
         // Kept local addItemToOrder for non-API orders.
         // Ensured loader is shown during API calls and hidden afterward.
-        useKeyDownEvent: true,
+        useKeyDownEvent: false,
+        caseSensitive: true,
         onBarcodeScanned: (barcode) async {
-          barcode = barcode.trim().replaceAll(' ', '');
+          //barcode = barcode.trim().replaceAll(' ', '');
           if (kDebugMode) {
             print("##### DEBUG: onBarcodeScanned - Scanned barcode: -$barcode, isOrderInForeground = $isOrderInForeground");
           }
@@ -959,23 +960,23 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
           if (barcode.isNotEmpty) {
             var dobScanned = "";
             /// Testing code: not working, Scanner will generate multiple tap events and call when scanned driving licence with PDF417 format irrespective of this code here
-            if (barcode.startsWith('@') || barcode.contains('\n') || barcode.startsWith('ansi') || barcode.startsWith('2') || barcode.startsWith('DBB')) {
-              // if (barcode.startsWith('@') || barcode.contains('\n')) {
-              // PDF417 often includes structured data with newlines or starts with '@' (AAMVA standard)
-              if (kDebugMode) {
-                print('PDF417 Detected: $barcode');
-              }
-              var date = parseDOBFromBarcode(barcode);
-              dobScanned = "${date?.month}/${date?.day}/${date?.year}";
-              if (kDebugMode) {
-                print("##### DEBUG: onBarcodeScanned - Scanned barcode: $barcode, $dobScanned");
-              }
-              return;
-            } else {
-              if (kDebugMode) {
-                print('Non-PDF417 Barcode: $barcode');
-              }
-            }
+            // if (barcode.startsWith('@') || barcode.contains('\n') || barcode.startsWith('ansi') || barcode.startsWith('2') || barcode.startsWith('DBB')) {
+            //   // if (barcode.startsWith('@') || barcode.contains('\n')) {
+            //   // PDF417 often includes structured data with newlines or starts with '@' (AAMVA standard)
+            //   if (kDebugMode) {
+            //     print('PDF417 Detected: $barcode');
+            //   }
+            //   var date = parseDOBFromBarcode(barcode);
+            //   dobScanned = "${date?.month}/${date?.day}/${date?.year}";
+            //   if (kDebugMode) {
+            //     print("##### DEBUG: onBarcodeScanned - Scanned barcode: $barcode, $dobScanned");
+            //   }
+            //   return;
+            // } else {
+            //   if (kDebugMode) {
+            //     print('Non-PDF417 Barcode: $barcode');
+            //   }
+            // }
             if (kDebugMode) {
               print("##### DEBUG: onBarcodeScanned - Scanned barcode: $barcode, $dobScanned");
             }
@@ -1156,7 +1157,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                   print("##### DEBUG: onBarcodeScanned - Product not found for SKU: $barcode");
                 }
                 if (!mounted) return;
-                await CustomDialog.showCustomItemNotAdded(context).then((_) { //Build #1.0.54: added
+                await CustomDialog.showCustomItemNotAdded(context,onRetry: (){
                   // Navigate to AddScreen when "Let's Try Again" is pressed
                   Navigator.push(
                     context,
@@ -1167,6 +1168,8 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                       ),
                     ),
                   );
+                }).then((_) { //Build #1.0.54: added
+
                 });
                 setState(() => _isLoading = false);
               }
@@ -1853,7 +1856,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                                                         .showSnackBar(
                                                       SnackBar(
                                                         content: Text(
-                                                            "Failed to update quantity"),
+                                                            response.message ?? "Failed to update quantity"),
                                                         backgroundColor:
                                                             Colors.red,
                                                         duration:

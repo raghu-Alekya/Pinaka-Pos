@@ -476,6 +476,7 @@ class _ShiftOpenCloseBalanceScreenState extends State<ShiftOpenCloseBalanceScree
                                                         cashNotesCoins: _grandTotal,
                                                         previousScreen: _originScreen ?? TextConstants.navShiftHistory, //Build #1.0.74
                                                       ),
+                                                      arguments: TextConstants.navShiftHistory, // Build #1.0.226: Fixed Issue -> Menu items are not disabled in shift closing/update time in second screen
                                                     ),
                                                   ).then((_) {
                                                     // Reset state when returning
@@ -938,7 +939,8 @@ class _ShiftOpenCloseBalanceScreenState extends State<ShiftOpenCloseBalanceScree
 
 class SlideRightRoute extends PageRouteBuilder {
   final Widget page;
-  SlideRightRoute({required this.page})
+  final String arguments; // Build #1.0.226: Added this parameter
+  SlideRightRoute({required this.page, this.arguments = ''})
       : super(
     pageBuilder: (context, animation, secondaryAnimation) => page,
     transitionDuration: const Duration(milliseconds: 1000), // Control the speed
@@ -956,5 +958,6 @@ class SlideRightRoute extends PageRouteBuilder {
         child: child,
       );
     },
+    settings: RouteSettings(arguments: arguments), // Build #1.0.226: Fixed Issue -> Menu items are not disabled in shift closing/update time in second screen
   );
 }

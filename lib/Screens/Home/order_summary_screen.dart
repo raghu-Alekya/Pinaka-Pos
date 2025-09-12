@@ -1567,13 +1567,10 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                                   // Update the Row in _buildPaymentSection to use dynamic quick amounts
                                   balanceAmount <= 0 ? SizedBox(height: 0,) : Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      _buildQuickAmountButton('${TextConstants.currencySymbol} ${balanceAmount.toStringAsFixed(2)}'), // Match balance amount, show round greater value
-                                      _buildQuickAmountButton('${TextConstants.currencySymbol} ${(balanceAmount.ceil()).toStringAsFixed(0)}'), // Slightly above
-                                      _buildQuickAmountButton('${TextConstants.currencySymbol} ${((balanceAmount ~/ 5 + 1) * 5).toStringAsFixed(0)}'), // More above
-                                      _buildQuickAmountButton('${TextConstants.currencySymbol} ${((balanceAmount ~/ 5 + 2) * 5).toStringAsFixed(0)}'), // Round up to next 10
-                                      _buildQuickAmountButton('${TextConstants.currencySymbol} ${((balanceAmount ~/ 10 + 2) * 10).toStringAsFixed(0)}'), // Round up to next 50
-                                    ],
+                                    children: _generateQuickAmounts(balanceAmount)
+                                        .map((amount) => _buildQuickAmountButton(
+                                        '${TextConstants.currencySymbol} ${amount.toStringAsFixed(2)}'))
+                                        .toList(),
                                   ),
                 
                                   SizedBox(height: ResponsiveLayout.getHeight(12)),
@@ -1834,6 +1831,72 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
         ),
       ),
     );
+  }
+
+  // Helper method to generate exactly 5 unique quick amounts
+  List<double> _generateQuickAmounts(double balanceAmount) {
+    Set<double> amounts = {};
+
+    // 1. Exact balance amount
+    amounts.add(balanceAmount);
+
+    // 2. Round up to next whole number
+    amounts.add(balanceAmount.ceilToDouble());
+
+    // 3. Round up to next 5
+    double nextFive = ((balanceAmount / 5).ceil() * 5).toDouble();
+    amounts.add(nextFive);
+
+    // 4. Round up to next 10
+    double nextTen = ((balanceAmount / 10).ceil() * 10).toDouble();
+    amounts.add(nextTen);
+
+    // Keep adding logical amounts until we have at least 5
+    List<double> additionalAmounts = [];
+
+    if (balanceAmount < 20) {
+      additionalAmounts = [20.0, 25.0, 50.0, 100.0];
+    } else if (balanceAmount < 50) {
+      additionalAmounts = [50.0, 75.0, 100.0, 150.0];
+    } else if (balanceAmount < 100) {
+      additionalAmounts = [100.0, 150.0, 200.0, 250.0];
+    } else if (balanceAmount < 500) {
+      additionalAmounts = [
+        ((balanceAmount / 50).ceil() * 50).toDouble(),
+        ((balanceAmount / 100).ceil() * 100).toDouble(),
+        ((balanceAmount / 100).ceil() * 100 + 100).toDouble(),
+        ((balanceAmount / 100).ceil() * 100 + 200).toDouble(),
+      ];
+    } else {
+      additionalAmounts = [
+        ((balanceAmount / 100).ceil() * 100).toDouble(),
+        ((balanceAmount / 500).ceil() * 500).toDouble(),
+        ((balanceAmount / 1000).ceil() * 1000).toDouble(),
+        ((balanceAmount / 1000).ceil() * 1000 + 500).toDouble(),
+      ];
+    }
+
+    // Add additional amounts to ensure we have enough
+    for (double amount in additionalAmounts) {
+      amounts.add(amount);
+      if (amounts.length >= 7) break; // Get more than 5 to have options
+    }
+
+    // Convert to sorted list and take exactly 5 unique values
+    List<double> sortedAmounts = amounts.toList()..sort();
+
+    // Ensure we always return exactly 5 amounts
+    if (sortedAmounts.length >= 5) {
+      return sortedAmounts.take(5).toList();
+    } else {
+      // If somehow we don't have 5, pad with increments
+      while (sortedAmounts.length < 5) {
+        double lastAmount = sortedAmounts.last;
+        double increment = lastAmount < 100 ? 25 : 100;
+        sortedAmounts.add(lastAmount + increment);
+      }
+      return sortedAmounts.take(5).toList();
+    }
   }
 
   Widget _buildPaymentModeButton(String label, IconData icon,
@@ -2395,6 +2458,8 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     bytes += ticket.feed(1);
 
     if (kDebugMode) {
+      print(" >>>>> Printer Order merchantDiscount -${merchantDiscount.toStringAsFixed(2)} ");
+      print(" >>>>> Printer Order discount -${discount.toStringAsFixed(2)} ");
       print(" >>>>> Printer Order balanceAmount  $balanceAmount ");
       print(" >>>>> Printer Order orderTotal  $orderTotal ");
       print(" >>>>> Printer Order tenderAmount $tenderAmount ");
@@ -2415,12 +2480,12 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     // bytes += ticket.feed(1);
     bytes += ticket.row([
       PosColumn(text: TextConstants.discountText, width: 10), // Build #1.0.148: deleted duplicate discount string from constants , already we have discountText using !
-      PosColumn(text: discount.toStringAsFixed(2), width:2, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: "-${discount.toStringAsFixed(2)}", width:2, styles: PosStyles(align: PosAlign.right)),
     ]);
     // bytes += ticket.feed(1);
     bytes += ticket.row([
       PosColumn(text: TextConstants.merchantDiscount, width: 10),
-      PosColumn(text: merchantDiscount.toStringAsFixed(2), width:2, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: "-${merchantDiscount.toStringAsFixed(2)}", width:2, styles: PosStyles(align: PosAlign.right)),
     ]);
     // bytes += ticket.feed(1);
     bytes += ticket.row([

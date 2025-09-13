@@ -58,7 +58,6 @@ class _OrdersScreenState extends State<TotalOrdersScreen> with LayoutSelectionMi
   bool _isAscending = true;
   StreamSubscription? _fetchOrdersSubscription;
   int _totalOrdersCount = 0;
-  late OrderScreenPanel _orderScreenPanel;
 
   ///Filters
   // List<String> _availableStatuses = ["All"];
@@ -69,7 +68,7 @@ class _OrdersScreenState extends State<TotalOrdersScreen> with LayoutSelectionMi
   Map<String, dynamic>? _selectedOrder;
   int? _selectedOrderId;
   final OrderHelper orderHelper = OrderHelper(); // Helper instance to manage orders
-  final PinakaPreferences _preferences = PinakaPreferences(); // Added this
+ // final PinakaPreferences _preferences = PinakaPreferences(); //Build #1.0.234: No need
   // Date range filter variables
   DateTime? _startDate;
   DateTime? _endDate;
@@ -94,14 +93,14 @@ class _OrdersScreenState extends State<TotalOrdersScreen> with LayoutSelectionMi
     initFilters();
     // Initialize order fetching
     //_fetchOrders();
-    _orderScreenPanel = OrderScreenPanel(
-      key: ValueKey(orderHelper.activeOrderId ?? 0),
-      formattedDate: panelDate ?? '', // Build #1.0.226
-      formattedTime: panelTime ?? '',
-      quantities: quantities,
-      activeOrderId: orderHelper.activeOrderId, // Pass activeOrderId
-      fetchOrders: false, // Show shimmer initially
-    );
+    // _orderScreenPanel = OrderScreenPanel( //Build #1.0.234: No need
+    //   key: ValueKey(orderHelper.activeOrderId ?? 0),
+    //   formattedDate: panelDate ?? '', // Build #1.0.226
+    //   formattedTime: panelTime ?? '',
+    //   quantities: quantities,
+    //   activeOrderId: orderHelper.activeOrderId, // Pass activeOrderId
+    //   fetchOrders: false, // Show shimmer initially
+    // );
   }
 
 
@@ -486,7 +485,7 @@ class _OrdersScreenState extends State<TotalOrdersScreen> with LayoutSelectionMi
                 // Replace your OrderScreenPanel instances with:
                   OrderScreenPanel(
                     fetchOrders: !isLoading, // Sync with parent's loading state
-                    key: ValueKey('left_${orderHelper.activeOrderId}'),
+                    key: ValueKey('order_screen_panel_${_selectedOrderId}_${sidebarPosition}_$orderPanelPosition'), //Build #1.0.234: Fixed Issue -> Processing Orders showing in order screen bottom mode
                     formattedDate: panelDate ?? '', // Build #1.0.226: updated values
                     formattedTime: panelTime ?? '',
                     quantities: quantities,
@@ -842,7 +841,7 @@ class _OrdersScreenState extends State<TotalOrdersScreen> with LayoutSelectionMi
                 // Replace your OrderScreenPanel instances with:
                   OrderScreenPanel(
                     fetchOrders: !isLoading, // Sync with parent's loading state
-                    key: ValueKey('right_${orderHelper.activeOrderId}'),
+                    key: ValueKey('order_screen_panel_${_selectedOrderId}_${sidebarPosition}_$orderPanelPosition'), //Build #1.0.234: Fixed Issue -> Processing Orders showing in order screen bottom mode
                     formattedDate: panelDate ?? '', // Build #1.0.226: updated values
                     formattedTime: panelTime ?? '',
                     quantities: quantities,
@@ -940,14 +939,14 @@ class _OrdersScreenState extends State<TotalOrdersScreen> with LayoutSelectionMi
       });
       debugPrint("OrdersScreen: Selected order ID $_selectedOrderId");
     }
-    _orderScreenPanel = OrderScreenPanel(
-      key: ValueKey(orderId), // Use orderId as key
-      formattedDate: panelDate ?? '', // Build #1.0.226: updated values
-      formattedTime: panelTime ?? '',
-      quantities: quantities,
-      activeOrderId: orderId, // Pass activeOrderId
-      fetchOrders: !isLoading,
-    );
+    // _orderScreenPanel = OrderScreenPanel( //Build #1.0.234: No need , we already setting values in widget build method
+    //   key: ValueKey(orderId), // Use orderId as key
+    //   formattedDate: panelDate ?? '', // Build #1.0.226: updated values
+    //   formattedTime: panelTime ?? '',
+    //   quantities: quantities,
+    //   activeOrderId: orderId, // Pass activeOrderId
+    //   fetchOrders: !isLoading,
+    // );
     // _orderScreenPanel.setFormattedDate = panelDate;
     // _orderScreenPanel.setFormattedTime = panelTime;
 

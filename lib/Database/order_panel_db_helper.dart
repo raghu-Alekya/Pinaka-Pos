@@ -331,6 +331,10 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
             AppDBConst.orderPaymentMethod: apiOrder.paymentMethod,
             AppDBConst.orderDiscount: double.tryParse(apiOrder.discountTotal) ?? 0.0, // Store discount
             AppDBConst.orderTax: double.tryParse(apiOrder.totalTax) ?? 0.0, // Store tax
+            AppDBConst.orderAgeRestricted: apiOrder.metaData.firstWhere( //Build #1.0.234: Saving Age Restricted value in order table
+                  (meta) => meta.key == TextConstants.ageRestrictedKey,
+              orElse: () => model.MetaData(id: 0, key: '', value: 'false'),
+            ).value.toString(),
           },
           where: '${AppDBConst.orderServerId} = ?',
           whereArgs: [apiOrder.id],
@@ -352,6 +356,10 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
           AppDBConst.orderDiscount: double.tryParse(apiOrder.discountTotal) ?? 0.0, // Store discount
           AppDBConst.orderTax: double.tryParse(apiOrder.totalTax) ?? 0.0, // Store tax
           AppDBConst.orderShipping: double.tryParse(apiOrder.shippingTotal) ?? 0.0, // Store shipping
+          AppDBConst.orderAgeRestricted: apiOrder.metaData //Build #1.0.234: Saving Age Restricted value in order table
+              .firstWhere((meta) => meta.key == TextConstants.ageRestrictedKey,
+              orElse: () => model.MetaData(id: 0, key: '', value: 'false'),
+              ).value.toString(),
         });
         if (kDebugMode) {
           print("#### DEBUG: syncOrdersFromApi Inserted new order with serverId: ${apiOrder.id}, orderTotal: ${apiOrder.total}");

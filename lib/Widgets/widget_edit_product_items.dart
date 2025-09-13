@@ -237,7 +237,13 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
         fit: BoxFit.cover,
       );
     } else {
-      return Image.file(
+      return Platform.isWindows ?
+      Image.asset( // Use Image.asset for PNG
+        'assets/default.png',
+        // width: 40,
+        // height: 40,
+      )
+          : Image.file(
         File(widget.orderItem[AppDBConst.itemImage]),
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) {

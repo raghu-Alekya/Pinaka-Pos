@@ -320,7 +320,7 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String iconPath              = 'icon_path';
   static const String conHeaderText         = 'header_text';
   static const String conFooterText         = 'footer_text';
-  static const String ageRestricted         = 'Age Restricted';
+  static const String ageRestrictedKey         = 'age_restricted'; //Build #1.0.234: Added
   static const String noSubcategoriesAvailable = 'No subcategories available';
 
   //Build #1.0.54: added

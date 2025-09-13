@@ -962,12 +962,22 @@ class NestedGridWidget extends StatelessWidget {
                           }
                           /// use product id:22, sku:woo-fashion-socks
                           //var isVerified = await _ageRestrictedProduct(context, minAge: item[AppDBConst.fastKeyItemMinAge] ?? 0);
+                          //Build #1.0.234: Checking stored age restriction before verifying -> Age
+                          final order = orderHelper?.orders.firstWhere(
+                                (order) => order[AppDBConst.orderServerId] == orderHelper?.activeOrderId,
+                            orElse: () => {},
+                          );
+                          final String ageRestrictedValue = order?[AppDBConst.orderAgeRestricted]?.toString() ?? 'false';
+                          final bool isAgeRestricted = ageRestrictedValue.toLowerCase() == 'true' || ageRestrictedValue == "1";
+
+                          if (!isAgeRestricted) {
                           /// Verify Age and proceed else return
                           final ageVerificationProvider = AgeVerificationProvider();
                           var isVerified = await ageVerificationProvider.verifyAge(context, minAge: item[AppDBConst.fastKeyItemMinAge] ?? 0);
                           if(!isVerified){
                             return;
                           }
+                         }
                           /// Build #1.0.157: Added to check before calling variation API for saving loading time issue
                          //  if (item['type'] == 'variable' || item['fast_key_item_has_variant'] == 1) {
                          //    if (kDebugMode) {

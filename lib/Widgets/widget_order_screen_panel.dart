@@ -49,7 +49,7 @@ class OrderScreenPanel extends StatefulWidget {
   final List<int> quantities;
   final VoidCallback? refreshOrderList;
   final int? activeOrderId; // Build #1.0.118: Added activeOrderId
-  bool fetchOrders;
+  final bool fetchOrders; //Build #1.0.234:  Mark as final
 
   OrderScreenPanel({
     required this.formattedDate,

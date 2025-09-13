@@ -309,6 +309,11 @@ class OrderBloc { // Build #1.0.25 - added by naveen
           AppDBConst.orderDiscount: double.tryParse(response.discountTotal) ?? 0.0, // Store discount
           AppDBConst.orderTax: double.tryParse(response.totalTax) ?? 0.0, // Store tax
           AppDBConst.orderShipping: double.tryParse(response.shippingTotal) ?? 0.0, // Store shipping
+          //Build #1.0.234: Saving Age Restricted value in order table
+          AppDBConst.orderAgeRestricted: response.metaData.firstWhere(
+                (meta) => meta.key == TextConstants.ageRestrictedKey,
+                orElse: () => model.MetaData(id: 0, key: '', value: 'false'),
+               ).value.toString(),
         },
         where: '${AppDBConst.orderServerId} = ?',
         whereArgs: [serverOrderId],
@@ -651,6 +656,10 @@ class OrderBloc { // Build #1.0.25 - added by naveen
           AppDBConst.orderDiscount: double.tryParse(response.discountTotal) ?? 0.0,
           AppDBConst.orderTax: double.tryParse(response.totalTax) ?? 0.0,
           AppDBConst.orderShipping: double.tryParse(response.shippingTotal) ?? 0.0,
+          AppDBConst.orderAgeRestricted: response.metaData.firstWhere( //Build #1.0.234: Saving Age Restricted value in order table
+                (meta) => meta.key == TextConstants.ageRestrictedKey,
+            orElse: () => model.MetaData(id: 0, key: '', value: 'false'),
+          ).value.toString(),
         },
         where: '${AppDBConst.orderServerId} = ?',
         whereArgs: [orderId],
@@ -865,6 +874,10 @@ class OrderBloc { // Build #1.0.25 - added by naveen
           AppDBConst.orderShipping: double.tryParse(response.shippingTotal) ?? 0.0,
           AppDBConst.merchantDiscount: merchantDiscount,
           AppDBConst.merchantDiscountIds: merchantDiscountIds,
+          AppDBConst.orderAgeRestricted: response.metaData.firstWhere(
+                (meta) => meta.key == TextConstants.ageRestrictedKey,
+            orElse: () => model.MetaData(id: 0, key: '', value: 'false'),
+          ).value.toString(),
         },
         where: '${AppDBConst.orderServerId} = ?',
         whereArgs: [orderId],
@@ -1094,6 +1107,10 @@ class OrderBloc { // Build #1.0.25 - added by naveen
           AppDBConst.orderShipping: double.tryParse(response.shippingTotal) ?? 0.0,
           AppDBConst.merchantDiscount: merchantDiscount,
           AppDBConst.merchantDiscountIds: merchantDiscountIds,
+          AppDBConst.orderAgeRestricted: response.metaData.firstWhere( //Build #1.0.234: Saving Age Restricted value in order table
+                (meta) => meta.key == TextConstants.ageRestrictedKey,
+            orElse: () => model.MetaData(id: 0, key: '', value: 'false'),
+          ).value.toString(),
         },
         where: '${AppDBConst.orderServerId} = ?',
         whereArgs: [orderId],
@@ -1169,6 +1186,10 @@ class OrderBloc { // Build #1.0.25 - added by naveen
           AppDBConst.orderDiscount: double.tryParse(response.discountTotal) ?? 0.0,
           AppDBConst.orderTax: double.tryParse(response.totalTax) ?? 0.0,
           AppDBConst.orderShipping: double.tryParse(response.shippingTotal) ?? 0.0,
+          AppDBConst.orderAgeRestricted: response.metaData.firstWhere( //Build #1.0.234: Saving Age Restricted value in order table
+                (meta) => meta.key == TextConstants.ageRestrictedKey,
+            orElse: () => model.MetaData(id: 0, key: '', value: 'false'),
+          ).value.toString(),
           ///In this API update we do not need to add merchant discount update as Payout is coming from line item instead of fee lines
           ///So comment below line, as they will remove merchant discount otherwise from UI
           // AppDBConst.merchantDiscount: merchantDiscount,
@@ -1258,6 +1279,10 @@ class OrderBloc { // Build #1.0.25 - added by naveen
           AppDBConst.orderShipping: double.tryParse(response.shippingTotal) ?? 0.0,
           AppDBConst.merchantDiscount: merchantDiscount, // Reset merchant discount
           AppDBConst.merchantDiscountIds: merchantDiscountIds,
+          AppDBConst.orderAgeRestricted: response.metaData.firstWhere( //Build #1.0.234: Saving Age Restricted value in order table
+                (meta) => meta.key == TextConstants.ageRestrictedKey,
+            orElse: () => model.MetaData(id: 0, key: '', value: 'false'),
+          ).value.toString(),
         },
         where: '${AppDBConst.orderServerId} = ?',
         whereArgs: [orderId],
@@ -1467,6 +1492,10 @@ class OrderBloc { // Build #1.0.25 - added by naveen
           AppDBConst.orderShipping: double.tryParse(response.shippingTotal) ?? 0.0,
           AppDBConst.merchantDiscount: merchantDiscount, // Reset merchant discount
           AppDBConst.merchantDiscountIds: merchantDiscountIds,
+          AppDBConst.orderAgeRestricted: response.metaData.firstWhere( //Build #1.0.234: Saving Age Restricted value in order table
+                (meta) => meta.key == TextConstants.ageRestrictedKey,
+            orElse: () => model.MetaData(id: 0, key: '', value: 'false'),
+          ).value.toString(),
         },
         where: '${AppDBConst.orderServerId} = ?',
         whereArgs: [orderId],
@@ -1673,6 +1702,10 @@ class OrderBloc { // Build #1.0.25 - added by naveen
           AppDBConst.orderShipping: double.tryParse(response.shippingTotal) ?? 0.0,
           AppDBConst.merchantDiscount: merchantDiscount,
           AppDBConst.merchantDiscountIds: merchantDiscountIds,
+          AppDBConst.orderAgeRestricted: response.metaData.firstWhere( //Build #1.0.234: Saving Age Restricted value in order table
+                (meta) => meta.key == TextConstants.ageRestrictedKey,
+            orElse: () => model.MetaData(id: 0, key: '', value: 'false'),
+          ).value.toString(),
         },
         where: '${AppDBConst.orderServerId} = ?',
         whereArgs: [orderId],

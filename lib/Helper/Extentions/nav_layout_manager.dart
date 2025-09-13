@@ -59,7 +59,7 @@ mixin LayoutSelectionMixin<T extends StatefulWidget> on State<T> { //Build #1.0.
 
   void _updateLayoutFromPreference(String savedLayout) {
     if (mounted) {
-      setState(() {
+    //  setState(() { //Build #1.0.234: No need here , every screen on mode change we are calling setState
         switch (savedLayout) {
           case SharedPreferenceTextConstants.navLeftOrderRight:
             sidebarPosition = SidebarPosition.left;
@@ -74,7 +74,7 @@ mixin LayoutSelectionMixin<T extends StatefulWidget> on State<T> { //Build #1.0.
             orderPanelPosition = OrderPanelPosition.left;
             break;
         }
-      });
+   //   });
     }
   }
 

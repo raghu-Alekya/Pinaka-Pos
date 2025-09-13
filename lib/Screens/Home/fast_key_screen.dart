@@ -1646,9 +1646,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                             decoration: InputDecoration(
                               hintText: TextConstants.categoryNameText,
                               hintStyle: TextStyle(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.grey[400],fontWeight: FontWeight.bold),
-                              errorText: (!isEditing &&
-                                  showError &&
-                                  nameController.text.isEmpty)
+                              errorText: (showError && nameController.text.trim().isEmpty)
                                   ? TextConstants.categoryNameReqText
                                   : null,
                               errorStyle:
@@ -1671,6 +1669,12 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                               contentPadding: EdgeInsets.symmetric(
                                   horizontal: 16, vertical: 12),
                             ),
+                            // Clear error when user starts typing
+                            onChanged: (value) {
+                              if (showError && value.trim().isNotEmpty) {
+                                setStateDialog(() => showError = false);
+                              }
+                            },
                           ),
                         ),
                       ],
@@ -1716,7 +1720,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                           width: 120, // Added fixed width
                           child: TextButton(
                             onPressed: () async {
-                              if (!isEditing && nameController.text.isEmpty) {
+                              if (nameController.text.trim().isEmpty) {
                                 setStateDialog(() => showError = true);
                                 return;
                               }
@@ -1727,7 +1731,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                                 }
                                 // Build #1.0.89: updateFastKey API call integrated
                                 _fastKeyBloc.updateFastKey(
-                                  title: nameController.text,
+                                  title: nameController.text.trim(), // Trim whitespace
                                   index: index+1,//backend uses non zero indexes to be passed so increase index to 1 onwards
                                   imageUrl: imagePath,
                                   fastKeyServerId: fastKeyTabs[index].fastkeyServerId,
@@ -1759,6 +1763,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                                   );
                                 }
                                 else if(response.status == Status.ERROR){
+                                  setStateDialog(() =>isLoading = false);
                                   if (response.message!.contains('Unauthorised')) {
                                     if (kDebugMode) {
                                       print("Fast key 9 ---- Unauthorised : ${response.message!}");

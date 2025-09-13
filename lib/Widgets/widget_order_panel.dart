@@ -1006,7 +1006,15 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                 if(!mounted) {
                   return;
                 }
-      
+                //Build #1.0.234: Checking stored age restriction before verifying -> Age
+                final order = orderHelper.orders.firstWhere(
+                      (order) => order[AppDBConst.orderServerId] == orderHelper.activeOrderId,
+                  orElse: () => {},
+                );
+                final String ageRestrictedValue = order[AppDBConst.orderAgeRestricted]?.toString() ?? 'false';
+                final bool isAgeRestricted = ageRestrictedValue.toLowerCase() == 'true' || ageRestrictedValue == "1";
+
+                if (!isAgeRestricted) {
                 ///Age Verification code
                 final ageVerificationProvider = AgeVerificationProvider();
                 var isVerified = await ageVerificationProvider.ageRestrictedProduct(context, product);
@@ -1015,6 +1023,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                 if(!isVerified){
                   return;
                 }
+              }
                 ///Todo: Need to call variation service before adding product to the order
                 if (product.variations.isNotEmpty) {
                   ///1. Call _productBloc.fetchProductVariations(product.id!);

@@ -158,6 +158,7 @@ class _TopBarState extends State<TopBar> {
   String? userDisplayName;
   String? _lastSearchQuery; // Build #1.0.120: Track last searched query to avoid redundant fetches
   bool _isSearchEnabled = true;
+  var _printerSettings =  PrinterSettings();
 
   @override
   void initState() {
@@ -387,6 +388,15 @@ class _TopBarState extends State<TopBar> {
                                   if(product.variations!.isNotEmpty) {
                                     _clearSearch();
                                   }
+                                  //Build #1.0.234: Checking stored age restriction before verifying -> Age
+                                  final order = orderHelper.orders.firstWhere(
+                                        (order) => order[AppDBConst.orderServerId] == orderHelper.activeOrderId,
+                                    orElse: () => {},
+                                  );
+                                  final String ageRestrictedValue = order[AppDBConst.orderAgeRestricted]?.toString() ?? 'false';
+                                  final bool isAgeRestricted = ageRestrictedValue.toLowerCase() == 'true' || ageRestrictedValue == "1";
+
+                                  if (!isAgeRestricted) {
                                   if (hasAgeRestriction) {
                                     final minimumAgeSlug = ageRestrictedTag?.slug;
                                     final isVerified = await ageVerificationProvider.verifyAge(context, minAge: int.tryParse(minimumAgeSlug!) ?? 0);
@@ -397,6 +407,7 @@ class _TopBarState extends State<TopBar> {
                                       return;
                                     }
                                   }
+                                }
 
                                 if (kDebugMode) {
                                   print("TopBar - product.variations : ${product.variations!.isNotEmpty}");
@@ -1142,12 +1153,11 @@ class _TopBarState extends State<TopBar> {
                       ///Use below code if only openDrawer is needed
                       // PrinterSettings.openDrawer(context: context);
                       ///As per Shravan's suggestion, we are now calling printTicket to open drawer from topbar which will automatically invoke open drawer
-                      var printerSettings =  PrinterSettings();
+                      await PrinterSettings.openDrawer(context: context);
                       List<int> bytes = [];
-
-                      final ticket =  await printerSettings.getTicket();
+                      final ticket =  await _printerSettings.getTicket();
                       bytes += ticket.feed(1);
-                      final result = await printerSettings.printTicket(bytes, ticket);
+                      final result = await _printerSettings.printTicket(bytes, ticket);
                       if (kDebugMode) {
                         print(">>>> TopBar printer result $result");
                       }

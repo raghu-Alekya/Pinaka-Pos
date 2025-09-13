@@ -1200,6 +1200,12 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                   width: ResponsiveLayout.getWidth(40),
                   fit: BoxFit.cover,
                 )
+                    : Platform.isWindows
+                    ? Image.asset(
+                  'assets/default.png',
+                  height: ResponsiveLayout.getHeight(40),
+                  width: ResponsiveLayout.getWidth(40),
+                )
                     : Image.file(
                   File(orderItem[AppDBConst.itemImage]),
                   height: ResponsiveLayout.getHeight(40),

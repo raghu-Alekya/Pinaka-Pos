@@ -47,7 +47,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
   int? orderId; // Store order ID
   double orderTotal = 0.0; // Store order total
   // Discount values
-  String _discountValue = "0%";
+  String _discountValue = "0.00%";
   bool _isPercentageSelected = true;
 
   // Coupon value
@@ -113,10 +113,21 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
     if (kDebugMode) {
       print("WidgetTabs.didChangeDependencies assign text field with barcode value ${_skuController.text} = ${widget.barcode}");
     }
-    _skuController.text = widget.barcode ?? "";
-    _sku = widget.barcode ?? "";
-    if (kDebugMode) {
-      print("WidgetTabs.didChangeDependencies are text field and sku same?  ${_skuController.text} = $_sku");
+    //Build #1.0.234: Fixed Issue [SCRUM - 388] -> SKU Disappears After Device Keyboard is Hidden
+    // Only set the barcode value if it's different from current value and not empty
+    if (widget.barcode.isNotEmpty && _skuController.text != widget.barcode) {
+      if (kDebugMode) {
+        print("WidgetTabs.didChangeDependencies assign text field with barcode value ${widget.barcode}");
+      }
+      _skuController.text = widget.barcode;
+      _sku = widget.barcode;
+      if (kDebugMode) {
+        print("WidgetTabs.didChangeDependencies are text field and sku same?  ${_skuController.text} = $_sku");
+      }
+    } else {
+      if (kDebugMode) {
+        print("#### DEBUG 200 ${_skuController.text}, $_sku");
+      }
     }
   }
 
@@ -374,7 +385,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
               onDigitPressed: (digit) {
                 setState(() { // Build #1.0.53 : updated code
                   String currentValue = _discountValue.replaceAll('%', '').replaceAll(TextConstants.currencySymbol, '');
-                  if (currentValue == "0") {
+                  if (currentValue == "0.00" || currentValue == "0") {
                     currentValue = digit;
                   } else {
                     currentValue += digit;
@@ -384,14 +395,20 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
               },
               onClearPressed: () {
                 setState(() {
-                  _discountValue = _isPercentageSelected ? "0%" : "0.00";
+                  _discountValue = _isPercentageSelected ? "0.00%" : "0.00";
                 });
               },
               onDeletePressed: () { // Build #1.0.53 : updated code
                 setState(() {
                   String currentValue = _discountValue.replaceAll('%', '').replaceAll(TextConstants.currencySymbol, ''); // Build #1.0.181: 1. Replaced Hard coded ‘\$’ with TextConstants.currencySymbol
-                  currentValue = currentValue.isNotEmpty ? currentValue.substring(0, currentValue.length - 1) : "0";
-                  _discountValue = _isPercentageSelected ? "$currentValue%" : currentValue;
+                  if (currentValue.isNotEmpty && currentValue != "0.00") {
+                    currentValue = currentValue.substring(0, currentValue.length - 1);
+                    if (currentValue.isEmpty) {
+                      currentValue = "0.00";
+                    }
+                  } else {
+                    currentValue = "0.00";
+                  } _discountValue = _isPercentageSelected ? "$currentValue%" : currentValue;
                 });
               },
               actionButtonType: ActionButtonType.add,
@@ -1262,7 +1279,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
     // Build #1.0.53 : updated code
     final themeHelper = Provider.of<ThemeNotifier>(context);
     String displayValue = _isPercentageSelected ? _discountValue : "${TextConstants.currencySymbol}$_discountValue";
-    bool isPlaceholder = _discountValue == "0%" || _discountValue == "0";
+    bool isPlaceholder = _discountValue == "0.00%" || _discountValue == "0.00" || _discountValue == "0%" || _discountValue == "0";
 
     return Container(
       width: MediaQuery.of(context).size.width / 2.75,
@@ -1410,7 +1427,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
         if (response.status == Status.COMPLETED) {
           if (kDebugMode) print("Discount confirmed via API for order $orderId");
           setState(() {
-            _discountValue = _isPercentageSelected ? "0%" : "0";
+            _discountValue = _isPercentageSelected ? "0.00%" : "0.00";
           });
           ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
             SnackBar(

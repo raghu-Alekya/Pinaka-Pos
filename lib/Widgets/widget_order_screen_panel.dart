@@ -218,6 +218,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
 
   // Build #1.0.118: Updated fetchOrdersData to use widget.activeOrderId
   Future<void> fetchOrdersData() async { // Build #1.0.104: created this function for initial load and back button refresh
+    if (!mounted) return; // Build #1.0.240 : Added
     setState(() => _isLoading = true); // show loader
     if (kDebugMode) {
       print("##### fetchOrdersData called for activeOrderId: ${widget.activeOrderId}");
@@ -225,6 +226,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
     await fetchOrder();
     await fetchOrderItems();
 
+    if (!mounted) return; // Added this check first
     setState(() => _isLoading = false); // Hide loader
   }
 

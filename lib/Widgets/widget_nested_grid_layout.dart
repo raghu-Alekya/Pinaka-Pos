@@ -888,18 +888,14 @@ class NestedGridWidget extends StatelessWidget {
                     key: const ValueKey('add_button'),
                     child: GestureDetector(
                       onTap: onAddButtonPressed ?? () {},
-                      child: Card(
-                        color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground :Colors.white,
-                        elevation: 4,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.add, size: 40, color: Color(0xFFFE6464)),
-                            //SizedBox(height: 2),
-                            Text(TextConstants.addProductText, style: TextStyle(color: Color(0xFFFE6464))),
-                          ],
-                        ),
-                      ),
+                      child: _getCardWidget(Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.add, size: 40, color: Color(0xFFFE6464)),
+                          //SizedBox(height: 2),
+                          Text(TextConstants.addProductText, style: TextStyle(color: Color(0xFFFE6464))),
+                        ],
+                      ),themeHelper, accentColor: Colors.redAccent),
                     ),
                   );
                 }
@@ -910,18 +906,14 @@ class NestedGridWidget extends StatelessWidget {
                     key: const ValueKey('back_button'),
                     child: GestureDetector(
                       onTap: onBackButtonPressed ?? () {},
-                      child: Card(
-                        color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : Colors.white,
-                        elevation: 4,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: const [
-                            Icon(Icons.arrow_back, size: 50, color: Colors.blue),
-                            SizedBox(height: 5),
-                            Text(TextConstants.backToCategories, style: TextStyle(color: Colors.blue)),
-                          ],
-                        ),
-                      ),
+                      child: _getCardWidget(Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Icon(Icons.arrow_back, size: 50, color: Colors.blue),
+                          SizedBox(height: 5),
+                          Text(TextConstants.backToCategories, style: TextStyle(color: Colors.blue)),
+                        ],
+                      ), themeHelper),
                     ),
                   );
                 }
@@ -1088,63 +1080,59 @@ class NestedGridWidget extends StatelessWidget {
                             }
                           }
                         },
-                        child: Card(
-                          color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground :Colors.white,
-                          elevation: 4,
-                          child: Padding(
-                            padding: const EdgeInsets.all(10.0),
-                            child: Row(
-                              children: [
-                                _buildImage(item["fast_key_item_image"]),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                                    children: [
-                                      Text(
-                                        item["fast_key_item_name"],
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          //fontWeight: FontWeight.bold,
-                                          color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
+                        child: _getCardWidget(Padding(
+                          padding: const EdgeInsets.all(10.0),
+                          child: Row(
+                            children: [
+                              _buildImage(item["fast_key_item_image"]),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                  children: [
+                                    Text(
+                                      item["fast_key_item_name"],
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        //fontWeight: FontWeight.bold,
+                                        color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight,
                                       ),
-                                      Row(
-                                        children: [
-                                          Text(
-                                            '${TextConstants.currencySymbol}${double.tryParse(item["fast_key_item_price"].toString())?.toStringAsFixed(2) ?? "0.00"}',
-                                            style: TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.bold,
-                                              color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight,
-                                            ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    Row(
+                                      children: [
+                                        Text(
+                                          '${TextConstants.currencySymbol}${double.tryParse(item["fast_key_item_price"].toString())?.toStringAsFixed(2) ?? "0.00"}',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.bold,
+                                            color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight,
                                           ),
-                                          const SizedBox(width: 22), // Space between price and variations
-                                          if (item['variations'] != null && item['variations'].isNotEmpty) // Build #1.0.157: show variationIcon with count
-                                            Row(
-                                              children: [
-                                                SvgPicture.asset(SvgUtils.variationIcon, height: 10, width: 10),
-                                                // SizedBox(width: 4),
-                                                // Text(
-                                                //   '${item["variations"].length}',
-                                                //   style: TextStyle(
-                                                //     fontSize: 12,
-                                                //     color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight,
-                                                //   ),
-                                                // ),
-                                              ],
-                                            ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
+                                        ),
+                                        const SizedBox(width: 22), // Space between price and variations
+                                        if (item['variations'] != null && item['variations'].isNotEmpty) // Build #1.0.157: show variationIcon with count
+                                          Row(
+                                            children: [
+                                              SvgPicture.asset(SvgUtils.variationIcon, height: 10, width: 10),
+                                              // SizedBox(width: 4),
+                                              // Text(
+                                              //   '${item["variations"].length}',
+                                              //   style: TextStyle(
+                                              //     fontSize: 12,
+                                              //     color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight,
+                                              //   ),
+                                              // ),
+                                            ],
+                                          ),
+                                      ],
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                        ),
+                        ), themeHelper),
                       ),
                       if (enableIcons == true && itemIndex == selectedItemIndex) // Build #1.0.204: Show icons only for long-pressed item
                         Positioned(
@@ -1173,6 +1161,27 @@ class NestedGridWidget extends StatelessWidget {
 
         ),
       ),
+    );
+  }
+
+/// Customize products card layout for the grid, here
+  // pass widget - contents of the card
+  // themeHelper - to support dark and light theme background
+  // optional accentColor - to apply changes in shadow and border color
+  Widget _getCardWidget(Widget widget, ThemeNotifier themeHelper, {MaterialAccentColor accentColor = Colors.blueAccent}){
+    return Card(
+      color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground :Colors.white,/// card color
+      elevation: 5,
+      shadowColor: accentColor, /// card shadow color
+      clipBehavior: Clip.antiAliasWithSaveLayer ,
+      shape: RoundedRectangleBorder( /// Optional: remove if no border required
+        side: BorderSide(
+          color: accentColor, /// Color of the border
+          width: 0.5,         /// Thickness of the border
+        ),
+        borderRadius: BorderRadius.circular(15.0), // Optional: for rounded corners
+      ),
+      child: widget,
     );
   }
 

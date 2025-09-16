@@ -8,73 +8,108 @@ import '../../Preferences/pinaka_preferences.dart';
 enum SidebarPosition { left, right, bottom }
 enum OrderPanelPosition { left, right }
 
-mixin LayoutSelectionMixin<T extends StatefulWidget> on State<T> { //Build #1.0.54: added
+mixin LayoutSelectionMixin<T extends StatefulWidget> on State<T> { // Build #1.0.240 : UPDATED CODE
   final PinakaPreferences _preferences = PinakaPreferences();
-  SidebarPosition sidebarPosition = SidebarPosition.left;
-  OrderPanelPosition orderPanelPosition = OrderPanelPosition.right;
-  bool _isInitialLoad = true; // Add this flag
 
+  /// Build #1.0.240 : Updated LayoutSelectionMixin code to fix the Issue [SCRUM - 389] - Mode Switching Between Left & Bottom is Not Static
+  // Shared across all instances - loaded once per app session
+  static SidebarPosition _currentSidebarPosition = SidebarPosition.left;
+  static OrderPanelPosition _currentOrderPanelPosition = OrderPanelPosition.right;
+  static bool _isInitialLoadComplete = false;
+
+  SidebarPosition get sidebarPosition => _currentSidebarPosition;
+  OrderPanelPosition get orderPanelPosition => _currentOrderPanelPosition;
 
   @override
   void initState() {
     super.initState();
-    // Load layout first before adding listener
-    _loadLayoutSelection().then((_) {
+
+    if (kDebugMode) {
+      print("#### LayoutSelectionMixin[${widget.runtimeType}]: initState");
+    }
+
+    if (!_isInitialLoadComplete) {
+      // First time loading from DB
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _loadLayoutSelection().then((_) {
+          PinakaPreferences.layoutSelectionNotifier.addListener(_onLayoutChanged);
+          _isInitialLoadComplete = true;
+          if (kDebugMode) {
+            print("#### LayoutSelectionMixin: Initial load complete");
+          }
+        });
+      });
+    } else {
+      // Subsequent screens - use cached values
       PinakaPreferences.layoutSelectionNotifier.addListener(_onLayoutChanged);
-      if (kDebugMode) {
-        print("#### LayoutSelectionMixin: Added listener after initial load");
-      }
-    });
+    }
   }
 
   Future<void> _loadLayoutSelection() async {
     final userData = await UserDbHelper().getUserData();
     var savedLayout = userData?[AppDBConst.layoutSelection]; //Build #1.0.122: using from DB
+
     if (kDebugMode) {
-      print("#### LayoutSelectionMixin: _loadLayoutSelection - Loaded layout: $savedLayout");
+      print("#### LayoutSelectionMixin: DB layout: '$savedLayout'");
     }
 
     // Only update if we have a saved layout
     if (savedLayout != null && savedLayout.isNotEmpty) {
-      _updateLayoutFromPreference(savedLayout);
+      _updateLayoutFromPreference(savedLayout, false);
     } else {
       // Set default only if nothing is saved
       String defaultLayout = SharedPreferenceTextConstants.navLeftOrderRight;
     //  await _preferences.saveLayoutSelection(defaultLayout);
       //Build #1.0.122 : update layout mode change selection to DB
       await UserDbHelper().saveUserSettings({AppDBConst.layoutSelection: defaultLayout}, modeChange: false);
-      _updateLayoutFromPreference(defaultLayout);
+      _updateLayoutFromPreference(defaultLayout, false);
     }
-    _isInitialLoad = false;
   }
 
   void _onLayoutChanged() {
-    if (_isInitialLoad) return; // Skip during initial load
-
     if (kDebugMode) {
-      print("#### LayoutSelectionMixin: _onLayoutChanged with value: ${PinakaPreferences.layoutSelectionNotifier.value}");
+      print("#### LayoutSelectionMixin: Layout changed to: ${PinakaPreferences.layoutSelectionNotifier.value}");
     }
-    _updateLayoutFromPreference(PinakaPreferences.layoutSelectionNotifier.value);
+    _updateLayoutFromPreference(PinakaPreferences.layoutSelectionNotifier.value, true);
   }
 
-  void _updateLayoutFromPreference(String savedLayout) {
-    if (mounted) {
-    //  setState(() { //Build #1.0.234: No need here , every screen on mode change we are calling setState
-        switch (savedLayout) {
-          case SharedPreferenceTextConstants.navLeftOrderRight:
-            sidebarPosition = SidebarPosition.left;
-            orderPanelPosition = OrderPanelPosition.right;
-            break;
-          case SharedPreferenceTextConstants.navRightOrderLeft:
-            sidebarPosition = SidebarPosition.right;
-            orderPanelPosition = OrderPanelPosition.left;
-            break;
-          case SharedPreferenceTextConstants.navBottomOrderLeft:
-            sidebarPosition = SidebarPosition.bottom;
-            orderPanelPosition = OrderPanelPosition.left;
-            break;
-        }
-   //   });
+  void _updateLayoutFromPreference(String savedLayout, bool shouldSetState) {
+    SidebarPosition newSidebarPosition;
+    OrderPanelPosition newOrderPanelPosition;
+
+    switch (savedLayout) {
+      case SharedPreferenceTextConstants.navLeftOrderRight:
+        newSidebarPosition = SidebarPosition.left;
+        newOrderPanelPosition = OrderPanelPosition.right;
+        break;
+      case SharedPreferenceTextConstants.navRightOrderLeft:
+        newSidebarPosition = SidebarPosition.right;
+        newOrderPanelPosition = OrderPanelPosition.left;
+        break;
+      case SharedPreferenceTextConstants.navBottomOrderLeft:
+        newSidebarPosition = SidebarPosition.bottom;
+        newOrderPanelPosition = OrderPanelPosition.left;
+        break;
+      default:
+        return;
+    }
+
+    // Only update if layout actually changed
+    if (newSidebarPosition != _currentSidebarPosition ||
+        newOrderPanelPosition != _currentOrderPanelPosition) {
+
+      if (kDebugMode) {
+        print("#### LayoutSelectionMixin: Updating layout from $_currentSidebarPosition->$newSidebarPosition");
+      }
+
+      _currentSidebarPosition = newSidebarPosition;
+      _currentOrderPanelPosition = newOrderPanelPosition;
+
+      if (shouldSetState && mounted) {
+        setState(() {});
+      }
+    } else if (kDebugMode) {
+      print("#### LayoutSelectionMixin: Layout unchanged, skipping update");
     }
   }
 

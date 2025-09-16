@@ -226,7 +226,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
 
   void _callCreatePaymentAPI({double amount = 0.0}) { // Build #1.0.29
     if (kDebugMode) {
-      print("###### _callCreatePaymentAPI called");
+      print("###### _callCreatePaymentAPI called, balanceAmount: $balanceAmount");
     }
     if (balanceAmount > 0) {
       if (amountController.text.isEmpty) { //Build #1.0.34: updated code
@@ -244,6 +244,9 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
         print("Error: Invalid amount: $cleanAmount");
       }
       return;
+    }
+    if (kDebugMode) {
+      print("_callCreatePaymentAPI cleanAmount: $cleanAmount, balanceAmount: $balanceAmount");
     }
 
     setState(() {
@@ -353,12 +356,13 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
             amountController.clear(); // Clear input textField
             setState(() {}); // Update UI
 
+            balanceAmount = double.tryParse(balanceAmount.toStringAsFixed(2)) ?? 0.00;
             if (kDebugMode) {
               print("Payment successful - Paid: $paidAmount, Balance: $balanceAmount, Change: $changeAmount, Tender: $tenderAmount");
             }
 
             // Show appropriate dialog based on payment amount
-            if (isPartialPayment) {
+            if (isPartialPayment && (balanceAmount != 0)) {
               if (kDebugMode) {
                 print("Showing partial payment dialog: Paid=$paidAmount, Remaining Balance=$balanceAmount");
               }

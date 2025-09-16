@@ -379,7 +379,9 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String unAuthMessage = "Unauthorised.Session is expired on this device.";
   static const String unAuth = "Unauthorised";
 
-
+  static const String tranFailed = "Transaction Failed !"; // Build #1.0.240
+  static const String wantRetry = "Do you want to retry?";
+  static const String dismiss = "Dismiss";
 }
 
 class TextFontSize {

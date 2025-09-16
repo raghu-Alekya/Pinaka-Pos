@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/svg.dart';
@@ -21,6 +23,7 @@ import '../../Preferences/pinaka_preferences.dart';
 import '../../Repositories/Auth/safe_drop_repository.dart';
 import '../../Utilities/printer_settings.dart';
 import '../../Utilities/result_utility.dart';
+import '../../Widgets/widget_alert_popup_dialogs.dart';
 import '../../Widgets/widget_custom_num_pad.dart';
 import '../../Widgets/widget_topbar.dart';
 import 'package:flutter/material.dart';
@@ -30,6 +33,7 @@ import '../../Widgets/widget_navigation_bar.dart' as custom_widgets;
 import '../Auth/login_screen.dart';
 import 'Settings/image_utils.dart';
 import 'Settings/printer_setup_screen.dart';
+import 'apps_dashboard_screen.dart';
 
 class SafeDropScreen extends StatefulWidget {
   final int? lastSelectedIndex;
@@ -67,7 +71,7 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
   ///printer
   var _printerSettings =  PrinterSettings();
   List<int> bytes = [];
-
+  StreamSubscription? _safeDropSubscription; // Build #1.0.240
   @override
   void initState() {
     super.initState();
@@ -76,7 +80,8 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
     // Initialize SafeDropBloc
     _safeDropBloc = SafeDropBloc(SafeDropRepository());
     // Added: Listen to safe drop stream for API responses
-    _safeDropBloc.safeDropStream.listen((response) {  //Build #1.0.74
+    // Build #1.0.240 Store the subscription and manage it properly
+    _safeDropSubscription = _safeDropBloc.safeDropStream.listen((response) {  //Build #1.0.74
       if (response.status == Status.COMPLETED) {
         setState(() {
           _isApiLoading = false;
@@ -93,12 +98,31 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
           controller.text = "0";
         });
         _calculateTotals();
-        ///2. print receipt
+        /// 1. print receipt
         if(!Misc.disablePrinter) {
           _printTicket();
         }
+
+        // Build #1.0.240
+        /// 2. Navigate back to Apps screen after successful upload
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            // Navigator.of(context).popUntil((route) => route.isFirst);
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                  builder: (context) =>
+                      AppsDashboardScreen(lastSelectedIndex: 4)),
+            );
+            if (kDebugMode) print("Navigate back to Apps screen");
+          }
+        });
+        _safeDropSubscription?.cancel();
       }
       else if (response.status == Status.ERROR) {
+        setState(() {
+          _isApiLoading = false; // Build #1.0.240 : dismiss loader on add button
+        });
         if (kDebugMode) {
           print("safe drop screen --- Unauthorised : ${response.message ?? " "}");
         }
@@ -126,7 +150,22 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
             SnackBar(content: Text(
                 response.message ?? 'Failed to create safe drop')),
           );
+
+          // Build #1.0.240
+          /// 3. Show failure popup with dismiss button
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+                CustomDialog.showCustomItemAlert(
+                  context,
+                  title: TextConstants.tranFailed,
+                  description: TextConstants.wantRetry,
+                  buttonText: TextConstants.dismiss,
+                  showCloseIcon: false
+                );
+            }
+          });
         }
+        _safeDropSubscription?.cancel(); // Build #1.0.238: cancel subscription
       }
     });
 
@@ -170,6 +209,8 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
 
   @override
   void dispose() {
+    // Build #1.0.240 : Cancel the subscription to prevent memory leaks
+    _safeDropSubscription?.cancel();
     // Dispose of controllers to prevent memory leaks
     _denomControllers.forEach((key, controller) => controller.dispose());
     _totalNotesController.dispose();

@@ -1057,9 +1057,20 @@ class OrderBloc { // Build #1.0.25 - added by naveen
         print("OrderBloc - New total: ${response.total}");
         print("OrderBloc - Fee lines count: ${response.feeLines?.length ?? 0}");
       }
+      //Build #1.0.237 : Fixed RE-OPEN Issue [SCRUM - 376] -> Failed to remove "Payout" from order panel
+      OrderHelper orderHelper = OrderHelper();
+      final serverOrderId = OrderHelper().activeOrderId;
+      if (kDebugMode) {
+        print("#### addPayout serverOrderId is $serverOrderId");
+      }
+
+      if(serverOrderId == null){
+        return;
+      }
+      // Clear existing items for this order
+      await orderHelper.clearOrderItems(serverOrderId);
 
       // Build #1.0.92: Added payout/discount to DB after successful API response
-      OrderHelper orderHelper = OrderHelper();
       final db = await DBHelper.instance.database;
       double merchantDiscount = 0.0;
       var merchantDiscountIds = "";
@@ -1072,21 +1083,22 @@ class OrderBloc { // Build #1.0.25 - added by naveen
             merchantDiscount += double.parse(feeLine.total ?? '0.0').abs();
             merchantDiscountIds = "$merchantDiscountIds,${feeLine.id}";
           }
-          if (isPayOut && (feeLine.name == TextConstants.payout)) {  /// Build #1.0.138: check with 'AND' condition to check correctly , otherwise some times discount also adding into orderPanel as item issue
-            if (kDebugMode) {
-              print("#### OrderBloc - Adding payout item: id: ${response.feeLines!.last.id}, total: ${response.feeLines!.last.total}");
-            }
-            await orderHelper.addItemToOrder(
-              feeLine.id,
-              feeLine.name ?? '',
-              'assets/svg/payout.svg',
-              double.parse(feeLine.total ?? '0.0'),
-              1,
-              '',
-              orderId,
-              type: ItemType.payout.value,
-            );
-          }
+          /// NO NEED TO CHECK PAYOUT CODE IN FEE LINE
+          // if (isPayOut && (feeLine.name == TextConstants.payout)) {  /// Build #1.0.138: check with 'AND' condition to check correctly , otherwise some times discount also adding into orderPanel as item issue
+          //   if (kDebugMode) {
+          //     print("#### OrderBloc - Adding payout item: id: ${response.feeLines!.last.id}, total: ${response.feeLines!.last.total}");
+          //   }
+          //   await orderHelper.addItemToOrder(
+          //     feeLine.id,
+          //     feeLine.name ?? '',
+          //     'assets/svg/payout.svg',
+          //     double.parse(feeLine.total ?? '0.0'),
+          //     1,
+          //     '',
+          //     orderId,
+          //     type: ItemType.payout.value,
+          //   );
+          // }
         }
         if (kDebugMode) {
           print("#### OrderBloc - addPayout Setting merchantDiscount to $merchantDiscount AND discountsIds to $merchantDiscountIds for orderId $orderId");
@@ -1115,6 +1127,88 @@ class OrderBloc { // Build #1.0.25 - added by naveen
         where: '${AppDBConst.orderServerId} = ?',
         whereArgs: [orderId],
       );
+
+      //Build #1.0.237 : Fixed RE-OPEN Issue [SCRUM - 376] -> Failed to remove "Payout" from order panel
+      // Added updated line items from the API response
+      for (var lineItem in response.lineItems) {
+        final String variationName = lineItem.productVariationData?.metaData?.firstWhere(
+              (e) => e.key == "custom_name",
+          orElse: () => model.MetaData(id: 0, key: "", value: ""),
+        ).value ?? "";
+        final int variationCount = lineItem.productData.variations?.length ?? 0;
+        final String combo = lineItem.metaData.firstWhere(
+              (e) => e.value.contains('Combo'),
+          orElse: () => model.MetaData(id: 0, key: "", value: ""),
+        ).value.split(' ').first ?? "";
+        final bool hasVariations = lineItem.productData.variations != null && lineItem.productData.variations!.isNotEmpty;
+        final double salesPrice = hasVariations
+            ? double.tryParse(lineItem.productVariationData?.salePrice?.isNotEmpty == true ? lineItem.productVariationData!.salePrice! : "0.0") ?? 0.0
+            : double.tryParse(lineItem.productData.salePrice?.isNotEmpty == true ? lineItem.productData.salePrice! : "0.0") ?? 0.0;
+        final double regularPrice = hasVariations
+            ? double.tryParse(lineItem.productVariationData?.regularPrice?.isNotEmpty == true ? lineItem.productVariationData!.regularPrice! : "0.0") ?? 0.0
+            : double.tryParse(lineItem.productData.regularPrice?.isNotEmpty == true ? lineItem.productData.regularPrice! : "0.0") ?? 0.0;
+        final double unitPrice = hasVariations
+            ? double.tryParse(lineItem.productVariationData?.price?.isNotEmpty == true ? lineItem.productVariationData!.price! : "0.0") ?? 0.0
+            : double.tryParse(lineItem.productData.price?.isNotEmpty == true ? lineItem.productData.price! : "0.0") ?? 0.0;
+        final double itemPrice = double.tryParse(lineItem.subtotal.isNotEmpty == true ? lineItem.subtotal : '0.0') ?? 0.0;
+        bool isCustomItem = lineItem.productData.tags.any((tag) => tag.name == TextConstants.customItem);
+
+        if (kDebugMode) {
+          print("#### OrderBloc - addPayout: Adding lineItem ${lineItem.id}, orderId: $orderId, ProductId: ${lineItem.productId}, VariationId: ${lineItem.variationId}");
+          print("#### OrderBloc - addPayout: variationName $variationName, variationCount: $variationCount, combo: $combo, salesPrice: $salesPrice, regularPrice: $regularPrice, unitPrice: $unitPrice");
+        }
+
+        if ((lineItem.name == TextConstants.payout)) {  /// Build #1.0.205: payout is added as product so while updating order table check here as well
+          if (kDebugMode) {
+            print("#### OrderBloc - addPayout: id: ${response.lineItems!.last.id}, total: ${response.lineItems!.last.total}");
+          }
+          await orderHelper.addItemToOrder(
+            lineItem.id,
+            lineItem.name ?? '',
+            'assets/svg/payout.svg',
+            double.parse(lineItem.total ?? '0.0'),
+            1,
+            '',
+            orderId,
+            type: ItemType.payout.value,
+          );
+        } else {
+          await orderHelper.addItemToOrder(
+            lineItem.id,
+            lineItem.name,
+            lineItem.image.src ?? '',
+            itemPrice,
+            lineItem.quantity,
+            lineItem.sku ?? '',
+            orderId,
+            productId: lineItem.productId,
+            variationId: lineItem.variationId,
+            type: isCustomItem ? ItemType.customProduct.value : ItemType.product.value,
+            variationName: variationName,
+            variationCount: variationCount,
+            combo: combo,
+            salesPrice: salesPrice,
+            regularPrice: regularPrice,
+            unitPrice: unitPrice,
+          );
+        }
+      }
+
+      for (var couponLine in response.couponLines) {
+        if (kDebugMode) {
+          print("#### OrderBloc - addPayout: id: ${couponLine.id}, code: ${couponLine.code}, amount: ${couponLine.nominalAmount}");
+        }
+        await orderHelper.addItemToOrder(
+          couponLine.id,
+          couponLine.code ?? '',
+          'assets/svg/coupon.svg',
+          double.parse(couponLine.nominalAmount?.toString() ?? '0.0'),
+          1,
+          '',
+          orderId,
+          type: ItemType.coupon.value,
+        );
+      }
 
       addPayoutSink.add(APIResponse.completed(response));
     } catch (e, s) {

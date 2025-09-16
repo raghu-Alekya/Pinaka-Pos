@@ -148,6 +148,7 @@ class CustomDialog {
           String? title,
           String? description,
           String? buttonText,
+          bool? showCloseIcon, // Build #1.0.240: updated code for reusing this popUp dialog
           VoidCallback? onButtonPressed,
         }) {
       return _showSimpleDialog(
@@ -156,7 +157,7 @@ class CustomDialog {
         description: description ?? TextConstants.customItemAlertDescription,
         buttonText: buttonText ?? TextConstants.addCustomItem,
         iconPath: 'assets/svg/check_broken_info.svg',
-        showCloseIcon: true,
+        showCloseIcon: showCloseIcon ?? true,
         onButtonPressed: onButtonPressed ?? () => Navigator.of(context).pop(), // Default dismiss action
       );
     }

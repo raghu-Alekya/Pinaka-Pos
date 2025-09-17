@@ -74,7 +74,7 @@ class ShiftBloc { //Build #1.0.74: Updated Code
       shiftByIdSink.add(APIResponse.completed(response));
     } catch (e) {
       if (e.toString().contains('Unauthorised')) {
-        shiftsByUserSink.add(APIResponse.error("Unauthorised. Session is expired."));
+        shiftByIdSink.add(APIResponse.error("Unauthorised. Session is expired."));
       }
       else if (e.toString().contains('SocketException')) {
         shiftByIdSink.add(APIResponse.error("Network error. Please check your connection."));
@@ -95,7 +95,7 @@ class ShiftBloc { //Build #1.0.74: Updated Code
       shiftSink.add(APIResponse.completed(response));
     } catch (e) {
       if (e.toString().contains('Unauthorised')) {
-        shiftsByUserSink.add(APIResponse.error("Unauthorised. Session is expired."));
+        shiftSink.add(APIResponse.error("Unauthorised. Session is expired."));
       }
       else if (e.toString().contains('SocketException')) {
         shiftSink.add(APIResponse.error("Network error. Please check your connection."));

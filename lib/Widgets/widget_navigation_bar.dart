@@ -92,6 +92,9 @@ class NavigationBar extends StatelessWidget {
     final themeHelper = Provider.of<ThemeNotifier>(context);
     // Build #1.0.161: Fixed Issue - navigation bar icons are not disabled before create shift
     bool isShiftInvalid = shiftId == null || shiftId == "null" || shiftId.isEmpty;
+    // Build #1.0.221 : Fixed Issue -> Disable navigation bar menu icons while shift create,update,close
+    bool isShiftScreen = ModalRoute.of(context)?.settings.arguments == TextConstants.navLogout ||
+        ModalRoute.of(context)?.settings.arguments == TextConstants.navShiftHistory;
     return LayoutBuilder(
       builder: (context, constraints) {
            if (kDebugMode) {
@@ -103,7 +106,7 @@ class NavigationBar extends StatelessWidget {
             svgAsset: selectedSidebarIndex == 0 ? SvgUtils.fastKeySelectedIcon : SvgUtils.fastKeyIcon, // Build #1.0.148: Fixed Issue: Menu Bar Icons not matching with latest Figma Design , now using from assets/svg/navigation/
             label: TextConstants.fastKeyText,
             isSelected: selectedSidebarIndex == 0,
-            onTap: isShiftInvalid
+            onTap: isShiftInvalid || isShiftScreen || selectedSidebarIndex == 0 // Build #1.0.240 : Disabled Multiple tap on same SidebarButton
                 ? () {}
                 : () {
               if (kDebugMode) {
@@ -119,14 +122,14 @@ class NavigationBar extends StatelessWidget {
               );
             },
             isVertical: isVertical,
-            isDisabled: isShiftInvalid,
+            isDisabled: isShiftInvalid || isShiftScreen,
           ),
           const SizedBox(height: 10),
           SidebarButton(
             svgAsset: SvgUtils.categoriesIcon,
             label: TextConstants.categoriesText,
             isSelected: selectedSidebarIndex == 1,
-            onTap: isShiftInvalid
+            onTap: isShiftInvalid || isShiftScreen || selectedSidebarIndex == 1
                 ? () {}
                 : () {
               if (kDebugMode) {
@@ -142,14 +145,14 @@ class NavigationBar extends StatelessWidget {
               );
             },
             isVertical: isVertical,
-            isDisabled: isShiftInvalid,
+            isDisabled: isShiftInvalid || isShiftScreen,
           ),
           const SizedBox(height: 10),
           SidebarButton(
             svgAsset: SvgUtils.addIcon,
             label: TextConstants.addText,
             isSelected: selectedSidebarIndex == 2,
-            onTap: isShiftInvalid
+            onTap: isShiftInvalid || isShiftScreen || selectedSidebarIndex == 2
                 ? () {}
                 : () {
               if (kDebugMode) {
@@ -161,14 +164,14 @@ class NavigationBar extends StatelessWidget {
               );
             },
             isVertical: isVertical,
-            isDisabled: isShiftInvalid,
+            isDisabled: isShiftInvalid || isShiftScreen,
           ),
           const SizedBox(height: 10),
           SidebarButton(
             svgAsset: SvgUtils.ordersIcon,
             label: TextConstants.ordersText,
             isSelected: selectedSidebarIndex == 3,
-            onTap: isShiftInvalid
+            onTap: isShiftInvalid || isShiftScreen || selectedSidebarIndex == 3
                 ? () {}
                 : () {
               if (kDebugMode) {
@@ -180,18 +183,20 @@ class NavigationBar extends StatelessWidget {
               /// OrdersScreen
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(builder: (context) => OrdersScreen(lastSelectedIndex: lastSelectedIndex)),
+                MaterialPageRoute(builder: (context) => TotalOrdersScreen(lastSelectedIndex: lastSelectedIndex)), // Build #1.0.226: Updated class name
               );
             },
             isVertical: isVertical,
-            isDisabled: isShiftInvalid,
+            isDisabled: isShiftInvalid || isShiftScreen,
           ),
           const SizedBox(height: 10),
           SidebarButton(
             svgAsset: SvgUtils.appsIcon,
             label: TextConstants.appsText,
             isSelected: selectedSidebarIndex == 4,
-            onTap: () {
+            onTap: selectedSidebarIndex == 4
+                ? () {}
+                : () {
               if (kDebugMode) {
                 print("##### AppsScreen button tapped");
               }
@@ -201,7 +206,7 @@ class NavigationBar extends StatelessWidget {
                 context,
                 MaterialPageRoute(
                     builder: (context) =>
-                        AppsDashboardScreen()),
+                        AppsDashboardScreen(lastSelectedIndex: lastSelectedIndex)),
               );
             },
             isVertical: isVertical,
@@ -217,7 +222,7 @@ class NavigationBar extends StatelessWidget {
               svgAsset: SvgUtils.settingsIcon,
               label: TextConstants.settingsHeaderText,
               isSelected: selectedSidebarIndex == 5,
-              onTap: isShiftInvalid
+              onTap: isShiftInvalid || isShiftScreen || selectedSidebarIndex == 5
                   ? () {}
                   : () {
                 if (kDebugMode) {
@@ -238,207 +243,24 @@ class NavigationBar extends StatelessWidget {
                 });
               },
               isVertical: isVertical,
-              isDisabled: isShiftInvalid,
+              isDisabled: isShiftInvalid || isShiftScreen,
             ),
             const SizedBox(height: 10),
             SidebarButton(
               svgAsset: SvgUtils.logoutIcon,
               label: TextConstants.logoutText,
               isSelected: selectedSidebarIndex == 6,
-              onTap: isShiftInvalid
+              onTap: isShiftInvalid || isShiftScreen || selectedSidebarIndex == 6
                   ? () {}
                   : () {
                       onSidebarItemSelected(6);
                       if (kDebugMode) {
                         print("nav logout called");
                       }
-                      QuickAlert.show(
-                        backgroundColor: themeHelper.themeMode == ThemeMode.dark
-                            ? ThemeNotifier.secondaryBackground
-                            : Colors.white,
-                        context: context,
-                        type: QuickAlertType.custom,
-                        showCancelBtn: true,
-                        showConfirmBtn: true,
-                        title: TextConstants.logoutText,
-                        titleColor: themeHelper.themeMode == ThemeMode.dark
-                            ? ThemeNotifier.textDark
-                            : ThemeNotifier.textLight,
-                        width: 450,
-                        text: TextConstants.doYouWantTo,
-                        textColor: themeHelper.themeMode == ThemeMode.dark
-                            ? ThemeNotifier.textDark
-                            : ThemeNotifier.textLight,
-                        confirmBtnText: TextConstants.logoutText,
-                        cancelBtnText: TextConstants.cancelText,
-                        headerBackgroundColor: const Color(0xFF2CD9C5),
-                        confirmBtnColor: Colors.blue,
-                        confirmBtnTextStyle:
-                            const TextStyle(color: Colors.white, fontSize: 16),
-                        cancelBtnTextStyle: TextStyle(
-                            color: themeHelper.themeMode == ThemeMode.dark
-                                ? ThemeNotifier.textDark
-                                : Colors.grey,
-                            fontSize: 16),
-
-                        customAsset: null,
-                        animType: QuickAlertAnimType.scale,
-                        barrierDismissible: false,
-
-                        // Widget for the Close Shift button
-                        widget: Padding(
-                          padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
-                          child: SwipeButton(
-                            thumb: const Icon(
-                              Icons.double_arrow_rounded,
-                              color: Colors.white,
-                            ),
-                            borderRadius: BorderRadius.circular(25),
-                            activeThumbColor: Colors.orangeAccent,
-                            activeTrackColor: Colors.orange,
-                            onSwipe: () async {
-                              // Get instance of OrderHelper
-                              final orderHelper = OrderHelper();
-                              // Load processing orders for the active user
-                              await orderHelper.loadProcessingData();
-                              // Check if there are any processing orders
-                              if (orderHelper.orders.isNotEmpty) {
-                                // Build #1.0.175: Added
-                                if (kDebugMode) {
-                                  print(
-                                      "Processing Orders > 0 -> orders length: ${orderHelper.orders.length}");
-                                }
-                                Navigator.of(context)
-                                    .pop(); // dismiss logout alert
-                                // Show popup warning before closing shift
-                                CustomDialog.showCloseShiftWarning(context);
-                              } else {
-                                // Close shift functionality
-                                if (kDebugMode) {
-                                  print("Shift closed");
-                                }
-
-                                ///Todo: call shift-open-close-balance screen and set the title to "Shift close balanse"
-                                ///
-                                Navigator.of(context).pop();
-                                Navigator.push(context,MaterialPageRoute(builder: (context) => ShiftOpenCloseBalanceScreen(),
-                                    settings: RouteSettings(
-                                        arguments: TextConstants
-                                            .navLogout), // Build #1.0.70
-                                  ),
-                                );
-                              }
-                            },
-                            child: Text(
-                              TextConstants.swipeToCloseShift,
-                              style:
-                                  TextStyle(color: Colors.white, fontSize: 16),
-                            ),
-                          ),
-                        ),
-                        onConfirmBtnTap: () async {
-                          final BuildContext scaffoldContext = context;
-                          if (kDebugMode) {
-                            print(
-                                "Logout confirmed, initiating logout process");
-                          }
-
-                          // Build #1.0.163: call Logout API
-                          showDialog(
-                            context: scaffoldContext,
-                            barrierDismissible: false,
-                            builder: (BuildContext context) {
-                              bool isLoading = true; // Initial loading state
-                              logoutBloc.logoutStream.listen((response) {
-                                if (response.status == Status.COMPLETED) {
-                                  if (kDebugMode) {
-                                    print(
-                                        "Logout successful, navigating to LoginScreen");
-                                  }
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(response.message ??
-                                          TextConstants.successfullyLogout),
-                                      backgroundColor: Colors.green,
-                                      duration: const Duration(seconds: 2),
-                                    ),
-                                  );
-                                  // Update loading state and navigate
-                                  isLoading = false;
-                                  Navigator.of(context)
-                                      .pop(); // Close loader dialog
-                                  Navigator.of(context)
-                                      .pop(); // Close QuickAlert dialog
-                                  Navigator.pushReplacement(
-                                    context,
-                                    MaterialPageRoute(
-                                        builder: (context) => LoginScreen()),
-                                  );
-                                } else if (response.status == Status.ERROR) {
-                                  if (response.message!.contains('Unauthorised')) {
-                                    if (kDebugMode) {
-                                      print("Unauthorised : response.message ${response.message!}");
-                                    }
-                                    isLoading = false;
-                                    Navigator.of(context).pop();
-                                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                                      if (scaffoldContext.mounted) {
-                                    Navigator.pushReplacement(scaffoldContext, MaterialPageRoute(builder: (context) => LoginScreen()));
-
-                                    if (kDebugMode) {
-                                      print("message --- ${response.message}");
-                                    }
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text("Unauthorised. Session is expired on this device."),
-                                        backgroundColor: Colors.red,
-                                        duration: Duration(seconds: 2),
-                                      ),
-                                    );
-                                      }
-                                    });
-                                  }
-                                  else {
-                                    if (kDebugMode) {
-                                      print("Logout failed: ${response.message}");
-                                    }
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text(response.message ??
-                                            TextConstants.failedToLogout),
-                                        backgroundColor: Colors.red,
-                                        duration: const Duration(seconds: 2),
-                                      ),
-                                    );
-                                  }
-                                  // Update loading state
-                                  isLoading = false;
-                                  Navigator.of(context)
-                                      .pop(); // Close loader dialog
-                                }
-                              });
-
-                              // Trigger logout API call
-                              logoutBloc.performLogout();
-
-                              // Show circular loader
-                              return StatefulBuilder(
-                                builder: (context, setState) {
-                                  return Center(
-                                    child: CircularProgressIndicator(),
-                                  );
-                                },
-                              );
-                            },
-                          );
-                        },
-                        onCancelBtnTap: () {
-                          /// cancel
-                          Navigator.of(context).pop();
-                        },
-                      );
+                      _showLogoutDialog(context,logoutBloc,themeHelper);
                     },
               isVertical: isVertical,
-              isDisabled: isShiftInvalid,
+              isDisabled: isShiftInvalid || isShiftScreen,
             ),
             const SizedBox(height: 10),
           ],
@@ -468,6 +290,9 @@ class NavigationBar extends StatelessWidget {
     final themeHelper = Provider.of<ThemeNotifier>(context);
     // Build #1.0.161: Fixed Issue - navigation bar icons are not disabled before create shift
     bool isShiftInvalid = shiftId == null || shiftId == "null" || shiftId.isEmpty;
+    // Build #1.0.221 : Fixed Issue -> Disable navigation bar menu icons while shift create,update,close
+    bool isShiftScreen = ModalRoute.of(context)?.settings.arguments == TextConstants.navLogout ||
+        ModalRoute.of(context)?.settings.arguments == TextConstants.navShiftHistory;
     return LayoutBuilder(
       builder: (context, constraints) {
         if (kDebugMode) {
@@ -479,7 +304,7 @@ class NavigationBar extends StatelessWidget {
             svgAsset: selectedSidebarIndex == 0 ? SvgUtils.fastKeySelectedIcon : SvgUtils.fastKeyIcon, // Build #1.0.148: Fixed Issue: Menu Bar Icons not matching with latest Figma Design , now using from assets/svg/navigation/
             label: TextConstants.fastKeyText,
             isSelected: selectedSidebarIndex == 0,
-            onTap: isShiftInvalid
+            onTap: isShiftInvalid || isShiftScreen || selectedSidebarIndex == 0 // Build #1.0.240 : Disabled Multiple tap on same SidebarButton
                 ? () {}
                 : () {
               if (kDebugMode) {
@@ -495,14 +320,14 @@ class NavigationBar extends StatelessWidget {
               );
             },
             isVertical: false, //Build #1.0.54: updated
-            isDisabled: isShiftInvalid,
+            isDisabled: isShiftInvalid || isShiftScreen,
           ),
           const SizedBox(height: 10),
           SidebarButton(
             svgAsset: SvgUtils.categoriesIcon,
             label: TextConstants.categoriesText,
             isSelected: selectedSidebarIndex == 1,
-            onTap: isShiftInvalid
+            onTap: isShiftInvalid || isShiftScreen || selectedSidebarIndex == 1
                 ? () {}
                 : () {
               if (kDebugMode) {
@@ -518,14 +343,14 @@ class NavigationBar extends StatelessWidget {
               );
             },
             isVertical: false,
-            isDisabled: isShiftInvalid,
+            isDisabled: isShiftInvalid || isShiftScreen,
           ),
           const SizedBox(height: 10),
           SidebarButton(
             svgAsset: SvgUtils.addIcon,
             label: TextConstants.addText,
             isSelected: selectedSidebarIndex == 2,
-            onTap: isShiftInvalid
+            onTap: isShiftInvalid || isShiftScreen || selectedSidebarIndex == 2
                 ? () {}
                 : () {
               if (kDebugMode) {
@@ -539,14 +364,14 @@ class NavigationBar extends StatelessWidget {
               );
             },
             isVertical: false,
-            isDisabled: isShiftInvalid,
+            isDisabled: isShiftInvalid || isShiftScreen,
           ),
           const SizedBox(height: 10),
           SidebarButton(
             svgAsset: SvgUtils.ordersIcon,
             label: TextConstants.ordersText,
             isSelected: selectedSidebarIndex == 3,
-            onTap: isShiftInvalid
+            onTap: isShiftInvalid || isShiftScreen || selectedSidebarIndex == 3
                 ? () {}
                 : () {
               if (kDebugMode) {
@@ -558,18 +383,20 @@ class NavigationBar extends StatelessWidget {
               /// OrdersScreen
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(builder: (context) => OrdersScreen(lastSelectedIndex: lastSelectedIndex)),
+                MaterialPageRoute(builder: (context) => TotalOrdersScreen(lastSelectedIndex: lastSelectedIndex)), // Build #1.0.226: Updated class name
               );
             },
             isVertical: false,
-            isDisabled: isShiftInvalid,
+            isDisabled: isShiftInvalid || isShiftScreen,
           ),
           const SizedBox(height: 10),
           SidebarButton(
             svgAsset: SvgUtils.appsIcon,
             label: TextConstants.appsText,
             isSelected: selectedSidebarIndex == 4,
-            onTap: () {
+            onTap: selectedSidebarIndex == 4
+                ? () {}
+                : () {
               if (kDebugMode) {
                 print("##### AppsScreen button tapped");
               }
@@ -592,7 +419,7 @@ class NavigationBar extends StatelessWidget {
             svgAsset: SvgUtils.settingsIcon,
             label: TextConstants.settingsHeaderText,
             isSelected: selectedSidebarIndex == 5,
-            onTap: isShiftInvalid
+            onTap: isShiftInvalid || isShiftScreen || selectedSidebarIndex == 5
                 ? () {}
                 : () {
               if (kDebugMode) {
@@ -611,95 +438,160 @@ class NavigationBar extends StatelessWidget {
               });
             },
             isVertical: false,
-            isDisabled: isShiftInvalid,
+            isDisabled: isShiftInvalid || isShiftScreen,
           ),
           const SizedBox(width: 10),
           SidebarButton(
             svgAsset: SvgUtils.logoutIcon,
             label: TextConstants.logoutText,
             isSelected: selectedSidebarIndex == 6,
-            onTap: isShiftInvalid
+            onTap: isShiftInvalid || isShiftScreen || selectedSidebarIndex == 6
                 ? () {}
                 : () {
-              onSidebarItemSelected(6);
-              if (kDebugMode) {
-                print("nav logout called");
-              }
-              QuickAlert.show(
-                backgroundColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : Colors.white ,
-                context: context,
-                type: QuickAlertType.custom,
-                showCancelBtn: true,
-                showConfirmBtn: true,
-                title: TextConstants.logoutText,
-                titleColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight,
-                width: 450,
-                text: TextConstants.doYouWantTo,
-                textColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight,
-                confirmBtnText: TextConstants.logoutText,
-                cancelBtnText: TextConstants.cancelText,
-                headerBackgroundColor: const Color(0xFF2CD9C5),
-                confirmBtnColor: Colors.blue,
-                confirmBtnTextStyle: const TextStyle(color: Colors.white, fontSize: 16),
-                cancelBtnTextStyle: TextStyle(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.grey, fontSize: 16),
-
-                customAsset: null,
-                animType: QuickAlertAnimType.scale,
-                barrierDismissible: false,
-
-                // Widget for the Close Shift button
-                widget: Padding(
-                  padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
-                  child: SwipeButton(
-                    thumb: const Icon(
-                      Icons.double_arrow_rounded,
-                      color: Colors.white,
-                    ),
-                    borderRadius: BorderRadius.circular(25),
-                    activeThumbColor: Colors.orangeAccent,
-                    activeTrackColor: Colors.orange,
-                    onSwipe: () async {
-                      // Get instance of OrderHelper
-                      final orderHelper = OrderHelper();
-                      // Load processing orders for the active user
-                      await orderHelper.loadProcessingData();
-                      // Check if there are any processing orders
-                      if (orderHelper.orders.isNotEmpty) { // Build #1.0.175: Added
-                        if (kDebugMode) {
-                          print("Processing Orders > 0 -> orders length: ${orderHelper.orders.length}");
-                        }
-                        Navigator.of(context).pop(); // dismiss logout alert
-                        // Show popup warning before closing shift
-                        CustomDialog.showCloseShiftWarning(context);
-                      } else {
-                      // Close shift functionality
-                      if (kDebugMode) {
-                        print("Shift closed");
-                      }
-                      ///Todo: call shift-open-close-balance screen and set the title to "Shift close balanse"
-                      ///
-                      Navigator.of(context).pop();
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => ShiftOpenCloseBalanceScreen(),
-                          settings: RouteSettings(arguments: TextConstants.navLogout),  // Build #1.0.70
-                        ),
-                      );
+                    onSidebarItemSelected(6);
+                    if (kDebugMode) {
+                      print("nav logout called");
                     }
+                    _showLogoutDialog(context,logoutBloc,themeHelper);
                   },
-                    child: Text(
-                      TextConstants.swipeToCloseShift,
-                      style: TextStyle(color: Colors.white, fontSize: 16),
+            isVertical: false,
+            isDisabled: isShiftInvalid || isShiftScreen,
+          ),
+          const SizedBox(width: 10),
+        ];
+
+        // Dynamic part: scrollable if small, evenly spaced if not.
+        Widget dynamicRow = SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            spacing: 10,
+            children: dynamicItems,
+          ),
+        );
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(
+              16, 0, 16, 0), // Adjust padding as needed
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Dynamic part takes the available space.
+              Expanded(child: dynamicRow),
+              // Fixed items remain at the end.
+              Row(
+                children: fixedItems,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showLogoutDialog(BuildContext context,LogoutBloc logoutBloc, ThemeNotifier themeHelper){
+
+    QuickAlert.show(
+      backgroundColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : Colors.white ,
+      context: context,
+      width: 450,
+      type: QuickAlertType.custom,
+      title: TextConstants.logoutText,
+      headerBackgroundColor: const Color(0xFF2CD9C5),
+      titleColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight,
+      text: TextConstants.doYouWantTo,
+      textColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight,
+      customAsset: null,
+      animType: QuickAlertAnimType.scale,
+      barrierDismissible: false,
+      showCancelBtn: false, /// added custom button instead in widget below, change color on will
+      showConfirmBtn: false, /// added custom button instead in widget below, change color on will
+      // confirmBtnText: TextConstants.logoutText,
+      // cancelBtnText: TextConstants.cancelText,
+      // confirmBtnColor: Colors.blue,
+      // confirmBtnTextStyle: const TextStyle(color: Colors.white, fontSize: 16),
+      // cancelBtnTextStyle: TextStyle(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.grey, fontSize: 16),
+
+      // Widget for the Close Shift button
+      widget: Container(
+        // color: Colors.red,
+        height: 130,
+        padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
+        child:
+        Column(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            SwipeButton(
+              thumb: const Icon(
+                Icons.double_arrow_rounded,
+                color: Colors.white,
+              ),
+              borderRadius: BorderRadius.circular(25),
+              activeThumbColor: Colors.orangeAccent,  /// swipe button color change it on will
+              activeTrackColor: Colors.orange, /// swipe track color change it on will
+              onSwipe: () async {
+                // Get instance of OrderHelper
+                final orderHelper = OrderHelper();
+                // Load processing orders for the active user
+                await orderHelper.loadProcessingData();
+                // Check if there are any processing orders
+                if (orderHelper.orders.isNotEmpty) { // Build #1.0.175: Added
+                  if (kDebugMode) {
+                    print("Processing Orders > 0 -> orders length: ${orderHelper.orders.length}");
+                  }
+                  Navigator.of(context).pop(); // dismiss logout alert
+                  // Show popup warning before closing shift
+                  CustomDialog.showCloseShiftWarning(context);
+                } else {
+                  // Close shift functionality
+                  if (kDebugMode) {
+                    print("Shift closed");
+                  }
+                  ///Todo: call shift-open-close-balance screen and set the title to "Shift close balanse"
+                  ///
+                  Navigator.of(context).pop();
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ShiftOpenCloseBalanceScreen(),
+                      settings: RouteSettings(arguments: TextConstants.navLogout),  // Build #1.0.70
                     ),
+                  );
+                }
+              },
+              child: Text(
+                TextConstants.swipeToCloseShift,
+                style: TextStyle(color: Colors.white, fontSize: 16),
+              ),
+            ),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  flex: 5,
+                  child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(backgroundColor: themeHelper.themeMode == ThemeMode.dark ? Colors.grey : Colors.white, padding: EdgeInsets.only(right: 5), fixedSize: Size(10, 45)),
+                      onPressed: (){
+                        Navigator.of(context).pop();
+                        },
+                      child: Text(TextConstants.cancelText, style: TextStyle(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.grey, fontSize: 16)),
                   ),
                 ),
-                onConfirmBtnTap: () async {
-                  // You must capture the context BEFORE the dialog is even shown
-                  // Trigger logout through BLoC
-                  if (kDebugMode) {
-                    print("Logout confirmed, initiating logout process");
-                  }
+                Spacer(flex: 1,),
+                Expanded(
+                  flex: 5,
+                  child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, padding: EdgeInsets.only(right: 5), fixedSize: Size(10, 45)),
+                      onPressed: (){
+                        // You must capture the context BEFORE the dialog is even shown
+                        // Trigger logout through BLoC
+                        if (kDebugMode) {
+                          print("Logout confirmed, initiating logout process");
+                        }
 
                         // Build #1.0.163: call Logout API
                         // Use StatefulBuilder to manage loading state
@@ -735,18 +627,18 @@ class NavigationBar extends StatelessWidget {
                                   isLoading = false;
                                   Navigator.of(context).pop();
                                   WidgetsBinding.instance.addPostFrameCallback((_) {
-                                      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()));
+                                    Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()));
 
-                                      if (kDebugMode) {
-                                        print("message --- ${response.message}");
-                                      }
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(
-                                          content: Text("Unauthorised. Session is expired on this device."),
-                                          backgroundColor: Colors.red,
-                                          duration: Duration(seconds: 2),
-                                        ),
-                                      );
+                                    if (kDebugMode) {
+                                      print("message --- ${response.message}");
+                                    }
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text("Unauthorised. Session is expired on this device."),
+                                        backgroundColor: Colors.red,
+                                        duration: Duration(seconds: 2),
+                                      ),
+                                    );
                                   });
                                 }
                                 else {
@@ -783,44 +675,106 @@ class NavigationBar extends StatelessWidget {
                           },
                         );
                       },
-                      onCancelBtnTap: () {
-                        /// cancel
-                        Navigator.of(context).pop();
-                      },
+                      child: Text(TextConstants.logoutText, style: TextStyle(color: Colors.white, fontSize: 16)),
+                  ),
+                )
+              ],
+            ),
+          ],
+        ),
+      ),
+      onConfirmBtnTap: () async {
+        // You must capture the context BEFORE the dialog is even shown
+        // Trigger logout through BLoC
+        if (kDebugMode) {
+          print("Logout confirmed, initiating logout process");
+        }
+
+        // Build #1.0.163: call Logout API
+        // Use StatefulBuilder to manage loading state
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) {
+            bool isLoading = true; // Initial loading state
+            logoutBloc.logoutStream.listen((response) {
+              if (response.status == Status.COMPLETED) {
+                if (kDebugMode) {
+                  print(
+                      "Logout successful, navigating to LoginScreen");
+                }
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(response.message ??
+                        TextConstants.successfullyLogout),
+                    backgroundColor: Colors.green,
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+                // Update loading state and navigate
+                isLoading = false;
+                Navigator.of(context).pop(); // Close loader dialog
+                Navigator.of(context).pop(); // Close QuickAlert dialog
+                Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()),);
+              } else if (response.status == Status.ERROR) {
+                if (response.message!.contains('Unauthorised')) {
+                  if (kDebugMode) {
+                    print("Nav bar -- Unauthorised : response.message ${response.message!}");
+                  }
+                  isLoading = false;
+                  Navigator.of(context).pop();
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()));
+
+                    if (kDebugMode) {
+                      print("message --- ${response.message}");
+                    }
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text("Unauthorised. Session is expired on this device."),
+                        backgroundColor: Colors.red,
+                        duration: Duration(seconds: 2),
+                      ),
                     );
-                  },
-            isVertical: false,
-            isDisabled: isShiftInvalid,
-          ),
-          const SizedBox(width: 10),
-        ];
+                  });
+                }
+                else {
+                  if (kDebugMode) {
+                    print("Logout failed: ${response.message}");
+                  }
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(response.message ??
+                          TextConstants.failedToLogout),
+                      backgroundColor: Colors.red,
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                }
+                // Update loading state
+                isLoading = false;
+                Navigator.of(context)
+                    .pop(); // Close loader dialog
+              }
+            });
 
-        // Dynamic part: scrollable if small, evenly spaced if not.
-        Widget dynamicRow = SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            spacing: 10,
-            children: dynamicItems,
-          ),
-        );
+            // Trigger logout API call
+            logoutBloc.performLogout();
 
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(
-              16, 0, 16, 0), // Adjust padding as needed
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              // Dynamic part takes the available space.
-              Expanded(child: dynamicRow),
-              // Fixed items remain at the end.
-              Row(
-                children: fixedItems,
-              ),
-            ],
-          ),
+            // Show circular loader
+            return StatefulBuilder(
+              builder: (context, setState) {
+                return Center(
+                  child: CircularProgressIndicator(),
+                );
+              },
+            );
+          },
         );
+      },
+      onCancelBtnTap: () {
+        /// cancel
+        Navigator.of(context).pop();
       },
     );
   }

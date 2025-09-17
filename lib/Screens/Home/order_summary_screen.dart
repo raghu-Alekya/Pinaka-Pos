@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:intl/intl.dart'; // Added for date formatting
+import 'package:pinaka_pos/Database/assets_db_helper.dart';
 import 'package:pinaka_pos/Helper/Extentions/extensions.dart';
 import 'package:pinaka_pos/Utilities/printer_settings.dart';
 import 'package:provider/provider.dart';
@@ -21,6 +22,7 @@ import '../../Constants/text.dart';
 import '../../Database/db_helper.dart';
 import '../../Database/order_panel_db_helper.dart';
 import '../../Database/printer_db_helper.dart';
+import '../../Database/store_db_helper.dart';
 import '../../Database/user_db_helper.dart';
 import '../../Helper/Extentions/theme_notifier.dart';
 import '../../Helper/api_response.dart';
@@ -94,6 +96,10 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
   late OrderBloc orderBloc;
   bool _showFullSummary = false;
   String? _amountErrorText;
+
+  // Determine the date and time to display
+  String _displayDate = "";
+  String _displayTime = "";
 
   @override
   void initState() {
@@ -177,7 +183,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
 
     if (kDebugMode) {
       print("###### _processPaymentList ->>> payByCash1: $cashTotal, payByOther1: $otherTotal");
-      print("###### _processPaymentList ->>> payByCash2: $payByCash, payByOther2: $payByOther");
+      print("###### _processPaymentList ->>> payByCash2: $payByCash, payByOther2: $payByOther, tenderAmount: $tenderAmount");
     }
     setState(() {
       payByCash = cashTotal;
@@ -192,7 +198,9 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
       tenderAmount = payByCash + payByOther;
 
     });
-    print("###### _processPaymentList ->>> payByCash3: $payByCash, payByOther3: $payByOther");
+    if (kDebugMode) {
+      print("###### _processPaymentList ->>> payByCash3: $payByCash, payByOther3: $payByOther, tenderAmount: $tenderAmount");
+    }
   }
 
 
@@ -218,7 +226,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
 
   void _callCreatePaymentAPI({double amount = 0.0}) { // Build #1.0.29
     if (kDebugMode) {
-      print("###### _callCreatePaymentAPI called");
+      print("###### _callCreatePaymentAPI called, balanceAmount: $balanceAmount");
     }
     if (balanceAmount > 0) {
       if (amountController.text.isEmpty) { //Build #1.0.34: updated code
@@ -236,6 +244,9 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
         print("Error: Invalid amount: $cleanAmount");
       }
       return;
+    }
+    if (kDebugMode) {
+      print("_callCreatePaymentAPI cleanAmount: $cleanAmount, balanceAmount: $balanceAmount");
     }
 
     setState(() {
@@ -345,12 +356,13 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
             amountController.clear(); // Clear input textField
             setState(() {}); // Update UI
 
+            balanceAmount = double.tryParse(balanceAmount.toStringAsFixed(2)) ?? 0.00;
             if (kDebugMode) {
               print("Payment successful - Paid: $paidAmount, Balance: $balanceAmount, Change: $changeAmount, Tender: $tenderAmount");
             }
 
             // Show appropriate dialog based on payment amount
-            if (isPartialPayment) {
+            if (isPartialPayment && (balanceAmount != 0)) {
               if (kDebugMode) {
                 print("Showing partial payment dialog: Paid=$paidAmount, Remaining Balance=$balanceAmount");
               }
@@ -359,6 +371,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
               if (kDebugMode) {
                 print("Showing payment dialog: Paid=$paidAmount, Change=$changeAmount");
               }
+              _fetchPaymentsByOrderId(); // Refresh payments after successful payment
               _showPaymentDialog(
                 context,
                 amount,
@@ -525,8 +538,8 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     final theme = Theme.of(context);
 
     // Determine the date and time to display
-    String displayDate = widget.formattedDate;
-    String displayTime = widget.formattedTime;
+    _displayDate = widget.formattedDate;
+    _displayTime = widget.formattedTime;
 
     final order = orderHelper.activeOrderId != null
         ? orderHelper.orders.firstWhere(
@@ -538,14 +551,14 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     if (order.isNotEmpty && order[AppDBConst.orderDate] != null) {
       try {
         final DateTime createdDateTime = DateTime.parse(order[AppDBConst.orderDate].toString());
-        displayDate = DateFormat("EEE, MMM d, yyyy").format(createdDateTime);
-        displayTime = DateFormat('hh:mm:ss a').format(createdDateTime);
+        _displayDate = DateFormat("EEE, MMM d, yyyy").format(createdDateTime);
+        _displayTime = DateFormat('hh:mm:ss a').format(createdDateTime);
       } catch (e) {
         if (kDebugMode) {
           print("Error parsing order creation date: $e");
         }
         // Fallback to raw data or default if parsing fails
-        displayDate = order[AppDBConst.orderDate].toString().split(' ').first;
+        _displayDate = order[AppDBConst.orderDate].toString().split(' ').first;
       }
     }
 
@@ -632,7 +645,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                 Icon(Icons.calendar_month_rounded, size: ResponsiveLayout.getIconSize(14),),
                 SizedBox(width: ResponsiveLayout.getWidth(4)),
                 Text(
-                  displayDate, //'Sunday, 16 March 2025',
+                  _displayDate, //'Sunday, 16 March 2025',
                   style: TextStyle(color: theme.secondaryHeaderColor,
                     fontSize: ResponsiveLayout.getFontSize(14),
                   ),
@@ -647,7 +660,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                 Icon(Icons.access_time, size: ResponsiveLayout.getIconSize(14),),
                 SizedBox(width: ResponsiveLayout.getWidth(4)),
                 Text(
-                  displayTime,//'11:41 A.M',
+                  _displayTime,//'11:41 A.M',
                   style: TextStyle(
                       color: theme.secondaryHeaderColor, fontWeight: FontWeight.bold, fontSize: ResponsiveLayout.getFontSize(14)),
                     ),
@@ -1191,6 +1204,12 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                   width: ResponsiveLayout.getWidth(40),
                   fit: BoxFit.cover,
                 )
+                    : Platform.isWindows
+                    ? Image.asset(
+                  'assets/default.png',
+                  height: ResponsiveLayout.getHeight(40),
+                  width: ResponsiveLayout.getWidth(40),
+                )
                     : Image.file(
                   File(orderItem[AppDBConst.itemImage]),
                   height: ResponsiveLayout.getHeight(40),
@@ -1352,6 +1371,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
       amountColor = Colors.blue[600]!;
       leadingIcon = SvgPicture.asset(
         'assets/svg/discount_star.svg',
+        colorFilter: ColorFilter.mode(Colors.blueAccent, BlendMode.srcIn),
         // width: ResponsiveLayout.getIconSize(16),
         // height: ResponsiveLayout.getIconSize(16),
         // color: Colors.blue[600],
@@ -1557,13 +1577,10 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                                   // Update the Row in _buildPaymentSection to use dynamic quick amounts
                                   balanceAmount <= 0 ? SizedBox(height: 0,) : Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      _buildQuickAmountButton('${TextConstants.currencySymbol}${balanceAmount.ceil()/*  toStringAsFixed(0)*/}'), // Match balance amount, show round greater value
-                                      _buildQuickAmountButton('${TextConstants.currencySymbol}${(balanceAmount + 2).toStringAsFixed(0)}'), // Slightly above
-                                      _buildQuickAmountButton('${TextConstants.currencySymbol}${(balanceAmount + 12).toStringAsFixed(0)}'), // More above
-                                      _buildQuickAmountButton('${TextConstants.currencySymbol}${((balanceAmount ~/ 10 + 1) * 10).toStringAsFixed(0)}'), // Round up to next 10
-                                      _buildQuickAmountButton('${TextConstants.currencySymbol}${((balanceAmount ~/ 50 + 1) * 50).toStringAsFixed(0)}'), // Round up to next 50
-                                    ],
+                                    children: _generateQuickAmounts(balanceAmount)
+                                        .map((amount) => _buildQuickAmountButton(
+                                        '${TextConstants.currencySymbol} ${amount.toStringAsFixed(2)}'))
+                                        .toList(),
                                   ),
                 
                                   SizedBox(height: ResponsiveLayout.getHeight(12)),
@@ -1588,7 +1605,8 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                                           _amountErrorText = null;
                                         });
                                       }
-                                      amountController.text = (amountController.text + value).replaceAll(r'$', '');
+                                      String cleanText = amountController.text.replaceAll(TextConstants.currencySymbol, '');
+                                      amountController.text = '${TextConstants.currencySymbol}'+ cleanText + value;
                                       setState(() {});
                                     },
                                     onClearPressed: () {
@@ -1799,8 +1817,9 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     return GestureDetector(
       onTap: () {
         // Remove '$' and ensure the value is numeric
-        String cleanAmount = amount.replaceAll('${TextConstants.currencySymbol}', '');
-        amountController.text = cleanAmount;
+        String cleanAmount = amount.replaceAll(TextConstants.currencySymbol, '');
+        double numericValue = double.parse(cleanAmount);
+        amountController.text = '${TextConstants.currencySymbol} ${numericValue.toStringAsFixed(2)}';
         setState(() {});
       },
       child: Container(
@@ -1822,6 +1841,72 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
         ),
       ),
     );
+  }
+
+  // Helper method to generate exactly 5 unique quick amounts
+  List<double> _generateQuickAmounts(double balanceAmount) {
+    Set<double> amounts = {};
+
+    // 1. Exact balance amount
+    amounts.add(balanceAmount);
+
+    // 2. Round up to next whole number
+    amounts.add(balanceAmount.ceilToDouble());
+
+    // 3. Round up to next 5
+    double nextFive = ((balanceAmount / 5).ceil() * 5).toDouble();
+    amounts.add(nextFive);
+
+    // 4. Round up to next 10
+    double nextTen = ((balanceAmount / 10).ceil() * 10).toDouble();
+    amounts.add(nextTen);
+
+    // Keep adding logical amounts until we have at least 5
+    List<double> additionalAmounts = [];
+
+    if (balanceAmount < 20) {
+      additionalAmounts = [20.0, 25.0, 50.0, 100.0];
+    } else if (balanceAmount < 50) {
+      additionalAmounts = [50.0, 75.0, 100.0, 150.0];
+    } else if (balanceAmount < 100) {
+      additionalAmounts = [100.0, 150.0, 200.0, 250.0];
+    } else if (balanceAmount < 500) {
+      additionalAmounts = [
+        ((balanceAmount / 50).ceil() * 50).toDouble(),
+        ((balanceAmount / 100).ceil() * 100).toDouble(),
+        ((balanceAmount / 100).ceil() * 100 + 100).toDouble(),
+        ((balanceAmount / 100).ceil() * 100 + 200).toDouble(),
+      ];
+    } else {
+      additionalAmounts = [
+        ((balanceAmount / 100).ceil() * 100).toDouble(),
+        ((balanceAmount / 500).ceil() * 500).toDouble(),
+        ((balanceAmount / 1000).ceil() * 1000).toDouble(),
+        ((balanceAmount / 1000).ceil() * 1000 + 500).toDouble(),
+      ];
+    }
+
+    // Add additional amounts to ensure we have enough
+    for (double amount in additionalAmounts) {
+      amounts.add(amount);
+      if (amounts.length >= 7) break; // Get more than 5 to have options
+    }
+
+    // Convert to sorted list and take exactly 5 unique values
+    List<double> sortedAmounts = amounts.toList()..sort();
+
+    // Ensure we always return exactly 5 amounts
+    if (sortedAmounts.length >= 5) {
+      return sortedAmounts.take(5).toList();
+    } else {
+      // If somehow we don't have 5, pad with increments
+      while (sortedAmounts.length < 5) {
+        double lastAmount = sortedAmounts.last;
+        double increment = lastAmount < 100 ? 25 : 100;
+        sortedAmounts.add(lastAmount + increment);
+      }
+      return sortedAmounts.take(5).toList();
+    }
   }
 
   Widget _buildPaymentModeButton(String label, IconData icon,
@@ -1980,7 +2065,16 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
         Navigator.of(context).pop(); // Close void confirmation dialog
         Navigator.of(context).pop(); // Close payment dialog
         if (!isPartial) {
-          Navigator.of(context).pop(TextConstants.refresh); // Navigate back for complete void
+          if (kDebugMode) {
+            print("_handleVoidPayment -> 1: ${response.data!.message}");
+          }
+          // Navigator.of(context).pop(TextConstants.refresh); // Navigate back for complete void
+          OrderHelper.isOrderPanelLoaded = false;
+          ///Update! on 9-Sep-25: asked by Shravan, void button click will result in cancelling of payment only, no need to change order status to cancelled now. If balance amount is changed then order will be pending else it will be processing
+          // Navigator.pushReplacement(result: TextConstants.refresh,
+          //   context,
+          //   MaterialPageRoute(builder: (_) => FastKeyScreen()),
+          // );
         }
       } else if (response.status == Status.ERROR) {
         if (kDebugMode) {
@@ -2059,7 +2153,17 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
         // Build #1.0.175
         Navigator.of(context).pop(); // Close void confirmation dialog
         Navigator.of(context).pop(); // Close payment dialog
-        Navigator.of(context).pop(TextConstants.refresh); // Navigate back to previous screen
+        // Navigator.of(context).pop(TextConstants.refresh); // Navigate back to previous screen
+        if (kDebugMode) {
+          print("_handleVoidOrder -> 2: ${response.data!.message}");
+        }
+        ///This is for voiding completed payment
+        OrderHelper.isOrderPanelLoaded = false;
+        ///Update! on 9-Sep-25: asked by Shravan, void button click will result in cancelling of payment only, no need to change order status to cancelled now. If balance amount is changed then order will be pending else it will be processing
+        // Navigator.pushReplacement(result: TextConstants.refresh,
+        //   context,
+        //   MaterialPageRoute(builder: (_) => FastKeyScreen()),
+        // );
       } else if (response.status == Status.ERROR) {
         if (kDebugMode) {
           print("_handleVoidOrder -> Void order failed: ${response.data!.message}");
@@ -2197,21 +2301,113 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
       bytes += ticket.imageRaster(grayscaleImage, align: PosAlign.center);
       bytes += ticket.feed(1);
     }
+
     //Header
+    ///New changes in Header on 2-Sep-2025
+    ///Date and Time
+    ///Store Id
+    ///Address
+    //         "Store name": "Kumar Swa D",
+    //         "address": "Q No: D 1847, Shirkey Colony",
+    //         "city": "Mancherial",
+    //         "state": "Telangana",
+    //         "country": "",
+    //         "zip_code": "504302",
+    //         "phone_number": false
+
+
+    var dateToPrint = "$_displayDate";
+    var timeToPrint = "$_displayTime";
+
+    var merchantDetails = await StoreDbHelper.instance.getStoreValidationData();
+    var storeId = "Store ID ${merchantDetails?[AppDBConst.storeId]}";
+    var storePhone = "Phone ${merchantDetails?[AppDBConst.storePhone]}";
+
+    var storeDetails = await AssetDBHelper.instance.getStoreDetails();
+    var storeName = "${storeDetails?.name}";
+    var address = "${storeDetails?.address},${storeDetails?.city},${storeDetails?.state},${storeDetails?.country},${storeDetails?.zipCode}";
+    var orderIdToPrint = '${TextConstants.orderId} #$orderId';
+
+    final userData = await UserDbHelper().getUserData();
+    var cashierName = "Cashier ${userData?[AppDBConst.userDisplayName] ?? "Unknown Name"}";
+    var cashierRole = "${userData?[AppDBConst.userRole] ?? "Unknown Role"}";
+
+    if (kDebugMode) {
+      print(" >>>>> PrintOrder  dateToPrint $dateToPrint ");
+      print(" >>>>> PrintOrder  timeToPrint $timeToPrint ");
+      print(" >>>>> PrintOrder  storeId $storeId ");
+      print(" >>>>> PrintOrder  storeName $storeName ");
+      print(" >>>>> PrintOrder  address $address ");
+      print(" >>>>> PrintOrder  storePhone $storePhone ");
+      print(" >>>>> PrintOrder  orderIdToPrint $orderIdToPrint ");
+      print(" >>>>> PrintOrder  cashierName $cashierName ");
+      print(" >>>>> PrintOrder  cashierRole $cashierRole ");
+    }
+
+    if(header != "") {
+      bytes += ticket.row([
+        PosColumn(
+            text: "$header",
+            width: 12,
+            styles: PosStyles(align: PosAlign.center)),
+      ]);
+      bytes += ticket.feed(1);
+    }
+
+    //Store Name
     bytes += ticket.row([
-      PosColumn(text: "$header", width: 12),
+      PosColumn(text: "$storeName", width: 12, styles: PosStyles(align: PosAlign.center)),
+    ]);
+    //Address
+    bytes += ticket.row([
+      PosColumn(text: "$address", width: 12, styles: PosStyles(align: PosAlign.center)),
+    ]);
+    //Store Phone
+    bytes += ticket.row([
+      PosColumn(text: "$storePhone", width: 12, styles: PosStyles(align: PosAlign.center)),
     ]);
 
+    bytes += ticket.feed(1);
+    bytes += ticket.row([
+      PosColumn(text: "-----------------------------------------------", width: 12),
+    ]);
+    bytes += ticket.feed(1);
+
+    //store id and  Date
+    bytes += ticket.row([
+      PosColumn(text: "$storeId", width: 5),
+      PosColumn(text: "Date", width: 2, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: "$dateToPrint", width: 5, styles: PosStyles(align: PosAlign.right)),
+    ]);
+
+    //order Id and  Time
+    bytes += ticket.row([
+      PosColumn(text: "$orderIdToPrint", width: 5),
+      PosColumn(text: "Time", width: 2, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: "$timeToPrint", width: 5, styles: PosStyles(align: PosAlign.right)),
+    ]);
+
+    //cashier and role
+    bytes += ticket.row([
+      PosColumn(text: "$cashierName", width: 5),
+      PosColumn(text: "Role", width: 2, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: "$cashierRole", width: 5, styles: PosStyles(align: PosAlign.right)),
+    ]);
+
+    bytes += ticket.feed(1);
+    bytes += ticket.row([
+      PosColumn(text: "-----------------------------------------------", width: 12),
+    ]);
     bytes += ticket.feed(1);
 
     //Item header
     bytes += ticket.row([
       PosColumn(text: "#", width: 1),
-      PosColumn(text: "Description", width:5),
-      PosColumn(text: "Qty", width: 1),
-      PosColumn(text: "Rate", width: 2),
-      PosColumn(text: "Dis", width: 1),
-      PosColumn(text: "Amt", width: 2),
+      PosColumn(text: "Description", width:6),
+      PosColumn(text: "Qty", width: 1, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: "Rate", width: 2, styles: PosStyles(align: PosAlign.right)),
+      // PosColumn(text: "Dis", width: 1, styles: PosStyles(align: PosAlign.right)), ///removed based on request on 3-Sep-25
+      PosColumn(text: "Amt", width: 2, styles: PosStyles(align: PosAlign.right)),
     ]);
     bytes += ticket.feed(1);
 
@@ -2225,6 +2421,13 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
 
       var orderItem = orderItems[i];
 
+      final itemType = orderItem[AppDBConst.itemType]?.toString().toLowerCase() ?? '';
+      final isPayout = itemType.contains(TextConstants.payoutText);
+      final isCoupon = itemType.contains(TextConstants.couponText);
+      final isCustomItem = itemType.contains(TextConstants.customItemText);
+      final isPayoutOrCouponOrCustomItem = isPayout || isCoupon || isCustomItem;
+      final isCouponOrPayout = isPayout || isCoupon;
+
       final salesPrice =
       (orderItem[AppDBConst.itemSalesPrice] == null || (orderItem[AppDBConst.itemSalesPrice]?.toDouble() ?? 0.0) == 0.0)
           ? (orderItem[AppDBConst.itemRegularPrice] == null || (orderItem[AppDBConst.itemRegularPrice]?.toDouble() ?? 0.0) == 0.0)
@@ -2237,24 +2440,38 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
           : orderItem[AppDBConst.itemRegularPrice]!.toDouble();
 
       if (kDebugMode) {
-        print(" >>>>> Adding item ${orderItem[AppDBConst.itemName]} to print with salesPrice $salesPrice");
+        if(isCouponOrPayout){
+          print(" >>>>> Adding item ${orderItem[AppDBConst.itemName]} to print with salesPrice ${(orderItem[AppDBConst.itemCount] * orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}");
+        }
+        else {
+          print(" >>>>> Adding item ${orderItem[AppDBConst.itemName]} to print with salesPrice ${(orderItem[AppDBConst.itemCount] * salesPrice).toStringAsFixed(2)}");
+        }
       }
 
       bytes += ticket.row([
         PosColumn(text: "${i+1}", width: 1),
-        PosColumn(text: "${orderItem[AppDBConst.itemName]}", width:5),
-        PosColumn(text: "${orderItem[AppDBConst.itemCount]}", width: 1),
-        PosColumn(text: "$salesPrice", width:2),
-        PosColumn(text: "${(regularPrice - salesPrice).toStringAsFixed(2)}", width: 1),
-        PosColumn(text: "${(orderItem[AppDBConst.itemCount] * salesPrice).toStringAsFixed(2)}", width: 2),
+        PosColumn(text: "${orderItem[AppDBConst.itemName]}", width:6),
+        PosColumn(text: "${orderItem[AppDBConst.itemCount]}", width: 1,styles: PosStyles(align: PosAlign.right)),
+        PosColumn(text: "${salesPrice.toStringAsFixed(2)}", width:2, styles: PosStyles(align: PosAlign.right)),
+        // PosColumn(text: "${(regularPrice - salesPrice).toStringAsFixed(2)}", width: 1, styles: PosStyles(align: PosAlign.right)),, ///removed based on request on 3-Sep-25
+        PosColumn(text: isCouponOrPayout
+            ? "${(orderItem[AppDBConst.itemCount] * orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}"
+            : "${(orderItem[AppDBConst.itemCount] * salesPrice).toStringAsFixed(2)}", width: 2, styles: PosStyles(align: PosAlign.right)),
       ]);
       // bytes += ticket.feed(1);
     }
 
     bytes += ticket.feed(1);
+    bytes += ticket.row([
+      PosColumn(text: "-----------------------------------------------", width: 12),
+    ]);
+    bytes += ticket.feed(1);
 
     if (kDebugMode) {
+      print(" >>>>> Printer Order merchantDiscount -${merchantDiscount.toStringAsFixed(2)} ");
+      print(" >>>>> Printer Order discount -${discount.toStringAsFixed(2)} ");
       print(" >>>>> Printer Order balanceAmount  $balanceAmount ");
+      print(" >>>>> Printer Order orderTotal  $orderTotal ");
       print(" >>>>> Printer Order tenderAmount $tenderAmount ");
       print(" >>>>> Printer Order changeAmount $changeAmount ");
       print(" >>>>> Printer Order paidAmount $paidAmount ");
@@ -2268,22 +2485,22 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
 
     bytes += ticket.row([
       PosColumn(text: TextConstants.grossTotal, width: 10),
-      PosColumn(text: total.toStringAsFixed(2), width:2),
+      PosColumn(text: total.toStringAsFixed(2), width:2, styles: PosStyles(align: PosAlign.right)),
     ]);
     // bytes += ticket.feed(1);
     bytes += ticket.row([
       PosColumn(text: TextConstants.discountText, width: 10), // Build #1.0.148: deleted duplicate discount string from constants , already we have discountText using !
-      PosColumn(text: discount.toStringAsFixed(2), width:2),
+      PosColumn(text: "-${discount.toStringAsFixed(2)}", width:2, styles: PosStyles(align: PosAlign.right)),
     ]);
     // bytes += ticket.feed(1);
     bytes += ticket.row([
       PosColumn(text: TextConstants.merchantDiscount, width: 10),
-      PosColumn(text: merchantDiscount.toStringAsFixed(2), width:2),
+      PosColumn(text: "-${merchantDiscount.toStringAsFixed(2)}", width:2, styles: PosStyles(align: PosAlign.right)),
     ]);
     // bytes += ticket.feed(1);
     bytes += ticket.row([
       PosColumn(text: TextConstants.taxText, width: 10),
-      PosColumn(text: tax.toStringAsFixed(2), width:2),
+      PosColumn(text: tax.toStringAsFixed(2), width:2, styles: PosStyles(align: PosAlign.right)),
     ]);
     // bytes += ticket.feed(1);
     //line
@@ -2294,30 +2511,30 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     bytes += ticket.feed(1);
     //Net Payable
     bytes += ticket.row([
-      PosColumn(text: TextConstants.netPayable, width: 8),
-      PosColumn(text: balanceAmount.toStringAsFixed(2), width:4),
+      PosColumn(text: TextConstants.netPayable, width: 10),
+      PosColumn(text: orderTotal.toStringAsFixed(2), width:2, styles: PosStyles(align: PosAlign.right)),
     ]);
     ///Todo: get pay by cash amount
     // bytes += ticket.feed(1);
     bytes += ticket.row([
-      PosColumn(text: TextConstants.payByCash, width: 8),
-      PosColumn(text: payByCash.toStringAsFixed(2), width:4),
+      PosColumn(text: TextConstants.payByCash, width: 10),
+      PosColumn(text: payByCash.toStringAsFixed(2), width:2,styles: PosStyles(align: PosAlign.right)),
     ]);
     ///Todo: get pay by other amount
     // bytes += ticket.feed(1);
     bytes += ticket.row([
-      PosColumn(text: TextConstants.payByOther, width: 8),
-      PosColumn(text: payByOther.toStringAsFixed(2), width:4),
+      PosColumn(text: TextConstants.payByOther, width: 10),
+      PosColumn(text: payByOther.toStringAsFixed(2), width:2, styles: PosStyles(align: PosAlign.right)),
     ]);
     // bytes += ticket.feed(1);
     bytes += ticket.row([
-      PosColumn(text: TextConstants.tenderAmount, width: 8),
-      PosColumn(text: tenderAmount.toStringAsFixed(2), width:4),
+      PosColumn(text: TextConstants.tenderAmount, width: 10),
+      PosColumn(text: tenderAmount.toStringAsFixed(2), width:2, styles: PosStyles(align: PosAlign.right)),
     ]);
     // bytes += ticket.feed(1);
     bytes += ticket.row([
       PosColumn(text: TextConstants.change, width: 10),
-      PosColumn(text: changeAmount.toStringAsFixed(2), width:2),
+      PosColumn(text: changeAmount.toStringAsFixed(2), width:2, styles: PosStyles(align: PosAlign.right)),
     ]);
     bytes += ticket.feed(1);
 
@@ -2326,14 +2543,18 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     //   PosColumn(text: "Thank You, Visit Again", width: 12),
     // ]);
 
-    bytes += ticket.row([
-      PosColumn(text: "$footer", width: 12),
-    ]);
-
-    bytes += ticket.feed(1);
+    if(footer != "") {
+      bytes += ticket.row([
+        PosColumn(text: "$footer",
+            width: 12,
+            styles: PosStyles(align: PosAlign.center)),
+      ]);
+      bytes += ticket.feed(1);
+    }
   }
 
   Future _printTicket() async{
+    // if(true) return;
     final ticket =  await _printerSettings.getTicket();
     final result = await _printerSettings.printTicket(bytes, ticket);
 
@@ -2379,7 +2600,9 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                 print("OrderSummaryScreen - printer setup is NOT done, or user cancels printer setup");
               }
               // Build #1.0.168: If user cancels printer setup, show receipt dialog again
-              _showReceiptDialog(context, paidAmount);
+              if(mounted) {
+                _showReceiptDialog(context, paidAmount);
+              }
             }
           });
         });
@@ -2611,7 +2834,16 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
       /// Build #1.0.175: No need change status to completed API call
      /// It was handling from backend
        Navigator.of(context).pop();  // Dismiss the receipt dialog
-       Navigator.of(context).pop(TextConstants.refresh); // Dismiss back to the previous screen with a refresh signal
+       // Navigator.of(context).pop(TextConstants.refresh); // Dismiss back to the previous screen with a refresh signal
+    if (kDebugMode) {
+      print("changeStatusToCompletedAndExit -> 3:");
+    }
+    ///Completed order
+      OrderHelper.isOrderPanelLoaded = false;
+      Navigator.pushReplacement(result: TextConstants.refresh,
+        context,
+        MaterialPageRoute(builder: (_) => FastKeyScreen()),
+      );
 
        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -2675,7 +2907,8 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
             if (kDebugMode) {
               print("showVoidExitConfirmation -> Complete payment void: calling voidOrder API");
             }
-            _handleVoidOrder(context);
+            // _handleVoidOrder(context);
+            _handleVoidPayment(context, isPartial: true);
           }
         },
       ),
@@ -2709,9 +2942,14 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
             if (kDebugMode) {
               print("_showExitPaymentConfirmation -> User confirmed exit, navigating back");
             }
+            ///Partial payment back button exit
             Navigator.of(context).pop(); // Close exit confirmation dialog
-            Navigator.of(context).pop(TextConstants.refresh); // Navigate back to previous screen
-
+            // Navigator.of(context).pop(TextConstants.refresh); // Navigate back to previous screen
+            OrderHelper.isOrderPanelLoaded = false;
+            Navigator.pushReplacement(result: TextConstants.refresh,
+              context,
+              MaterialPageRoute(builder: (_) => FastKeyScreen()),
+            );
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(

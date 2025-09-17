@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:pinaka_pos/Helper/Extentions/text_extensions.dart';
 import 'package:pinaka_pos/Screens/Home/shift_history_dashboard_screen.dart';
 import 'package:provider/provider.dart';
 import '../../Blocs/Auth/shift_bloc.dart';
@@ -45,6 +49,13 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
   List<String> _purposes = [];
   final PinakaPreferences _preferences = PinakaPreferences(); // Added this
 
+  //state variables for API response and subscription
+  APIResponse<ShiftByIdResponse>? apiResponse;
+  StreamSubscription? _shiftSubscription; // build 1.0.206 We changed the code to store the shift summary data within the screen's state,
+                                          // which prevents the UI from getting stuck on a loading indicator after you change the display mode.
+
+
+
   @override
   void initState() {
     super.initState();
@@ -52,6 +63,14 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
     shiftBloc = ShiftBloc(ShiftRepository());
     vendorPaymentBloc = VendorPaymentBloc(VendorPaymentRepository()); //Build #1.0.74
     if (widget.shiftId != null) {
+      // Manually listen to the stream and trigger the fetch
+      _shiftSubscription = shiftBloc.shiftByIdStream.listen((response) {
+        if (mounted) {
+          setState(() {
+            apiResponse = response;
+          });
+        }
+      });
       shiftBloc.getShiftById(widget.shiftId!);
       _loadVendorData(); // Load vendor data from AssetDBHelper
       if (kDebugMode) print("ShiftSummaryDashboardScreen: Initialized with shiftId ${widget.shiftId}");
@@ -87,6 +106,8 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
 
   @override
   void dispose() {
+   // Cancel the stream subscription
+    _shiftSubscription?.cancel();
     shiftBloc.dispose();
     vendorPaymentBloc.dispose();
     super.dispose();
@@ -172,87 +193,190 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
     return Scaffold(
       resizeToAvoidBottomInset: true,
       body: SafeArea(
-        child: StreamBuilder<APIResponse<ShiftByIdResponse>>( //Build #1.0.74
-          stream: shiftBloc.shiftByIdStream,
-          builder: (context, snapshot) {
-            if (snapshot.hasData) {
-              switch (snapshot.data!.status) {
-                case Status.LOADING:
-                  return Center(child: CircularProgressIndicator());
-                case Status.COMPLETED:
-                  final shift = snapshot.data!.data!.shift;
-                  return SingleChildScrollView(
-                    child: Padding(
-                      padding: EdgeInsets.all(8),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Column(
-                                mainAxisAlignment: MainAxisAlignment.start,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  _buildHeader(),
-                                  _buildTimeTrackingSection(shift),
-                                ],
-                              ),
-                              SizedBox(width: MediaQuery.of(context).size.width * 0.02),
-                              _buildFinancialSummaryCards(shift),
-                            ],
-                          ),
-                          SizedBox(height: MediaQuery.of(context).size.height * 0.02),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildSafeDropSection(shift),
-                              SizedBox(width: MediaQuery.of(context).size.width * 0.02),
-                              _buildVendorPayoutsSection(shift),
-                            ],
-                          ),
-                        ],
-                      ),
+        child: () {
+          // Use the _apiResponse state variable instead of a StreamBuilder
+          if (apiResponse == null || apiResponse!.status == Status.LOADING) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (apiResponse!.status == Status.ERROR) {
+            if (apiResponse!.message!.contains('Unauthorised')) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("Unauthorised. Session is expired on this device."),
+                      backgroundColor: Colors.red,
+                      duration: Duration(seconds: 2),
                     ),
                   );
-                case Status.ERROR:
-                  return Center(child: Text('Error: ${snapshot.data!.message}'));
-                default:
-                  return SizedBox();
-              }
+                }
+              });
+              return const Center(child: CircularProgressIndicator()); // Show loader while redirecting
+            } else {
+              return Center(child: Text('Error: ${apiResponse!.message}'));
             }
-            return Center(child: CircularProgressIndicator());
-          },
-        ),
+          }
+
+          if (apiResponse!.status == Status.COMPLETED) {
+            final shift = apiResponse!.data!.shift;
+            return SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Column(
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildHeader(),
+                            _buildTimeTrackingSection(shift),
+                          ],
+                        ),
+                        SizedBox(width: MediaQuery.of(context).size.width * 0.01),
+                        _buildFinancialSummaryCards(shift),
+                      ],
+                    ),
+                    SizedBox(height: MediaQuery.of(context).size.height * 0.02),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildSafeDropSection(shift),
+                        SizedBox(width: MediaQuery.of(context).size.width * 0.01),
+                        _buildVendorPayoutsSection(shift),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+
+        // StreamBuilder<APIResponse<ShiftByIdResponse>>( //Build #1.0.74
+        //   stream: shiftBloc.shiftByIdStream,
+        //   builder: (context, snapshot) {
+        //     if (kDebugMode) {
+        //       print("data is coming --- $snapshot");
+        //     }
+        //     if (kDebugMode) {
+        //       print("data is coming ---- ${snapshot.hasData}");
+        //     }
+        //     if (snapshot.hasData) {
+        //       // if (kDebugMode) {
+        //       //   print("data is coming ${snapshot.data}");
+        //       // }
+        //       switch (snapshot.data!.status) {
+        //         case Status.LOADING:
+        //           return Center(child: CircularProgressIndicator());
+        //         case Status.COMPLETED:
+        //           final shift = snapshot.data!.data!.shift;
+        //           return SingleChildScrollView(
+        //             child: Padding(
+        //               padding: EdgeInsets.all(8),
+        //               child: Column(
+        //                 crossAxisAlignment: CrossAxisAlignment.start,
+        //                 children: [
+        //                   Row(
+        //                     children: [
+        //                       Column(
+        //                         mainAxisAlignment: MainAxisAlignment.start,
+        //                         crossAxisAlignment: CrossAxisAlignment.start,
+        //                         children: [
+        //                           _buildHeader(),
+        //                           _buildTimeTrackingSection(shift),
+        //                         ],
+        //                       ),
+        //                       SizedBox(width: MediaQuery.of(context).size.width * 0.02),
+        //                       _buildFinancialSummaryCards(shift),
+        //                     ],
+        //                   ),
+        //                   SizedBox(height: MediaQuery.of(context).size.height * 0.02),
+        //                   Row(
+        //                     crossAxisAlignment: CrossAxisAlignment.start,
+        //                     children: [
+        //                       _buildSafeDropSection(shift),
+        //                       SizedBox(width: MediaQuery.of(context).size.width * 0.02),
+        //                       _buildVendorPayoutsSection(shift),
+        //                     ],
+        //                   ),
+        //                 ],
+        //               ),
+        //             ),
+        //           );
+        //         case Status.ERROR:
+        //           if (kDebugMode) {
+        //             print(" Test --- Unauthorised : response.message ${snapshot.data!.message ?? " "}");
+        //           }
+        //             if (snapshot.data!.message!.contains('Unauthorised')) {
+        //               if (kDebugMode) {
+        //                 print("Unauthorised : response.message ${snapshot.data!.message!}");
+        //               }
+        //               WidgetsBinding.instance.addPostFrameCallback((_) {
+        //                 if (mounted) {
+        //                   Navigator.pushReplacement(context, MaterialPageRoute(
+        //                       builder: (context) => LoginScreen()));
+        //
+        //                   ScaffoldMessenger.of(context).showSnackBar(
+        //                     const SnackBar(
+        //                       content: Text("Unauthorised. Session is expired on this device."),
+        //                       backgroundColor: Colors.red,
+        //                       duration: Duration(seconds: 2),
+        //                     ),
+        //                   );
+        //                 }
+        //               });
+        //             } else {
+        //             return Center(
+        //                 child: Text('Error: ${snapshot.data!.message}'));
+        //           }
+        //         default:
+        //           return SizedBox();
+        //       }
+        //     }
+        //     return Center(child: CircularProgressIndicator());
+        //   },
+        // ),
+          // Default fallback
+          return const SizedBox.shrink();
+        }(),
       ),
     );
   }
 
   Widget _buildHeader() {
     final themeHelper = Provider.of<ThemeNotifier>(context);
-    return Row(
-      children: [
-        IconButton(
-          padding: EdgeInsets.zero,
-          onPressed: () {
-            Navigator.pop(context);
-          },
-          icon: Icon(
-            Icons.arrow_back,
-            color: themeHelper.themeMode == ThemeMode.dark
-                ? ThemeNotifier.textDark : Colors.black87,
-            size: MediaQuery.of(context).size.width * 0.02,
+    return InkWell(
+      onTap: () => Navigator.of(context).pop(),
+      child: Row(
+        children: [
+          IconButton(
+            padding: EdgeInsets.zero,
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            icon: Icon(
+              Icons.arrow_back_sharp,
+              color: themeHelper.themeMode == ThemeMode.dark
+                  ? ThemeNotifier.textDark : Colors.black87,
+              size: 20
+            ),
           ),
-        ),
-        Text(
-          TextConstants.back,
-          style: TextStyle(
-            color: themeHelper.themeMode == ThemeMode.dark
-                ? ThemeNotifier.textDark : Colors.black87,
-            fontSize: MediaQuery.of(context).size.width * 0.012,
-            fontWeight: FontWeight.w500,
+          Text(
+            TextConstants.back,
+            style: TextStyle(
+              color: themeHelper.themeMode == ThemeMode.dark
+                  ? ThemeNotifier.textDark : Colors.black87,
+              fontSize: MediaQuery.of(context).size.width * 0.01,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -334,7 +458,7 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
   Widget _buildSummaryCard(String title, String amount, Color color) {
     return Container(
       height: MediaQuery.of(context).size.height * 0.175,
-      width: MediaQuery.of(context).size.width * 0.12,
+      width: MediaQuery.of(context).size.width * 0.1375,
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.circular(12),
@@ -380,14 +504,14 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
         color: themeHelper.themeMode == ThemeMode.dark
             ? ThemeNotifier.primaryBackground : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: themeHelper.themeMode == ThemeMode.dark
-            ? ThemeNotifier.borderColor : Colors.black ),
+        // border: Border.all(color: themeHelper.themeMode == ThemeMode.dark
+        //     ? ThemeNotifier.borderColor : Colors.black ),
         boxShadow: [
           BoxShadow(
             color: themeHelper.themeMode == ThemeMode.dark
-                ? ThemeNotifier.shadow_F7 : Colors.black.withOpacity(0.05),
+                ? ThemeNotifier.shadow_F7 : Colors.grey.withValues(alpha: 0.05),
             blurRadius: 2,
-            //spreadRadius: 2,
+            spreadRadius: 2,
             offset: Offset(0, 0),
           ),
         ],
@@ -511,7 +635,7 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
   Widget _buildVendorPayoutsSection(Shift shift) {
     final themeHelper = Provider.of<ThemeNotifier>(context);
     return Container(
-      width: MediaQuery.of(context).size.width * 0.59,
+      width: MediaQuery.of(context).size.width * 0.595,
       height: MediaQuery.of(context).size.height * 0.625,
       decoration: BoxDecoration(
         color: themeHelper.themeMode == ThemeMode.dark
@@ -520,9 +644,9 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
         boxShadow: [
           BoxShadow(
             color: themeHelper.themeMode == ThemeMode.dark
-                ? ThemeNotifier.shadow_F7 : Colors.black.withValues(alpha: 0.05),
+                ? ThemeNotifier.shadow_F7 : Colors.grey.withValues(alpha: 0.05),
             blurRadius: 2,
-            //spreadRadius: 2,
+            spreadRadius: 2,
             offset: Offset(0, 0),
           ),
         ],
@@ -532,7 +656,7 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
         children: [
           // Header
           Container(
-            padding: EdgeInsets.all(MediaQuery.of(context).size.width * 0.015),
+            padding: EdgeInsets.all(MediaQuery.of(context).size.width * 0.0125),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -611,218 +735,271 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
           Expanded(
             child: shift.vendorPayouts.isEmpty
                 ? Center(child: Text(TextConstants.vendorPayoutNotFound))
-                : SingleChildScrollView(
-              scrollDirection: Axis.vertical,
-              child: DataTable(
-                columnSpacing: 30,
-                horizontalMargin: MediaQuery.of(context).size.width * 0.015,
-                headingRowHeight: MediaQuery.of(context).size.height * 0.085,
-                headingRowColor: WidgetStateProperty.all(
-                  themeHelper.themeMode == ThemeMode.dark
-                      ? ThemeNotifier.secondaryBackground
-                      : Colors.white,
-                ),
-                dividerThickness: 0.5,
+                : Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 0, 14, 6),
+                  child: SingleChildScrollView(
+                                scrollDirection: Axis.vertical,
+                                child: DataTable(
+                  //columnSpacing: MediaQuery.of(context).size.width * 0.055,
+                  //horizontalMargin: MediaQuery.of(context).size.width * 0.015,
+                  headingRowHeight: MediaQuery.of(context).size.height * 0.085,
+                  dataRowHeight: MediaQuery.of(context).size.height * 0.085,
 
-                columns: [
-                  DataColumn(
-                    label: Text(
-                      TextConstants.amount,
-                      style: TextStyle(
-                        color: Colors.grey.shade500,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                  headingRowColor: WidgetStateProperty.all(
+                    themeHelper.themeMode == ThemeMode.dark
+                        ? ThemeNotifier.secondaryBackground
+                        : Colors.white,
                   ),
-                  DataColumn(
-                    label: Text(
-                      TextConstants.vendor,
-                      style: TextStyle(
-                        color: Colors.grey.shade500,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  DataColumn(
-                    label: Text(
-                      TextConstants.note,
-                      style: TextStyle(
-                        color: Colors.grey.shade500,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  DataColumn(
-                    label: Text(
-                     TextConstants.purpose,
-                      style: TextStyle(
-                        color: Colors.grey.shade500,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  DataColumn(
-                    label: Text(
-                      '',
-                      style: TextStyle(
-                        color: Colors.grey.shade500,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-                rows: shift.vendorPayouts.asMap().entries.map((entry) {
-                  int index = entry.key;
-                  VendorPayout item = entry.value;
-                  return DataRow(
-                      color: WidgetStateProperty.resolveWith<Color?>(
-                      (Set<WidgetState> states) => themeHelper.themeMode == ThemeMode.dark
-                      ? ThemeNotifier.tabsBackground  // Your dark theme color
-                      : Colors.white
-                      ),
-                  cells: [
-                      DataCell(
-                        Text(
-                          '${TextConstants.currencySymbol}${item.amount}',
+                  dividerThickness: 0.5,
+
+                  columns: [
+                    DataColumn(
+                      label: Container(
+                        width: MediaQuery.of(context).size.width * 0.05,
+                        child: Text(
+                          TextConstants.amount,
                           style: TextStyle(
-                            color:themeHelper.themeMode == ThemeMode.dark
-                                ? ThemeNotifier.textDark : Colors.black87,
+                            color: Colors.grey.shade500,
                             fontSize: 14,
-                            fontWeight: FontWeight.w500,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
-                      DataCell(
-                        Text(
-                          item.vendorName,
+                    ),
+                    DataColumn(
+                      label: Container(
+                        width: MediaQuery.of(context).size.width * 0.05,
+                        child: Text(
+                          TextConstants.vendor,
                           style: TextStyle(
-                            color: themeHelper.themeMode == ThemeMode.dark
-                                ? ThemeNotifier.textDark : Colors.black87,
+                            color: Colors.grey.shade500,
                             fontSize: 14,
-                            fontWeight: FontWeight.w500,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
-                    DataCell(
-                      ConstrainedBox(
-                      constraints: BoxConstraints(
-                      maxWidth: MediaQuery.of(context).size.width * 0.25,
-                  ),
-                        child: Tooltip(
-                          message: item.note.isEmpty ? 'No note' : item.note,
-                          decoration: BoxDecoration(
-                            color: themeHelper.themeMode == ThemeMode.dark
-                                ? ThemeNotifier.searchBarBackground
-                                : Colors.grey,
-                            borderRadius: BorderRadius.circular(8),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.2),
-                                blurRadius: 8,
-                                offset: const Offset(0, 4),
+                    ),
+                    DataColumn(
+                      label: Container(
+                        width: MediaQuery.of(context).size.width * 0.135,
+                        child: Text(
+                          TextConstants.note,
+                          style: TextStyle(
+                            color: Colors.grey.shade500,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                    DataColumn(
+                      label: Container(
+                        width: MediaQuery.of(context).size.width * 0.05,
+                        child: Text(
+                         TextConstants.purpose,
+                          style: TextStyle(
+                            color: Colors.grey.shade500,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                    DataColumn(
+                      label: Container(
+                        width: MediaQuery.of(context).size.width * 0.12,
+                        child: Text(
+                          '',
+                          style: TextStyle(
+                            color: Colors.grey.shade500,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                  rows: shift.vendorPayouts.asMap().entries.map((entry) {
+                    int index = entry.key;
+                    VendorPayout item = entry.value;
+                    return DataRow(
+                        color: WidgetStateProperty.resolveWith<Color?>(
+                        (Set<WidgetState> states) => themeHelper.themeMode == ThemeMode.dark
+                        ? ThemeNotifier.tabsBackground  // Your dark theme color
+                        : Colors.white
+                        ),
+                    cells: [
+                        DataCell(
+                          Container(
+                            width: MediaQuery.of(context).size.width * 0.05,
+                            child: Text(
+                              '${TextConstants.currencySymbol}${item.amount.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                color:themeHelper.themeMode == ThemeMode.dark
+                                    ? ThemeNotifier.textDark : Colors.black,
+                                fontSize: 11,
+                                //fontWeight: FontWeight.w500,
                               ),
-                            ],
+                            ).poppins(),
                           ),
-                          textStyle: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w400,
+                        ),
+                        DataCell(
+                          Container(
+                            width: MediaQuery.of(context).size.width * 0.05,
+                            child: Text(
+                              item.vendorName,
+                              style: TextStyle(
+                                color: themeHelper.themeMode == ThemeMode.dark
+                                    ? ThemeNotifier.textDark : Colors.black,
+                                fontSize: 11,
+                               // fontWeight: FontWeight.w500,
+                              ),
+                            ).poppins(),
                           ),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          margin: const EdgeInsets.all(8),
-                          child: Text(
-                            item.note.isEmpty ? 'No note' : item.note,
-                            style: TextStyle(
+                        ),
+                      DataCell(
+                        Container(
+                          width: MediaQuery.of(context).size.width * 0.135,
+                          child: Tooltip(
+                            message: item.note.isEmpty ? 'No note' : item.note,
+                            decoration: BoxDecoration(
                               color: themeHelper.themeMode == ThemeMode.dark
-                                  ? ThemeNotifier.textDark : ThemeNotifier.textLight,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
+                                  ? ThemeNotifier.searchBarBackground
+                                  : Colors.grey,
+                              borderRadius: BorderRadius.circular(8),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.2),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 0),
+                                ),
+                              ],
                             ),
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 2,
-                            softWrap: true,
+                            textStyle: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontFamily: 'Poppins',
+                              fontWeight: FontWeight.w400,
+                            ),
+                            //padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            //margin: const EdgeInsets.all(8),
+                            child: Text(
+                              item.note.isEmpty ? 'No note' : item.note,
+                              style: TextStyle(
+                                color: themeHelper.themeMode == ThemeMode.dark
+                                    ? ThemeNotifier.textDark : ThemeNotifier.textLight,
+                                fontSize: 11,
+                                //fontWeight: FontWeight.w500,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 2,
+                              softWrap: true,
+                            ).poppins(),
                           ),
                         ),
                       ),
-                    ),
-                      DataCell(
-                        Text(
-                          item.serviceType,
-                          style: TextStyle(
-                            color: themeHelper.themeMode == ThemeMode.dark
-                                ? ThemeNotifier.textDark :  Colors.black87,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
+                        DataCell(
+                          Container(
+                            width: MediaQuery.of(context).size.width * 0.05,
+                            child: Text(
+                              item.serviceType,
+                              style: TextStyle(
+                                color: themeHelper.themeMode == ThemeMode.dark
+                                    ? ThemeNotifier.textDark :  Colors.black,
+                                fontSize: 11,
+                                //fontWeight: FontWeight.w500,
+                              ),
+                            ).poppins(),
                           ),
                         ),
-                      ),
-                      DataCell(
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            InkWell(
-                              onTap: shift.shiftStatus == 'closed'
-                                  ? null
-                                  : () {
-                                if (kDebugMode) print('ShiftSummaryDashboardScreen: Delete vendor payout at index $index with ID ${item.id}');
-                                _showDeleteConfirmation(index, item.id);
-                              },
-                              borderRadius: BorderRadius.circular(4),
-                              child: Padding(
-                                padding: EdgeInsets.all(MediaQuery.of(context).size.width * 0.004),
-                                child: Icon(
-                                  Icons.delete_outline,
-                                  color: shift.shiftStatus == 'closed' ? Colors.grey : Colors.red.shade400,
-                                  size: 18,
+                        DataCell(
+                          Container(
+                            width: MediaQuery.of(context).size.width * 0.12,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                InkWell(
+                                  onTap: shift.shiftStatus == 'closed'
+                                      ? null
+                                      : () {
+                                    if (kDebugMode) print('ShiftSummaryDashboardScreen: Delete vendor payout at index $index with ID ${item.id}');
+                                    _showDeleteConfirmation(index, item.id);
+                                  },
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: Container(
+                                    height:30,
+                                    width:30,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.rectangle,
+                                      borderRadius: BorderRadius.circular(8.0),
+                                      color: Colors.red.shade50,
+                                    ),
+                                    child: Icon(
+                                      Icons.delete_outline,
+                                      color: shift.shiftStatus == 'closed' ? Colors.grey : Colors.red.shade400,
+                                      size: 18,
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ),
-                            SizedBox(width: MediaQuery.of(context).size.width * 0.005),
-                            InkWell(
-                              onTap: shift.shiftStatus == 'closed'
-                                  ? null
-                                  : () {
-                                if (kDebugMode) print('ShiftSummaryDashboardScreen: Edit vendor payout at index $index with ID ${item.id}');
-                                _showAddVendorPayoutDialog(payment: item);
-                              },
-                              borderRadius: BorderRadius.circular(4),
-                              child: Padding(
-                                padding: EdgeInsets.all(MediaQuery.of(context).size.width * 0.004),
-                                child: Icon(
-                                  Icons.edit_outlined,
-                                  color: shift.shiftStatus == 'closed' ? Colors.grey : Colors.blue.shade400,
-                                  size: 18,
+                                SizedBox(width: MediaQuery.of(context).size.width * 0.005),
+                                InkWell(
+                                  onTap: shift.shiftStatus == 'closed'
+                                      ? null
+                                      : () {
+                                    if (kDebugMode) print('ShiftSummaryDashboardScreen: Edit vendor payout at index $index with ID ${item.id}');
+                                    _showAddVendorPayoutDialog(payment: item);
+                                  },
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: Padding(
+                                    padding: EdgeInsets.all(MediaQuery.of(context).size.width * 0.004),
+                                    child: Container(
+                                      height:30,
+                                      width:30,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: Colors.blue.shade50,
+                                      ),
+                                      child: Icon(
+                                        Icons.edit_outlined,
+                                        color: shift.shiftStatus == 'closed' ? Colors.grey : Colors.blue.shade400,
+                                        size: 18,
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ),
-                            SizedBox(width: MediaQuery.of(context).size.width * 0.005),
-                            InkWell(
-                              onTap: () {
-                                if (kDebugMode) print('ShiftSummaryDashboardScreen: Print vendor payout at index $index');
-                              },
-                              borderRadius: BorderRadius.circular(4),
-                              child: Padding(
-                                padding: EdgeInsets.all(MediaQuery.of(context).size.width * 0.004),
-                                child: Icon(
-                                  Icons.print_outlined,
-                                  color: Colors.grey.shade600,
-                                  size: 18,
+                                SizedBox(width: MediaQuery.of(context).size.width * 0.005),
+                                InkWell(
+                                  onTap: () {
+                                    if (kDebugMode) print('ShiftSummaryDashboardScreen: Print vendor payout at index $index');
+                                  },
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: Padding(
+                                    padding: EdgeInsets.all(MediaQuery.of(context).size.width * 0.004),
+                                    child: Container(
+                                      height:30,
+                                      width:30,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: Colors.grey.shade200,
+                                      ),
+                                      child: Icon(
+                                        Icons.print_outlined,
+                                        color: Colors.grey.shade600,
+                                        size: 20,
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                              ),
+                              ],
                             ),
-                          ],
+                          ),
                         ),
-                      ),
-                    ],
-                  );
-                }).toList(),
-              ),
-            ),
+                      ],
+                    );
+                  }).toList(),
+                                ),
+                              ),
+                ),
           ),
         ],
       ),
@@ -857,17 +1034,42 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
                 duration: Duration(seconds: 2),
               ),
             );
-          } else if (response.status == Status.ERROR) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  response.message ?? 'Failed to delete vendor payout',
-                  style: TextStyle(color: Colors.white),
+          }
+          else if (response.status == Status.ERROR) {
+            if (response.message!.contains('Unauthorised')) {
+              if (kDebugMode) {
+                print("shift summary screen -- Unauthorised : response.message ${response.message!}");
+              }
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  Navigator.pushReplacement(context,
+                      MaterialPageRoute(builder: (context) => LoginScreen()));
+                  if (kDebugMode) {
+                    print("message --- ${response.message}");
+                  }
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                          "Unauthorised. Session is expired on this device."),
+                      backgroundColor: Colors.red,
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                }
+              });
+            }
+            else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    response.message ?? 'Failed to delete vendor payout',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  backgroundColor: Colors.red,
+                  duration: Duration(seconds: 2),
                 ),
-                backgroundColor: Colors.red,
-                duration: Duration(seconds: 2),
-              ),
-            );
+              );
+            }
           }
           break;
         }
@@ -907,17 +1109,44 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
                       duration: Duration(seconds: 2),
                     ),
                   );
-                } else if (response.status == Status.ERROR) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        response.message ?? 'Failed to update vendor payout',
-                        style: TextStyle(color: Colors.white),
+                }
+                else if (response.status == Status.ERROR) {
+                  if (response.message!.contains('Unauthorised')) {
+                    if (kDebugMode) {
+                      print("Unauthorised : response.message ${response.message!}");
+                    }
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted) {
+                        Navigator.pushReplacement(
+                            context, MaterialPageRoute(
+                            builder: (context) => LoginScreen()));
+
+                        if (kDebugMode) {
+                          print("message --- ${response.message}");
+                        }
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                                "Unauthorised. Session is expired on this device."),
+                            backgroundColor: Colors.red,
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                      }
+                    });
+                  }
+                  else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          response.message ?? 'Failed to update vendor payout',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                        backgroundColor: Colors.red,
+                        duration: Duration(seconds: 2),
                       ),
-                      backgroundColor: Colors.red,
-                      duration: Duration(seconds: 2),
-                    ),
-                  );
+                    );
+                  }
                 }
                 break; // Exit after handling the response
               }
@@ -938,16 +1167,42 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
                     ),
                   );
                 } else if (response.status == Status.ERROR) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        response.message ?? 'Failed to add vendor payout',
-                        style: TextStyle(color: Colors.white),
+                  if (response.message!.contains('Unauthorised')) {
+                    if (kDebugMode) {
+                      print("Unauthorised : response.message ${response.message!}");
+                    }
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted) {
+                        Navigator.pushReplacement(
+                            context, MaterialPageRoute(
+                            builder: (context) => LoginScreen()));
+
+                        if (kDebugMode) {
+                          print("message --- ${response.message}");
+                        }
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                                "Unauthorised. Session is expired on this device."),
+                            backgroundColor: Colors.red,
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                      }
+                    });
+                  }
+                  else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          response.message ?? 'Failed to add vendor payout',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                        backgroundColor: Colors.red,
+                        duration: Duration(seconds: 2),
                       ),
-                      backgroundColor: Colors.red,
-                      duration: Duration(seconds: 2),
-                    ),
-                  );
+                    );
+                  }
                 }
                 break; // Exit after handling the response
               }

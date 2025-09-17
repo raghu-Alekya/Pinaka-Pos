@@ -91,9 +91,15 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_barcode_listener/flutter_barcode_listener.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:focus_detector/focus_detector.dart';
+import 'package:pinaka_pos/Utilities/printer_settings.dart';
 import 'package:pinaka_pos/Widgets/widget_variants_dialog.dart';
 import 'package:provider/provider.dart';
+import 'package:sunmi_printer_plus/core/sunmi/sunmi_drawer.dart';
+import 'package:sunmi_printer_plus/sunmi_printer_plus.dart';
+import 'package:sunmi_printer_plus/sunmi_printer_plus_platform_interface.dart';
 import 'package:thermal_printer/esc_pos_utils_platform/src/capability_profile.dart';
 import 'package:thermal_printer/esc_pos_utils_platform/src/enums.dart';
 import 'package:thermal_printer/esc_pos_utils_platform/src/generator.dart';
@@ -152,6 +158,7 @@ class _TopBarState extends State<TopBar> {
   String? userDisplayName;
   String? _lastSearchQuery; // Build #1.0.120: Track last searched query to avoid redundant fetches
   bool _isSearchEnabled = true;
+  var _printerSettings =  PrinterSettings();
 
   @override
   void initState() {
@@ -293,10 +300,17 @@ class _TopBarState extends State<TopBar> {
                       case Status.COMPLETED:
                         final products = snapshot.data!.data;
                         if (products == null || products.isEmpty) {
+                          if (kDebugMode) {
+                            print("TopBar - result found no product with search text COMPLETED $_overlayEntry");
+                          }
+
                           return const Padding(
                             padding: EdgeInsets.all(16),
                             child: Text('No products found'),
                           );
+                        }
+                        if (kDebugMode) {
+                          print("TopBar - result found product with search text COMPLETED ${products.length}");
                         }
                         return ListView.builder(
                           shrinkWrap: true,
@@ -362,11 +376,11 @@ class _TopBarState extends State<TopBar> {
                                   // Build #1.0.108: Fixed Issue: Verify Age and proceed else return
                                   final ageVerificationProvider = AgeVerificationProvider();
                                   final ageRestrictedTag = product.tags?.firstWhere(
-                                        (element) => element.name == TextConstants.ageRestricted,
+                                        (element) => element.name == TextConstants.age_restricted,
                                     orElse: () => SKU.Tags(),
                                   );
                                   // Check if product has age restriction
-                                  final hasAgeRestriction = ageRestrictedTag?.name?.contains(TextConstants.ageRestricted) ?? false;
+                                  final hasAgeRestriction = ageRestrictedTag?.name?.contains(TextConstants.age_restricted) ?? false;
                                   if (kDebugMode) {
                                     print("TopBar - AgeVerification: Product has age restriction: $hasAgeRestriction, product.variations : ${product.variations!.isNotEmpty}");
                                   }
@@ -374,6 +388,15 @@ class _TopBarState extends State<TopBar> {
                                   if(product.variations!.isNotEmpty) {
                                     _clearSearch();
                                   }
+                                  //Build #1.0.234: Checking stored age restriction before verifying -> Age
+                                  final order = orderHelper.orders.firstWhere(
+                                        (order) => order[AppDBConst.orderServerId] == orderHelper.activeOrderId,
+                                    orElse: () => {},
+                                  );
+                                  final String ageRestrictedValue = order[AppDBConst.orderAgeRestricted]?.toString() ?? 'false';
+                                  final bool isAgeRestricted = ageRestrictedValue.toLowerCase() == 'true' || ageRestrictedValue == "1";
+
+                                  if (!isAgeRestricted) {
                                   if (hasAgeRestriction) {
                                     final minimumAgeSlug = ageRestrictedTag?.slug;
                                     final isVerified = await ageVerificationProvider.verifyAge(context, minAge: int.tryParse(minimumAgeSlug!) ?? 0);
@@ -384,6 +407,7 @@ class _TopBarState extends State<TopBar> {
                                       return;
                                     }
                                   }
+                                }
 
                                 if (kDebugMode) {
                                   print("TopBar - product.variations : ${product.variations!.isNotEmpty}");
@@ -509,6 +533,9 @@ class _TopBarState extends State<TopBar> {
                                                                           2),
                                                             ),
                                                           );
+                                                          Navigator.pop(
+                                                              context);
+                                                          _clearSearch();
                                                           _updateOrderSubscription
                                                               ?.cancel();
                                                         }
@@ -625,6 +652,7 @@ class _TopBarState extends State<TopBar> {
                                                     } else if (response
                                                             .status ==
                                                         Status.ERROR) {
+                                                      setState(() => isAddingItemLoading = false);
                                                       if (kDebugMode)
                                                         print(
                                                             "Error adding product: ${response.message}");
@@ -642,6 +670,9 @@ class _TopBarState extends State<TopBar> {
                                                                   seconds: 2),
                                                         ),
                                                       );
+                                                      Navigator.pop(
+                                                          context);
+                                                      _clearSearch();
                                                       _updateOrderSubscription
                                                           ?.cancel();
                                                     }
@@ -822,6 +853,7 @@ class _TopBarState extends State<TopBar> {
                                                   widget.onProductSelected?.call(product);
                                                   _updateOrderSubscription?.cancel();
                                                 } else if (response.status == Status.ERROR) {
+                                                  _clearSearch();
                                                   if (kDebugMode)
                                                     print("Error adding product: ${response.message}");
                                                   WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
@@ -933,6 +965,9 @@ class _TopBarState extends State<TopBar> {
   }
 
   void _removeOverlay() {
+    if (kDebugMode) {
+      print("TopBar - _removeOverlay");
+    }
     _overlayEntry?.remove();
     _overlayEntry = null;
   }
@@ -985,61 +1020,72 @@ class _TopBarState extends State<TopBar> {
               ),
               height: 50,
               key: _searchFieldKey,
-              child: TextField(
-                enabled: _isSearchEnabled,
-                controller: _searchController,
-                onSubmitted: (value) {
-                  if (kDebugMode) {
-                    print("TopBar - TextField onSubmitted: Value='$value', overlayExists=${_overlayEntry != null}, lastQuery='$_lastSearchQuery'");
-                  }
-                  // Build #1.0.120: Fixed : result are reloading after dismissal of keypad
-                  // Do not re-show overlay if it already exists or query hasn't changed
-                  if (value.isNotEmpty && _overlayEntry == null && value != _lastSearchQuery) {
-                    if (kDebugMode) {
-                      print("TopBar - TextField onSubmitted: Showing search results overlay for new query");
-                    }
-                    _lastSearchQuery = value;
-                    _productBloc.fetchProducts(searchQuery: value);
-                    _showSearchResultsOverlay();
-                  }
+              child: BarcodeKeyboardListener( // Build #1.0.44 : Added - Wrap with BarcodeKeyboardListener for barcode scanning
+                bufferDuration: Duration(milliseconds: 5000),
+                //Build #1.0.78: Removed orderHelper.addItemToOrder from the API success block, as it’s now in OrderBloc.updateOrderProducts.
+                // Kept local addItemToOrder for non-API orders.
+                // Ensured loader is shown during API calls and hidden afterward.
+                useKeyDownEvent: true,
+                onBarcodeScanned: (barcode) async {
+                  _searchController.text = "";
+                  return;
                 },
-                focusNode: _searchFocusNode,
-                decoration: InputDecoration(
-                  hintText: TextConstants.searchHint,
-                  prefixIcon: Icon(Icons.search, color: theme.iconTheme.color),
-                  // Build #1.0.108: added loader for auto search items loading instead of (x)
-                  suffixIcon: StreamBuilder<APIResponse<List<ProductResponse>>>(
-                    stream: _productBloc.productStream,
-                    builder: (context, snapshot) {
-                      // Show loader when loading
-                      if (snapshot.hasData && snapshot.data!.status == Status.LOADING && _searchController.text == _lastSearchQuery) {
-                        return const Padding(
-                          padding: EdgeInsets.all(8.0),
-                          child: SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                        );
+                child: TextField(
+                  enabled: _isSearchEnabled,
+                  controller: _searchController,
+                  onSubmitted: (value) {
+                    if (kDebugMode) {
+                      print("TopBar - TextField onSubmitted: Value='$value', overlayExists=${_overlayEntry != null}, lastQuery='$_lastSearchQuery'");
+                    }
+                    // Build #1.0.120: Fixed : result are reloading after dismissal of keypad
+                    // Do not re-show overlay if it already exists or query hasn't changed
+                    if (value.isNotEmpty && _overlayEntry == null && value != _lastSearchQuery) {
+                      if (kDebugMode) {
+                        print("TopBar - TextField onSubmitted: Showing search results overlay for new query");
                       }
-                      // Show clear button when there's text
-                      if (_searchController.text.isNotEmpty) {
-                        return IconButton(
-                          icon: Icon(Icons.clear, color: theme.iconTheme.color),
-                          onPressed: _clearSearch,
-                        );
-                      }
-                      // Return empty container when no icon needed
-                      return const SizedBox.shrink();
-                    },
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide.none,
-                  ),
+                      _lastSearchQuery = value;
+                      _productBloc.fetchProducts(searchQuery: value);
+                      _showSearchResultsOverlay();
+                    }
+                  },
+                  focusNode: _searchFocusNode,
+                  decoration: InputDecoration(
+                    hintText: TextConstants.searchHint,
+                    prefixIcon: Icon(Icons.search, color: theme.iconTheme.color),
+                    // Build #1.0.108: added loader for auto search items loading instead of (x)
+                    suffixIcon: StreamBuilder<APIResponse<List<ProductResponse>>>(
+                      stream: _productBloc.productStream,
+                      builder: (context, snapshot) {
+                        // Show loader when loading
+                        if (snapshot.hasData && snapshot.data!.status == Status.LOADING && _searchController.text == _lastSearchQuery) {
+                          return const Padding(
+                            padding: EdgeInsets.all(8.0),
+                            child: SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          );
+                        }
+                        // Show clear button when there's text
+                        if (_searchController.text.isNotEmpty) {
+                          return IconButton(
+                            icon: Icon(Icons.clear, color: theme.iconTheme.color),
+                            onPressed: _clearSearch,
+                          );
+                        }
+                        // Return empty container when no icon needed
+                        return const SizedBox.shrink();
+                      },
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide.none,
+                    ),
 
-                  filled: true,
-                  fillColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.searchBarBackground : Colors.white,
+                    filled: true,
+                    fillColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.searchBarBackground : Colors.white,
+                  ),
                 ),
               ),
             ),
@@ -1082,18 +1128,39 @@ class _TopBarState extends State<TopBar> {
                   GestureDetector(
                     // onTap: widget.onThemeChanged,
                     onTap: () async {
-                      final profile = await CapabilityProfile.load(name: 'XP-N160I');
-                      var bytes = Generator(PaperSize.mm80, profile).drawer(); /// open drawer
+                     ///Deprecated code, moved to PrinterSettings now
+                      //  // final profile = await CapabilityProfile.load(name: 'default');
+                     //  // var bytes = Generator(PaperSize.mm80, profile).drawer(pin: PosDrawer.pin5); /// open drawer
+                     //  // if (kDebugMode) {
+                     //  //   print("TopBar onTap of cash drawer open tapped with profile: ${profile.name} and bytes return $bytes");
+                     //  // }
+                     // // var sunmi = SunmiPrinterPlus();
+                     // // SunmiDrawer.openDrawer();
+                     // var result = await SunmiPrinterPlusPlatform.instance.openDrawer();
+                     // // sunmi.openDrawer();
+                     //  // bool isOpen = await sunmi.isDrawerOpen();
+                     //  if (kDebugMode) {
+                     //    print("Drawer is open $result");
+                     //  }
+                     //  ScaffoldMessenger.of(context).showSnackBar(
+                     //    const SnackBar(
+                     //      content: Text(TextConstants.cashDrawerIsOpening),
+                     //      backgroundColor: Colors.orange,
+                     //      duration: Duration(seconds: 2),
+                     //    ),
+                     //  );
+
+                      ///Use below code if only openDrawer is needed
+                      // PrinterSettings.openDrawer(context: context);
+                      ///As per Shravan's suggestion, we are now calling printTicket to open drawer from topbar which will automatically invoke open drawer
+                      await PrinterSettings.openDrawer(context: context);
+                      List<int> bytes = [];
+                      final ticket =  await _printerSettings.getTicket();
+                      bytes += ticket.feed(1);
+                      final result = await _printerSettings.printTicket(bytes, ticket);
                       if (kDebugMode) {
-                        print("TopBar onTap of cash drawer open tapped with profile: ${profile.name} and bytes return $bytes");
+                        print(">>>> TopBar printer result $result");
                       }
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(TextConstants.cashDrawerIsOpening),
-                          backgroundColor: Colors.orange,
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
                     },
                     child: SvgPicture.asset(
                       SvgUtils.cashDrawerIcon,

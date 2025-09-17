@@ -123,25 +123,32 @@ class CustomDialog {
       );
     }
 
-    static Future<bool?> showAreYouSure(BuildContext context,
-        { Function? confirm, bool isDeleting = false}) {
-      return _showConfirmDialog(
-          context,
-          title: TextConstants.areYouSure,
-          description: TextConstants.deleteTheRecordsDescription,
-          confirmText: TextConstants.yesDelete,
-          cancelText: TextConstants.noKeepIt,
-          iconPath: 'assets/svg/check_broken_alert.svg',
-          confirmCallBack: confirm,
-          isDeleting: isDeleting
-      ); //Build #1.0.74: Pass to _showConfirmDialog
-    }
+  // Build #1.0.221 : Updated function for re-use purpose
+  static Future<bool?> showAreYouSure(BuildContext context, {
+    Function? confirm,
+    bool isDeleting = false,
+    String description = TextConstants.deleteTheRecordsDescription, // Default description
+    String confirmText = TextConstants.yesDelete, // Default confirm text
+    String cancelText = TextConstants.noKeepIt, // Default cancel text
+  }) {
+    return _showConfirmDialog(
+      context,
+      title: TextConstants.areYouSure,
+      description: description, // Use provided or default description
+      confirmText: confirmText,
+      cancelText: cancelText,
+      iconPath: 'assets/svg/check_broken_alert.svg',
+      confirmCallBack: confirm,
+      isDeleting: isDeleting,
+    ); //Build #1.0.74: Pass to _showConfirmDialog
+  }
 
     static Future<void> showCustomItemAlert( //Build #1.0.68: updated code
         BuildContext context, {
           String? title,
           String? description,
           String? buttonText,
+          bool? showCloseIcon, // Build #1.0.240: updated code for reusing this popUp dialog
           VoidCallback? onButtonPressed,
         }) {
       return _showSimpleDialog(
@@ -150,7 +157,7 @@ class CustomDialog {
         description: description ?? TextConstants.customItemAlertDescription,
         buttonText: buttonText ?? TextConstants.addCustomItem,
         iconPath: 'assets/svg/check_broken_info.svg',
-        showCloseIcon: true,
+        showCloseIcon: showCloseIcon ?? true,
         onButtonPressed: onButtonPressed ?? () => Navigator.of(context).pop(), // Default dismiss action
       );
     }

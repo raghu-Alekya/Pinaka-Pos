@@ -8,6 +8,7 @@ import 'package:flutter_svg/svg.dart';
 import 'package:pinaka_pos/Screens/Home/Settings/printer_setup_screen.dart';
 import 'package:pinaka_pos/Utilities/printer_settings.dart';
 import 'package:provider/provider.dart';
+import 'package:thermal_printer/thermal_printer.dart';
 
 import '../../../Constants/text.dart';
 import '../../../Database/db_helper.dart';
@@ -38,9 +39,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool isRetailer = true;
   String layoutSelection = ""; // Default layout
   File? _selectedIcon;
+  File? _selectedReceiptIcon; // Build #1.0.207: Added this line for receipt icon
   String? profilePhotoPath;
   String? userRole; //Build #1.0.170
   final PrinterDBHelper printerDBHelper = PrinterDBHelper(); //Build #1.0.122
+  late ThemeNotifier _themeHelper; // Build #1.0.207: Added this line
 
   TextEditingController nameController = TextEditingController();
   TextEditingController contactNoController = TextEditingController();
@@ -52,34 +55,60 @@ class _SettingsScreenState extends State<SettingsScreen> {
   TextEditingController deviceIdController = TextEditingController();
   TextEditingController posNoController = TextEditingController();
   final PinakaPreferences _preferences = PinakaPreferences(); // Create an instance
-
+  final PrinterSettings _printerSettings = PrinterSettings(); // Build #1.0.226
   @override
   void initState() {
     super.initState();
+    _themeHelper = Provider.of<ThemeNotifier>(context, listen: false); // Build #1.0.207: Initialize here
     _loadUserDataFromDB();
     _loadPrinterData(); //Build #1.0.122: Updated code: data loading from db
-
-    // _addThemeListener();   # Build 1.0.182 - (option automatically change when tapped in top bar)
+    // Build #1.0.226: Load printer settings & ensure initialization
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadPrinterSettings();
+    });
+     _addThemeListener();   // Build #1.0.207: Fixed -> theme options is not updating in settings screen when updated from other screen top bar
   }
 
-  // // Add this method to listen for theme changes
-  // void _addThemeListener() {
-  //   // Listen for theme changes from the top bar
-  //   WidgetsBinding.instance.addPostFrameCallback((_) {
-  //     final themeHelper = Provider.of<ThemeNotifier>(context, listen: false);
-  //     themeHelper.addListener(_onThemeChanged);
-  //   });
-  // }
-  //
-  // // Add this callback method
-  // void _onThemeChanged() {
-  //   final themeHelper = Provider.of<ThemeNotifier>(context, listen: false);
-  //   setState(() {
-  //     appearance = themeHelper.themeMode == ThemeMode.dark
-  //         ? TextConstants.darkText
-  //         : TextConstants.lightText;
-  //   });
-  // }    # Build 1.0.182(option automatically change when tapped in top bar)
+  // Build #1.0.226: Added this method to load printer settings
+  Future<void> _loadPrinterSettings() async { // Changed to async
+    if (kDebugMode) {
+      print("#### [LOAD] Loading printer settings...");
+    }
+
+    try {
+      await _printerSettings.loadPrinter(); // Added await
+
+      if (mounted) {
+        setState(() {
+          if (kDebugMode) {
+            print("#### [LOAD] Printer settings loaded: ${_printerSettings.selectedPrinter?.deviceName ?? 'None'}");
+            print("#### [LOAD] Printer state: ${_printerSettings.selectedPrinter?.state}");
+          }
+        });
+      }
+    } catch (error) {
+      if (kDebugMode) {
+        print("#### [ERROR] Failed to load printer settings: $error");
+      }
+    }
+  }
+  // Build #1.0.207: Added this method to listen for theme changes
+  void _addThemeListener() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _themeHelper.addListener(_onThemeChanged);
+    });
+  }
+
+  // Build #1.0.207: Added this callback method
+  void _onThemeChanged() {
+    if (mounted) {
+      setState(() {
+        appearance = _themeHelper.themeMode == ThemeMode.dark
+            ? TextConstants.darkText
+            : TextConstants.lightText;
+      });
+    }
+  }  // # Build 1.0.182(option automatically change when tapped in top bar)
 
   Future<void> _loadUserDataFromDB() async { // Build #1.0.13 : now user data loads from user table DB
     try {
@@ -102,9 +131,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ? TextConstants.darkText
               : TextConstants.lightText;
 
-          // = themeHelper.themeMode == ThemeMode.dark
-          //     ? TextConstants.darkText
-          //     : TextConstants.lightText;  # Build 1.0.182(option automatically change when tapped in top bar)
+          // Build #1.0.207: Updated this line to use _themeHelper
+          appearance = _themeHelper.themeMode == ThemeMode.dark
+              ? TextConstants.darkText
+              : TextConstants.lightText; // # Build 1.0.182(option automatically change when tapped in top bar)
 
           layoutSelection = userData[AppDBConst.layoutSelection] ?? SharedPreferenceTextConstants.navLeftOrderRight;
           profilePhotoPath = userData[AppDBConst.profilePhoto];
@@ -144,20 +174,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       final printerData = await printerDBHelper.getPrinterFromDB();
       if (kDebugMode) {
-        print("#### Loaded printer data: $printerData");
+        print("#### [LOAD] Printer data retrieved: ${printerData.length} records");
       }
+
       if (printerData.isNotEmpty) {
         setState(() {
           headerController.text = printerData.first[AppDBConst.receiptHeaderText] ?? "";
           footerController.text = printerData.first[AppDBConst.receiptFooterText] ?? "";
           if (printerData.first[AppDBConst.receiptIconPath] != null) {
-            _selectedIcon = File(printerData.first[AppDBConst.receiptIconPath]);
+            _selectedReceiptIcon = File(printerData.first[AppDBConst.receiptIconPath]); // Change to _selectedReceiptIcon
           }
         });
+
+        if (kDebugMode) {// Build #1.0.226
+          print("#### [LOAD] Receipt settings loaded: Header='${headerController.text}', Footer='${footerController.text}'");
+        }
+      } else {
+        if (kDebugMode) {
+          print("#### [LOAD] No printer data found in database");
+        }
       }
     } catch (e) {
       if (kDebugMode) {
-        print("#### Error loading printer data: $e");
+        print("#### [ERROR] Error loading printer data: $e");
       }
     }
   }
@@ -189,7 +228,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         vendorId: printer.vendorId ?? '',
         typePrinter: printer.typePrinter,
         // Added receipt settings
-        receiptIconPath: _selectedIcon?.path,
+        receiptIconPath: _selectedReceiptIcon?.path,  // Build #1.0.207: Changed to _selectedReceiptIcon
         receiptHeaderText: headerController.text,
         receiptFooterText: footerController.text,
       ));
@@ -219,7 +258,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         final image = await decodeImageFromList(await imageFile.readAsBytes());
         if (image.width <= 128 && image.height <= 128 && pickedFile.path.endsWith('.png')) {
           setState(() {
-            _selectedIcon = imageFile;
+            _selectedReceiptIcon = imageFile;  // Build #1.0.207: Changed to _selectedReceiptIcon
             if (kDebugMode) print("### Valid PNG image selected (128x128 or smaller)");
           });
         } else {
@@ -266,8 +305,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   void dispose() {
-    // final themeHelper = Provider.of<ThemeNotifier>(context, listen: false);
-    // themeHelper.removeListener(_onThemeChanged);  # Build 1.0.182(option automatically change when tapped in top bar)
+    _themeHelper.removeListener(_onThemeChanged);  // # Build 1.0.182(option automatically change when tapped in top bar)
     nameController.dispose();
     contactNoController.dispose();
     emailController.dispose();
@@ -275,15 +313,111 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.dispose();
   }
 
+  // Build #1.0.226: Added this method to remove printer from DB and clear from settings
+  Future<void> _removePrinter() async {
+    try {
+      if (kDebugMode) {
+        print("#### [DEBUG] Removing printer from database...");
+      }
+
+      final db = await DBHelper.instance.database;
+      int result = await db.delete(
+        AppDBConst.printerTable,
+        where: '${AppDBConst.printerId} = ?',
+        whereArgs: [1],
+      );
+
+      if (kDebugMode) {
+        print("#### [DEBUG] Delete operation result: $result rows affected");
+      }
+
+      // Clear from printer settings
+      _printerSettings.selectedPrinter = null;
+
+      // Clear receipt settings controllers
+      setState(() {
+        headerController.clear();
+        footerController.clear();
+        _selectedReceiptIcon = null;
+      });
+
+      if (kDebugMode) {
+        print("#### [DEBUG] Printer removed successfully from DB and settings cleared");
+        print("#### [DEBUG] Current selected printer: ${_printerSettings.selectedPrinter}");
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Printer removed successfully"),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 3),
+        ),
+      );
+
+    } catch (e) {
+      if (kDebugMode) {
+        print("#### [ERROR] Error removing printer: $e");
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Failed to remove printer"),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+///  Build #1.0.226: TESTING FUNCTION - REMOVE IN PRODUCTION
+/// This bypasses actual printer connection for testing
+//   Future<void> _addTestPrinter() async {
+//     if (kDebugMode) {
+//       print("#### [TEST] Adding test printer for development...");
+//       print("#### [TEST] No physical printer required");
+//     }
+//
+//     try {
+//       final testPrinter = BluetoothPrinter(
+//         deviceName: "Test",
+//         productId: "001",
+//         vendorId: "002",
+//         typePrinter: PrinterType.bluetooth,
+//         state: true,
+//       );
+//
+//       // Add to database
+//       await printerDBHelper.addPrinterToDB(testPrinter);
+//
+//       // Update settings
+//       _printerSettings.selectedPrinter = testPrinter;
+//
+//       setState(() {
+//         if (kDebugMode) {
+//           print("#### [TEST] Test printer added successfully: ${testPrinter.deviceName}");
+//           print("#### [TEST] Printer state: ${testPrinter.state}");
+//         }
+//       });
+//
+//       ScaffoldMessenger.of(context).showSnackBar(
+//         SnackBar(content: Text('Test printer added (Dev Mode)')),
+//       );
+//
+//     } catch (e) {
+//       if (kDebugMode) {
+//         print("#### [TEST ERROR] Failed to add test printer: $e");
+//       }
+//     }
+//   }
+
   @override
   Widget build(BuildContext context) {
-    final themeHelper = Provider.of<ThemeNotifier>(context);
+ //   final themeHelper = Provider.of<ThemeNotifier>(context);  // Build #1.0.207
 
     return Scaffold(
-      backgroundColor: themeHelper.getTheme(context).scaffoldBackgroundColor,
+      backgroundColor: _themeHelper.getTheme(context).scaffoldBackgroundColor,
       appBar: AppBar(
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: themeHelper.getTheme(context).textTheme.bodyLarge?.color),
+          icon: Icon(Icons.arrow_back, color: _themeHelper.getTheme(context).textTheme.bodyLarge?.color),
           onPressed: () {
             Navigator.pop(context); // Return true to indicate a refresh
           },
@@ -293,7 +427,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
-            color: themeHelper.getTheme(context).textTheme.bodyLarge?.color,
+            color: _themeHelper.getTheme(context).textTheme.bodyLarge?.color,
           ),
         ),
         actions: [
@@ -310,14 +444,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           SizedBox(width: 16),
         ],
-        backgroundColor: themeHelper.getTheme(context).scaffoldBackgroundColor,
+        backgroundColor: _themeHelper.getTheme(context).scaffoldBackgroundColor,
       ),
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
-              _buildCombinedSections(themeHelper),
+              _buildCombinedSections(_themeHelper),
             ],
           ),
         ),
@@ -393,7 +527,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Stack(
               children: [
                 GestureDetector(
-                  onTap: _pickProfilePhoto, // Changed to use the new function
+                  onTap: () {  // Build #1.0.207: Disable Edit for profile photo
+                    // _pickProfilePhoto(); // Commented out as requested
+                  }, // Changed to use the new function
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(5),
                     child: Container(
@@ -403,28 +539,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       child: GlobalUtility.buildImageWidget( //Build #1.0.170: Fixed - User Profile photo not loading, created GlobalUtility function and using here!
                         imagePath: profilePhotoPath,
                         imageFile: _selectedIcon,
-                        fit: BoxFit.cover,
+                        fit: BoxFit.contain,  // Build #1.0.207: Changed from cover to contain
                         defaultIcon: Icons.perm_identity, // Default icon for user profile
                         defaultIconColor: Colors.white,
                       ),
                     ),
                   ),
                 ),
-                Positioned(
-                  top: 0,
-                  right: 0,
-                  child: GestureDetector(
-                    onTap: _pickProfilePhoto, // Same function for edit icon
-                    child: Container(
-                      padding: EdgeInsets.all(3),
-                      // decoration: BoxDecoration(
-                      //   color: Colors.white,
-                      //   shape: BoxShape.rectangle,
-                      // ),
-                      child: Icon(Icons.edit, size: 10, color: Colors.white),
-                    ),
-                  ),
-                ),
+                // Positioned(
+                //   top: 0,
+                //   right: 0,
+                //   child: GestureDetector(
+                //     onTap: _pickProfilePhoto, // Same function for edit icon
+                //     child: Container(
+                //       padding: EdgeInsets.all(3),
+                //       // decoration: BoxDecoration(
+                //       //   color: Colors.white,
+                //       //   shape: BoxShape.rectangle,
+                //       // ),
+                //       child: Icon(Icons.edit, size: 10, color: Colors.white),
+                //     ),
+                //   ),
+                // ),
               ],
             ),
             SizedBox(width: 10),
@@ -488,8 +624,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: GlobalUtility.buildImageWidget( //Build #1.0.170: Fixed - User Profile photo not loading, created GlobalUtility function and using here!
-                      imageFile: _selectedIcon,
-                      fit: BoxFit.cover,
+                      imageFile: _selectedReceiptIcon, // Changed to _selectedReceiptIcon
+                      fit: BoxFit.contain,  // Build #1.0.207: Changed from cover to contain
                       defaultIcon: Icons.image, // Default icon for company/receipt
                       defaultIconColor: Colors.white70,
                     ),
@@ -752,13 +888,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ],
     );
   }
-  final _printerSettings =  PrinterSettings();
   Widget _buildPrinterSettingsSection() {
     var name = _printerSettings.selectedPrinter?.deviceName ?? '';
     var connection = _printerSettings.selectedPrinter?.state ?? false;
 
     if (kDebugMode) {
-      print("SettingScreen - printer ${_printerSettings.selectedPrinter}, name: $name, connection: $connection");
+      print("#### [UI] Building printer section - Name: '$name', Connected: $connection");
+      print("#### [UI] Selected printer object: ${_printerSettings.selectedPrinter}");
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -766,6 +902,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         Row(
           children: [
             Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(TextConstants.printerSettText,
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
@@ -774,22 +911,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
             Spacer(),
-            _printerSettings.selectedPrinter != null ? SizedBox() : ElevatedButton(
+            // Build #1.0.226: Always show add button - users can swap printers anytime
+            ElevatedButton(
               onPressed: () {
                 /// call printer setup screen
                 if (kDebugMode) {
-                  print("call printer setup screen");
+                  print("#### [ACTION] Add printer button pressed");
+                  print("#### [ACTION] Navigating to PrinterSetup screen");
                 }
+
                 Navigator.push(context, MaterialPageRoute(
                   builder: (context) => PrinterSetup(),
                 )).then((result) {
-                  if (result == TextConstants.refresh) {  // Build #1.0.175: Added refresh constant string into TextConstants
-                    _printerSettings.loadPrinter();
-                    setState(() {
-                      // Update state to refresh the UI
-                      if (kDebugMode) {
-                        print("SettingScreen - printer setup is done, connected printer is ${_printerSettings.selectedPrinter?.deviceName}");
-                      }
+                  if (result == TextConstants.refresh) {
+                    if (kDebugMode) {
+                      print("#### [ACTION] Returning from PrinterSetup - refreshing data");
+                    }
+
+                    // Build #1.0.226: Reload everything to ensure UI is updated
+                    _printerSettings.loadPrinter().then((_) {
+                      _loadPrinterData(); // Reload receipt settings
+                      setState(() {
+                        if (kDebugMode) {
+                          print("#### [ACTION] UI refreshed after printer setup");
+                          print("#### [ACTION] Current printer: ${_printerSettings.selectedPrinter?.deviceName ?? 'None'}");
+                        }
+                      });
                     });
                   }
                 });
@@ -817,26 +964,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
         SizedBox(height: 10),
         ///Todo: show connected printer or Add printer button
         _printerSettings.selectedPrinter != null
-            ?
-        Center(child: Row(
-          children: [
-            Text(name,
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-            ),),
-            Spacer(),
-            Icon(
-              Icons.check_circle,
-              color: ThemeNotifier.buttonDark,
-              size: 25,
-            ),
-          ],
-        ),)
-            :
+            ? Container(
+          padding: EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.grey[800],
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: [
+              Text(
+                name,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),),
+              Spacer(),
+              Icon(
+                Icons.check_circle,
+                color: ThemeNotifier.buttonDark,
+                size: 25,
+              ),
+              // Remove printer button (X)
+              IconButton( // Build #1.0.226: added close button
+                icon: Icon(Icons.close, color: Colors.red, size: 20),
+                onPressed: _removePrinter,
+                tooltip: "Remove Printer",
+              ),
+            ],
+          ),
+        ) :
         SizedBox(),
-        // Center(
+        //     : Center(
         //   child: Column(
         //     children: [
         //       SvgPicture.asset(
@@ -853,42 +1012,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
         //           fontWeight: FontWeight.bold,
         //         ),
         //       ),
-        //       SizedBox(height: 10),
-        //       // Text(
-        //       //   TextConstants.add3PrintersText,
-        //       //   style: TextStyle(
-        //       //     color: Colors.grey,
-        //       //     fontSize: 14,
+        //       SizedBox(height: 20),
+        //       /// Build #1.0.226: TEST BUTTON - REMOVE IN PRODUCTION
+        //       // ElevatedButton(
+        //       //   onPressed: _addTestPrinter,
+        //       //   style: ElevatedButton.styleFrom(
+        //       //     backgroundColor: Colors.blueGrey,
+        //       //   ),
+        //       //   child: Text(
+        //       //     "Add Test Printer (Dev)",
+        //       //     style: TextStyle(color: Colors.white),
         //       //   ),
         //       // ),
-        //       SizedBox(height: 20),
-        //       ElevatedButton(
-        //         onPressed: () {
-        //           /// call printer setup screen
-        //           if (kDebugMode) {
-        //             print("call printer setup screen");
-        //           }
-        //           Navigator.push(context, MaterialPageRoute(
-        //             builder: (context) => PrinterSetup(),
-        //           ));
-        //         },
-        //         style: ElevatedButton.styleFrom(
-        //           backgroundColor: Color(0xFF00FFAA),
-        //           shape: RoundedRectangleBorder(
-        //             borderRadius: BorderRadius.circular(8),
-        //           ),
-        //           padding:
-        //           const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
-        //         ),
-        //         child: Text(
-        //           TextConstants.addBtnText,
-        //           style: TextStyle(
-        //             color: Colors.black,
-        //             fontSize: 16,
-        //             fontWeight: FontWeight.bold,
-        //           ),
-        //         ),
-        //       ),
         //     ],
         //   ),
         // ),
@@ -1079,11 +1214,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           onChanged: (value) {
             setState(() {
               appearance = value.toString();
-              themeManager.setThemeMode( //Build #1.0.54: updated
-                  appearance == TextConstants.lightText ? ThemeMode.light : ThemeMode.dark
-              );
-              // final newTheme = appearance == TextConstants.lightText ? ThemeMode.light : ThemeMode.dark; # Build 1.0.182(option automatically change when tapped in top bar)
-              // themeManager.setThemeMode(newTheme);
+              // themeManager.setThemeMode( //Build #1.0.54: updated
+              //     appearance == TextConstants.lightText ? ThemeMode.light : ThemeMode.dark
+              // );
+              // Build #1.0.207: Fixed -> theme options is not updating in settings screen when updated from other screen top bar
+              final newTheme = appearance == TextConstants.lightText ? ThemeMode.light : ThemeMode.dark; // # Build 1.0.182(option automatically change when tapped in top bar)
+              themeManager.setThemeMode(newTheme);
 
              // _preferences.saveAppThemeMode(themeManager.themeMode);
             });

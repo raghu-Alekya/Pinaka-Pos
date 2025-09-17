@@ -47,7 +47,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
   int? orderId; // Store order ID
   double orderTotal = 0.0; // Store order total
   // Discount values
-  String _discountValue = "0%";
+  String _discountValue = "0.00%";
   bool _isPercentageSelected = true;
 
   // Coupon value
@@ -74,6 +74,9 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
   final TextEditingController _customItemPriceController = TextEditingController();
   final TextEditingController _skuController = TextEditingController();
 
+  // Add this boolean variable to track when user is entering item price
+  bool _isEnteringItemPrice = false;
+
   // Function to check if the item name is empty
   bool _isItemNameEmpty() {
     return _customItemNameController.text.trim().isEmpty;
@@ -91,7 +94,6 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
       _customItemPrice = _customItemPriceController.text;
     });
     _skuController.addListener(() {
-      _sku = widget.barcode ?? "";
       _sku = _skuController.text;
     });
     _loadOrderData(); // Load order data on initialization
@@ -104,10 +106,35 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
     });
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    ///It will load sku and text field both with barcode from scanner initially
+    if (kDebugMode) {
+      print("WidgetTabs.didChangeDependencies assign text field with barcode value ${_skuController.text} = ${widget.barcode}");
+    }
+    //Build #1.0.234: Fixed Issue [SCRUM - 388] -> SKU Disappears After Device Keyboard is Hidden
+    // Only set the barcode value if it's different from current value and not empty
+    if (widget.barcode.isNotEmpty && _skuController.text != widget.barcode) {
+      if (kDebugMode) {
+        print("WidgetTabs.didChangeDependencies assign text field with barcode value ${widget.barcode}");
+      }
+      _skuController.text = widget.barcode;
+      _sku = widget.barcode;
+      if (kDebugMode) {
+        print("WidgetTabs.didChangeDependencies are text field and sku same?  ${_skuController.text} = $_sku");
+      }
+    } else {
+      if (kDebugMode) {
+        print("#### DEBUG 200 ${_skuController.text}, $_sku");
+      }
+    }
+  }
+
   Future<void> _loadTaxSlabs() async {
     try {
       List<Tax> taxes = await _assetDBHelper.getTaxList();
-      if (kDebugMode) print("#### _loadTaxSlabs: Loaded ${taxes.length} taxes: ${taxes.map((t) => t.toMap()).toList()}");
+      if (kDebugMode) print("#### _loadTaxSlabs: Loaded ${taxes.length} taxes: ${taxes.map((t) => t.toMap()).toList()},  widget.barcode: -${widget.barcode},");
       setState(() {
         _taxSlabOptions = taxes.map((tax) => tax.name).toSet().toList();
         if (_taxSlabOptions.isNotEmpty) {
@@ -167,7 +194,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
           decoration: BoxDecoration(
             color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground : Colors.white,
             borderRadius: BorderRadius.circular(16.0),
-            border: Border.all(color: Colors.grey.shade400),
+            border: Border.all(color: Colors.grey.shade500),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.05),
@@ -248,6 +275,10 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
           setState(() {
             // Update the state variable instead of widget property
             _selectedTabIndex = index;
+            // Reset highlighting when switching away from custom item tab
+            if (index != 2) {
+              _isEnteringItemPrice = false;
+            }
           });
         },
         child: Container(
@@ -354,7 +385,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
               onDigitPressed: (digit) {
                 setState(() { // Build #1.0.53 : updated code
                   String currentValue = _discountValue.replaceAll('%', '').replaceAll(TextConstants.currencySymbol, '');
-                  if (currentValue == "0") {
+                  if (currentValue == "0.00" || currentValue == "0") {
                     currentValue = digit;
                   } else {
                     currentValue += digit;
@@ -364,14 +395,20 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
               },
               onClearPressed: () {
                 setState(() {
-                  _discountValue = _isPercentageSelected ? "0%" : "0";
+                  _discountValue = _isPercentageSelected ? "0.00%" : "0.00";
                 });
               },
               onDeletePressed: () { // Build #1.0.53 : updated code
                 setState(() {
                   String currentValue = _discountValue.replaceAll('%', '').replaceAll(TextConstants.currencySymbol, ''); // Build #1.0.181: 1. Replaced Hard coded ‘\$’ with TextConstants.currencySymbol
-                  currentValue = currentValue.isNotEmpty ? currentValue.substring(0, currentValue.length - 1) : "0";
-                  _discountValue = _isPercentageSelected ? "$currentValue%" : currentValue;
+                  if (currentValue.isNotEmpty && currentValue != "0.00") {
+                    currentValue = currentValue.substring(0, currentValue.length - 1);
+                    if (currentValue.isEmpty) {
+                      currentValue = "0.00";
+                    }
+                  } else {
+                    currentValue = "0.00";
+                  } _discountValue = _isPercentageSelected ? "$currentValue%" : currentValue;
                 });
               },
               actionButtonType: ActionButtonType.add,
@@ -752,9 +789,10 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
             children: [
               _buildLabeledTextField(
                 title: TextConstants.itemPrice,
-                hintText: TextConstants.enterThePrice,
+                hintText: "${TextConstants.currencySymbol} 0.00",//TextConstants.enterThePrice,
                 controller: _customItemPriceController,
                 readOnly: true,
+                isHighlighted: _isEnteringItemPrice,  // Use dynamic highlighting instead of hardcoded true
               ),
               const SizedBox(width: 20),
               _buildTaxDropdown(),
@@ -775,6 +813,8 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
         child: CustomNumPad(
           onDigitPressed: (digit) {
             setState(() {
+              // Set highlighting to true when user starts entering price
+              _isEnteringItemPrice = true;
               if (_customItemPrice == "0.00") {
                 _customItemPrice = digit;
                 _customItemPriceController.text = digit;
@@ -786,8 +826,21 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
           },
           onClearPressed: () {
             setState(() {
+              // dismiss the highlight when clearing
+              _isEnteringItemPrice = false;
               _customItemPrice = "";
               _customItemPriceController.text = "";
+            });
+          },
+          onDeletePressed: () {
+            setState(() {
+              // Keep highlighting when deleting
+              _isEnteringItemPrice = true;
+              if (_customItemPrice.isNotEmpty) {
+                _customItemPrice =
+                    _customItemPrice.substring(0, _customItemPrice.length - 1);
+                _customItemPriceController.text = _customItemPrice;
+              }
             });
           },
           actionButtonType: ActionButtonType.add,
@@ -795,6 +848,10 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
             if (kDebugMode) {
               print("#### DEBUG 11@33 onAddPressed");
             }
+            // Remove highlighting when add is pressed (interaction complete)
+            setState(() {
+              _isEnteringItemPrice = false;
+            });
             _handleAddCustomItem();
           },
           isLoading: _isCustomItemLoading,
@@ -811,8 +868,14 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
     required String hintText,
     required TextEditingController controller,
     bool readOnly = false,
+    bool isHighlighted = false,
   }) {
     final themeHelper = Provider.of<ThemeNotifier>(context);
+    // Conditionally set the border color and width based on the highlight status
+    final borderColor = isHighlighted
+        ? Colors.deepPurpleAccent
+        : (themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.borderColor : Colors.grey.shade300);
+    final borderWidth = isHighlighted ? 2.0 : 1.0;
     return Column(
      crossAxisAlignment: CrossAxisAlignment.start,
       // mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -828,12 +891,12 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
         ),
         const SizedBox(height: 5),
         Container(
-          height: MediaQuery.of(context).size.height / 17,
+          height: MediaQuery.of(context).size.height / 14,
           width: MediaQuery.of(context).size.width * 0.2,
           padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 10),
           decoration: BoxDecoration(
             color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.paymentEntryContainerColor : null,
-            border: Border.all(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.borderColor :  Colors.grey.shade300),
+            border: Border.all(color: borderColor, width: borderWidth),
             borderRadius: BorderRadius.circular(10),
           ),
           child: TextField(
@@ -867,7 +930,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
         ),
         const SizedBox(height: 5),
         Container(
-          height: MediaQuery.of(context).size.height / 17,
+          height: MediaQuery.of(context).size.height / 14,
           width: MediaQuery.of(context).size.width * 0.2,
           decoration: BoxDecoration(
             border: Border.all(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.borderColor : Colors.grey.shade300),
@@ -932,7 +995,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
         const SizedBox(height: 5),
         Container(
           alignment: Alignment.topLeft,
-          height: MediaQuery.of(context).size.height / 17,
+          height: MediaQuery.of(context).size.height / 14,
           width: MediaQuery.of(context).size.width * 0.2,
           padding: const EdgeInsets.symmetric(horizontal: 10,vertical: 0),
           decoration: BoxDecoration(
@@ -972,7 +1035,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
               });
             },
             decoration: InputDecoration(
-             contentPadding: const EdgeInsets.only(top: 0, bottom: 10), // left + vertical center
+             contentPadding: const EdgeInsets.only(top: 0, bottom: 5), // left + vertical center
               border: InputBorder.none, // No border at all
               enabledBorder: InputBorder.none,
               focusedBorder: InputBorder.none,
@@ -1216,7 +1279,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
     // Build #1.0.53 : updated code
     final themeHelper = Provider.of<ThemeNotifier>(context);
     String displayValue = _isPercentageSelected ? _discountValue : "${TextConstants.currencySymbol}$_discountValue";
-    bool isPlaceholder = _discountValue == "0%" || _discountValue == "0";
+    bool isPlaceholder = _discountValue == "0.00%" || _discountValue == "0.00" || _discountValue == "0%" || _discountValue == "0";
 
     return Container(
       width: MediaQuery.of(context).size.width / 2.75,
@@ -1364,7 +1427,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
         if (response.status == Status.COMPLETED) {
           if (kDebugMode) print("Discount confirmed via API for order $orderId");
           setState(() {
-            _discountValue = _isPercentageSelected ? "0%" : "0";
+            _discountValue = _isPercentageSelected ? "0.00%" : "0.00";
           });
           ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
             SnackBar(
@@ -1818,7 +1881,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
               if (kDebugMode) print("Failed to update order: ${updateResponse.message}");
               ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
                 SnackBar(
-                  content: Text("Failed to update order"), //Build #1.0.92
+                  content: Text(response.message ?? "Failed to update order"), //Build #1.0.92
                   backgroundColor: Colors.red,
                   duration: const Duration(seconds: 2),
                 ),
@@ -1893,31 +1956,79 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
       return;
     }
 
-    final orderId = OrderHelper().activeOrderId; //Build #1.0.134: get activeOrderId
-    if (orderId == null) {
-      if (kDebugMode) print("No active order selected");
-      ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
-        const SnackBar(
-          content: Text(TextConstants.noActiveOrderError), // Build #1.0.181: Added through TextConstants
-          backgroundColor: Colors.red,
-          duration: Duration(seconds: 2),
-        ),
-      );
-      return;
-    }
-
     setState(() => _isPayoutLoading = true);
-
+   ///  Build #1.0.219 -> FIXED ISSUE [SCRUM - 377] : Unable to Add Payouts When No Orders Exist
+    ///  Adding payout -> if no order exit, creating new order then adding or else adding into existing order
     try {
-      final db = await DBHelper.instance.database;
-      final orderData = await db.query(
-        AppDBConst.orderTable,
-        where: '${AppDBConst.orderServerId} = ?',
-        whereArgs: [orderId],
-      );
+      // Check if we have an active order, if not create one first
+      int? orderId = OrderHelper().activeOrderId;
+      int? serverOrderId;
 
-      if (orderData.isEmpty) {
-        if (kDebugMode) print("Order $orderId not found in database");
+      if (orderId == null) {
+        // No active order exists, create a new order
+        OrderBloc orderBloc = OrderBloc(OrderRepository());
+        StreamSubscription? createSubscription;
+
+        // Listen for order creation completion
+        final completer = Completer<void>();
+        createSubscription = orderBloc.createOrderStream.listen((response) async {
+          if (!mounted) {
+            createSubscription?.cancel();
+            completer.complete();
+            return;
+          }
+
+          if (response.status == Status.COMPLETED) {
+            // Order created successfully, now proceed with adding payout
+            orderId = OrderHelper().activeOrderId;
+            serverOrderId = response.data!.id;
+
+            // Fetch the order data to get serverOrderId
+            final db = await DBHelper.instance.database;
+            final orderData = await db.query(
+              AppDBConst.orderTable,
+              where: '${AppDBConst.orderServerId} = ?',
+              whereArgs: [orderId],
+            );
+
+            if (orderData.isNotEmpty) {
+              serverOrderId = orderData.first[AppDBConst.orderServerId] as int?;
+            }
+
+            completer.complete();
+          } else if (response.status == Status.ERROR) {
+            setState(() => _isPayoutLoading = false);
+            ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
+              SnackBar(
+                content: Text("Failed to create order: ${response.message}"),
+                backgroundColor: Colors.red,
+                duration: const Duration(seconds: 2),
+              ),
+            );
+            completer.complete();
+          }
+        });
+
+        // Create the order
+        await orderBloc.createOrder();
+        await completer.future;
+        createSubscription?.cancel();
+      } else {
+        // Existing order found, get serverOrderId
+        final db = await DBHelper.instance.database;
+        final orderData = await db.query(
+          AppDBConst.orderTable,
+          where: '${AppDBConst.orderServerId} = ?',
+          whereArgs: [orderId],
+        );
+
+        if (orderData.isNotEmpty) {
+          serverOrderId = orderData.first[AppDBConst.orderServerId] as int?;
+        }
+      }
+
+      // If we still don't have a valid orderId/serverOrderId, show error
+      if (orderId == null || serverOrderId == null) {
         setState(() => _isPayoutLoading = false);
         ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
           const SnackBar(
@@ -1929,11 +2040,11 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
         return;
       }
 
-      final serverOrderId = orderData.first[AppDBConst.orderServerId] as int?;
       double payoutAmount = double.parse(_payoutAmount);
 
       //Build #1.0.78: FIX - Check for existing payout for the order
       // DON'T ADD PAYOUT SAME ORDER IF ALREADY HAVE IT
+      final db = await DBHelper.instance.database;
       final existingPayouts = await db.query(
         AppDBConst.purchasedItemsTable,
         where: '${AppDBConst.orderIdForeignKey} = ? AND ${AppDBConst.itemType} = ?',
@@ -1948,44 +2059,6 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
             content: Text(TextConstants.payoutAlreadyAdded), // Build #1.0.181: Added through TextConstants
             backgroundColor: Colors.orange,
             duration: Duration(seconds: 2),
-          ),
-        );
-        return;
-      }
-
-
-      if (serverOrderId == null) {
-        /// For non-API orders, insert locally
-        // await db.insert(AppDBConst.purchasedItemsTable, {
-        //   AppDBConst.orderIdForeignKey: orderId!,
-        //   AppDBConst.itemName: TextConstants.payout,
-        //   AppDBConst.itemSKU: '',
-        //   AppDBConst.itemPrice: payoutAmount,
-        //   AppDBConst.itemCount: 1,
-        //   AppDBConst.itemSumPrice: payoutAmount,
-        //   AppDBConst.itemImage: 'assets/svg/payout.svg',
-        //   AppDBConst.itemType: ItemType.payout.value,
-        // });
-        // setState(() {
-        //   _payoutAmount = "";
-        //   _isPayoutLoading = false;
-        // });
-        // ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
-        //   SnackBar(
-        //     content: Text("Payout of \$$payoutAmount added successfully"),
-        //     backgroundColor: Colors.green,
-        //     duration: const Duration(seconds: 2),
-        //   ),
-        // );
-        // await _orderHelper.loadData();
-        // await _loadOrderData();
-        // widget.refreshOrderList?.call();
-///Show error instead adding to local DB and return
-        ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
-          SnackBar(
-            content: Text("Payout of ${TextConstants.currencySymbol}$payoutAmount did not add, as of Order Id did not fount."),
-            backgroundColor: Colors.orange,
-            duration: const Duration(seconds: 2),
           ),
         );
         return;
@@ -2031,7 +2104,8 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
         }
       });
 
-      await orderBloc.addPayoutAsProduct(orderId: serverOrderId, dbOrderId: orderId!, amount: payoutAmount, isPayOut: true);
+      await orderBloc.addPayoutAsProduct(orderId: serverOrderId!, dbOrderId: orderId!, amount: payoutAmount, isPayOut: true);
+
     } catch (e) {
       if (kDebugMode) print("Error processing payout: $e");
       setState(() => _isPayoutLoading = false);

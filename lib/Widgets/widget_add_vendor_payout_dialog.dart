@@ -291,8 +291,8 @@ class _AddVendorPayoutDialogState extends State<AddVendorPayoutDialog> {
                         backgroundColor: Color(0xFFFE6464),
                         disabledBackgroundColor: Color(0xFFFE6464), // Prevent grey color
                         padding: EdgeInsets.symmetric(
-                          horizontal: MediaQuery.of(context).size.width * 0.035,
-                          vertical: MediaQuery.of(context).size.height * 0.015,
+                          horizontal: MediaQuery.of(context).size.width * 0.03,
+                          vertical: MediaQuery.of(context).size.height * 0.0225,
                         ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
@@ -308,7 +308,7 @@ class _AddVendorPayoutDialogState extends State<AddVendorPayoutDialog> {
                         ),
                       )
                           : Text(
-                        widget.payment == null ? 'Add' : 'Edit',
+                        widget.payment == null ? 'Add' : 'Update',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: MediaQuery.of(context).size.width * 0.012,

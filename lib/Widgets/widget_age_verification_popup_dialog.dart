@@ -50,49 +50,64 @@ class _AgeVerificationPopupState extends State<AgeVerificationPopup> {
 
   void _onDobChanged() {
     final input = _dobController.text;
-    setState(() {
-      _errorMessage = null;
-      _isVerifyEnabled = false;//old code: _isVerifyEnabled = _dobController.text.length == 10; // MM/dd/yyyy format
+    if (kDebugMode) {
+      print("##### DEBUG:Age Verification _onDobChanged - date input $input, ${input.length}");
+    }
+    _errorMessage = null;
+    _isVerifyEnabled = false;//old code: _isVerifyEnabled = _dobController.text.length == 10; // MM/dd/yyyy format
 
-      if (input.length == 10) {
-        try {
-          final parts = input.split('/');
-          if (parts.length == 3) {
-            final month = int.parse(parts[0]);
-            final day = int.parse(parts[1]);
-            final year = int.parse(parts[2]);
+    if (input.length == 10) {
+      try {
+        final parts = input.split('/');
+        if (parts.length == 3) {
+          final month = int.parse(parts[0]);
+          final day = int.parse(parts[1]);
+          final year = int.parse(parts[2]);
 
-            // Check ranges
-            if (month < 1 || month > 12 || day < 1 || day > 31 || year < 1500) {
-              _errorMessage = 'Invalid date.';
-              return;
-            }
-
-            final dob = DateTime(year, month, day);
-            final now = DateTime.now();
-
-            // Check if future date
-            if (dob.isAfter(now)) {
-              _errorMessage = 'Date cannot be in the future.';
-              return;
-            }
-
-            final age = now.year - dob.year - ((now.month < dob.month || (now.month == dob.month && now.day < dob.day)) ? 1 : 0);
-
-            if (age < widget.minimumAge) {
-              _errorMessage = 'You must be at least ${widget.minimumAge} years old.';
-              return;
-            }
-
-            // If all good
-            _isVerifyEnabled = true;
-          } else {
-            _errorMessage = 'Invalid format.';
+          if (kDebugMode) {
+            print("##### DEBUG:Age Verification _onDobChanged - date month $month, day $day, year $year");
           }
-        } catch (e) {
-          _errorMessage = 'Invalid date.';
+          // Check ranges
+          if (month < 1 || month > 12 || day < 1 || day > 31 || year < 1500) {
+            _errorMessage = 'Invalid date.';
+            return;
+          }
+
+          final dob = DateTime(year, month, day);
+          final now = DateTime.now();
+
+          // Check if future date
+          if (dob.isAfter(now)) {
+            _errorMessage = 'Date cannot be in the future.';
+            return;
+          }
+
+          final age = now.year - dob.year - ((now.month < dob.month || (now.month == dob.month && now.day < dob.day)) ? 1 : 0);
+
+          if (kDebugMode) {
+            print("##### DEBUG:Age Verification _onDobChanged - date age $age");
+          }
+          if (age < widget.minimumAge) {
+            _errorMessage = 'You must be at least ${widget.minimumAge} years old.';
+            return;
+          }
+
+          if (kDebugMode) {
+            print("##### DEBUG:Age Verification _onDobChanged - valid date");
+          }
+          // If all good
+          _isVerifyEnabled = true;
+        } else {
+          if (kDebugMode) {
+            print("##### DEBUG:Age Verification _onDobChanged - Invalid date");
+          }
+          _errorMessage = 'Invalid format.';
         }
+      } catch (e) {
+        _errorMessage = 'Invalid date.';
       }
+    }
+    setState(() {
     });
   }
 
@@ -188,23 +203,41 @@ class _AgeVerificationPopupState extends State<AgeVerificationPopup> {
       }
     }
 
-    // Handle day auto-completion
+    // // Handle day auto-completion
+    // if (digitsOnly.length == 3) {
+    //   String month = digitsOnly.substring(0, 2);
+    //   int dayDigit = int.parse(digitsOnly[2]);
+    //
+    //   if (dayDigit >= 4) {
+    //     // 4-9 are definitely single digit days
+    //     formattedText = '$month/0${digitsOnly[2]}/';
+    //   } else if (dayDigit >= 1 && dayDigit <= 3) {
+    //     // 1-3 could be single or first digit of two-digit day
+    //     formattedText = '$month/$dayDigit';
+    //   } else {
+    //     // 0 is invalid day start
+    //     setState(() {
+    //       _errorMessage = 'Day cannot start with 0. Try 01-31.';
+    //     });
+    //     return;
+    //   }
+    // }
+    // Handle day auto-completion (when the user types the 3rd digit)
     if (digitsOnly.length == 3) {
       String month = digitsOnly.substring(0, 2);
-      int dayDigit = int.parse(digitsOnly[2]);
+      String dayStartDigit = digitsOnly[2];
+      int dayDigitInt = int.parse(dayStartDigit);
 
-      if (dayDigit >= 4) {
-        // 4-9 are definitely single digit days
-        formattedText = '$month/0${digitsOnly[2]}/';
-      } else if (dayDigit >= 1 && dayDigit <= 3) {
-        // 1-3 could be single or first digit of two-digit day
-        formattedText = '$month/$dayDigit';
-      } else {
-        // 0 is invalid day start
-        setState(() {
-          _errorMessage = 'Day cannot start with 0. Try 01-31.';
-        });
-        return;
+      // Unambiguous single-digit days (4, 5, 6, 7, 8, 9)
+      if (dayDigitInt >= 4) {
+        // We know it must be 04, 05, etc., so we auto-complete
+        formattedText = '$month/0$dayStartDigit/';
+      }
+      // Ambiguous days that could be single or two-digit (0, 1, 2, 3)
+      else {
+        // Just format as MM/D and wait for the next digit.
+        // This now correctly handles typing '0' as the start of '01'-'09'.
+        formattedText = '$month/$dayStartDigit';
       }
     }
 
@@ -269,6 +302,9 @@ class _AgeVerificationPopupState extends State<AgeVerificationPopup> {
   }
 
   void _onVerifyAge() {
+    if (kDebugMode) {
+      print("AgeVerification _onVerifyAge()");
+    }
     final dob = _dobController.text;
     if (dob.length != 10) {
       setState(() {
@@ -303,13 +339,42 @@ class _AgeVerificationPopupState extends State<AgeVerificationPopup> {
   }
 
   void _onManualVerify() {
+    if (kDebugMode) {
+      print("AgeVerification _onManualVerify()");
+    }
     widget.onManualVerify();
     Navigator.of(context).pop();
   }
 
+  /// Extract DOB from barcode: expects "DBBMMDDYYYY"
+  String? parseDOBFromBarcode(String barcodeData) {
+    try {
+      if (kDebugMode) {
+        print("Order Panel parseDOBFromBarcode: $barcodeData");
+      }
+      final dobMatch = RegExp(r'DBB(\d{8})').firstMatch(barcodeData);
+      if (dobMatch != null) {
+        final dobStr = dobMatch.group(1)!;
+        final month = dobStr.substring(0, 2);
+        final day = dobStr.substring(2, 4);
+        final year = dobStr.substring(4, 8);
+        if (kDebugMode) {
+          print("Order Panel parseDOBFromBarcode: $month/$day/$year");
+        }
+        // return DateTime(year, month, day);
+        return "$month/$day/$year";
+      }
+    } catch (e) {
+      if (kDebugMode) print("Error parsing DOB: $e");
+    }
+    return null;
+  }
+
+  bool _isScanningInProgress = false;
   @override
   Widget build(BuildContext context) {
     final themeHelper = Provider.of<ThemeNotifier>(context, listen: false);
+    // if(_isScanningInProgress) return CircularProgressIndicator();
     return Stack(
       children: [
         Dialog(
@@ -318,7 +383,61 @@ class _AgeVerificationPopupState extends State<AgeVerificationPopup> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          child: Container(
+          child:
+          BarcodeKeyboardListener( // Added - Wrap with BarcodeKeyboardListener for barcode scanning
+            bufferDuration: Duration(milliseconds: 400),
+            useKeyDownEvent: true,
+            onBarcodeScanned:(barcode) async {
+              setState(() {
+                _isScanningInProgress = true;
+              });
+              if (kDebugMode) {
+                print("AgeVerification onBarcodeScanned _isScanningInProgress: $_isScanningInProgress");
+              }
+              barcode = barcode.trim().replaceAll(' ', '');
+
+              if (kDebugMode) {
+                print(
+                    "##### DEBUG:Age Verification onBarcodeScanned - Scanned barcode: $barcode, _isScanningInProgress: $_isScanningInProgress");
+              }
+
+              if (barcode.isNotEmpty) {
+                String? dobScanned = "";
+                /// Testing code: not working, Scanner will generate multiple tap events and call when scanned driving licence with PDF417 format irrespective of this code here
+                if (barcode.contains('DBB')) {
+                  // if (barcode.startsWith('@') || barcode.contains('\n')) {
+                  // PDF417 often includes structured data with newlines or starts with '@' (AAMVA standard)
+                  if (kDebugMode) {
+                    print('PDF417 Detected: $barcode');
+                  }
+                  // var date = parseDOBFromBarcode(barcode);
+                  dobScanned = parseDOBFromBarcode(barcode); //"${date?.month}/${date?.day}/${date?.year}";
+                  _dobController.text = dobScanned ?? "";
+                  if (kDebugMode) {
+                    print("##### DEBUG: onBarcodeScanned - Scanned barcode: $barcode, $dobScanned");
+                  }
+                  setState(() {
+                    _isScanningInProgress = false;
+                  });
+                  return;
+                } else {
+                  if (kDebugMode) {
+                    print('Non-PDF417 Barcode: $barcode');
+                  }
+                }
+                if (kDebugMode) {
+                  print(
+                      "##### DEBUG:Age Verification onBarcodeScanned - Scanned barcode: $barcode");
+                }
+              }
+              setState(() {
+                _isScanningInProgress = false;
+              });
+            },
+            child:
+            _isScanningInProgress
+                ? SizedBox(height: MediaQuery.of(context).size.height * 0.3, child: CircularProgressIndicator(),)
+                : Container(
             width: MediaQuery.of(context).size.width * 0.325,
             padding: const EdgeInsets.all(12),
             child: Column(
@@ -339,7 +458,12 @@ class _AgeVerificationPopupState extends State<AgeVerificationPopup> {
                     ),
                     IconButton(
                       onPressed: () {
+                        Future.delayed(Duration(milliseconds: 2000));
+                        if (_isScanningInProgress) return;
                         //widget.onCancel?.call();
+                        if (kDebugMode) {
+                          print("AgeVerification Close()");
+                        }
                         Navigator.of(context).pop();
                       },
                       icon: Container(
@@ -392,46 +516,69 @@ class _AgeVerificationPopupState extends State<AgeVerificationPopup> {
 
                 const SizedBox(height: 4),
 
-// Date input field
-                // BarcodeKeyboardListener( // Added - Wrap with BarcodeKeyboardListener for barcode scanning
-                //     bufferDuration: Duration(milliseconds: 400),
-                //
-                //     onBarcodeScanned:(barcode) async {
-                //     if (kDebugMode) {
-                //       print(
-                //           "##### DEBUG:Age Verification onBarcodeScanned - Scanned barcode: $barcode");
-                //     }
-                //     if (barcode.isNotEmpty) {
-                //       if (kDebugMode) {
-                //         print(
-                //             "##### DEBUG:Age Verification onBarcodeScanned - Scanned barcode: $barcode");
-                //       }
-                //     }
-                //   },
-                //   child: TextField(
-                //     controller: _dobController,
-                //     readOnly: true,
-                //     decoration: InputDecoration(
-                //       hintText: 'mm/dd/yyyy',
-                //       border: OutlineInputBorder(
-                //         borderRadius: BorderRadius.circular(8),
-                //         borderSide: BorderSide(color: Colors.grey[300]!),
-                //       ),
-                //       focusedBorder: OutlineInputBorder(
-                //         borderRadius: BorderRadius.circular(8),
-                //         borderSide: const BorderSide(color: Colors.blue),
-                //       ),
-                //       contentPadding: const EdgeInsets.symmetric(
-                //         horizontal: 16,
-                //         vertical: 16,
-                //       ),
-                //     ),
-                //     style: const TextStyle(
-                //       fontSize: 16,
-                //       letterSpacing: 1.2,
-                //     ),
-                //   ),
-                // ),
+// Date input field testing code for barcode scanner
+//                 BarcodeKeyboardListener( // Added - Wrap with BarcodeKeyboardListener for barcode scanning
+//                     bufferDuration: Duration(milliseconds: 400),
+//                     useKeyDownEvent: true,
+//                     onBarcodeScanned:(barcode) async {
+//                       barcode = barcode.trim().replaceAll(' ', '');
+//
+//                     if (kDebugMode) {
+//                       print(
+//                           "##### DEBUG:Age Verification onBarcodeScanned - Scanned barcode: $barcode");
+//                     }
+//
+//                     if (barcode.isNotEmpty) {
+//                       String? dobScanned = "";
+//                       /// Testing code: not working, Scanner will generate multiple tap events and call when scanned driving licence with PDF417 format irrespective of this code here
+//                       if (barcode.startsWith('@') || barcode.contains('\n') || barcode.startsWith('ansi') || barcode.startsWith('2') || barcode.startsWith('DBB')) {
+//                         // if (barcode.startsWith('@') || barcode.contains('\n')) {
+//                         // PDF417 often includes structured data with newlines or starts with '@' (AAMVA standard)
+//                         if (kDebugMode) {
+//                           print('PDF417 Detected: $barcode');
+//                         }
+//                         // var date = parseDOBFromBarcode(barcode);
+//                         dobScanned = parseDOBFromBarcode(barcode); //"${date?.month}/${date?.day}/${date?.year}";
+//                         _dobController.text = dobScanned ?? "";
+//                         if (kDebugMode) {
+//                           print("##### DEBUG: onBarcodeScanned - Scanned barcode: $barcode, $dobScanned");
+//                         }
+//                         return;
+//                       } else {
+//                         if (kDebugMode) {
+//                           print('Non-PDF417 Barcode: $barcode');
+//                         }
+//                       }
+//                       if (kDebugMode) {
+//                         print(
+//                             "##### DEBUG:Age Verification onBarcodeScanned - Scanned barcode: $barcode");
+//                       }
+//                     }
+//                   },
+//                   child: TextField(
+//                     controller: _dobController,
+//                     readOnly: true,
+//                     decoration: InputDecoration(
+//                       hintText: 'mm/dd/yyyy',
+//                       border: OutlineInputBorder(
+//                         borderRadius: BorderRadius.circular(8),
+//                         borderSide: BorderSide(color: Colors.grey[300]!),
+//                       ),
+//                       focusedBorder: OutlineInputBorder(
+//                         borderRadius: BorderRadius.circular(8),
+//                         borderSide: const BorderSide(color: Colors.blue),
+//                       ),
+//                       contentPadding: const EdgeInsets.symmetric(
+//                         horizontal: 16,
+//                         vertical: 16,
+//                       ),
+//                     ),
+//                     style: const TextStyle(
+//                       fontSize: 16,
+//                       letterSpacing: 1.2,
+//                     ),
+//                   ),
+//                 ),
                 // Date input field with date picker
                 Container(
                   decoration: BoxDecoration(
@@ -453,38 +600,89 @@ class _AgeVerificationPopupState extends State<AgeVerificationPopup> {
                   child: GestureDetector(
                     onTap: _showDatePickerDialog,
                     child: AbsorbPointer(
-                      child: TextField(
-                        controller: _dobController,
-                        readOnly: true,
-                        decoration: InputDecoration(
-                          hintText: 'mm/dd/yyyy',
-                          hintStyle: TextStyle(color: themeHelper.themeMode == ThemeMode.dark
-                              ? ThemeNotifier.textDark : Colors.grey),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide.none,
+                      child:
+                      // BarcodeKeyboardListener( // Added - Wrap with BarcodeKeyboardListener for barcode scanning
+                      //   bufferDuration: Duration(milliseconds: 400),
+                      //   useKeyDownEvent: true,
+                      //   onBarcodeScanned:(barcode) async {
+                      //     _isScanningInProgress = true;
+                      //     if (kDebugMode) {
+                      //       print("AgeVerification onBarcodeScanned _isScanningInProgress: $_isScanningInProgress");
+                      //     }
+                      //     barcode = barcode.trim().replaceAll(' ', '');
+                      //
+                      //     if (kDebugMode) {
+                      //       print(
+                      //           "##### DEBUG:Age Verification onBarcodeScanned - Scanned barcode: $barcode, _isScanningInProgress: $_isScanningInProgress");
+                      //     }
+                      //
+                      //     if (barcode.isNotEmpty) {
+                      //       String? dobScanned = "";
+                      //       /// Testing code: not working, Scanner will generate multiple tap events and call when scanned driving licence with PDF417 format irrespective of this code here
+                      //       if (barcode.contains('DBB')) {
+                      //         // if (barcode.startsWith('@') || barcode.contains('\n')) {
+                      //         // PDF417 often includes structured data with newlines or starts with '@' (AAMVA standard)
+                      //         if (kDebugMode) {
+                      //           print('PDF417 Detected: $barcode');
+                      //         }
+                      //         // var date = parseDOBFromBarcode(barcode);
+                      //         dobScanned = parseDOBFromBarcode(barcode); //"${date?.month}/${date?.day}/${date?.year}";
+                      //         _dobController.text = dobScanned ?? "";
+                      //         if (kDebugMode) {
+                      //           print("##### DEBUG: onBarcodeScanned - Scanned barcode: $barcode, $dobScanned");
+                      //         }
+                      //         _isScanningInProgress = false;
+                      //         setState(() {
+                      //         });
+                      //         return;
+                      //       } else {
+                      //         if (kDebugMode) {
+                      //           print('Non-PDF417 Barcode: $barcode');
+                      //         }
+                      //       }
+                      //       if (kDebugMode) {
+                      //         print(
+                      //             "##### DEBUG:Age Verification onBarcodeScanned - Scanned barcode: $barcode");
+                      //       }
+                      //     }
+                      //     _isScanningInProgress = false;
+                      //     setState(() {
+                      //     });
+                      //   },
+                      //   child:
+                        TextField(
+                          controller: _dobController,
+                          readOnly: true,
+                          decoration: InputDecoration(
+                            hintText: 'mm/dd/yyyy',
+                            hintStyle: TextStyle(color: themeHelper.themeMode == ThemeMode.dark
+                                ? ThemeNotifier.textDark : Colors.grey),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide.none,
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide.none,
+                            ),
+                            suffixIcon: Icon(
+                              Icons.calendar_today_rounded,
+                              color: themeHelper.themeMode == ThemeMode.dark
+                                  ? ThemeNotifier.textDark : Colors.grey[600],
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 10,
+                            ),
                           ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide.none,
-                          ),
-                          suffixIcon: Icon(
-                            Icons.calendar_today_rounded,
+                          style: TextStyle(
+                            fontSize: 16,
+                            letterSpacing: 1.2,
                             color: themeHelper.themeMode == ThemeMode.dark
-                                ? ThemeNotifier.textDark : Colors.grey[600],
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 10,
+                                ? ThemeNotifier.textDark : Colors.black87,
                           ),
                         ),
-                        style: TextStyle(
-                          fontSize: 16,
-                          letterSpacing: 1.2,
-                          color: themeHelper.themeMode == ThemeMode.dark
-                              ? ThemeNotifier.textDark : Colors.black87,
-                        ),
-                      ),
+                      // ),
                     ),
                   ),
                 ),
@@ -521,7 +719,16 @@ class _AgeVerificationPopupState extends State<AgeVerificationPopup> {
                   children: [
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: _onManualVerify,
+                        onPressed: _isScanningInProgress ? null : () {
+                          // _isScanningInProgress = true;
+                          // Future.delayed(Duration(milliseconds: 2200)).whenComplete((){
+                            if (kDebugMode) {
+                              print("AgeVerification _onManualVerify() 1 _isScanningInProgress: $_isScanningInProgress");
+                            }
+                            if(!_isScanningInProgress) _onManualVerify();
+                          // });
+
+                        },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.grey[700],
                           foregroundColor: Colors.white,
@@ -564,6 +771,7 @@ class _AgeVerificationPopupState extends State<AgeVerificationPopup> {
                 ),
               ],
             ),
+          ),
           ),
         ),
 

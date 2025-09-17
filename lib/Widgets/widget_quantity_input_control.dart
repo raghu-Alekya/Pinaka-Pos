@@ -17,11 +17,10 @@ class QuantityControl extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: MediaQuery.of(context).size.height * 0.05 ,
-      width: MediaQuery.of(context).size.width /3,
+      height: 38,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        color: Color(0xFF1BA672),
+        color: const Color(0xFFFE6464),
+        borderRadius: BorderRadius.circular(6),
       ),
       child: Row(
         children: [
@@ -34,26 +33,28 @@ class QuantityControl extends StatelessWidget {
               },
               child: Container(
                 alignment: Alignment.center,
-                height: double.infinity,
                 child: const Text(
-                  "−",  // Using minus sign, not hyphen
+                  "−",
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 24,
+                    fontSize: 26,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
             ),
           ),
-
-          // Quantity display
           Expanded(
             flex: 1,
             child: Container(
               alignment: Alignment.center,
-              height: double.infinity,
-              color: Colors.white,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border(
+                  top: BorderSide(color: Colors.grey.shade300, width: 1),
+                  bottom: BorderSide(color: Colors.grey.shade300, width: 1),
+                ),
+              ),
               child: Text(
                 controller.text.isEmpty ? "0" : controller.text,
                 style: const TextStyle(
@@ -74,12 +75,11 @@ class QuantityControl extends StatelessWidget {
               },
               child: Container(
                 alignment: Alignment.center,
-                height: double.infinity,
                 child: const Text(
                   "+",
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 24,
+                    fontSize: 26,
                     fontWeight: FontWeight.bold,
                   ),
                 ),

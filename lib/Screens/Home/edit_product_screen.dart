@@ -151,9 +151,10 @@ class _EditProductScreenState extends State<EditProductScreen> with SingleTicker
                 Expanded(
                   child: SlideTransition(
                     position: _slideAnimation,
-                    child: ProductEditScreen(
+                    child: EditProduct(
                       orderItem: widget.orderItem,
                       onQuantityUpdated: widget.onQuantityUpdated,
+                      isDialog: false, // Pass false here
                     ),
                   ),
                 ),

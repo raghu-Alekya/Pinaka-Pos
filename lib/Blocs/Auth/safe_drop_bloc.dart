@@ -27,7 +27,10 @@ class SafeDropBloc { // Build #1.0.70 - Added by Naveen
       SafeDropResponse response = await _safeDropRepository.createSafeDrop(request);
       safeDropSink.add(APIResponse.completed(response));
     } catch (e) {
-      if (e.toString().contains('SocketException')) {
+      if (e.toString().contains('Unauthorised')) {
+        safeDropSink.add(APIResponse.error("Unauthorised. Session is expired."));
+      }
+      else if (e.toString().contains('SocketException')) {
         safeDropSink.add(APIResponse.error("Network error. Please check your connection."));
       } else {
         safeDropSink.add(APIResponse.error("Failed to create safe drop: ${e.toString()}"));

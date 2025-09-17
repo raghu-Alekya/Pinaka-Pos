@@ -1,5 +1,6 @@
 // models/order/order_models.dart
 class OrderMetaData {  //Build 1.1.36: Updated
+  final int? id; //Build #1.0.234: Made nullable to handle cases where id might not be present
   final String key;
   final String value;
 
@@ -7,11 +8,22 @@ class OrderMetaData {  //Build 1.1.36: Updated
   static const String posPlacedBy = "pos_placed_by";
   static const String shiftId     = "shift_id"; //Build #1.0.78: added shift id to order meta data
 
-  OrderMetaData({required this.key, required this.value});
+  // {
+  // "id": 3962,
+  // "key": "age_restricted",
+  // "value": "18"
+  // },
 
-  Map<String, dynamic> toJson() => {'key': key, 'value': value};
+  OrderMetaData({this.id, required this.key, required this.value});
+
+  Map<String, dynamic> toJson() => { //Build #1.0.234: updated model
+    if (id != null) 'id': id,
+    'key': key,
+    'value': value,
+  };
 
   factory OrderMetaData.fromJson(Map<String, dynamic> json) => OrderMetaData(
+    id: json['id'] as int?,
     key: json['key'] ?? '',
     value: json['value']?.toString() ?? '',
   );

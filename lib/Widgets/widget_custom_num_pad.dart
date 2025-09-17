@@ -26,6 +26,7 @@ class CustomNumPad extends StatelessWidget {
   final NumPadType numPadType;
   final bool isDarkTheme;
   final bool showAddInsteadOfPay;
+  final EdgeInsetsGeometry? gridPadding;
 
   const CustomNumPad({
     super.key,
@@ -44,6 +45,7 @@ class CustomNumPad extends StatelessWidget {
     this.numPadType = NumPadType.login,
     this.isDarkTheme = false,
     this.showAddInsteadOfPay = false,
+    this.gridPadding,
   });
 
   @override
@@ -61,7 +63,6 @@ class CustomNumPad extends StatelessWidget {
         return _buildLoginPad(context, paddingValue);
     }
   }
-
 
   Widget _buildPaymentPad(BuildContext context, double paddingValue) {
     final themeHelper = Provider.of<ThemeNotifier>(context);
@@ -204,7 +205,7 @@ class CustomNumPad extends StatelessWidget {
       mainAxisSpacing: 12,
       crossAxisSpacing: 12,
       childAspectRatio: 2,
-      padding: EdgeInsets.symmetric(horizontal: paddingValue),
+      padding: gridPadding ?? EdgeInsets.symmetric(horizontal: paddingValue),
       children: [
         ...List.generate(9, (index) {
           return _buildKey((index + 1).toString(), isDarkTheme :darkTheme);
@@ -232,7 +233,7 @@ class CustomNumPad extends StatelessWidget {
 
 
   // Remove _buildPayButton, _showPartialPaymentDialog, _showPaymentDialog, _showReceiptDialog
- // Build #1.0.34: Update _buildPayButton to only call onPayPressed
+  // Build #1.0.34: Update _buildPayButton to only call onPayPressed
   Widget _buildPayButton(BuildContext context) {
     //final bool isEnabled = onPayPressed != null;
     return Container(
@@ -590,7 +591,7 @@ class CustomNumPad extends StatelessWidget {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-       // color: Colors.white,
+        // color: Colors.white,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: isDarkTheme ? ThemeNotifier.borderColor : Color(0xFFE8E8E8)), // Light grey border
         boxShadow: [

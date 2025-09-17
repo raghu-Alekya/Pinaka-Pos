@@ -63,7 +63,10 @@ class VendorPaymentBloc {  //Build #1.0.74: Naveen Added
       }
       createVendorPaymentSink.add(APIResponse.completed(response));
     } catch (e) {
-      if (e.toString().contains('SocketException')) {
+      if (e.toString().contains('Unauthorised')) {
+        createVendorPaymentSink.add(APIResponse.error("Unauthorised. Session is expired."));
+      }
+      else if (e.toString().contains('SocketException')) {
         createVendorPaymentSink.add(APIResponse.error("Network error. Please check your connection."));
       } else {
         createVendorPaymentSink.add(APIResponse.error("Failed to create vendor payment: ${e.toString()}"));
@@ -84,7 +87,10 @@ class VendorPaymentBloc {  //Build #1.0.74: Naveen Added
       }
       vendorPaymentsByUserSink.add(APIResponse.completed(response));
     } catch (e) {
-      if (e.toString().contains('SocketException')) {
+      if (e.toString().contains('Unauthorised')) {
+        vendorPaymentsByUserSink.add(APIResponse.error("Unauthorised. Session is expired."));
+      }
+      else if (e.toString().contains('SocketException')) {
         vendorPaymentsByUserSink.add(APIResponse.error("Network error. Please check your connection."));
       } else {
         vendorPaymentsByUserSink.add(APIResponse.error("Failed to fetch vendor payments: ${e.toString()}"));
@@ -109,7 +115,10 @@ class VendorPaymentBloc {  //Build #1.0.74: Naveen Added
       }
       deleteVendorPaymentSink.add(APIResponse.completed(response));
     } catch (e) {
-      if (e.toString().contains('SocketException')) {
+      if (e.toString().contains('Unauthorised')) {
+        deleteVendorPaymentSink.add(APIResponse.error("Unauthorised. Session is expired."));
+      }
+      else if (e.toString().contains('SocketException')) {
         deleteVendorPaymentSink.add(APIResponse.error("Network error. Please check your connection."));
       } else {
         deleteVendorPaymentSink.add(APIResponse.error("Failed to delete vendor payment: ${e.toString()}"));
@@ -134,7 +143,10 @@ class VendorPaymentBloc {  //Build #1.0.74: Naveen Added
       }
       updateVendorPaymentSink.add(APIResponse.completed(response));
     } catch (e) {
-      if (e.toString().contains('SocketException')) {
+      if (e.toString().contains('Unauthorised')) {
+        updateVendorPaymentSink.add(APIResponse.error("Unauthorised. Session is expired."));
+      }
+      else if (e.toString().contains('SocketException')) {
         updateVendorPaymentSink.add(APIResponse.error("Network error. Please check your connection."));
       } else {
         updateVendorPaymentSink.add(APIResponse.error("Failed to update vendor payment: ${e.toString()}"));

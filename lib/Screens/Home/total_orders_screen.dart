@@ -31,16 +31,16 @@ import 'package:quickalert/quickalert.dart';
 
 import '../Auth/login_screen.dart';
 
-class OrdersScreen extends StatefulWidget { //Build #1.0.54: updated
+class TotalOrdersScreen extends StatefulWidget { // Build #1.0.226: updated class name
   final int? lastSelectedIndex;
 
-  const OrdersScreen({super.key, this.lastSelectedIndex});
+  const TotalOrdersScreen({super.key, this.lastSelectedIndex});
 
   @override
-  State<OrdersScreen> createState() => _OrdersScreenState();
+  State<TotalOrdersScreen> createState() => _OrdersScreenState();
 }
 
-class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
+class _OrdersScreenState extends State<TotalOrdersScreen> with LayoutSelectionMixin {
   late OrderBloc _orderBloc;
   List<model.OrderModel> _orders = []; // Use model.OrderModel
   int _selectedSidebarIndex = 3;
@@ -58,7 +58,6 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
   bool _isAscending = true;
   StreamSubscription? _fetchOrdersSubscription;
   int _totalOrdersCount = 0;
-  late OrderScreenPanel _orderScreenPanel;
 
   ///Filters
   // List<String> _availableStatuses = ["All"];
@@ -69,11 +68,14 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
   Map<String, dynamic>? _selectedOrder;
   int? _selectedOrderId;
   final OrderHelper orderHelper = OrderHelper(); // Helper instance to manage orders
-  final PinakaPreferences _preferences = PinakaPreferences(); // Added this
+ // final PinakaPreferences _preferences = PinakaPreferences(); //Build #1.0.234: No need
   // Date range filter variables
   DateTime? _startDate;
   DateTime? _endDate;
   bool _isDateRangeApplied = false;
+  String? panelDate;
+  String? panelTime;  // Build #1.0.226: UPDATED to widget level to class level declaration // ADD this logic to determine the date and time for the panel
+
 
   // Add these variables for pagination
   int _currentPage = 1;
@@ -91,14 +93,14 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
     initFilters();
     // Initialize order fetching
     //_fetchOrders();
-    _orderScreenPanel = OrderScreenPanel(
-      key: ValueKey(orderHelper.activeOrderId ?? 0),
-      formattedDate: '',
-      formattedTime: '',
-      quantities: quantities,
-      activeOrderId: orderHelper.activeOrderId, // Pass activeOrderId
-      fetchOrders: false, // Show shimmer initially
-    );
+    // _orderScreenPanel = OrderScreenPanel( //Build #1.0.234: No need
+    //   key: ValueKey(orderHelper.activeOrderId ?? 0),
+    //   formattedDate: panelDate ?? '', // Build #1.0.226
+    //   formattedTime: panelTime ?? '',
+    //   quantities: quantities,
+    //   activeOrderId: orderHelper.activeOrderId, // Pass activeOrderId
+    //   fetchOrders: false, // Show shimmer initially
+    // );
   }
 
 
@@ -483,11 +485,11 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
                 // Replace your OrderScreenPanel instances with:
                   OrderScreenPanel(
                     fetchOrders: !isLoading, // Sync with parent's loading state
-                    key: ValueKey(orderHelper.activeOrderId ?? 0),
-                    formattedDate: '',
-                    formattedTime: '',
+                    key: ValueKey('order_screen_panel_${_selectedOrderId}_${sidebarPosition}_$orderPanelPosition'), //Build #1.0.234: Fixed Issue -> Processing Orders showing in order screen bottom mode
+                    formattedDate: panelDate ?? '', // Build #1.0.226: updated values
+                    formattedTime: panelTime ?? '',
                     quantities: quantities,
-                    activeOrderId: orderHelper.activeOrderId,
+                    activeOrderId: orderHelper.activeOrderId ?? _selectedOrderId,  /// <- ADDED NULL CHECK // BUILD 1.0.213: FIXED RE-OPENED ISSUE [SCRUM-356]: Order items not displaying in Bottom Mode
                     refreshOrderList: _refreshOrderList, // Build #1.0.143: Fixed Issue : After return from order summary screen , total order screen not refreshing with updated response
                   ),
 
@@ -498,155 +500,164 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
                 Expanded(
                   child: Column(
                     //mainAxisAlignment: MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.end,
+                    // crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       // Filters
-                      Wrap(
-                        spacing: 8.0,
+                      Row(
                         children: [
-                          // User Filter
-                          FilterChipWidget(
-                            label: "User",
-                            options: _filterUsers.map((filter) => filter.displayName ?? "").toList(),
-                            selectedValue: _selectedUserFilter,
-                            onSelected: (value) {
-                              setState(() {
-                                _selectedUserFilter = value;
-                                _currentPage = 1;
-                                _fetchOrders();
-                                debugPrint("OrdersScreen: User filter changed to $value");
-                              });
-                            },
-                          ),
-                          // Status Filter
-                          FilterChipWidget(
-                            label: "Status",
-                            options: _filterStatuses.map((filter) => filter.name).toList(),
-                            selectedValue: _selectedStatusFilter,
-                            onSelected: (value) {
-                              setState(() {
-                                _selectedStatusFilter = value;
-                                _currentPage = 1;
-                                _fetchOrders();
-                                debugPrint("OrdersScreen: Status filter changed to $value");
-                              });
-                            },
-                          ),
-                          // Order Type Filter
-                          FilterChipWidget(
-                            label: "OrderType",
-                            options: _filterOrderType.map((e) => e.name).toList(),
-                            selectedValue: _selectedOrderTypeFilter,
-                            onSelected: (value) {
-                              setState(() {
-                                _selectedOrderTypeFilter = value;
-                                _currentPage = 1;
-                                _fetchOrders();
-                                debugPrint("OrdersScreen: Order type filter changed to $value");
-                              });
-                            },
-                          ),
-                          // Range Filter
-                          // Container(
-                          //   height: MediaQuery.of(context).size.height * 0.06,
-                          //   margin: EdgeInsets.symmetric(vertical: 10),
-                          //   padding: const EdgeInsets.symmetric(horizontal: 4),
-                          //   child: ChoiceChip(
-                          //     shape: const RoundedRectangleBorder(
-                          //       side: BorderSide(color: Colors.black),
-                          //       borderRadius: BorderRadius.all(Radius.circular(10.0)),
-                          //     ),
-                          //     visualDensity: VisualDensity.compact,
-                          //     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          //     padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-                          //     label: Row(
-                          //       mainAxisSize: MainAxisSize.min,
-                          //       children: [
-                          //         Text(
-                          //           "Select Range",
-                          //           style: TextStyle(
-                          //             color: isRangeFilterApplied
-                          //                 ? Colors.white
-                          //                 : Colors.black,
-                          //           ),
-                          //         ),
-                          //         const SizedBox(width: 4),
-                          //         Icon(
-                          //           Icons.filter_list,
-                          //           size: 18,
-                          //           color: isRangeFilterApplied
-                          //               ? Colors.white
-                          //               : Colors.black,
-                          //         ),
-                          //       ],
-                          //     ),
-                          //     showCheckmark: false,
-                          //     selected: isRangeFilterApplied,
-                          //     selectedColor: Colors.redAccent,
-                          //     backgroundColor: Colors.grey[200],
-                          //     onSelected: (selected) {
-                          //       _openRangeFilterDialog();
-                          //       _currentPage = 1;
-                          //     },
-                          //   ),
-                          // ),
-                          // Date Range Filter
-                          Container(
-                            margin: EdgeInsets.symmetric(vertical: 10),
-                            child: GestureDetector(
-                              onTap: _openDateRangePickerDialog,
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  // if (_isDateRangeApplied) ...[
-                                  //   Text(
-                                  //     "${DateFormat('dd/MM').format(_startDate!)} - ${DateFormat('dd/MM').format(_endDate!)}",
-                                  //     style: TextStyle(
-                                  //       color: _isDateRangeApplied ? Colors.white : Colors.black,
-                                  //       fontSize: 14,
-                                  //     ),
-                                  //   ),
-                                  //   const SizedBox(width: 8),
-                                  // ],
-                                  SvgPicture.asset(
-                                    'assets/svg/filter_calendar.svg',
-                                    width: MediaQuery.of(context).size.width * 0.1,
-                                    height: MediaQuery.of(context).size.height * 0.06,
-                                    colorFilter: ColorFilter.mode(
-                                      _isDateRangeApplied ? Colors.redAccent :themeHelper.themeMode == ThemeMode.dark
-                                          ? ThemeNotifier.textDark : Colors.black,
-                                      BlendMode.srcIn,
-                                    ),
-                                    //color: _isDateRangeApplied ? Colors.white : Colors.black,
+                          Spacer(),
+                          Wrap(
+                            spacing: 8.0,
+                            crossAxisAlignment: WrapCrossAlignment.end,
+                            alignment: WrapAlignment.end,
+                            runAlignment: WrapAlignment.end,
+                            children: [
+                              // User Filter
+                              FilterChipWidget(
+                                label: "User",
+                                options: _filterUsers.map((filter) => filter.displayName ?? "").toList(),
+                                selectedValue: _selectedUserFilter,
+                                onSelected: (value) {
+                                  setState(() {
+                                    _selectedUserFilter = value;
+                                    _currentPage = 1;
+                                    _fetchOrders();
+                                    debugPrint("OrdersScreen: User filter changed to $value");
+                                  });
+                                },
+                              ),
+                              // Status Filter
+                              FilterChipWidget(
+                                label: "Status",
+                                options: _filterStatuses.map((filter) => filter.name).toList(),
+                                selectedValue: _selectedStatusFilter,
+                                onSelected: (value) {
+                                  setState(() {
+                                    _selectedStatusFilter = value;
+                                    _currentPage = 1;
+                                    _fetchOrders();
+                                    debugPrint("OrdersScreen: Status filter changed to $value");
+                                  });
+                                },
+                              ),
+                              // Order Type Filter
+                              FilterChipWidget(
+                                label: "OrderType",
+                                options: _filterOrderType.map((e) => e.name).toList(),
+                                selectedValue: _selectedOrderTypeFilter,
+                                onSelected: (value) {
+                                  setState(() {
+                                    _selectedOrderTypeFilter = value;
+                                    _currentPage = 1;
+                                    _fetchOrders();
+                                    debugPrint("OrdersScreen: Order type filter changed to $value");
+                                  });
+                                },
+                              ),
+                              // Range Filter
+                              // Container(
+                              //   height: MediaQuery.of(context).size.height * 0.06,
+                              //   margin: EdgeInsets.symmetric(vertical: 10),
+                              //   padding: const EdgeInsets.symmetric(horizontal: 4),
+                              //   child: ChoiceChip(
+                              //     shape: const RoundedRectangleBorder(
+                              //       side: BorderSide(color: Colors.black),
+                              //       borderRadius: BorderRadius.all(Radius.circular(10.0)),
+                              //     ),
+                              //     visualDensity: VisualDensity.compact,
+                              //     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              //     padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                              //     label: Row(
+                              //       mainAxisSize: MainAxisSize.min,
+                              //       children: [
+                              //         Text(
+                              //           "Select Range",
+                              //           style: TextStyle(
+                              //             color: isRangeFilterApplied
+                              //                 ? Colors.white
+                              //                 : Colors.black,
+                              //           ),
+                              //         ),
+                              //         const SizedBox(width: 4),
+                              //         Icon(
+                              //           Icons.filter_list,
+                              //           size: 18,
+                              //           color: isRangeFilterApplied
+                              //               ? Colors.white
+                              //               : Colors.black,
+                              //         ),
+                              //       ],
+                              //     ),
+                              //     showCheckmark: false,
+                              //     selected: isRangeFilterApplied,
+                              //     selectedColor: Colors.redAccent,
+                              //     backgroundColor: Colors.grey[200],
+                              //     onSelected: (selected) {
+                              //       _openRangeFilterDialog();
+                              //       _currentPage = 1;
+                              //     },
+                              //   ),
+                              // ),
+                              // Date Range Filter
+                              Container(
+                                margin: EdgeInsets.symmetric(vertical: 10),
+                                child: GestureDetector(
+                                  onTap: _openDateRangePickerDialog,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      // if (_isDateRangeApplied) ...[
+                                      //   Text(
+                                      //     "${DateFormat('dd/MM').format(_startDate!)} - ${DateFormat('dd/MM').format(_endDate!)}",
+                                      //     style: TextStyle(
+                                      //       color: _isDateRangeApplied ? Colors.white : Colors.black,
+                                      //       fontSize: 14,
+                                      //     ),
+                                      //   ),
+                                      //   const SizedBox(width: 8),
+                                      // ],
+                                      SvgPicture.asset(
+                                        'assets/svg/filter_calendar.svg',
+                                        width: MediaQuery.of(context).size.width * 0.1,
+                                        height: MediaQuery.of(context).size.height * 0.06,
+                                        colorFilter: ColorFilter.mode(
+                                          _isDateRangeApplied ? Colors.redAccent :themeHelper.themeMode == ThemeMode.dark
+                                              ? ThemeNotifier.textDark : Colors.black,
+                                          BlendMode.srcIn,
+                                        ),
+                                        //color: _isDateRangeApplied ? Colors.white : Colors.black,
+                                      ),
+                                      // if (!_isDateRangeApplied) ...[
+                                      //   const SizedBox(width: 8),
+                                      //   Text(
+                                      //     "Date Range",
+                                      //     style: TextStyle(
+                                      //       color: Colors.black,
+                                      //       fontSize: 14,
+                                      //     ),
+                                      //   ),
+                                      // ],
+                                    ],
                                   ),
-                                  // if (!_isDateRangeApplied) ...[
-                                  //   const SizedBox(width: 8),
-                                  //   Text(
-                                  //     "Date Range",
-                                  //     style: TextStyle(
-                                  //       color: Colors.black,
-                                  //       fontSize: 14,
-                                  //     ),
-                                  //   ),
-                                  // ],
-                                ],
-                              ),
-                            ),
-                          ),
-                          // Clear Filters
-                          if (isFilterApplied || isRangeFilterApplied || _isDateRangeApplied)
-                            Container(
-                              margin:EdgeInsets.symmetric(vertical: 5),
-                              child: IconButton(
-                                icon: Icon(
-                                  Icons.clear,
-                                  color: isFilterApplied || isRangeFilterApplied || _isDateRangeApplied
-                                      ? Colors.redAccent
-                                      : Colors.black,
                                 ),
-                                onPressed: _clearFilters,
                               ),
-                            ),
+                              // Clear Filters
+                              if (isFilterApplied || isRangeFilterApplied || _isDateRangeApplied)
+                                Container(
+                                  margin:EdgeInsets.symmetric(vertical: 5),
+                                  child: IconButton(
+                                    icon: Icon(
+                                      Icons.clear,
+                                      color: isFilterApplied || isRangeFilterApplied || _isDateRangeApplied
+                                          ? Colors.redAccent
+                                          : Colors.black,
+                                    ),
+                                    onPressed: _clearFilters,
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(width: 20),
                         ],
                       ),
                       const SizedBox(height: 10),
@@ -737,7 +748,7 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
                                             _buildDataCell(_filterOrderType.firstWhere((e) => e.slug == order.createdVia.toString()).name), //AppDBConst.orderType
                                             _buildDataCell(formattedDate),
                                             _buildDataCell(formattedTime),
-                                            _buildDataCell('${order.currencySymbol}${order.total}'),
+                                            _buildDataCell('${TextConstants.currencySymbol}${order.total}'),
                                             //  _buildDataCell('N/A'), // Over/short not in API response
                                             _buildDataCell(order.status, isStatus: true),
                                             // Add action buttons if needed
@@ -830,11 +841,11 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
                 // Replace your OrderScreenPanel instances with:
                   OrderScreenPanel(
                     fetchOrders: !isLoading, // Sync with parent's loading state
-                    key: ValueKey(orderHelper.activeOrderId ?? 0),
-                    formattedDate: '',
-                    formattedTime: '',
+                    key: ValueKey('order_screen_panel_${_selectedOrderId}_${sidebarPosition}_$orderPanelPosition'), //Build #1.0.234: Fixed Issue -> Processing Orders showing in order screen bottom mode
+                    formattedDate: panelDate ?? '', // Build #1.0.226: updated values
+                    formattedTime: panelTime ?? '',
                     quantities: quantities,
-                    activeOrderId: orderHelper.activeOrderId,
+                    activeOrderId: orderHelper.activeOrderId ?? _selectedOrderId,  /// <- ADDED NULL CHECK // BUILD 1.0.213: FIXED RE-OPENED ISSUE [SCRUM-356]: Order items not displaying in Bottom Mode
                     refreshOrderList: _refreshOrderList, // Build #1.0.143: Fixed Issue : After return from order summary screen , total order screen not refreshing with updated response
                   ),
 
@@ -877,9 +888,6 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
     debugPrint("OrdersScreen: _onOrderRowSelected id $orderId");
     // Explicitly declare selectedOrder as a nullable OrderModel
     model.OrderModel? selectedOrder;
-    // ADD this logic to determine the date and time for the panel
-    String panelDate;
-    String panelTime;
 
     if(orderId == -1){
       orderId = _orders.first.id; //Build #1.0.165: to fix issue in windows, not able to save lastActiveOrderID
@@ -931,14 +939,14 @@ class _OrdersScreenState extends State<OrdersScreen> with LayoutSelectionMixin {
       });
       debugPrint("OrdersScreen: Selected order ID $_selectedOrderId");
     }
-    _orderScreenPanel = OrderScreenPanel(
-      key: ValueKey(orderId), // Use orderId as key
-      formattedDate: panelDate,
-      formattedTime: panelTime,
-      quantities: quantities,
-      activeOrderId: orderId, // Pass activeOrderId
-      fetchOrders: !isLoading,
-    );
+    // _orderScreenPanel = OrderScreenPanel( //Build #1.0.234: No need , we already setting values in widget build method
+    //   key: ValueKey(orderId), // Use orderId as key
+    //   formattedDate: panelDate ?? '', // Build #1.0.226: updated values
+    //   formattedTime: panelTime ?? '',
+    //   quantities: quantities,
+    //   activeOrderId: orderId, // Pass activeOrderId
+    //   fetchOrders: !isLoading,
+    // );
     // _orderScreenPanel.setFormattedDate = panelDate;
     // _orderScreenPanel.setFormattedTime = panelTime;
 

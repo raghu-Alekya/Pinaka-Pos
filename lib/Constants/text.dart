@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart';
 
 class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedPreferenceTextConstants classes
 
+  static const String age_restricted              = 'Age Restricted';
   static String currencySymbol              =  '\u{20AC}';//"\u{20B9}"; //  \\u{20AC})
   static const String loginBtnText          = "Login";
   static const String settingsHeaderText    = "Settings";
@@ -89,7 +90,7 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String deleteConfirmText     = "Do you want to delete this tab permanently?";
   static const String noText                = "No";
   static const String yesText               = "Yes";
-  static const String retryText               = "Retry";
+  static const String retryText             = "Retry";
 
   static const String clearText             = "Clear";
   static const String okText                = "OK";
@@ -225,6 +226,9 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String skuGeneratedSuccessfully = "SKU generated successfully";
   static const String chooseVariants        = "Choose Variants";
   static const String backToCategories      = "Back to Categories";
+  static const String areYouSureExitShiftDescription = "Are you sure you want to exit the shift screen?";
+  static const String yesExit               = "Yes, Exit";
+  static const String noStay                = "No, Stay"; // Build #1.0.221
 
   static const String login                 = "LOGIN"; // Build #1.0.8
   static const String loading               = "loading";
@@ -316,7 +320,7 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String iconPath              = 'icon_path';
   static const String conHeaderText         = 'header_text';
   static const String conFooterText         = 'footer_text';
-  static const String ageRestricted         = 'Age Restricted';
+  static const String ageRestrictedKey         = 'age_restricted'; //Build #1.0.234: Added
   static const String noSubcategoriesAvailable = 'No subcategories available';
 
   //Build #1.0.54: added
@@ -372,6 +376,12 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String payoutAlreadyAdded = "A payout has already been added for this order";
   static const String payoutAddedSuccess = "Payout added successfully";
 
+  static const String unAuthMessage = "Unauthorised.Session is expired on this device.";
+  static const String unAuth = "Unauthorised";
+
+  static const String tranFailed = "Transaction Failed !"; // Build #1.0.240
+  static const String wantRetry = "Do you want to retry?";
+  static const String dismiss = "Dismiss";
 }
 
 class TextFontSize {

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:pinaka_pos/services/customerdisplayservice.dart';
+import 'package:pinaka_pos/services/CustomerDisplayService.dart';
 import 'package:provider/provider.dart';
 import 'Constants/misc_features.dart';
 import 'Database/db_helper.dart';
+import 'Helper/CustomerDisplayHelper.dart';
 import 'Helper/Extentions/theme_notifier.dart';
-import 'Helper/customerdisplayhelper.dart';
 import 'Preferences/pinaka_preferences.dart';
 import 'Screens/Auth/splash_screen.dart';
 import 'package:flutter/services.dart';
@@ -35,7 +35,7 @@ void main() async {
   } else {
     // Show default welcome if no store info
     await CustomerDisplayService.showWelcome();
-  }/// Build #1.0.10: Initialize the database
+  }/// // Build #1.0.10: Initialize the database
   runApp(
     ChangeNotifierProvider(
       create: (_) => themeNotifier,

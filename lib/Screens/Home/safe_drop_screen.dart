@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/svg.dart';
@@ -21,14 +23,17 @@ import '../../Preferences/pinaka_preferences.dart';
 import '../../Repositories/Auth/safe_drop_repository.dart';
 import '../../Utilities/printer_settings.dart';
 import '../../Utilities/result_utility.dart';
+import '../../Widgets/widget_alert_popup_dialogs.dart';
 import '../../Widgets/widget_custom_num_pad.dart';
 import '../../Widgets/widget_topbar.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:image/image.dart' as img;
 import '../../Widgets/widget_navigation_bar.dart' as custom_widgets;
+import '../Auth/login_screen.dart';
 import 'Settings/image_utils.dart';
 import 'Settings/printer_setup_screen.dart';
+import 'apps_dashboard_screen.dart';
 
 class SafeDropScreen extends StatefulWidget {
   final int? lastSelectedIndex;
@@ -66,7 +71,7 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
   ///printer
   var _printerSettings =  PrinterSettings();
   List<int> bytes = [];
-
+  StreamSubscription? _safeDropSubscription; // Build #1.0.240
   @override
   void initState() {
     super.initState();
@@ -75,7 +80,8 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
     // Initialize SafeDropBloc
     _safeDropBloc = SafeDropBloc(SafeDropRepository());
     // Added: Listen to safe drop stream for API responses
-    _safeDropBloc.safeDropStream.listen((response) {  //Build #1.0.74
+    // Build #1.0.240 Store the subscription and manage it properly
+    _safeDropSubscription = _safeDropBloc.safeDropStream.listen((response) {  //Build #1.0.74
       if (response.status == Status.COMPLETED) {
         setState(() {
           _isApiLoading = false;
@@ -92,15 +98,74 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
           controller.text = "0";
         });
         _calculateTotals();
-        ///2. print receipt
+        /// 1. print receipt
         if(!Misc.disablePrinter) {
           _printTicket();
         }
-      } else if (response.status == Status.ERROR) {
-        if (kDebugMode) print("#### SafeDropScreen: Error creating safe drop: ${response.message}");
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(response.message ?? 'Failed to create safe drop')),
-        );
+
+        // Build #1.0.240
+        /// 2. Navigate back to Apps screen after successful upload
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            // Navigator.of(context).popUntil((route) => route.isFirst);
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                  builder: (context) =>
+                      AppsDashboardScreen(lastSelectedIndex: 4)),
+            );
+            if (kDebugMode) print("Navigate back to Apps screen");
+          }
+        });
+        _safeDropSubscription?.cancel();
+      }
+      else if (response.status == Status.ERROR) {
+        setState(() {
+          _isApiLoading = false; // Build #1.0.240 : dismiss loader on add button
+        });
+        if (kDebugMode) {
+          print("safe drop screen --- Unauthorised : ${response.message ?? " "}");
+        }
+        if (response.message!.contains('Unauthorised')) {
+          if (kDebugMode) {
+            print("Unauthorised : ${response.message}");
+          }
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              Navigator.pushReplacement(context, MaterialPageRoute(
+                  builder: (context) => LoginScreen()));
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text("Unauthorised. Session is expired on this device."),
+                  backgroundColor: Colors.red,
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            }
+          });
+        } else {
+          if (kDebugMode) print("#### SafeDropScreen: Error creating safe drop: ${response.message}");
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(
+                response.message ?? 'Failed to create safe drop')),
+          );
+
+          // Build #1.0.240
+          /// 3. Show failure popup with dismiss button
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              CustomDialog.showCustomItemAlert(
+                  context,
+                  title: TextConstants.tranFailed,
+                  description: TextConstants.wantRetry,
+                  buttonText: TextConstants.dismiss,
+                  showCloseIcon: false
+              );
+            }
+          });
+        }
+        _safeDropSubscription?.cancel(); // Build #1.0.238: cancel subscription
       }
     });
 
@@ -144,6 +209,8 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
 
   @override
   void dispose() {
+    // Build #1.0.240 : Cancel the subscription to prevent memory leaks
+    _safeDropSubscription?.cancel();
     // Dispose of controllers to prevent memory leaks
     _denomControllers.forEach((key, controller) => controller.dispose());
     _totalNotesController.dispose();
@@ -436,38 +503,212 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
   @override
   Widget build(BuildContext context) {
     final themeHelper = Provider.of<ThemeNotifier>(context);
+
+    Widget _buildLeftContainer() {
+      return Container(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+        decoration: BoxDecoration(
+          color: themeHelper.themeMode == ThemeMode.dark
+              ? const Color(0xFF252837)
+              : Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: themeHelper.themeMode == ThemeMode.dark
+                ? const Color(0xFF454444)
+                : Colors.grey.shade300,
+          ),
+        ),
+        child: _safeDenominations.isEmpty
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
+          children: [
+            const SizedBox(height: 20),
+            Expanded(
+              child: ListView.builder(
+                itemCount: _safeDenominations.length,
+                itemBuilder: (context, index) {
+                  final denom = _safeDenominations[index];
+                  final controller =
+                  _denomControllers[denom.denom.toString()]!;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: _buildDenominationField(
+                      denom.image ?? 'assets/svg/1.svg',
+                      denom.denom.toString(),
+                      controller,
+                      isLast: index == _safeDenominations.length - 1,
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    Widget _buildRightContainer() {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14.0),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(40, 15, 40, 15),
+          decoration: BoxDecoration(
+            color: themeHelper.themeMode == ThemeMode.dark
+                ? const Color(0xFF252837)
+                : Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: themeHelper.themeMode == ThemeMode.dark
+                  ? const Color(0xFF454444)
+                  : Colors.grey.shade300,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              /// Total Notes
+              Padding(
+                padding: const EdgeInsets.only(left: 0.0),
+                child: Text(
+                  "Total Notes",
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: themeHelper.themeMode == ThemeMode.dark
+                        ? Colors.white
+                        : ThemeNotifier.textLight,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Container(
+                decoration: BoxDecoration(
+                  color: themeHelper.themeMode == ThemeMode.dark
+                      ? const Color(0xFF201E2B)
+                      : Colors.white,
+                  border: Border.all(
+                    color: themeHelper.themeMode == ThemeMode.dark
+                        ? const Color(0xFF37393C)
+                        : Colors.grey.shade300,
+                  ),
+                  borderRadius: BorderRadius.circular(5),
+                ),
+                padding:
+                const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                child: Text(
+                  _totalNotesController.text,
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: themeHelper.themeMode == ThemeMode.dark
+                        ? Colors.white
+                        : ThemeNotifier.textLight,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 5),
+
+              /// Total Cash
+              Padding(
+                padding: const EdgeInsets.only(left: 0.0),
+                child: Text(
+                  "Total Cash",
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: themeHelper.themeMode == ThemeMode.dark
+                        ? Colors.white
+                        : ThemeNotifier.textLight,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 5),
+              Container(
+                decoration: BoxDecoration(
+                  color: themeHelper.themeMode == ThemeMode.dark
+                      ? const Color(0xFF201E2B)
+                      : Colors.white,
+                  border: Border.all(
+                    color: themeHelper.themeMode == ThemeMode.dark
+                        ? const Color(0xFF37393C)
+                        : Colors.grey.shade300,
+                  ),
+                  borderRadius: BorderRadius.circular(5),
+                ),
+                padding:
+                const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                child: Text(
+                  _totalCashController.text,
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: themeHelper.themeMode == ThemeMode.dark
+                        ? Colors.white
+                        : ThemeNotifier.textLight,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              /// NumPad
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: themeHelper.themeMode == ThemeMode.dark
+                        ? const Color(0xFF1F1D2B)
+                        : const Color(0xFFEBEFF1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: CustomNumPad(
+                    onDigitPressed: _handleNumberPress,
+                    onClearPressed: _handleClear,
+                    onAddPressed: _handleAdd,
+                    actionButtonType: ActionButtonType.add,
+                    isDarkTheme: true,
+                    isLoading: _isApiLoading,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
-      body: Stack( //Build #1.0.74
+      body: Stack(
         children: [
           Column(
             children: [
+              /// TopBar
               TopBar(
                 screen: Screen.SAFE,
-                onModeChanged: () async{ /// Build #1.0.192: Fixed -> Exception -> setState() callback argument returned a Future. (onModeChanged in all screens)
+                onModeChanged: () async {
                   String newLayout;
-                    if (sidebarPosition == SidebarPosition.left) {
-                      newLayout = SharedPreferenceTextConstants.navRightOrderLeft;
-                    } else if (sidebarPosition == SidebarPosition.right) {
-                      newLayout = SharedPreferenceTextConstants.navBottomOrderLeft;
-                    } else {
-                      newLayout = SharedPreferenceTextConstants.navLeftOrderRight;
-                    }
+                  if (sidebarPosition == SidebarPosition.left) {
+                    newLayout = SharedPreferenceTextConstants.navRightOrderLeft;
+                  } else if (sidebarPosition == SidebarPosition.right) {
+                    newLayout =
+                        SharedPreferenceTextConstants.navBottomOrderLeft;
+                  } else {
+                    newLayout = SharedPreferenceTextConstants.navLeftOrderRight;
+                  }
 
-                    // Update the notifier which will trigger _onLayoutChanged
-                    PinakaPreferences.layoutSelectionNotifier.value = newLayout;
-                    // No need to call saveLayoutSelection here as it's handled in the notifier
-                   // _preferences.saveLayoutSelection(newLayout);
-                    //Build #1.0.122: update layout mode change selection to DB
-                    await UserDbHelper().saveUserSettings({AppDBConst.layoutSelection: newLayout}, modeChange: true);
-                  // update UI
+                  PinakaPreferences.layoutSelectionNotifier.value = newLayout;
+                  await UserDbHelper().saveUserSettings(
+                    {AppDBConst.layoutSelection: newLayout},
+                    modeChange: true,
+                  );
                   setState(() {});
                 },
               ),
-              Divider(
-                color: Colors.grey, // Light grey color
-                thickness: 0.4, // Very thin line
-                height: 1, // Minimal height
-              ),
+
+              Divider(color: Colors.grey, thickness: 0.4, height: 1),
+
               Expanded(
                 child: Row(
                   children: [
@@ -479,166 +720,145 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
                             _selectedSidebarIndex = index;
                           });
                         },
-                        isVertical: true, // Vertical layout for left sidebar
+                        isVertical: true,
                       ),
+
+                    /// MAIN CONTENT
                     Expanded(
                       child: Padding(
-                        padding: const EdgeInsets.only(left: 10, bottom: 0.0, top: 15.0, right: 10),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          children: [
-                            InkWell(
-                              onTap: () => Navigator.of(context).pop(),
-                              child: Row(
-                                children: [
-                                  Icon(Icons.arrow_back, size: 20,),
-                                  SizedBox(width: 10,),
-                                  Text("back", style: TextStyle(fontSize: 18,fontWeight: FontWeight.bold)),
-                                ],
+                        padding: const EdgeInsets.all(10),
+                        child: Container(
+                          padding: const EdgeInsets.all(15),
+                          decoration: BoxDecoration(
+                            color: themeHelper.themeMode == ThemeMode.dark
+                                ? Colors.black
+                                : Colors.white,
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
                               ),
-                            ),
-                            SizedBox(
-                              width: 30,
-                            ),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisAlignment: MainAxisAlignment.start,
-                                children: [
-                                  Column(
-                                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                                    children: [
-                                      // Modified: Replaced static rows with GridView
-                                      _safeDenominations.isEmpty
-                                          ? const Center(child: CircularProgressIndicator())
-                                          : GridView.builder(
-                                        shrinkWrap: true,
-                                       // physics: const NeverScrollableScrollPhysics(),
-                                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                          crossAxisCount: 2,
-                                          childAspectRatio: 9,
-                                          crossAxisSpacing: 4,
-                                          mainAxisSpacing: 4,
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (sidebarPosition !=
+                                  SidebarPosition.bottom) ...[
+                                /// Back Button Row (inside parent container)
+                                InkWell(
+                                  onTap: () => Navigator.of(context).pop(),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 16, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: themeHelper.themeMode ==
+                                          ThemeMode.dark
+                                          ? const Color(0xFF252837)
+                                          : const Color(0xFF37415E),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: const [
+                                        Icon(Icons.arrow_back,
+                                            size: 18, color: Colors.white),
+                                        SizedBox(width: 8),
+                                        Text(
+                                          "Back",
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.white,
+                                          ),
                                         ),
-                                        itemCount: 6, //_safeDenominations.length, //NOTE: Ranjeet: for now we have add only 6
-                                        itemBuilder: (context, index) {
-                                          final denom = _safeDenominations[index];
-                                          final controller = _denomControllers[denom.denom.toString()]!;
-                                          return _buildDenominationField(
-                                            denom.image ?? 'assets/svg/1.svg',
-                                            denom.denom.toString(),
-                                            controller,
-                                          );
-                                        },
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
-                                  const SizedBox(height: 3),
-                                  Divider(
-                                    color: Colors.grey, // Light grey color
-                                    thickness: 0.4, // Very thin line
-                                    height: 1, // Minimal height
-                                    endIndent: 70,
-                                  ),
-                                  const SizedBox(height: 15),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.start,
-                                    // mainAxisSize: MainAxisSize.max,
-                                    crossAxisAlignment: CrossAxisAlignment.center,
-                                    children: [
-                                      Container(
-                                        width: MediaQuery.of(context).size.width * 0.308,
-                                        height: MediaQuery.of(context).size.height * 0.39,
-                                        margin: EdgeInsets.only(left: 5),
+                                ),
+                                const SizedBox(height: 15),
+                              ],
+
+                              /// Containers layout
+                              Expanded(
+                                child: sidebarPosition == SidebarPosition.bottom
+                                    ? Row(
+                                  crossAxisAlignment:
+                                  CrossAxisAlignment.start,
+                                  children: [
+                                    /// Back button on top-left
+                                    InkWell(
+                                      onTap: () =>
+                                          Navigator.of(context).pop(),
+                                      child: Container(
+                                        padding:
+                                        const EdgeInsets.symmetric(
+                                            horizontal: 16,
+                                            vertical: 8),
                                         decoration: BoxDecoration(
-                                          color: const Color(0xFFE8F5ED),
-                                          borderRadius: BorderRadius.circular(8),
+                                          color: themeHelper.themeMode ==
+                                              ThemeMode.dark
+                                              ? const Color(0xFF252837)
+                                              : const Color(0xFF37415E),
+                                          borderRadius:
+                                          BorderRadius.circular(10),
                                         ),
-                                        child: Column(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            Text("Total Notes",
-                                                style: TextStyle(
-                                                    fontSize: 18,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: ThemeNotifier.textLight
-                                                    )),
-                                            const SizedBox(height: 10),
-                                            SizedBox(
-                                              width: MediaQuery.of(context).size.width * 0.25,
-                                              child: TextField(
-                                                controller: _totalNotesController,
-                                                readOnly: true,
-                                                textAlign: TextAlign.center,
-                                                decoration: InputDecoration(
-                                                  filled: true,
-                                                  fillColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.circularNavBackground : Colors.white,
-                                                  border: OutlineInputBorder(
-                                                    borderRadius: BorderRadius.circular(8),
-                                                    borderSide: BorderSide(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.borderColor : Colors.grey.shade300),
-                                                  ),
-                                                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                                                ),
-                                              ),
-                                            ),
-                                            const SizedBox(height: 10),
-                                            Text("Total Cash",
-                                                style: TextStyle(
-                                                    fontSize: 18,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: ThemeNotifier.textLight
-                                                )),
-                                            const SizedBox(height: 10),
-                                            SizedBox(
-                                              width: MediaQuery.of(context).size.width * 0.25,
-                                              child: TextField(
-                                                controller: _totalCashController,
-                                                readOnly: true,
-                                                textAlign: TextAlign.center,
-                                                decoration: InputDecoration(
-                                                  filled: true,
-                                                  fillColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.circularNavBackground : Colors.white,
-                                                  border: OutlineInputBorder(
-                                                    borderRadius: BorderRadius.circular(8),
-                                                    borderSide: BorderSide(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.borderColor : Colors.grey.shade300),
-                                                  ),
-                                                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                                                ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: const [
+                                            Icon(Icons.arrow_back,
+                                                size: 10,
+                                                color: Colors.white),
+                                            SizedBox(width: 8),
+                                            Text(
+                                              "Back",
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight:
+                                                FontWeight.w600,
+                                                color: Colors.white,
                                               ),
                                             ),
                                           ],
                                         ),
                                       ),
-                                      const SizedBox(width: 150),
-                                      Container(
-                                        margin: EdgeInsets.only(left: 5),
-                                        decoration: BoxDecoration(
-                                          // color: Colors.red,//const Color(0xFFE8F5ED),
-                                          borderRadius: BorderRadius.circular(8),
-                                        ),
-                                        width: MediaQuery.of(context).size.width * 0.328,
-                                        height: MediaQuery.of(context).size.height * 0.391,
-                                        child: CustomNumPad(
-                                          onDigitPressed: _handleNumberPress,
-                                          onClearPressed: _handleClear,
-                                          onAddPressed: _handleAdd,
-                                          actionButtonType: ActionButtonType.add,
-                                          isDarkTheme: true,
-                                          isLoading: _isApiLoading, // Pass the loading state here
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 1),
-                                ],
+                                    ),
+                                    const SizedBox(width: 15),
+
+                                    /// LEFT container
+                                    Expanded(
+                                        flex: 5,
+                                        child: _buildLeftContainer()),
+                                    const SizedBox(width: 20),
+
+                                    /// RIGHT container
+                                    Expanded(
+                                        flex: 4,
+                                        child: _buildRightContainer()),
+                                  ],
+                                )
+                                    : Row(
+                                  crossAxisAlignment:
+                                  CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                        flex: 5,
+                                        child: _buildLeftContainer()),
+                                    const SizedBox(width: 20),
+                                    Expanded(
+                                        flex: 4,
+                                        child: _buildRightContainer()),
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                    // Right Sidebar (Conditional)
+
                     if (sidebarPosition == SidebarPosition.right)
                       custom_widgets.NavigationBar(
                         selectedSidebarIndex: _selectedSidebarIndex,
@@ -647,12 +867,12 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
                             _selectedSidebarIndex = index;
                           });
                         },
-                        isVertical: true, // Vertical layout for right sidebar
+                        isVertical: true,
                       ),
                   ],
                 ),
               ),
-              // Bottom Sidebar (Conditional)
+
               if (sidebarPosition == SidebarPosition.bottom)
                 custom_widgets.NavigationBar(
                   selectedSidebarIndex: _selectedSidebarIndex,
@@ -661,7 +881,7 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
                       _selectedSidebarIndex = index;
                     });
                   },
-                  isVertical: false, // Horizontal layout for bottom sidebar
+                  isVertical: false,
                 ),
             ],
           ),
@@ -670,7 +890,8 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
     );
   }
 
-  String _calculateTotalForNote(String denomination, TextEditingController controller) {
+  String _calculateTotalForNote(
+      String denomination, TextEditingController controller) {
     final count = int.tryParse(controller.text) ?? 0;
     final total = count * int.parse(denomination);
     return '${TextConstants.currencySymbol}${total.toStringAsFixed(2)}';
@@ -698,7 +919,8 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
         );
       }
     } catch (e) {
-      if (kDebugMode) print("#### SafeDropScreen: Error loading SVG $assetPath: $e");
+      if (kDebugMode)
+        print("#### SafeDropScreen: Error loading SVG $assetPath: $e");
       return SvgPicture.asset(
         'assets/svg/1.svg', // Fallback SVG
         width: 40,
@@ -707,92 +929,125 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
     }
   }
 
-  Widget _buildDenominationField(String assetPath, String denomination, TextEditingController controller, {bool isResult = false}) {
+  Widget _buildDenominationField(
+      String assetPath,
+      String denomination,
+      TextEditingController controller, {
+        bool isResult = false,
+        bool isLast = false,
+      }) {
     final themeHelper = Provider.of<ThemeNotifier>(context);
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 3, horizontal: 4),
-      decoration: BoxDecoration(
-        border: Border.all(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground :Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          FutureBuilder<Widget>(
-            future: _loadSvg(assetPath),
-            builder: (context, snapshot) {
-              if (snapshot.hasData) {
-                return snapshot.data!;
-              } else if (snapshot.hasError) {
-                if (kDebugMode) print("#### SafeDropScreen: Error in FutureBuilder for SVG: ${snapshot.error}");
-                return SvgPicture.asset(
-                  'assets/svg/1.svg',
-                  width: 40,
-                  height: 30,
-                );
-              }
-              return const SizedBox(width: 40, height: 32); // Placeholder while loading
-            },
-          ),
-          const SizedBox(width: 20),
-          const Text('×', style: TextStyle(fontSize: 24)),
-          const SizedBox(width: 20),
-          Container(
-            width: MediaQuery.of(context).size.width * 0.1,
-            height: MediaQuery.of(context).size.height * 0.075,
-            decoration: BoxDecoration(
-              shape: BoxShape.rectangle,
-              border: Border.all(color:themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.borderColor : Colors.grey.shade300),
-              borderRadius: BorderRadius.circular(5),
-              color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.circularNavBackground : Colors.white,
-            ),
-            child: TextField(
-              controller: controller,
-              textAlign: TextAlign.center,
-              keyboardType: TextInputType.none,
-              decoration: const InputDecoration(
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(horizontal: 8),
-              ),
-              readOnly: isResult,
-              onTap: isResult
-                  ? null
-                  : () {
-                setState(() {
-                  _activeController = controller;
-                });
-              },
-              style: const TextStyle(
-                fontWeight: FontWeight.w500,
-                fontSize: 16,
+    final isDark = themeHelper.themeMode == ThemeMode.dark;
 
-              ),
-            ),
-          ),
-          const SizedBox(width: 20),
-          const Text('=', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey)),
-          const SizedBox(width: 20),
-          Container(
-            width: MediaQuery.of(context).size.width * 0.1,
-            height: MediaQuery.of(context).size.height * 0.075,
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey.shade400),
-              shape: BoxShape.rectangle,
-              borderRadius: BorderRadius.circular(5),
-              color: Colors.grey.shade400,
-            ),
-            child: Text(
-              _calculateTotalForNote(denomination, controller),
-              textAlign: TextAlign.center,
-              // isResult
-              //     ? controller.text
-              //     : '${TextConstants.currencySymbol}${((double.tryParse(controller.text) ?? 0) * denominationValue).toStringAsFixed(2)}',
-              // style: const TextStyle(fontWeight: FontWeight.w500),
-            ),
+    return Column(
+      children: [
+        Padding(
+            padding: const EdgeInsets.only(left: 14.0, bottom: 5),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                /// SVG Icon
+                FutureBuilder<Widget>(
+                  future: _loadSvg(assetPath),
+                  builder: (context, snapshot) {
+                    if (snapshot.hasData) return snapshot.data!;
+                    if (snapshot.hasError) {
+                      if (kDebugMode)
+                        print("Error loading SVG: ${snapshot.error}");
+                      return SvgPicture.asset('assets/svg/1.svg',
+                          width: 40, height: 30);
+                    }
+                    return const SizedBox(width: 40, height: 32);
+                  },
+                ),
+                const SizedBox(width: 18),
+
+                /// Multiplication sign (centered)
+                const Text('×', style: TextStyle(fontSize: 22)),
+
+                const SizedBox(width: 18),
+
+                /// Input field
+                SizedBox(
+                  width: MediaQuery.of(context).size.width * 0.12,
+                  height: MediaQuery.of(context).size.height * 0.055,
+                  child: TextField(
+                    controller: controller,
+                    textAlign: TextAlign.center,
+                    keyboardType: TextInputType.none,
+                    readOnly: isResult,
+                    onTap: isResult
+                        ? null
+                        : () {
+                      setState(() {
+                        _activeController = controller;
+                      });
+                    },
+                    decoration: InputDecoration(
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 7),
+                      filled: true,
+                      fillColor: isDark
+                          ? const Color(0xFF4D505F)
+                          : const Color(0xFFF3F2F2),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w500, fontSize: 14),
+                  ),
+                ),
+                const SizedBox(width: 18),
+
+                /// Equals sign
+                const Text('=',
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.grey)),
+
+                const SizedBox(width: 18),
+
+                /// Result field
+                Container(
+                  width: MediaQuery.of(context).size.width * 0.16,
+                  height: MediaQuery.of(context).size.height * 0.055,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(5),
+                    color: themeHelper.themeMode == ThemeMode.dark
+                        ? const Color(0xFF34384A)
+                        : Color(0xFFE8E8E8),
+                  ),
+                  child: Text(
+                    _calculateTotalForNote(denomination, controller),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: themeHelper.themeMode == ThemeMode.dark
+                          ? const Color(0xFFE6E6E6)
+                          : const Color(0xFF34384A),
+                    ),
+                  ),
+                ),
+              ],
+            )),
+        if (!isLast) ...[
+          const SizedBox(height: 7),
+          Divider(
+            color: isDark ? const Color(0xFF484747) : Colors.grey.shade300,
+            height: 4,
+            thickness: 1,
           ),
         ],
-      ),
+        const SizedBox(height: 2),
+      ],
     );
   }
 }

@@ -21,7 +21,7 @@ class UrlHelper {
   ///DEV = dev testing
   ///
   /// Note: change _uat to _prod in release build
-  static const String pinakaBaseUrl = kDebugMode ? _dev : _uat ;
+  static const String pinakaBaseUrl = kDebugMode ? _uat : _dev ;
   static const String validateMerchant =  "$pinakaBaseUrl/wp-json/custom/v1/validate-marchent";  //Build #1.0.42
 
   //API keys
@@ -122,7 +122,7 @@ class UrlParameterConstants { // Build #1.0.13
 }
 
 class EndUrlConstants { // Build #1.0.13
-  static const  String productSearchEndUrl = "&page=1&limit=10";
+  static const  String productSearchEndUrl = "&page=1&limit=100&per_page=100";
   static const  String createFastKeyEndUrl        = "/create";  // Build #1.0.15
   static const  String getFastKeyEndUrl           = "/get-by-user";
   static const  String addFastKeyProductEndUrl    = "/add-products";

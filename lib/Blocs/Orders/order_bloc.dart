@@ -5,8 +5,8 @@ import 'package:flutter/foundation.dart';
 import '../../Constants/text.dart';
 import '../../Database/db_helper.dart';
 import '../../Database/order_panel_db_helper.dart';
+import '../../Helper/CustomerDisplayHelper.dart';
 import '../../Helper/api_response.dart';
-import '../../Helper/customerdisplayhelper.dart';
 import '../../Models/Orders/apply_discount_model.dart';
 import '../../Models/Orders/get_orders_model.dart' as model;
 import '../../Models/Orders/orders_model.dart';
@@ -117,7 +117,12 @@ class OrderBloc { // Build #1.0.25 - added by naveen
 
       createOrderSink.add(APIResponse.completed(response));
     } catch (e) {
-      updateOrderSink.add(APIResponse.error(_extractErrorMessage(e))); //Build #1.0.84
+      if (e.toString().contains('Unauthorised')) {
+        createOrderSink.add(APIResponse.error("Unauthorised. Session is expired."));
+      }
+      else {
+        createOrderSink.add(APIResponse.error(_extractErrorMessage(e))); //Build #1.0.84
+      }
       if (kDebugMode) print("Exception in createOrder: $e");
     }
   }
@@ -252,6 +257,13 @@ class OrderBloc { // Build #1.0.25 - added by naveen
             print("OrderBloc - Existing item found ID: ${existingItem.first[AppDBConst.itemServerId]}, updated quantity: ${currentQuantity + item.quantity}");
           }
         } else { // NEW Product
+          if(isEditQuantity){ // Build 1.0.214: Fixed Issue [SCRUM - 364] -> Item reappears in cart after being deleted while edit screen is open
+            if (kDebugMode) {
+              print("OrderBloc - Existing item not found in order, isEditQuantity is $isEditQuantity, skipping update for item");
+            }
+            updateOrderSink.add(APIResponse.error("Cannot update quantity: Item not found in order."));
+            return;
+          }
           itemsToAdd.add(OrderLineItem(
             productId: item.productId,
             quantity: item.quantity,
@@ -302,6 +314,11 @@ class OrderBloc { // Build #1.0.25 - added by naveen
           AppDBConst.orderDiscount: double.tryParse(response.discountTotal) ?? 0.0, // Store discount
           AppDBConst.orderTax: double.tryParse(response.totalTax) ?? 0.0, // Store tax
           AppDBConst.orderShipping: double.tryParse(response.shippingTotal) ?? 0.0, // Store shipping
+          //Build #1.0.234: Saving Age Restricted value in order table
+          AppDBConst.orderAgeRestricted: response.metaData.firstWhere(
+                (meta) => meta.key == TextConstants.ageRestrictedKey,
+                orElse: () => model.MetaData(id: 0, key: '', value: 'false'),
+               ).value.toString(),
         },
         where: '${AppDBConst.orderServerId} = ?',
         whereArgs: [serverOrderId],
@@ -361,24 +378,40 @@ class OrderBloc { // Build #1.0.25 - added by naveen
           print("#### Start adding lineItem ${lineItem.id}, orderId:$serverOrderId , ProductId:${lineItem.productId}, VariationId:${lineItem.variationId}");
           print("variationName $variationName, variationCount:$variationCount, combo:$combo, salesPrice: $salesPrice, regularPrice: $regularPrice, unitPrice: $unitPrice");
         }
-        await orderHelper.addItemToOrder(
-          lineItem.id,
-          lineItem.name,
-          lineItem.image.src ?? '', // Fixed: Access 'src' key from image Map
-          itemPrice, // Ensure price is parsed correctly
-          lineItem.quantity,
-          lineItem.sku ?? '',
-          serverOrderId,
-          productId:lineItem.productId, // Build #1.0.80: newly added these two
-          variationId:lineItem.variationId,
-          type: isCustomItem ? ItemType.customProduct.value : ItemType.product.value, // Build #1.0.187: Set type based on Custom Item tag
-          variationName: variationName,
-          variationCount: variationCount,
-          combo: combo,
-          salesPrice: salesPrice,
-          regularPrice: regularPrice,
-          unitPrice: unitPrice,
-        );
+        if ((lineItem.name == TextConstants.payout)) {  /// Build #1.0.205: payout is added as product so while updating order table check here as well
+          if (kDebugMode) {
+            print("#### OrderBloc - Adding payout item: id: ${response.lineItems!.last.id}, total: ${response.lineItems!.last.total}");
+          }
+          await orderHelper.addItemToOrder(
+            lineItem.id,
+            lineItem.name ?? '',
+            'assets/svg/payout.svg',
+            double.parse(lineItem.total ?? '0.0'),
+            1,
+            '',
+            serverOrderId,
+            type: ItemType.payout.value,
+          );
+        } else {
+          await orderHelper.addItemToOrder(
+            lineItem.id,
+            lineItem.name,
+            lineItem.image.src ?? '',// Fixed: Access 'src' key from image Map
+            itemPrice, // Ensure price is parsed correctly
+            lineItem.quantity,
+            lineItem.sku ?? '',
+            serverOrderId,
+            productId: lineItem.productId, // Build #1.0.80: newly added these two
+            variationId: lineItem.variationId,
+            type: isCustomItem ? ItemType.customProduct.value : ItemType.product.value, // Build #1.0.187: Set type based on Custom Item tag
+            variationName: variationName,
+            variationCount: variationCount,
+            combo: combo,
+            salesPrice: salesPrice,
+            regularPrice: regularPrice,
+            unitPrice: unitPrice,
+          );
+        }
         if (kDebugMode) {
           print("#### End adding lineItem ${lineItem.id}, orderId:$serverOrderId , ProductId:${lineItem.productId}, VariationId:${lineItem.variationId}");
         }
@@ -430,8 +463,13 @@ class OrderBloc { // Build #1.0.25 - added by naveen
 
       updateOrderSink.add(APIResponse.completed(response));
     } catch (e, s) {
-      updateOrderSink.add(APIResponse.error(_extractErrorMessage(e)));
-      if (kDebugMode) print("Exception in updateOrderProducts: $e, DEBUG $s");
+      if (e.toString().contains('Unauthorised')) {
+        updateOrderSink.add(APIResponse.error("Unauthorised. Session is expired."));
+      }
+      else {
+        updateOrderSink.add(APIResponse.error(_extractErrorMessage(e)));
+        if (kDebugMode) print("Exception in updateOrderProducts: $e, DEBUG $s");
+      }
     }
   }
 
@@ -458,11 +496,26 @@ class OrderBloc { // Build #1.0.25 - added by naveen
       if (kDebugMode) {
         print("OrderBloc - fetchOrders calling syncOrdersFromApi with ${response.orders.length} orders");
       }
+       // Build #1.0.219 -> FIXED ISSUE [SCRUM - 370] : Same Order ID displayed in fast keys, after successfully payment done with completed status.
+      if(response.orders.isEmpty) {
+        if (orderHelper.activeOrderId != null) {
+          if (kDebugMode) {
+            print("fetchOrders, orderId: ${orderHelper.activeOrderId}");
+            print("Deleting Completed/Pending/Cancelled order from cart if exit/showing, because fetchOrders api only returns processing orders, here its getting empty");
+          }
+          orderHelper.deleteOrder(orderHelper.activeOrderId ?? 0);
+        }
+      }
       await orderHelper.syncOrdersFromApi(response.orders); //Build #1.0.78: sync data from bloc, no need in UI screen
       fetchOrdersSink.add(APIResponse.completed(response));
     } catch (e, s) {
-      fetchOrdersSink.add(APIResponse.error("Order Sync Failed")); //Build #1.0.84
-      if (kDebugMode) print("Exception in fetchOrders: $e, Stack: $s");
+      if (e.toString().contains('Unauthorised')) {
+        fetchOrdersSink.add(APIResponse.error("Unauthorised. Session is expired."));
+      }else {
+        fetchOrdersSink.add(
+            APIResponse.error("Order Sync Failed")); //Build #1.0.84
+        if (kDebugMode) print("Exception in fetchOrders: $e, Stack: $s");
+      }
     }
   }
 
@@ -520,7 +573,10 @@ class OrderBloc { // Build #1.0.25 - added by naveen
       // await orderHelper.syncOrdersFromApi(response.orders); //Build #1.0.78: sync data from bloc, no need in UI screen
       // fetchOrdersSink.add(APIResponse.completed(response));
     } catch (e,s) {
-      if (e.toString().contains('SocketException')) {
+      if (e.toString().contains('Unauthorised')) {
+        fetchOrdersSink.add(APIResponse.error("Unauthorised. Session is expired."));
+      }
+      else if (e.toString().contains('SocketException')) {
         fetchOrdersSink.add(APIResponse.error("Network error. Please check your connection."));
       } else {
         fetchOrdersSink.add(APIResponse.error("Order Sync Failed"));
@@ -556,7 +612,11 @@ class OrderBloc { // Build #1.0.25 - added by naveen
       await orderHelper.syncOrdersFromApi(response.orders);
       fetchOrdersSink.add(APIResponse.completed(response));
     } catch (e,s) {
-      updateOrderSink.add(APIResponse.error("Order Sync Failed")); //Build #1.0.84
+      if (e.toString().contains('Unauthorised')) {
+        fetchOrdersSink.add(APIResponse.error("Unauthorised. Session is expired."));
+      }else {
+        fetchOrdersSink.add(APIResponse.error("Order Sync Failed")); //Build #1.0.84
+      }
       if (kDebugMode) print("Exception in fetchOrders: $e, Stack: $s");
     }
   }
@@ -575,8 +635,17 @@ class OrderBloc { // Build #1.0.25 - added by naveen
         request: request,
       );
 
-      // Build #1.0.92: Update order table and handle coupon lines
+      // Build #1.0.226: Fixed Issue -> Unable to remove Payout , after coupon addition
+      // Update coupons response with line items as well
+      // Clear existing items for this order
       OrderHelper orderHelper = OrderHelper();
+      await orderHelper.clearOrderItems(orderId);
+
+      // Debug print: Clearing order items
+      if (kDebugMode) {
+        print("#### OrderBloc - applyCouponToOrder: Cleared existing items for orderId $orderId");
+      }
+      // Build #1.0.92: Update order table and handle coupon lines
       final db = await DBHelper.instance.database;
       if (kDebugMode) {
         print("#### OrderBloc - Updating order table for orderId $orderId, total: ${double.tryParse(response.total) ?? 0.0}, discount: ${double.tryParse(response.discountTotal) ?? 0.0}");
@@ -593,6 +662,10 @@ class OrderBloc { // Build #1.0.25 - added by naveen
           AppDBConst.orderDiscount: double.tryParse(response.discountTotal) ?? 0.0,
           AppDBConst.orderTax: double.tryParse(response.totalTax) ?? 0.0,
           AppDBConst.orderShipping: double.tryParse(response.shippingTotal) ?? 0.0,
+          AppDBConst.orderAgeRestricted: response.metaData.firstWhere( //Build #1.0.234: Saving Age Restricted value in order table
+                (meta) => meta.key == TextConstants.ageRestrictedKey,
+            orElse: () => model.MetaData(id: 0, key: '', value: 'false'),
+          ).value.toString(),
         },
         where: '${AppDBConst.orderServerId} = ?',
         whereArgs: [orderId],
@@ -604,6 +677,72 @@ class OrderBloc { // Build #1.0.25 - added by naveen
         where: '${AppDBConst.orderIdForeignKey} = ? AND ${AppDBConst.itemType} = ?',
         whereArgs: [orderId, ItemType.coupon.value],
       );
+
+      // Build #1.0.226: Added updated line items from the API response
+      for (var lineItem in response.lineItems) {
+        final String variationName = lineItem.productVariationData?.metaData?.firstWhere(
+              (e) => e.key == "custom_name",
+          orElse: () => model.MetaData(id: 0, key: "", value: ""),
+        ).value ?? "";
+        final int variationCount = lineItem.productData.variations?.length ?? 0;
+        final String combo = lineItem.metaData.firstWhere(
+              (e) => e.value.contains('Combo'),
+          orElse: () => model.MetaData(id: 0, key: "", value: ""),
+        ).value.split(' ').first ?? "";
+        final bool hasVariations = lineItem.productData.variations != null && lineItem.productData.variations!.isNotEmpty;
+        final double salesPrice = hasVariations
+            ? double.tryParse(lineItem.productVariationData?.salePrice?.isNotEmpty == true ? lineItem.productVariationData!.salePrice! : "0.0") ?? 0.0
+            : double.tryParse(lineItem.productData.salePrice?.isNotEmpty == true ? lineItem.productData.salePrice! : "0.0") ?? 0.0;
+        final double regularPrice = hasVariations
+            ? double.tryParse(lineItem.productVariationData?.regularPrice?.isNotEmpty == true ? lineItem.productVariationData!.regularPrice! : "0.0") ?? 0.0
+            : double.tryParse(lineItem.productData.regularPrice?.isNotEmpty == true ? lineItem.productData.regularPrice! : "0.0") ?? 0.0;
+        final double unitPrice = hasVariations
+            ? double.tryParse(lineItem.productVariationData?.price?.isNotEmpty == true ? lineItem.productVariationData!.price! : "0.0") ?? 0.0
+            : double.tryParse(lineItem.productData.price?.isNotEmpty == true ? lineItem.productData.price! : "0.0") ?? 0.0;
+        final double itemPrice = double.tryParse(lineItem.subtotal.isNotEmpty == true ? lineItem.subtotal : '0.0') ?? 0.0;
+        bool isCustomItem = lineItem.productData.tags.any((tag) => tag.name == TextConstants.customItem);
+
+        if (kDebugMode) {
+          print("#### OrderBloc - applyCouponToOrder: Adding lineItem ${lineItem.id}, orderId: $orderId, ProductId: ${lineItem.productId}, VariationId: ${lineItem.variationId}");
+          print("#### OrderBloc - applyCouponToOrder: variationName $variationName, variationCount: $variationCount, combo: $combo, salesPrice: $salesPrice, regularPrice: $regularPrice, unitPrice: $unitPrice");
+        }
+
+        if ((lineItem.name == TextConstants.payout)) {  /// Build #1.0.205: payout is added as product so while updating order table check here as well
+          if (kDebugMode) {
+            print("#### OrderBloc - Adding payout item: id: ${response.lineItems!.last.id}, total: ${response.lineItems!.last.total}");
+          }
+          await orderHelper.addItemToOrder(
+            lineItem.id,
+            lineItem.name ?? '',
+            'assets/svg/payout.svg',
+            double.parse(lineItem.total ?? '0.0'),
+            1,
+            '',
+            orderId,
+            type: ItemType.payout.value,
+          );
+        } else {
+          await orderHelper.addItemToOrder(
+            lineItem.id,
+            lineItem.name,
+            lineItem.image.src ?? '',
+            itemPrice,
+            lineItem.quantity,
+            lineItem.sku ?? '',
+            orderId,
+            productId: lineItem.productId,
+            variationId: lineItem.variationId,
+            type: isCustomItem ? ItemType.customProduct.value : ItemType.product.value,
+            variationName: variationName,
+            variationCount: variationCount,
+            combo: combo,
+            salesPrice: salesPrice,
+            regularPrice: regularPrice,
+            unitPrice: unitPrice,
+          );
+        }
+      }
+
       for (var couponLine in response.couponLines) {
         if (kDebugMode) {
           print("#### OrderBloc - Adding coupon line: id: ${couponLine.id}, code: ${couponLine.code}, amount: ${couponLine.nominalAmount}");
@@ -629,7 +768,12 @@ class OrderBloc { // Build #1.0.25 - added by naveen
       }
       applyCouponSink.add(APIResponse.completed(response));
     } catch (e) {
-      applyCouponSink.add(APIResponse.error(_extractErrorMessage(e)));
+      if (e.toString().contains('Unauthorised')) {
+        applyCouponSink.add(APIResponse.error("Unauthorised. Session is expired."));
+      }
+      else {
+        applyCouponSink.add(APIResponse.error(_extractErrorMessage(e)));
+      }
       if (kDebugMode) print("Exception in applyCouponToOrder: $e");
     }
   }
@@ -652,7 +796,12 @@ class OrderBloc { // Build #1.0.25 - added by naveen
       ///uncomment below line and comment above to test error scenario from the code level
       // updateOrderSink.add(APIResponse.error("Error: Order Status changing to status \'$status\'"));
     } catch (e, s) {
-      updateOrderSink.add(APIResponse.error("Error: Order Status changing to status \'$status\'")); //Build #1.0.84
+      if (e.toString().contains('Unauthorised')) {
+        changeOrderStatusSink.add(APIResponse.error("Unauthorised. Session is expired."));
+      }
+      else {
+        changeOrderStatusSink.add(APIResponse.error("Error: Order Status changing to status \'$status\'")); //Build #1.0.84
+      }
       if (kDebugMode) print("Exception in changeOrderStatus: $e, Stack: $s");
     }
   }
@@ -732,6 +881,10 @@ class OrderBloc { // Build #1.0.25 - added by naveen
           AppDBConst.orderShipping: double.tryParse(response.shippingTotal) ?? 0.0,
           AppDBConst.merchantDiscount: merchantDiscount,
           AppDBConst.merchantDiscountIds: merchantDiscountIds,
+          AppDBConst.orderAgeRestricted: response.metaData.firstWhere(
+                (meta) => meta.key == TextConstants.ageRestrictedKey,
+            orElse: () => model.MetaData(id: 0, key: '', value: 'false'),
+          ).value.toString(),
         },
         where: '${AppDBConst.orderServerId} = ?',
         whereArgs: [orderId],
@@ -766,24 +919,41 @@ class OrderBloc { // Build #1.0.25 - added by naveen
           print("#### OrderBloc - deleteOrderItem: variationName $variationName, variationCount: $variationCount, combo: $combo, salesPrice: $salesPrice, regularPrice: $regularPrice, unitPrice: $unitPrice");
         }
 
-        await orderHelper.addItemToOrder(
-          lineItem.id,
-          lineItem.name,
-          lineItem.image.src ?? '',
-          itemPrice,
-          lineItem.quantity,
-          lineItem.sku ?? '',
-          orderId,
-          productId: lineItem.productId,
-          variationId: lineItem.variationId,
-          type: isCustomItem ? ItemType.customProduct.value : ItemType.product.value,
-          variationName: variationName,
-          variationCount: variationCount,
-          combo: combo,
-          salesPrice: salesPrice,
-          regularPrice: regularPrice,
-          unitPrice: unitPrice,
-        );
+        if ((lineItem.name == TextConstants.payout)) {  /// Build #1.0.205: payout is added as product so while updating order table check here as well
+          if (kDebugMode) {
+            print("#### OrderBloc - Adding payout item: id: ${response.lineItems!.last.id}, total: ${response.lineItems!.last.total}");
+          }
+          await orderHelper.addItemToOrder(
+            lineItem.id,
+            lineItem.name ?? '',
+            'assets/svg/payout.svg',
+            double.parse(lineItem.total ?? '0.0'),
+            1,
+            '',
+            orderId,
+            type: ItemType.payout.value,
+          );
+        } else {
+          await orderHelper.addItemToOrder(
+            lineItem.id,
+            lineItem.name,
+            lineItem.image.src ?? '',
+            itemPrice,
+            lineItem.quantity,
+            lineItem.sku ?? '',
+            orderId,
+            productId: lineItem.productId,
+            variationId: lineItem.variationId,
+            type: isCustomItem ? ItemType.customProduct.value : ItemType.product
+                .value,
+            variationName: variationName,
+            variationCount: variationCount,
+            combo: combo,
+            salesPrice: salesPrice,
+            regularPrice: regularPrice,
+            unitPrice: unitPrice,
+          );
+        }
       }
 
       // Added fee lines
@@ -829,11 +999,15 @@ class OrderBloc { // Build #1.0.25 - added by naveen
           print("#### OrderBloc - deleteOrderItem: Final items in DB - orderId: $orderId, productId: ${item[AppDBConst.itemProductId]}, variationId: ${item[AppDBConst.itemVariationId]}, itemId: ${item[AppDBConst.itemServerId]}");
         }
       }
-
       await CustomerDisplayHelper.updateCustomerDisplay(orderId);
       deleteOrderItemSink.add(APIResponse.completed(response));
     } catch (e) {
-      deleteOrderItemSink.add(APIResponse.error(_extractErrorMessage(e)));
+      if (e.toString().contains('Unauthorised')) {
+        deleteOrderItemSink.add(APIResponse.error("Unauthorised. Session is expired."));
+      }
+      else {
+        deleteOrderItemSink.add(APIResponse.error(_extractErrorMessage(e)));
+      }
       if (kDebugMode) print("Exception in deleteOrderItem: $e");
     }
   }
@@ -857,7 +1031,12 @@ class OrderBloc { // Build #1.0.25 - added by naveen
         applyDiscountSink.add(APIResponse.error(discountResponse.message.isNotEmpty ? discountResponse.message : "Failed to apply discount"));
       }
     } catch (e) {
-      addPayoutSink.add(APIResponse.error(_extractErrorMessage(e))); // Build #1.0.80
+      if (e.toString().contains('Unauthorised')) {
+        applyDiscountSink.add(APIResponse.error("Unauthorised. Session is expired."));
+      }
+      else {
+        applyDiscountSink.add(APIResponse.error(_extractErrorMessage(e))); // Build #1.0.80
+      }
       if (kDebugMode) print("ProductBloc - Exception in applyDiscount: $e");
     }
   }
@@ -886,9 +1065,20 @@ class OrderBloc { // Build #1.0.25 - added by naveen
         print("OrderBloc - New total: ${response.total}");
         print("OrderBloc - Fee lines count: ${response.feeLines?.length ?? 0}");
       }
+      //Build #1.0.237 : Fixed RE-OPEN Issue [SCRUM - 376] -> Failed to remove "Payout" from order panel
+      OrderHelper orderHelper = OrderHelper();
+      final serverOrderId = OrderHelper().activeOrderId;
+      if (kDebugMode) {
+        print("#### addPayout serverOrderId is $serverOrderId");
+      }
+
+      if(serverOrderId == null){
+        return;
+      }
+      // Clear existing items for this order
+      await orderHelper.clearOrderItems(serverOrderId);
 
       // Build #1.0.92: Added payout/discount to DB after successful API response
-      OrderHelper orderHelper = OrderHelper();
       final db = await DBHelper.instance.database;
       double merchantDiscount = 0.0;
       var merchantDiscountIds = "";
@@ -901,21 +1091,22 @@ class OrderBloc { // Build #1.0.25 - added by naveen
             merchantDiscount += double.parse(feeLine.total ?? '0.0').abs();
             merchantDiscountIds = "$merchantDiscountIds,${feeLine.id}";
           }
-          if (isPayOut && (feeLine.name == TextConstants.payout)) {  /// Build #1.0.138: check with 'AND' condition to check correctly , otherwise some times discount also adding into orderPanel as item issue
-            if (kDebugMode) {
-              print("#### OrderBloc - Adding payout item: id: ${response.feeLines!.last.id}, total: ${response.feeLines!.last.total}");
-            }
-            await orderHelper.addItemToOrder(
-              feeLine.id,
-              feeLine.name ?? '',
-              'assets/svg/payout.svg',
-              double.parse(feeLine.total ?? '0.0'),
-              1,
-              '',
-              orderId,
-              type: ItemType.payout.value,
-            );
-          }
+          /// NO NEED TO CHECK PAYOUT CODE IN FEE LINE
+          // if (isPayOut && (feeLine.name == TextConstants.payout)) {  /// Build #1.0.138: check with 'AND' condition to check correctly , otherwise some times discount also adding into orderPanel as item issue
+          //   if (kDebugMode) {
+          //     print("#### OrderBloc - Adding payout item: id: ${response.feeLines!.last.id}, total: ${response.feeLines!.last.total}");
+          //   }
+          //   await orderHelper.addItemToOrder(
+          //     feeLine.id,
+          //     feeLine.name ?? '',
+          //     'assets/svg/payout.svg',
+          //     double.parse(feeLine.total ?? '0.0'),
+          //     1,
+          //     '',
+          //     orderId,
+          //     type: ItemType.payout.value,
+          //   );
+          // }
         }
         if (kDebugMode) {
           print("#### OrderBloc - addPayout Setting merchantDiscount to $merchantDiscount AND discountsIds to $merchantDiscountIds for orderId $orderId");
@@ -936,15 +1127,106 @@ class OrderBloc { // Build #1.0.25 - added by naveen
           AppDBConst.orderShipping: double.tryParse(response.shippingTotal) ?? 0.0,
           AppDBConst.merchantDiscount: merchantDiscount,
           AppDBConst.merchantDiscountIds: merchantDiscountIds,
+          AppDBConst.orderAgeRestricted: response.metaData.firstWhere( //Build #1.0.234: Saving Age Restricted value in order table
+                (meta) => meta.key == TextConstants.ageRestrictedKey,
+            orElse: () => model.MetaData(id: 0, key: '', value: 'false'),
+          ).value.toString(),
         },
         where: '${AppDBConst.orderServerId} = ?',
         whereArgs: [orderId],
       );
+
+      //Build #1.0.237 : Fixed RE-OPEN Issue [SCRUM - 376] -> Failed to remove "Payout" from order panel
+      // Added updated line items from the API response
+      for (var lineItem in response.lineItems) {
+        final String variationName = lineItem.productVariationData?.metaData?.firstWhere(
+              (e) => e.key == "custom_name",
+          orElse: () => model.MetaData(id: 0, key: "", value: ""),
+        ).value ?? "";
+        final int variationCount = lineItem.productData.variations?.length ?? 0;
+        final String combo = lineItem.metaData.firstWhere(
+              (e) => e.value.contains('Combo'),
+          orElse: () => model.MetaData(id: 0, key: "", value: ""),
+        ).value.split(' ').first ?? "";
+        final bool hasVariations = lineItem.productData.variations != null && lineItem.productData.variations!.isNotEmpty;
+        final double salesPrice = hasVariations
+            ? double.tryParse(lineItem.productVariationData?.salePrice?.isNotEmpty == true ? lineItem.productVariationData!.salePrice! : "0.0") ?? 0.0
+            : double.tryParse(lineItem.productData.salePrice?.isNotEmpty == true ? lineItem.productData.salePrice! : "0.0") ?? 0.0;
+        final double regularPrice = hasVariations
+            ? double.tryParse(lineItem.productVariationData?.regularPrice?.isNotEmpty == true ? lineItem.productVariationData!.regularPrice! : "0.0") ?? 0.0
+            : double.tryParse(lineItem.productData.regularPrice?.isNotEmpty == true ? lineItem.productData.regularPrice! : "0.0") ?? 0.0;
+        final double unitPrice = hasVariations
+            ? double.tryParse(lineItem.productVariationData?.price?.isNotEmpty == true ? lineItem.productVariationData!.price! : "0.0") ?? 0.0
+            : double.tryParse(lineItem.productData.price?.isNotEmpty == true ? lineItem.productData.price! : "0.0") ?? 0.0;
+        final double itemPrice = double.tryParse(lineItem.subtotal.isNotEmpty == true ? lineItem.subtotal : '0.0') ?? 0.0;
+        bool isCustomItem = lineItem.productData.tags.any((tag) => tag.name == TextConstants.customItem);
+
+        if (kDebugMode) {
+          print("#### OrderBloc - addPayout: Adding lineItem ${lineItem.id}, orderId: $orderId, ProductId: ${lineItem.productId}, VariationId: ${lineItem.variationId}");
+          print("#### OrderBloc - addPayout: variationName $variationName, variationCount: $variationCount, combo: $combo, salesPrice: $salesPrice, regularPrice: $regularPrice, unitPrice: $unitPrice");
+        }
+
+        if ((lineItem.name == TextConstants.payout)) {  /// Build #1.0.205: payout is added as product so while updating order table check here as well
+          if (kDebugMode) {
+            print("#### OrderBloc - addPayout: id: ${response.lineItems!.last.id}, total: ${response.lineItems!.last.total}");
+          }
+          await orderHelper.addItemToOrder(
+            lineItem.id,
+            lineItem.name ?? '',
+            'assets/svg/payout.svg',
+            double.parse(lineItem.total ?? '0.0'),
+            1,
+            '',
+            orderId,
+            type: ItemType.payout.value,
+          );
+        } else {
+          await orderHelper.addItemToOrder(
+            lineItem.id,
+            lineItem.name,
+            lineItem.image.src ?? '',
+            itemPrice,
+            lineItem.quantity,
+            lineItem.sku ?? '',
+            orderId,
+            productId: lineItem.productId,
+            variationId: lineItem.variationId,
+            type: isCustomItem ? ItemType.customProduct.value : ItemType.product.value,
+            variationName: variationName,
+            variationCount: variationCount,
+            combo: combo,
+            salesPrice: salesPrice,
+            regularPrice: regularPrice,
+            unitPrice: unitPrice,
+          );
+        }
+      }
+
+      for (var couponLine in response.couponLines) {
+        if (kDebugMode) {
+          print("#### OrderBloc - addPayout: id: ${couponLine.id}, code: ${couponLine.code}, amount: ${couponLine.nominalAmount}");
+        }
+        await orderHelper.addItemToOrder(
+          couponLine.id,
+          couponLine.code ?? '',
+          'assets/svg/coupon.svg',
+          double.parse(couponLine.nominalAmount?.toString() ?? '0.0'),
+          1,
+          '',
+          orderId,
+          type: ItemType.coupon.value,
+        );
+      }
       await CustomerDisplayHelper.updateCustomerDisplay(orderId);
 
       addPayoutSink.add(APIResponse.completed(response));
     } catch (e, s) {
-      addPayoutSink.add(APIResponse.error(_extractErrorMessage(e)));
+      if (e.toString().contains('Unauthorised')) {
+        addPayoutSink.add(APIResponse.error("Unauthorised. Session is expired."));
+      }
+      else {
+        addPayoutSink.add(APIResponse.error(_extractErrorMessage(e)));
+      }
       if (kDebugMode) print("Exception in addPayout: $e, Stack: $s");
     }
   }
@@ -1007,8 +1289,14 @@ class OrderBloc { // Build #1.0.25 - added by naveen
           AppDBConst.orderDiscount: double.tryParse(response.discountTotal) ?? 0.0,
           AppDBConst.orderTax: double.tryParse(response.totalTax) ?? 0.0,
           AppDBConst.orderShipping: double.tryParse(response.shippingTotal) ?? 0.0,
-          AppDBConst.merchantDiscount: merchantDiscount,
-          AppDBConst.merchantDiscountIds: merchantDiscountIds,
+          AppDBConst.orderAgeRestricted: response.metaData.firstWhere( //Build #1.0.234: Saving Age Restricted value in order table
+                (meta) => meta.key == TextConstants.ageRestrictedKey,
+            orElse: () => model.MetaData(id: 0, key: '', value: 'false'),
+          ).value.toString(),
+          ///In this API update we do not need to add merchant discount update as Payout is coming from line item instead of fee lines
+          ///So comment below line, as they will remove merchant discount otherwise from UI
+          // AppDBConst.merchantDiscount: merchantDiscount,
+          // AppDBConst.merchantDiscountIds: merchantDiscountIds,
         },
         where: '${AppDBConst.orderServerId} = ?',
         whereArgs: [orderId],
@@ -1017,7 +1305,12 @@ class OrderBloc { // Build #1.0.25 - added by naveen
 
       addPayoutSink.add(APIResponse.completed(response));
     } catch (e, s) {
-      addPayoutSink.add(APIResponse.error(_extractErrorMessage(e)));
+      if (e.toString().contains('Unauthorised')) {
+        addPayoutSink.add(APIResponse.error("Unauthorised. Session is expired."));
+      }
+      else {
+        addPayoutSink.add(APIResponse.error(_extractErrorMessage(e)));
+      }
       if (kDebugMode) print("Exception in addPayout: $e, Stack: $s");
     }
   }
@@ -1090,6 +1383,10 @@ class OrderBloc { // Build #1.0.25 - added by naveen
           AppDBConst.orderShipping: double.tryParse(response.shippingTotal) ?? 0.0,
           AppDBConst.merchantDiscount: merchantDiscount, // Reset merchant discount
           AppDBConst.merchantDiscountIds: merchantDiscountIds,
+          AppDBConst.orderAgeRestricted: response.metaData.firstWhere( //Build #1.0.234: Saving Age Restricted value in order table
+                (meta) => meta.key == TextConstants.ageRestrictedKey,
+            orElse: () => model.MetaData(id: 0, key: '', value: 'false'),
+          ).value.toString(),
         },
         where: '${AppDBConst.orderServerId} = ?',
         whereArgs: [orderId],
@@ -1137,6 +1434,21 @@ class OrderBloc { // Build #1.0.25 - added by naveen
           print("#### OrderBloc - removeFeeLine: variationName $variationName, variationCount: $variationCount, combo: $combo, salesPrice: $salesPrice, regularPrice: $regularPrice, unitPrice: $unitPrice");
         }
 
+        if ((lineItem.name == TextConstants.payout)) {  /// Build #1.0.205: payout is added as product so while updating order table check here as well
+          if (kDebugMode) {
+            print("#### OrderBloc - Adding payout item: id: ${response.lineItems!.last.id}, total: ${response.lineItems!.last.total}");
+          }
+          await orderHelper.addItemToOrder(
+            lineItem.id,
+            lineItem.name ?? '',
+            'assets/svg/payout.svg',
+            double.parse(lineItem.total ?? '0.0'),
+            1,
+            '',
+            orderId,
+            type: ItemType.payout.value,
+          );
+        } else {
         await orderHelper.addItemToOrder(
           lineItem.id,
           lineItem.name,
@@ -1155,6 +1467,7 @@ class OrderBloc { // Build #1.0.25 - added by naveen
           regularPrice: regularPrice,
           unitPrice: unitPrice,
         );
+        }
       }
 
       // Added remaining fee lines
@@ -1204,7 +1517,12 @@ class OrderBloc { // Build #1.0.25 - added by naveen
 
       removePayoutSink.add(APIResponse.completed(response));
     } catch (e, s) {
-      removePayoutSink.add(APIResponse.error(_extractErrorMessage(e)));
+      if (e.toString().contains('Unauthorised')) {
+        removePayoutSink.add(APIResponse.error("Unauthorised. Session is expired."));
+      }
+      else {
+        removePayoutSink.add(APIResponse.error(_extractErrorMessage(e)));
+      }
       if (kDebugMode) print("Exception in removeFeeLine: $e, Stack: $s");
     }
   }
@@ -1279,6 +1597,10 @@ class OrderBloc { // Build #1.0.25 - added by naveen
           AppDBConst.orderShipping: double.tryParse(response.shippingTotal) ?? 0.0,
           AppDBConst.merchantDiscount: merchantDiscount, // Reset merchant discount
           AppDBConst.merchantDiscountIds: merchantDiscountIds,
+          AppDBConst.orderAgeRestricted: response.metaData.firstWhere( //Build #1.0.234: Saving Age Restricted value in order table
+                (meta) => meta.key == TextConstants.ageRestrictedKey,
+            orElse: () => model.MetaData(id: 0, key: '', value: 'false'),
+          ).value.toString(),
         },
         where: '${AppDBConst.orderServerId} = ?',
         whereArgs: [orderId],
@@ -1328,24 +1650,40 @@ class OrderBloc { // Build #1.0.25 - added by naveen
           print("#### OrderBloc - removeFeeLines: variationName $variationName, variationCount: $variationCount, combo: $combo, salesPrice: $salesPrice, regularPrice: $regularPrice, unitPrice: $unitPrice");
         }
 
-        await orderHelper.addItemToOrder(
-          lineItem.id,
-          lineItem.name,
-          lineItem.image.src ?? '',
-          itemPrice,
-          lineItem.quantity,
-          lineItem.sku ?? '',
-          orderId,
-          productId: lineItem.productId,
-          variationId: lineItem.variationId,
-          type: isCustomItem ? ItemType.customProduct.value : ItemType.product.value,
-          variationName: variationName,
-          variationCount: variationCount,
-          combo: combo,
-          salesPrice: salesPrice,
-          regularPrice: regularPrice,
-          unitPrice: unitPrice,
-        );
+        if ((lineItem.name == TextConstants.payout)) {  /// Build #1.0.205: payout is added as product so while updating order table check here as well
+          if (kDebugMode) {
+            print("#### OrderBloc - Adding payout item: id: ${response.lineItems!.last.id}, total: ${response.lineItems!.last.total}");
+          }
+          await orderHelper.addItemToOrder(
+            lineItem.id,
+            lineItem.name ?? '',
+            'assets/svg/payout.svg',
+            double.parse(lineItem.total ?? '0.0'),
+            1,
+            '',
+            orderId,
+            type: ItemType.payout.value,
+          );
+        } else {
+          await orderHelper.addItemToOrder(
+            lineItem.id,
+            lineItem.name,
+            lineItem.image.src ?? '',
+            itemPrice,
+            lineItem.quantity,
+            lineItem.sku ?? '',
+            orderId,
+            productId: lineItem.productId,
+            variationId: lineItem.variationId,
+            type: isCustomItem ? ItemType.customProduct.value : ItemType.product.value,
+            variationName: variationName,
+            variationCount: variationCount,
+            combo: combo,
+            salesPrice: salesPrice,
+            regularPrice: regularPrice,
+            unitPrice: unitPrice,
+          );
+        }
       }
 
       // Add remaining fee lines
@@ -1392,9 +1730,15 @@ class OrderBloc { // Build #1.0.25 - added by naveen
         }
       }
       await CustomerDisplayHelper.updateCustomerDisplay(orderId);
+
       removePayoutSink.add(APIResponse.completed(response));
     } catch (e, s) {
-      removePayoutSink.add(APIResponse.error(_extractErrorMessage(e)));
+      if (e.toString().contains('Unauthorised')) {
+        removePayoutSink.add(APIResponse.error("Unauthorised. Session is expired."));
+      }
+      else {
+        removePayoutSink.add(APIResponse.error(_extractErrorMessage(e)));
+      }
       if (kDebugMode) print("Exception in removeFeeLines: $e, Stack: $s");
     }
   }
@@ -1464,6 +1808,10 @@ class OrderBloc { // Build #1.0.25 - added by naveen
           AppDBConst.orderShipping: double.tryParse(response.shippingTotal) ?? 0.0,
           AppDBConst.merchantDiscount: merchantDiscount,
           AppDBConst.merchantDiscountIds: merchantDiscountIds,
+          AppDBConst.orderAgeRestricted: response.metaData.firstWhere( //Build #1.0.234: Saving Age Restricted value in order table
+                (meta) => meta.key == TextConstants.ageRestrictedKey,
+            orElse: () => model.MetaData(id: 0, key: '', value: 'false'),
+          ).value.toString(),
         },
         where: '${AppDBConst.orderServerId} = ?',
         whereArgs: [orderId],
@@ -1511,24 +1859,40 @@ class OrderBloc { // Build #1.0.25 - added by naveen
           print("#### OrderBloc - removeCoupon: variationName $variationName, variationCount: $variationCount, combo: $combo, salesPrice: $salesPrice, regularPrice: $regularPrice, unitPrice: $unitPrice");
         }
 
-        await orderHelper.addItemToOrder(
-          lineItem.id,
-          lineItem.name,
-          lineItem.image.src ?? '',
-          itemPrice,
-          lineItem.quantity,
-          lineItem.sku ?? '',
-          orderId,
-          productId: lineItem.productId,
-          variationId: lineItem.variationId,
-          type: isCustomItem ? ItemType.customProduct.value : ItemType.product.value,
-          variationName: variationName,
-          variationCount: variationCount,
-          combo: combo,
-          salesPrice: salesPrice,
-          regularPrice: regularPrice,
-          unitPrice: unitPrice,
-        );
+        if ((lineItem.name == TextConstants.payout)) {  /// Build #1.0.205: payout is added as product so while updating order table check here as well
+          if (kDebugMode) {
+            print("#### OrderBloc - Adding payout item: id: ${response.lineItems!.last.id}, total: ${response.lineItems!.last.total}");
+          }
+          await orderHelper.addItemToOrder(
+            lineItem.id,
+            lineItem.name ?? '',
+            'assets/svg/payout.svg',
+            double.parse(lineItem.total ?? '0.0'),
+            1,
+            '',
+            orderId,
+            type: ItemType.payout.value,
+          );
+        } else {
+          await orderHelper.addItemToOrder(
+            lineItem.id,
+            lineItem.name,
+            lineItem.image.src ?? '',
+            itemPrice,
+            lineItem.quantity,
+            lineItem.sku ?? '',
+            orderId,
+            productId: lineItem.productId,
+            variationId: lineItem.variationId,
+            type: isCustomItem ? ItemType.customProduct.value : ItemType.product.value,
+            variationName: variationName,
+            variationCount: variationCount,
+            combo: combo,
+            salesPrice: salesPrice,
+            regularPrice: regularPrice,
+            unitPrice: unitPrice,
+          );
+        }
       }
 
       // Add fee lines
@@ -1578,7 +1942,12 @@ class OrderBloc { // Build #1.0.25 - added by naveen
 
       removeCouponSink.add(APIResponse.completed(response));
     } catch (e) {
-      removeCouponSink.add(APIResponse.error(_extractErrorMessage(e)));
+      if (e.toString().contains('Unauthorised')) {
+        removeCouponSink.add(APIResponse.error("Unauthorised. Session is expired."));
+      }
+      else {
+        removeCouponSink.add(APIResponse.error(_extractErrorMessage(e)));
+      }
       if (kDebugMode) print("Exception in removeCoupon: $e");
     }
   }

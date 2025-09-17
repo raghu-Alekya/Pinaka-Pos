@@ -235,6 +235,7 @@ import '../../Blocs/FastKey/fastkey_product_bloc.dart';
 import '../../Repositories/FastKey/fastkey_product_repository.dart';
 import '../../Utilities/shimmer_effect.dart';
 import '../../Database/db_helper.dart';
+import '../Auth/login_screen.dart';
 
 class FastKeyScreen extends StatefulWidget {
   final int? lastSelectedIndex;
@@ -267,6 +268,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
   int? _fastKeyTabId;
   List<int?> reorderedIndices = [];
   int? selectedItemIndex;
+  bool? enableIcons; // Build #1.0.204: Added this to track grid item delete/cancel icon visibility
   File? _pickedImage;
   final ImagePicker _picker = ImagePicker();
   final OrderHelper orderHelper = OrderHelper();
@@ -343,6 +345,22 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
     }
   }
 
+  // Build #1.0.204: Added this to track grid item delete/cancel icon visibility
+  void _onLongPress(int itemIndex) {
+    setState(() {
+      enableIcons = true; // Show icons
+      selectedItemIndex = itemIndex; // Track the long-pressed item
+    });
+  }
+
+  void _onCancelReorder() { // Build #1.0.204
+    setState(() {
+      reorderedIndices = List.filled(fastKeyProductItems.length, null);
+      enableIcons = false; // Hide icons
+      selectedItemIndex = null; // Clear selection
+    });
+  }
+
   void _listenProductItemSearch() {
     if (_productSearchController.text.isEmpty) {
       _searchTextGridKey.currentState?.resetList();
@@ -383,10 +401,36 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
         }
         _fastKeyBloc.fetchFastKeysByUser(userId ?? 0);
         await _fastKeyBloc.getFastKeysStream.listen((onData) async {
-          if (onData.data != null) {
             if (onData.status == Status.ERROR) {
-              _fastKeyBloc.getFastKeysSink.add(APIResponse.error(TextConstants.retryText));
+              if (onData.message!.contains('Unauthorised')) {
+                if (kDebugMode) {
+                  print("Fast key 1 ---- Unauthorised : ${onData.message!}");
+                }
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) {
+                    Navigator.pushReplacement(context,
+                        MaterialPageRoute(builder: (context) => LoginScreen()));
+
+                    if (kDebugMode) {
+                      print("message 1--- ${onData.message}");
+                    }
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                            "Unauthorised. Session is expired on this device."),
+                        backgroundColor: Colors.red,
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  }
+                });
+              }
+              else {
+                _fastKeyBloc.getFastKeysSink.add(
+                    APIResponse.error(TextConstants.retryText));
+              }
             } else if (onData.status == Status.COMPLETED) {
+              if (onData.data != null) {
               final fastKeysResponse = onData.data!;
               if (fastKeysResponse.status != "success") {
                 _fastKeyBloc.getFastKeysSink.add(APIResponse.error(TextConstants.retryText));
@@ -488,18 +532,47 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
           print("### FastKeyScreen: Updated UI, selected tab ID: $_fastKeyTabId, index: $_selectedCategoryIndex");
         }
       });
-    } else if(response.status == Status.ERROR){ // Build #1.0.189: Only Show when it comes response as error
-      // Handle API error
-      if (kDebugMode) {
-        print("### FastKeyScreen: API createFastKey failed: ${response.message}");
+    }
+    else if(response.status == Status.ERROR){// Build #1.0.189: Only Show when it comes response as error
+      if (response.message!.contains('Unauthorised')) {
+        if (kDebugMode) {
+          print("Fast key 2---- Unauthorised : ${response.message!}");
+        }
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            Navigator.pushReplacement(context,
+                MaterialPageRoute(builder: (context) => LoginScreen()));
+
+            if (kDebugMode) {
+              print("message --- ${response.message}");
+            }
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                    "Unauthorised. Session is expired on this device."),
+                backgroundColor: Colors.red,
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
+        });
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(response.message ?? TextConstants.failedToCreateFastKey), // Build #1.0.189: Updated from api response - Proper error not showing while getting error in create fast key
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 4),
-        ),
-      );
+      else {
+        // Handle API error
+        if (kDebugMode) {
+          print("### FastKeyScreen: API createFastKey failed: ${response
+              .message}");
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                response.message ?? TextConstants.failedToCreateFastKey),
+            // Build #1.0.189: Updated from api response - Proper error not showing while getting error in create fast key
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
     }
   }
 
@@ -526,10 +599,36 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
 
     await _fastKeyBloc.deleteFastKeyStream.firstWhere((response) => response.status == Status.COMPLETED || response.status == Status.ERROR).then((response) async {
       if (response.status == Status.ERROR) {
-        if (kDebugMode) {
-          print("### FastKeyScreen: API deleteFastKey failed: ${response.message}");
+        if (response.message!.contains('Unauthorised')) {
+          if (kDebugMode) {
+            print("Fast key 3 ---- Unauthorised : ${response.message!}");
+          }
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              Navigator.pushReplacement(context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()));
+
+              if (kDebugMode) {
+                print("message --- ${response.message}");
+              }
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                      "Unauthorised. Session is expired on this device."),
+                  backgroundColor: Colors.red,
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            }
+          });
         }
-        await _loadFastKeysTabs(); // Revert UI if server deletion fails
+        else {
+          if (kDebugMode) {
+            print("### FastKeyScreen: API deleteFastKey failed: ${response
+                .message}");
+          }
+        }
+          await _loadFastKeysTabs(); // Revert UI if server deletion fails
       }
     });
   }
@@ -702,24 +801,52 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
         subscription?.cancel();
         return;
       }
+      print("response ---- ${response.status}");
       if (response.status == Status.COMPLETED) {
         if (kDebugMode) {
           print("#### FastKeyScreen: addProducts Status COMPLETED");
         }
+        setState(() => isAddingItemLoading = false); // Build #1.0.204: Added missed loader on "Add"  button of search product dialouge after tap on add
         // Reload items using existing method
         _refreshFastKeyTabItems();
         subscription?.cancel();
       } else if (response.status == Status.ERROR) {
-        if (kDebugMode) {
-          print("Failed to add item to fastkey: ${response.message}");
+        if (response.message!.contains('Unauthorised')) {
+          if (kDebugMode) {
+            print("Fast key 4 ---- Unauthorised : ${response.message!}");
+          }
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              Navigator.pushReplacement(context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()));
+
+              if (kDebugMode) {
+                print("message --- ${response.message}");
+              }
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                      "Unauthorised. Session is expired on this device."),
+                  backgroundColor: Colors.red,
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            }
+          });
         }
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(TextConstants.failedToAddItemToFastKey), // Build #1.0.144
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 2),
-          ),
-        );
+        else {
+          if (kDebugMode) {
+            print("Failed to add item to fastkey: ${response.message}");
+          }
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(TextConstants.failedToAddItemToFastKey),
+              // Build #1.0.144
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
         subscription?.cancel();
       } else if (response.status == Status.LOADING) {
         if (kDebugMode) {
@@ -765,16 +892,43 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
         );
         subscription?.cancel();
       } else if (response.status == Status.ERROR) {
-        if (kDebugMode) {
-          print("### FastKeyScreen: Failed to delete product: ${response.message}");
+        if (response.message!.contains('Unauthorised')) {
+          if (kDebugMode) {
+            print("Fast key 5---- Unauthorised : ${response.message!}");
+          }
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              Navigator.pushReplacement(context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()));
+
+              if (kDebugMode) {
+                print("message --- ${response.message}");
+              }
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                      "Unauthorised. Session is expired on this device."),
+                  backgroundColor: Colors.red,
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            }
+          });
         }
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(TextConstants.failedToDeleteProductFromFastKey), // Build #1.0.144
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 2),
-          ),
-        );
+        else {
+          if (kDebugMode) {
+            print("### FastKeyScreen: Failed to delete product: ${response
+                .message}");
+          }
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(TextConstants.failedToDeleteProductFromFastKey),
+              // Build #1.0.144
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
         subscription?.cancel();
       }
     });
@@ -864,14 +1018,43 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
             _refreshOrderList();
             subscription?.cancel();
           } else if (response.status == Status.ERROR) {
-            if (kDebugMode) print("Failed to add item to order: ${response.message}");
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(TextConstants.failedToAddItemToOrder), // Build #1.0.144
-                backgroundColor: Colors.red,
-                duration: const Duration(seconds: 2),
-              ),
-            );
+            if (Navigator.canPop(context)) { // Build #1.0.197: Fixed [SCRUM - 345] -> Screen blackout when adding item to cart
+              Navigator.pop(context);
+            }
+            if (response.message!.contains('Unauthorised')) {
+              if (kDebugMode) {
+                print("Fast key 6---- Unauthorised : ${response.message!}");
+              }
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  Navigator.pushReplacement(context,
+                      MaterialPageRoute(builder: (context) => LoginScreen()));
+
+                  if (kDebugMode) {
+                    print("message --- ${response.message}");
+                  }
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                          "Unauthorised. Session is expired on this device."),
+                      backgroundColor: Colors.red,
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                }
+              });
+            }
+            else {
+              if (kDebugMode) print("Failed to add item to order: ${response.message}");
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(response.message ?? TextConstants.failedToAddItemToOrder),
+                  // Build #1.0.144
+                  backgroundColor: Colors.red,
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            }
             subscription?.cancel();
           }
         });
@@ -979,14 +1162,39 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
           _refreshOrderList();
           subscription?.cancel();
         } else if (response.status == Status.ERROR) {
-          if (kDebugMode) print("Failed to create order: ${response.message}");
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(TextConstants.failedToCreateOrder), // Build #1.0.144
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 2),
-            ),
-          );
+          if (response.message!.contains('Unauthorised')) {
+            if (kDebugMode) {
+              print("Fast key 7 ---- Unauthorised : ${response.message!}");
+            }
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()));
+
+                if (kDebugMode) {
+                  print("message --- ${response.message}");
+                }
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                        "Unauthorised. Session is expired on this device."),
+                    backgroundColor: Colors.red,
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              }
+            });
+          }
+          else {
+            if (kDebugMode) print("Failed to create order: ${response.message}");
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(TextConstants.failedToCreateOrder),
+                // Build #1.0.144
+                backgroundColor: Colors.red,
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          }
           subscription?.cancel();
         }
       });
@@ -1017,6 +1225,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
     var size = MediaQuery.of(context).size;
     searchController.clear();
     selectedProduct = null;
+    bool errorShown = false;
     searchResults.clear();
     final themeHelper = Provider.of<ThemeNotifier>(context, listen: false);
     final productBloc = ProductBloc(ProductRepository());
@@ -1102,7 +1311,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                                             subtitle: Text('${TextConstants.currencySymbol}${double.tryParse(product.price.toString())?.toStringAsFixed(2) ?? "0.00"}'),
                                             onTap: () {
                                               setStateDialog(() {
-                                                var tag = product.tags?.firstWhere((element) => element.name == "Age Restricted", orElse: () => SKU.Tags());
+                                                var tag = product.tags?.firstWhere((element) => element.name == TextConstants.age_restricted, orElse: () => SKU.Tags());
                                                 if (kDebugMode) {
                                                   print("FaskKey setStateDialog hasAgeRestriction tag = ${tag?.id}, ${tag?.name}, ${tag?.slug}");
                                                   print("FaskKey setStateDialog ${product.name ?? 'Unknown'}");
@@ -1126,9 +1335,44 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                                   ),
                                 );
                               case Status.ERROR:
-                                return Center(
-                                  child: Text(snapshot.data!.message ?? "Error loading products"),
-                                );
+                                if (snapshot.data!.message!.contains('Unauthorised')) {
+                                  if (!errorShown) { // Set the flag to true IMMEDIATELY to prevent this block from running again
+                                    errorShown = true;
+                                    if (kDebugMode) {
+                                      print(
+                                          "Fast key 8 ---- Unauthorised : ${snapshot.data!.message!}");
+                                    }
+                                    WidgetsBinding.instance
+                                        .addPostFrameCallback((_) {
+                                      if (mounted) {
+                                        Navigator.pushReplacement(
+                                            context,
+                                            MaterialPageRoute(
+                                                builder: (context) =>
+                                                    LoginScreen()));
+
+                                        if (kDebugMode) {
+                                          print(
+                                              "message 2  --- ${snapshot.data!.message}");
+                                        }
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                                "Unauthorised. Session is expired on this device."),
+                                            backgroundColor: Colors.red,
+                                            duration: Duration(seconds: 2),
+                                          ),
+                                        );
+                                      }
+                                    });
+                                  }
+                                } else {
+                                  return Center(
+                                    child: Text(snapshot.data!.message ??
+                                        "Error loading products"),
+                                  );
+                                }
                             }
                           }
                           return const SizedBox.shrink();
@@ -1148,8 +1392,10 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                 child: const Text(TextConstants.cancelText),
               ),
               TextButton( //Build #1.0.68 : updated code for exist item alert
-                onPressed: selectedProduct != null
+                onPressed: selectedProduct != null && !isAddingItemLoading // Add condition
                     ? () async {
+                  setStateDialog(() => isAddingItemLoading = true); // Build #1.0.204: Added missed loader on "Add"  button of search product dialog after tap on add
+
                   final existingItems = await fastKeyDBHelper.getFastKeyItems(_fastKeyTabId!);
                   if (kDebugMode) {
                     print("#### existingItems: $existingItems");
@@ -1169,6 +1415,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                     final tab = await fastKeyDBHelper.getFastKeyByServerTabId(_fastKeyTabId!); // Build #1.0.87
                     final tabName = tab.isNotEmpty ? tab.first[AppDBConst.fastKeyTabTitle] : 'Fast Key';
 
+                    setStateDialog(() => isAddingItemLoading = false); // Build #1.0.204: Added missed loader on "Add"  button of search product dialog after tap on add
                     // Show custom item alert with dismissal using parent context
                     await CustomDialog.showCustomItemAlert(
                       context, // Use parent context
@@ -1202,7 +1449,12 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                //    productBloc.dispose();
                 }
                     : null,
-                child: const Text(TextConstants.addText),
+                child: isAddingItemLoading
+                    ? SizedBox(
+                     width: 16,
+                     height: 16,
+                     child: CircularProgressIndicator(strokeWidth: 2), // Build #1.0.204: Added missed loader on "Add"  button of search product dialog after tap on add
+                 ) : Text(TextConstants.addText),
               ),
             ],
           );
@@ -1394,9 +1646,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                             decoration: InputDecoration(
                               hintText: TextConstants.categoryNameText,
                               hintStyle: TextStyle(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.grey[400],fontWeight: FontWeight.bold),
-                              errorText: (!isEditing &&
-                                  showError &&
-                                  nameController.text.isEmpty)
+                              errorText: (showError && nameController.text.trim().isEmpty)
                                   ? TextConstants.categoryNameReqText
                                   : null,
                               errorStyle:
@@ -1419,6 +1669,12 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                               contentPadding: EdgeInsets.symmetric(
                                   horizontal: 16, vertical: 12),
                             ),
+                            // Clear error when user starts typing
+                            onChanged: (value) {
+                              if (showError && value.trim().isNotEmpty) {
+                                setStateDialog(() => showError = false);
+                              }
+                            },
                           ),
                         ),
                       ],
@@ -1437,7 +1693,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                           child: TextButton(
                             onPressed: () {
                               nameController.clear();
-                              Navigator.pop(context); //Build #1.0.68: Close dialog on clear
+                              //Navigator.pop(context); //Build #1.0.68: Close dialog on clear, Updated Build #1.0.229; SCRUM-386
                             },
                             // => Navigator.pop(context),
                             style: TextButton.styleFrom(
@@ -1464,7 +1720,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                           width: 120, // Added fixed width
                           child: TextButton(
                             onPressed: () async {
-                              if (!isEditing && nameController.text.isEmpty) {
+                              if (nameController.text.trim().isEmpty) {
                                 setStateDialog(() => showError = true);
                                 return;
                               }
@@ -1475,7 +1731,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                                 }
                                 // Build #1.0.89: updateFastKey API call integrated
                                 _fastKeyBloc.updateFastKey(
-                                  title: nameController.text,
+                                  title: nameController.text.trim(), // Trim whitespace
                                   index: index+1,//backend uses non zero indexes to be passed so increase index to 1 onwards
                                   imageUrl: imagePath,
                                   fastKeyServerId: fastKeyTabs[index].fastkeyServerId,
@@ -1505,17 +1761,48 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                                       duration: const Duration(seconds: 2),
                                     ),
                                   );
-                                } else {
-                                  if (kDebugMode) {
-                                    print("### FastKeyScreen: API updateFastKey failed: ${response.message}");
+                                }
+                                else if(response.status == Status.ERROR){
+                                  setStateDialog(() =>isLoading = false);
+                                  if (response.message!.contains('Unauthorised')) {
+                                    if (kDebugMode) {
+                                      print("Fast key 9 ---- Unauthorised : ${response.message!}");
+                                    }
+                                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                                      if (mounted) {
+                                        Navigator.pushReplacement(context,
+                                            MaterialPageRoute(builder: (context) => LoginScreen()));
+
+                                        if (kDebugMode) {
+                                          print("message 9 --- ${response.message}");
+                                        }
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                                "Unauthorised. Session is expired on this device."),
+                                            backgroundColor: Colors.red,
+                                            duration: Duration(seconds: 2),
+                                          ),
+                                        );
+                                      }
+                                    });
                                   }
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(TextConstants.failedToUpdateFastKey), // Build #1.0.144
-                                      backgroundColor: Colors.red,
-                                      duration: const Duration(seconds: 2),
-                                    ),
-                                  );
+                                  else {
+                                    if (kDebugMode) {
+                                      print(
+                                          "### FastKeyScreen: API updateFastKey failed: ${response
+                                              .message}");
+                                    }
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(TextConstants
+                                            .failedToUpdateFastKey),
+                                        // Build #1.0.144
+                                        backgroundColor: Colors.red,
+                                        duration: const Duration(seconds: 2),
+                                      ),
+                                    );
+                                  }
                                 }
                               } else {
                                 // Add new FastKey tab
@@ -1784,6 +2071,10 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
           } else if (itemIndex != null) {
             final fastKeyTabItemServerId = fastKeyProductItems[itemIndex][AppDBConst.fastKeyProductId];
             await _deleteFastKeyTabItem(int.parse(fastKeyTabItemServerId));
+            setState(() {
+              enableIcons = false; // Build #1.0.204: Hide icons after deletion
+              selectedItemIndex = null; // Clear selection
+            });
           }
         } finally {
           if (mounted) {
@@ -2114,12 +2405,15 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                               // _deleteFastKeyTabItem(int.parse(itemId));
                               _showDeleteConfirmationDialog(itemIndex: index); // Build #1.0.104: updated delete dialog
                             },
-                            onCancelReorder: () {
-                              setState(() {
-                                reorderedIndices = List.filled(fastKeyProductItems.length, null);
-                              });
-                            },
+                            // onCancelReorder: () {
+                            //   setState(() {
+                            //     reorderedIndices = List.filled(fastKeyProductItems.length, null);
+                            //   });
+                            // },
+                            onCancelReorder: _onCancelReorder, // Build #1.0.204: Updated method
                             showBackButton: false,
+                            enableIcons: enableIcons, // Build #1.0.204: Passing enableIcons
+                            onLongPress: _onLongPress, // Passing onLongPress callback
                           )
                               : Container();
                              // : const Center(child: Text("Please select a category"));

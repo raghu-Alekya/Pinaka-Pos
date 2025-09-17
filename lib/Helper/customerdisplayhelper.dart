@@ -1,6 +1,6 @@
 import '../Database/db_helper.dart';
 import '../Database/order_panel_db_helper.dart';
-import '../services/customerdisplayservice.dart';
+import '../services/CustomerDisplayService.dart';
 
 class CustomerDisplayHelper {
   /// 🔹 Show welcome after login success, including optional logo

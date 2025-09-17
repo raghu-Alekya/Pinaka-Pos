@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_barcode_listener/flutter_barcode_listener.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:focus_detector/focus_detector.dart';
 import 'package:intl/intl.dart';
 import 'package:pinaka_pos/Models/Search/product_by_sku_model.dart' as SKU;
 import 'package:pinaka_pos/Models/Search/product_search_model.dart';
@@ -18,6 +19,7 @@ import 'package:pinaka_pos/Screens/Home/order_summary_screen.dart';
 import 'package:pinaka_pos/Widgets/widget_age_verification_popup_dialog.dart';
 import 'package:pinaka_pos/Widgets/widget_alert_popup_dialogs.dart';
 import 'package:pinaka_pos/Widgets/widget_custom_num_pad.dart';
+import 'package:pinaka_pos/Widgets/widget_edit_product_items.dart';
 import 'package:pinaka_pos/Widgets/widget_nested_grid_layout.dart';
 import 'package:pinaka_pos/Widgets/widget_tabs.dart';
 import 'package:pinaka_pos/Widgets/widget_topbar.dart';
@@ -29,12 +31,14 @@ import 'package:shimmer/shimmer.dart';
 import '../Blocs/Orders/order_bloc.dart';
 import '../Blocs/Search/product_search_bloc.dart';
 import '../Constants/layout_values.dart';
+import '../Constants/misc_features.dart';
 import '../Constants/text.dart';
 import '../Database/db_helper.dart';
 import '../Database/order_panel_db_helper.dart';
+import '../Helper/CustomerDisplayHelper.dart';
 import '../Helper/Extentions/theme_notifier.dart';
 import '../Helper/api_response.dart';
-import '../Helper/customerdisplayhelper.dart';
+import '../Screens/Auth/login_screen.dart';
 import '../Utilities/global_utility.dart';
 import '../Models/Orders/orders_model.dart';
 import '../Providers/Age/age_verification_provider.dart';
@@ -43,7 +47,7 @@ import '../Repositories/Orders/order_repository.dart';
 import '../Repositories/Search/product_search_repository.dart';
 import '../Screens/Home/add_screen.dart';
 import '../Screens/Home/edit_product_screen.dart';
-import '../services/customerdisplayservice.dart';
+import '../services/CustomerDisplayService.dart';
 
 bool isOrderInForeground = true;  ///Add visibility code to check if order panel is visible or not
 class RightOrderPanel extends StatefulWidget {
@@ -84,6 +88,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
   bool _showFullSummary = false;
   late ScaffoldMessengerState _scaffoldMessenger;
   bool _isFetchingInitialData = false; // Build #1.0.128: Added this flag to track if we're in the middle of initial fetch
+  int _listVersion = 0;  // Build 1.0.214: Added this version counter
 
   void _toggleSummary() {
     setState(() {
@@ -278,19 +283,45 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
         OrderHelper.isOrderPanelLoaded = true;
         //_fetchOrdersSubscription?.cancel();
       } else if (response.status == Status.ERROR) {
-        if (kDebugMode) {
-          print("##### ERROR: Fetch orders failed - ${response.message}");
+        if (response.message!.contains('Unauthorised')) {
+          if (kDebugMode) {
+            print("categories screen 1  ---- Unauthorised : ${response.message!}");
+          }
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              Navigator.pushReplacement(context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()));
+
+              if (kDebugMode) {
+                print("message 1 --- ${response.message}");
+              }
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                      "Unauthorised. Session is expired on this device."),
+                  backgroundColor: Colors.red,
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            }
+          });
         }
-        setState(() {
-          _isLoading = false;
-          _isFetchingInitialData = false; // Build #1.0.128
-        }); // Build #1.0.104: Hide loader
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(response.message ?? "Failed to fetch orders"),
-            backgroundColor: Colors.red, // ✅ Added red background for error
-            duration: const Duration(seconds: 2),
-          ),
-        );
+        else {
+          if (kDebugMode) {
+            print("##### ERROR: Fetch orders failed - ${response.message}");
+          }
+          setState(() {
+            _isLoading = false;
+            _isFetchingInitialData = false; // Build #1.0.128
+          }); // Build #1.0.104: Hide loader
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response.message ?? "Failed to fetch orders"),
+              backgroundColor: Colors.red, // ✅ Added red background for error
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
       }
     });
 
@@ -335,6 +366,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
         if (mounted) {
           setState(() {
             orderItems = List<Map<String, dynamic>>.from(items); // Create mutable copy
+            _listVersion++; // Build 1.0.214: Increment version when items change
           });
         }
       } catch (e, s) {
@@ -355,57 +387,33 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
       if (mounted) {
         setState(() {
           orderItems = []; // Clear items if no active order
+          _listVersion++; // Build 1.0.214: Increment version when items change
         });
       }
     }
   }
 
   // Build #1.0.10: Initializes the tab controller and handles tab switching
-  // void _initializeTabController() {
-  //   if (kDebugMode) {
-  //     print("##### _initializeTabController");
-  //   }
-  //   if (!mounted) return; // Prevent initialization if unmounted
-  //   _tabController?.dispose(); // Dispose existing controller
-  //   _tabController = TabController(length: tabs.length, vsync: this);
-  //
-  //   _tabController!.addListener(() async {
-  //     if (!_tabController!.indexIsChanging && mounted) {
-  //       int selectedIndex = _tabController!.index; // Get selected tab index
-  //       int selectedOrderId = tabs[selectedIndex]["orderId"] as int;
-  //
-  //       if (kDebugMode) {
-  //         print("##### DEBUG: Tab changed to index: $selectedIndex, orderId: $selectedOrderId");
-  //       }
-  //
-  //       await orderHelper.setActiveOrder(selectedOrderId); // Set new active order
-  //       if (kDebugMode) {
-  //         print("saveLastActiveOrderId _initializeTabController, selectedOrderId: $selectedOrderId, Tab selectedIndex: $selectedIndex");
-  //       }
-  //       await orderHelper.saveLastActiveOrderId(selectedOrderId); // Build #1.0.161
-  //       await fetchOrderItems(); // Load items for the selected order
-  //       if (mounted) {
-  //         setState(() {}); // Refresh UI
-  //       }
-  //     }
-  //   });
-  // }
   Future<void> _initializeTabController() async {
     if (kDebugMode) {
       print("##### _initializeTabController");
     }
     if (!mounted) return; // Prevent initialization if unmounted
 
+    // Dispose any existing controller
     _tabController?.dispose();
 
+    // Case: No tabs → show Welcome screen
     if (tabs.isEmpty) {
       if (kDebugMode) print("##### No tabs available → showing Welcome screen");
-      await CustomerDisplayService.showWelcome(); // Use await here
+      await CustomerDisplayService.showWelcome();
       return;
     }
 
+    // Create new TabController
     _tabController = TabController(length: tabs.length, vsync: this);
 
+    // Listen for tab changes
     _tabController!.addListener(() async {
       if (!_tabController!.indexIsChanging && mounted) {
         int selectedIndex = _tabController!.index;
@@ -415,16 +423,21 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
           print("##### DEBUG: Tab changed to index: $selectedIndex, orderId: $selectedOrderId");
         }
 
+        // Update active order
         await orderHelper.setActiveOrder(selectedOrderId);
         await orderHelper.saveLastActiveOrderId(selectedOrderId);
+
+        // Reload items for this order
         await fetchOrderItems();
+
+        // Update customer display
         await CustomerDisplayHelper.updateCustomerDisplay(selectedOrderId);
 
         if (mounted) setState(() {}); // Refresh UI
       }
     });
 
-    // Set default tab index
+    // Determine default tab index
     int defaultIndex = 0;
     if (orderHelper.activeOrderId != null) {
       int idx = orderHelper.orderIds.indexOf(orderHelper.activeOrderId!);
@@ -434,11 +447,15 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
       await orderHelper.setActiveOrder(tabs[defaultIndex]["orderId"] as int);
     }
 
+    // Apply default tab + update customer display
     if (mounted) {
       _tabController!.index = defaultIndex;
-      await CustomerDisplayHelper.updateCustomerDisplay(tabs[defaultIndex]["orderId"] as int);
+      await CustomerDisplayHelper.updateCustomerDisplay(
+        tabs[defaultIndex]["orderId"] as int,
+      );
     }
   }
+
 
   // Build #1.0.10: Creates a new order and adds it as a new tab
   //Build #1.0.78: Explanation!
@@ -503,17 +520,43 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
           ),
         );
       } else if (response.status == Status.ERROR) {
-        setState(() => _isLoading = false); //Build #1.0.99: Hide loader
-        if (kDebugMode) {
-          print("##### ERROR: addNewTab - Failed to create order: ${response.message}");
+        if (response.message!.contains('Unauthorised')) {
+          if (kDebugMode) {
+            print("categories screen 2  ---- Unauthorised : ${response.message!}");
+          }
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              Navigator.pushReplacement(context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()));
+
+              if (kDebugMode) {
+                print("message 2 --- ${response.message}");
+              }
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                      "Unauthorised. Session is expired on this device."),
+                  backgroundColor: Colors.red,
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            }
+          });
         }
-        _scaffoldMessenger.showSnackBar(
-          SnackBar(
-            content: Text(response.message ?? "Failed to create order"),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 2),
-          ),
-        );
+        else {
+          setState(() => _isLoading = false); //Build #1.0.99: Hide loader
+          if (kDebugMode) {
+            print("##### ERROR: addNewTab - Failed to create order: ${response
+                .message}");
+          }
+          _scaffoldMessenger.showSnackBar(
+            SnackBar(
+              content: Text(response.message ?? "Failed to create order"),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
       }
     });
 
@@ -604,17 +647,43 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
               ),
             );
           } else if (response.status == Status.ERROR) {
-            setState(() => _isLoading = false); //Build #1.0.99: Hide loader
-            if (kDebugMode) {
-              print("##### ERROR: removeTab - Cancel failed: ${response.message}");
+            if (response.message!.contains('Unauthorised')) {
+              if (kDebugMode) {
+                print("categories screen 3  ---- Unauthorised : ${response.message!}");
+              }
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  Navigator.pushReplacement(context,
+                      MaterialPageRoute(builder: (context) => LoginScreen()));
+
+                  if (kDebugMode) {
+                    print("message 3 --- ${response.message}");
+                  }
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                          "Unauthorised. Session is expired on this device."),
+                      backgroundColor: Colors.red,
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                }
+              });
             }
-            _scaffoldMessenger.showSnackBar(
-              SnackBar(
-                content: Text(response.message ?? "Failed to cancel order"),
-                backgroundColor: Colors.red,
-                duration: const Duration(seconds: 2),
-              ),
-            );
+            else {
+              setState(() => _isLoading = false); //Build #1.0.99: Hide loader
+              if (kDebugMode) {
+                print("##### ERROR: removeTab - Cancel failed: ${response
+                    .message}");
+              }
+              _scaffoldMessenger.showSnackBar(
+                SnackBar(
+                  content: Text(response.message ?? "Failed to cancel order"),
+                  backgroundColor: Colors.red,
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            }
           }
         });
         await orderBloc.changeOrderStatus(orderId: serverOrderId, status: TextConstants.cancelled);
@@ -875,317 +944,395 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
     }
   }
 
+  /// Extract DOB from barcode: expects "DBBMMDDYYYY"
+  DateTime? parseDOBFromBarcode(String barcodeData) {
+    try {
+      if (kDebugMode) {
+        print("Order Panel parseDOBFromBarcode: $barcodeData");
+      }
+      final dobMatch = RegExp(r'DBB(\d{8})').firstMatch(barcodeData);
+      if (dobMatch != null) {
+        final dobStr = dobMatch.group(1)!;
+        final month = int.parse(dobStr.substring(0, 2));
+        final day = int.parse(dobStr.substring(2, 4));
+        final year = int.parse(dobStr.substring(4, 8));
+        if (kDebugMode) {
+          print("Order Panel parseDOBFromBarcode: $month/$day/$year");
+        }
+        return DateTime(year, month, day);
+      }
+    } catch (e) {
+      if (kDebugMode) print("Error parsing DOB: $e");
+    }
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
 
     final themeHelper = Provider.of<ThemeNotifier>(context);
-    return BarcodeKeyboardListener( // Build #1.0.44 : Added - Wrap with BarcodeKeyboardListener for barcode scanning
-      bufferDuration: Duration(milliseconds: 5000),
-      //Build #1.0.78: Removed orderHelper.addItemToOrder from the API success block, as it’s now in OrderBloc.updateOrderProducts.
-      // Kept local addItemToOrder for non-API orders.
-      // Ensured loader is shown during API calls and hidden afterward.
-      onBarcodeScanned: (barcode) async {
-        if (kDebugMode) {
-          print("##### DEBUG: onBarcodeScanned - Scanned barcode: $barcode,  isOrderInForeground = $isOrderInForeground");
-        }
-        if(!isOrderInForeground){ // to restrict order panel in background to scanner events
-          return;
-        }
-
-        if (barcode.isNotEmpty) {
-
-          /// Testing code: not working, Scanner will generate multiple tap events and call when scanned driving licence with PDF417 format irrespective of this code here
-          // if (barcode.startsWith('@') || barcode.contains('\n') || barcode.startsWith('ansi') || barcode.startsWith('2') ) {
-          //   // if (barcode.startsWith('@') || barcode.contains('\n')) {
-          //   // PDF417 often includes structured data with newlines or starts with '@' (AAMVA standard)
-          //   if (kDebugMode) {
-          //     print('PDF417 Detected: $barcode');
-          //   }
-          //   return;
-          // } else {
-          //   if (kDebugMode) {
-          //     print('Non-PDF417 Barcode: $barcode');
-          //   }
-          // }
+    return FocusDetector(
+      onFocusLost: () { // Build #1.0.219 -> FIXED ISSUE [SCRUM - 366] : Swipe-to-Delete UI State Not Resetting
+        // When this widget regains focus, reset slidable states
+        setState(() {
+          _listVersion++;
+        });
+      },
+      child: BarcodeKeyboardListener( // Build #1.0.44 : Added - Wrap with BarcodeKeyboardListener for barcode scanning
+        bufferDuration: Duration(milliseconds: 5000),
+        //Build #1.0.78: Removed orderHelper.addItemToOrder from the API success block, as it’s now in OrderBloc.updateOrderProducts.
+        // Kept local addItemToOrder for non-API orders.
+        // Ensured loader is shown during API calls and hidden afterward.
+        useKeyDownEvent: false,
+        caseSensitive: true,
+        onBarcodeScanned: (barcode) async {
+          //barcode = barcode.trim().replaceAll(' ', '');
           if (kDebugMode) {
-            print("##### DEBUG: onBarcodeScanned - Scanned barcode: $barcode");
+            print("##### DEBUG: onBarcodeScanned - Scanned barcode: -$barcode, isOrderInForeground = $isOrderInForeground");
           }
-
-          // Create new order if none exists
-          if (tabs.isEmpty) {
-            addNewTab();
+          if(!isOrderInForeground){ // to restrict order panel in background to scanner events
+            return;
+          }
+      
+          if (barcode.isNotEmpty) {
+            var dobScanned = "";
+            /// Testing code: not working, Scanner will generate multiple tap events and call when scanned driving licence with PDF417 format irrespective of this code here
+            // if (barcode.startsWith('@') || barcode.contains('\n') || barcode.startsWith('ansi') || barcode.startsWith('2') || barcode.startsWith('DBB')) {
+            //   // if (barcode.startsWith('@') || barcode.contains('\n')) {
+            //   // PDF417 often includes structured data with newlines or starts with '@' (AAMVA standard)
+            //   if (kDebugMode) {
+            //     print('PDF417 Detected: $barcode');
+            //   }
+            //   var date = parseDOBFromBarcode(barcode);
+            //   dobScanned = "${date?.month}/${date?.day}/${date?.year}";
+            //   if (kDebugMode) {
+            //     print("##### DEBUG: onBarcodeScanned - Scanned barcode: $barcode, $dobScanned");
+            //   }
+            //   return;
+            // } else {
+            //   if (kDebugMode) {
+            //     print('Non-PDF417 Barcode: $barcode');
+            //   }
+            // }
             if (kDebugMode) {
-              print("##### DEBUG: onBarcodeScanned - No tabs, creating new order");
+              print("##### DEBUG: onBarcodeScanned - Scanned barcode: $barcode, $dobScanned");
             }
-          }
-          setState(() => _isLoading = true); // Show loader
-          productBloc.fetchProductBySku(barcode);
-          _productBySkuSubscription?.cancel();
-          _productBySkuSubscription = productBloc.productBySkuStream.listen((response) async {
-
-            if (response.status == Status.COMPLETED && response.data!.isNotEmpty) {
-              setState(() => _isLoading = false); //Build #1.0.92
-              final product = response.data!.first;
+      
+            // Create new order if none exists
+            if (tabs.isEmpty) {
+              addNewTab();
               if (kDebugMode) {
-                print("##### DEBUG: onBarcodeScanned - Product found: ${product.name}, variations: ${product.variations.length}");
+                print("##### DEBUG: onBarcodeScanned - No tabs, creating new order");
               }
-              // Build #1.0.80: MISSED CODE ADDED
-              /// use product id:22, sku:woo-fashion-socks
-              // var isVerified = await _ageRestrictedProduct(product);
-              // Use the new provider to check for age restriction
-              if(!mounted) {
-                return;
-              }
-
-              ///Age Verification code
-              final ageVerificationProvider = AgeVerificationProvider();
-              var isVerified = await ageVerificationProvider.ageRestrictedProduct(context, product);
-
-              /// Verify Age and proceed else return
-              if(!isVerified){
-                return;
-              }
-              ///Todo: Need to call variation service before adding product to the order
-              if (product.variations.isNotEmpty) {
-                ///1. Call _productBloc.fetchProductVariations(product.id!);
-                ///2. load Variation popup
-                ///3. On add button from variation popup -> add to order list
-                VariationPopup(product.id, product.name, orderHelper, onProductSelected: ({required bool isVariant}) {
-                  if (kDebugMode) {
-                    print("VariationPopup returned with isVariant $isVariant");
-                  }
-                  Navigator.pop(context);
-                  fetchOrderItems(); //onItemTapped(index, variantAdded: isVariant); //Build #1.0.78: Pass isVariant to onItemTapped
-                },
-                ).showVariantDialog(context: context);
-
-                // Show variants dialog for products with variations
+            }
+            setState(() => _isLoading = true); // Show loader
+            productBloc.fetchProductBySku(barcode);
+            _productBySkuSubscription?.cancel();
+            _productBySkuSubscription = productBloc.productBySkuStream.listen((response) async {
+      
+              if (response.status == Status.COMPLETED && response.data!.isNotEmpty) {
+                setState(() => _isLoading = false); //Build #1.0.92
+                final product = response.data!.first;
                 if (kDebugMode) {
-                  print("##### DEBUG: onBarcodeScanned - Showing variants dialog");
+                  print("##### DEBUG: onBarcodeScanned - Product found: ${product.name}, variations: ${product.variations.length}");
+                }
+                // Build #1.0.80: MISSED CODE ADDED
+                /// use product id:22, sku:woo-fashion-socks
+                // var isVerified = await _ageRestrictedProduct(product);
+                // Use the new provider to check for age restriction
+                if(!mounted) {
+                  return;
+                }
+                //Build #1.0.234: Checking stored age restriction before verifying -> Age
+                final order = orderHelper.orders.firstWhere(
+                      (order) => order[AppDBConst.orderServerId] == orderHelper.activeOrderId,
+                  orElse: () => {},
+                );
+                final String ageRestrictedValue = order[AppDBConst.orderAgeRestricted]?.toString() ?? 'false';
+                final bool isAgeRestricted = ageRestrictedValue.toLowerCase() == 'true' || ageRestrictedValue == "1";
+
+                if (!isAgeRestricted) {
+                ///Age Verification code
+                final ageVerificationProvider = AgeVerificationProvider();
+                var isVerified = await ageVerificationProvider.ageRestrictedProduct(context, product);
+      
+                /// Verify Age and proceed else return
+                if(!isVerified){
+                  return;
+                }
+              }
+                ///Todo: Need to call variation service before adding product to the order
+                if (product.variations.isNotEmpty) {
+                  ///1. Call _productBloc.fetchProductVariations(product.id!);
+                  ///2. load Variation popup
+                  ///3. On add button from variation popup -> add to order list
+                  VariationPopup(product.id, product.name, orderHelper, onProductSelected: ({required bool isVariant}) {
+                    if (kDebugMode) {
+                      print("VariationPopup returned with isVariant $isVariant");
+                    }
+                    Navigator.pop(context);
+                    fetchOrderItems(); //onItemTapped(index, variantAdded: isVariant); //Build #1.0.78: Pass isVariant to onItemTapped
+                  },
+                  ).showVariantDialog(context: context);
+      
+                  // Show variants dialog for products with variations
+                  if (kDebugMode) {
+                    print("##### DEBUG: onBarcodeScanned - Showing variants dialog");
+                  }
+                } else {
+      
+                  ///Comment below code not we are using only server order id as to check orders, skip checking db order id
+                  // final order = orderHelper.orders.firstWhere(
+                  //       (order) => order[AppDBConst.orderId] == orderHelper.activeOrderId,
+                  //   orElse: () => {},
+                  // );
+                  final serverOrderId = orderHelper.activeOrderId;//order[AppDBConst.orderServerId] as int?;
+                  final dbOrderId = orderHelper.activeOrderId;
+                  if (product.id != null) { // Build #1.0.128
+                    setState(() => _isLoading = true);
+                    _updateOrderSubscription?.cancel();
+                    _updateOrderSubscription = orderBloc.updateOrderStream.listen((response) async {
+                      if (response.status == Status.LOADING) { // Build #1.0.80
+                        const Center(child: CircularProgressIndicator()); // Added Loader
+                      }else if (response.status == Status.COMPLETED) {
+                        if (kDebugMode) {
+                          print("##### DEBUG: onBarcodeScanned - Product added successfully");
+                        }
+                        await fetchOrderItems();
+                        setState(() {
+                          _isLoading = false;
+                        });
+                        _scaffoldMessenger.showSnackBar(
+                          SnackBar(
+                            content: Text("Product added successfully"),
+                            backgroundColor: Colors.green,
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      } else if (response.status == Status.ERROR) {
+                        if (response.message!.contains('Unauthorised')) {
+                          if (kDebugMode) {
+                            print("categories 4 ---- Unauthorised : ${response.message!}");
+                          }
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (mounted) {
+                              Navigator.pushReplacement(context,
+                                  MaterialPageRoute(builder: (context) => LoginScreen()));
+      
+                              if (kDebugMode) {
+                                print("message 4 --- ${response.message}");
+                              }
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                      "Unauthorised. Session is expired on this device."),
+                                  backgroundColor: Colors.red,
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            }
+                          });
+                        }
+                        else {
+                          setState(() =>
+                          _isLoading = false); //Build #1.0.99 : Hide loader
+                          if (kDebugMode) {
+                            print(
+                                "##### ERROR: onBarcodeScanned - Failed to add product: ${response
+                                    .message}");
+                          }
+                          _scaffoldMessenger.showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                  response.message ?? "Failed to add product"),
+                              backgroundColor: Colors.red,
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        }
+                      }
+                    });
+                    await orderBloc.updateOrderProducts(
+                      orderId: serverOrderId,
+                      dbOrderId: dbOrderId,
+                      lineItems: [
+                        OrderLineItem(
+                          productId: product.id,
+                          quantity: 1,
+                          // sku: product.sku ?? '',
+                        ),
+                      ],
+                    );
+                  } else {
+                    // Add product directly to order
+                    if (kDebugMode) {
+                      print("##### DEBUG: onBarcodeScanned - Not Adding product to DB directly: ${product.name}");
+                    }
+                    // await orderHelper.addItemToOrder(
+                    //   product.id,
+                    //   product.name,
+                    //   product.images.isNotEmpty ? product.images.first.src : '',
+                    //   double.parse(product.price.isNotEmpty ? product.price : '0.0'),
+                    //   1,
+                    //   product.sku ?? barcode,
+                    //   type: ItemType.product.value,
+                    //   onItemAdded: (){
+                    //     if (kDebugMode) {
+                    //       print("Item Added stop loading ");
+                    //       _isLoading = false;
+                    //       setState(() {
+                    //
+                    //       });
+                    //     }
+                    //   }
+                    // );
+                    await fetchOrderItems();
+                    _scaffoldMessenger.showSnackBar(
+                      SnackBar(
+                        content: Text("Product did not added to order. OrderId not found."),
+                        backgroundColor: Colors.green,
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                    setState(() => _isLoading = false);
+                  }
                 }
               } else {
-
-                ///Comment below code not we are using only server order id as to check orders, skip checking db order id
-                // final order = orderHelper.orders.firstWhere(
-                //       (order) => order[AppDBConst.orderId] == orderHelper.activeOrderId,
-                //   orElse: () => {},
-                // );
-                final serverOrderId = orderHelper.activeOrderId;//order[AppDBConst.orderServerId] as int?;
-                final dbOrderId = orderHelper.activeOrderId;
-                if (product.id != null) { // Build #1.0.128
-                  setState(() => _isLoading = true);
-                  _updateOrderSubscription?.cancel();
-                  _updateOrderSubscription = orderBloc.updateOrderStream.listen((response) async {
-                    if (response.status == Status.LOADING) { // Build #1.0.80
-                      const Center(child: CircularProgressIndicator()); // Added Loader
-                    }else if (response.status == Status.COMPLETED) {
-                      if (kDebugMode) {
-                        print("##### DEBUG: onBarcodeScanned - Product added successfully");
-                      }
-                      await fetchOrderItems();
-                      setState(() {
-                        _isLoading = false;
-                      });
-                      _scaffoldMessenger.showSnackBar(
-                        SnackBar(
-                          content: Text("Product added successfully"),
-                          backgroundColor: Colors.green,
-                          duration: const Duration(seconds: 2),
-                        ),
-                      );
-                    } else if (response.status == Status.ERROR) {
-                      setState(() => _isLoading = false); //Build #1.0.99 : Hide loader
-                      if (kDebugMode) {
-                        print("##### ERROR: onBarcodeScanned - Failed to add product: ${response.message}");
-                      }
-                      _scaffoldMessenger.showSnackBar(
-                        SnackBar(
-                          content: Text(response.message ?? "Failed to add product"),
-                          backgroundColor: Colors.red,
-                          duration: const Duration(seconds: 2),
-                        ),
-                      );
-                    }
-                  });
-                  await orderBloc.updateOrderProducts(
-                    orderId: serverOrderId,
-                    dbOrderId: dbOrderId,
-                    lineItems: [
-                      OrderLineItem(
-                        productId: product.id,
-                        quantity: 1,
-                        // sku: product.sku ?? '',
-                      ),
-                    ],
-                  );
-                } else {
-                  // Add product directly to order
-                  if (kDebugMode) {
-                    print("##### DEBUG: onBarcodeScanned - Not Adding product to DB directly: ${product.name}");
-                  }
-                  // await orderHelper.addItemToOrder(
-                  //   product.id,
-                  //   product.name,
-                  //   product.images.isNotEmpty ? product.images.first.src : '',
-                  //   double.parse(product.price.isNotEmpty ? product.price : '0.0'),
-                  //   1,
-                  //   product.sku ?? barcode,
-                  //   type: ItemType.product.value,
-                  //   onItemAdded: (){
-                  //     if (kDebugMode) {
-                  //       print("Item Added stop loading ");
-                  //       _isLoading = false;
-                  //       setState(() {
-                  //
-                  //       });
-                  //     }
-                  //   }
-                  // );
-                  await fetchOrderItems();
-                  _scaffoldMessenger.showSnackBar(
-                    SnackBar(
-                      content: Text("Product did not added to order. OrderId not found."),
-                      backgroundColor: Colors.green,
-                      duration: const Duration(seconds: 2),
-                    ),
-                  );
-                  setState(() => _isLoading = false);
+                // Show error if product not found
+                if (kDebugMode) {
+                  print("##### DEBUG: onBarcodeScanned - Product not found for SKU: $barcode");
                 }
-              }
-            } else {
-              // Show error if product not found
-              if (kDebugMode) {
-                print("##### DEBUG: onBarcodeScanned - Product not found for SKU: $barcode");
-              }
-              if (!mounted) return;
-              await CustomDialog.showCustomItemNotAdded(context).then((_) { //Build #1.0.54: added
-                // Navigate to AddScreen when "Let's Try Again" is pressed
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => AddScreen(
-                      barcode: barcode,
-                      selectedTabIndex: 2, // Custom items tab
+                if (!mounted) return;
+                await CustomDialog.showCustomItemNotAdded(context,onRetry: (){
+                  // Navigate to AddScreen when "Let's Try Again" is pressed
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AddScreen(
+                        barcode: barcode,
+                        selectedTabIndex: 2, // Custom items tab
+                      ),
                     ),
-                  ),
-                );
-              });
-              setState(() => _isLoading = false);
-            }
-          });
-        }
-      },
-      child: Container(
-        width: MediaQuery.of(context).size.width * 0.30,
-        padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
-        child: Card(
-          elevation: 4,
-          margin: const EdgeInsets.only(top: 10),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          child: Column(
-            children: [
-              Container(
-                color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground: null,
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        controller: _scrollController,
-                        child: Row(
-                          children: List.generate(tabs.length, (index) {
-                            final bool isSelected = _tabController!.index == index;
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
-                              child: GestureDetector(
-                                onTap: () {
-                                  setState(() {
-                                    _tabController!.index = index;
-                                  });
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                                  decoration: BoxDecoration(
-                                    color: isSelected ?  ThemeNotifier.orderPanelTabSelection : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.orderPanelTabBackground : Colors.grey.shade400,
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Column(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            tabs[index]["title"] as String,
-                                            style: TextStyle(color: isSelected ? Colors.black : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight, fontWeight: FontWeight.bold),
-                                          ),
-                                          Text(
-                                            tabs[index]["subtitle"] as String,
-                                            style: TextStyle(color: isSelected ? Colors.black54 : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.black54, fontSize: 12),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(width: 40),
-                                      // Always show the close button
-                                      GestureDetector(
-                                        ///ToDo: Change the status of order to 'cancelled' here
-                                        onTap: () {
-                                          if (kDebugMode) {
-                                            print("Tab $index, close button tapped");
-                                          }
-                                          ///call alert  box before delete
-                                          CustomDialog.showAreYouSure(context,
-                                              confirm: () {
-                                                removeTab(index);
-                                              });
-                                        },
-                                        child: const Icon(Icons.close, size: 18, color: Colors.red),
-                                      ),
-                                    ],
+                  );
+                }).then((_) { //Build #1.0.54: added
+
+                });
+                setState(() => _isLoading = false);
+              }
+            });
+          }
+        },
+        child: Container(
+          width: MediaQuery.of(context).size.width * 0.30,
+          padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+          child: Card(
+            elevation: 4,
+            margin: const EdgeInsets.only(top: 10),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            child: Column(
+              children: [
+                Container(
+                  color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground: null,
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          controller: _scrollController,
+                          child: Row(
+                            children: List.generate(tabs.length, (index) {
+                              final bool isSelected = _tabController!.index == index;
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
+                                child: GestureDetector(
+                                  onTap: () {
+                                    setState(() {
+                                      _tabController!.index = index;
+                                    });
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                                    decoration: BoxDecoration(
+                                      color: isSelected ?  ThemeNotifier.orderPanelTabSelection : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.orderPanelTabBackground : Colors.grey.shade400,
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Column(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              tabs[index]["title"] as String,
+                                              style: TextStyle(color: isSelected ? Colors.black : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight, fontWeight: FontWeight.bold),
+                                            ),
+                                            Text(
+                                              tabs[index]["subtitle"] as String,
+                                              style: TextStyle(color: isSelected ? Colors.black54 : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.black54, fontSize: 12),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(width: 40),
+                                        // Always show the close button
+                                        GestureDetector(
+                                          ///ToDo: Change the status of order to 'cancelled' here
+                                          onTap: () {
+                                            if (kDebugMode) {
+                                              print("Tab $index, close button tapped");
+                                            }
+                                            ///call alert  box before delete
+                                            CustomDialog.showAreYouSure(context,
+                                                confirm: () {
+                                                  removeTab(index);
+                                                });
+                                          },
+                                          child: const Icon(Icons.close, size: 18, color: Colors.red),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
-                              ),
-                            );
-                          }),
+                              );
+                            }),
+                          ),
                         ),
                       ),
-                    ),
-                    ElevatedButton(
-                      onPressed: addNewTab,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.orderPanelAddButton : Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                        elevation: 2, // Controls the size and blur of the shadow
-                        shadowColor: ThemeNotifier.shadow_F7,
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                        minimumSize: const Size(50, 60),
+                      ElevatedButton(
+                        onPressed: addNewTab,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.orderPanelAddButton : Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                          elevation: 2, // Controls the size and blur of the shadow
+                          shadowColor: ThemeNotifier.shadow_F7,
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                          minimumSize: const Size(50, 60),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.end, // Aligns to text baseline
+                          children: [
+                            Container(
+                                width: 18,
+                                height: 18,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.redAccent)
+                                ),
+                                child: Icon(Icons.add,size: 16,color: Colors.redAccent,)),
+                            SizedBox(
+                              width: 5
+                            ),
+                            Text(TextConstants.newText,style: TextStyle(color: Colors.redAccent, fontSize: 14)),
+                          ],
+                        ),
                       ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.end, // Aligns to text baseline
-                        children: [
-                          Container(
-                              width: 18,
-                              height: 18,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(color: Colors.redAccent)
-                              ),
-                              child: Icon(Icons.add,size: 16,color: Colors.redAccent,)),
-                          SizedBox(
-                            width: 5
-                          ),
-                          Text(TextConstants.newText,style: TextStyle(color: Colors.redAccent, fontSize: 14)),
-                        ],
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              Expanded(child: buildCurrentOrder()),
-            ],
+                Expanded(child: buildCurrentOrder()),
+              ],
+            ),
           ),
         ),
       ),
@@ -1266,35 +1413,65 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
       await fetchOrderItems();
       widget.refreshOrderList?.call();
     } else if (response.status == Status.ERROR) {
-      setState(() => _isLoading = false); //Build #1.0.99 : hide loader
-      _scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Text("Failed to remove ${isPayout ? 'payout' : isCoupon ? 'coupon' : isCustomItem ? 'custom item' : 'item'}"),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 2),
-        ),
-      );
-      if (isPayout) {
-        await CustomDialog.showDiscountNotApplied(
-          context,
-          errorMessageTitle: TextConstants.removePayoutFailed,
-          errorMessageDes: response.message ?? TextConstants.discountNotAppliedDescription,
-          onRetry: retryCallback, // Pass retry callback
+      if (response.message!.contains('Unauthorised')) {
+        if (kDebugMode) {
+          print("categories screen 5 ---- Unauthorised : ${response.message!}");
+        }
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            Navigator.pushReplacement(context,
+                MaterialPageRoute(builder: (context) => LoginScreen()));
+
+            if (kDebugMode) {
+              print("message 5 --- ${response.message}");
+            }
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                    "Unauthorised. Session is expired on this device."),
+                backgroundColor: Colors.red,
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
+        });
+      }
+      else {
+        setState(() => _isLoading = false); //Build #1.0.99 : hide loader
+        _scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Text("Failed to remove ${isPayout ? 'payout' : isCoupon
+                ? 'coupon'
+                : isCustomItem ? 'custom item' : 'item'}"),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 2),
+          ),
         );
-      } else if (isCoupon) {
-        await CustomDialog.showCouponNotApplied(
-          context,
-          errorMessageTitle: TextConstants.removeCouponFailed,
-          errorMessageDes: response.message ?? TextConstants.couponNotAppliedDescription,
-          onRetry: retryCallback, // Pass retry callback
-        );
-      } else if (isCustomItem) {
-        await CustomDialog.showCustomItemNotAdded(
-          context,
-          errorMessageTitle: TextConstants.removeCustomItemFailed,
-          errorMessageDes: response.message ?? TextConstants.customItemCouldNotBeAddedDescription,
-          onRetry: retryCallback,
-        );
+        if (isPayout) {
+          await CustomDialog.showDiscountNotApplied(
+            context,
+            errorMessageTitle: TextConstants.removePayoutFailed,
+            errorMessageDes: response.message ??
+                TextConstants.discountNotAppliedDescription,
+            onRetry: retryCallback, // Pass retry callback
+          );
+        } else if (isCoupon) {
+          await CustomDialog.showCouponNotApplied(
+            context,
+            errorMessageTitle: TextConstants.removeCouponFailed,
+            errorMessageDes: response.message ??
+                TextConstants.couponNotAppliedDescription,
+            onRetry: retryCallback, // Pass retry callback
+          );
+        } else if (isCustomItem) {
+          await CustomDialog.showCustomItemNotAdded(
+            context,
+            errorMessageTitle: TextConstants.removeCustomItemFailed,
+            errorMessageDes: response.message ??
+                TextConstants.customItemCouldNotBeAddedDescription,
+            onRetry: retryCallback,
+          );
+        }
       }
     }
   }
@@ -1586,13 +1763,13 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
 
                         return ClipRRect(
                         // Build #1.0.151: FIXED - change ensures that sliding an item in one order does not affect the Slidable state of items at the same index in other orders.
-                        key: ValueKey('${orderHelper.activeOrderId}_$index'), // Updated key to include order ID
+                          key: ValueKey('${orderItem[AppDBConst.itemServerId]}_$_listVersion'), // Build 1.0.214: Fixed Issue [SCRUM - 366] -> Swipe-to-Delete UI State Not Resetting After Add/Delete Operations // Updated key to include order ID
                           borderRadius: BorderRadius.circular(20),
                           child: SizedBox(
                             height: MediaQuery.of(context).size.height * 0.12,
                             child: Slidable(
                               // Build #1.0.151: FIXED - change ensures that sliding an item in one order does not affect the Slidable state of items at the same index in other orders.
-                              key: ValueKey('${orderHelper.activeOrderId}_$index'), // Updated key to include order ID
+                              key: ValueKey('${orderItem[AppDBConst.itemServerId]}_$_listVersion'), // Build 1.0.214: Fixed Issue [SCRUM - 366] -> Swipe-to-Delete UI State Not Resetting After Add/Delete Operations // Updated key to include order ID
                               closeOnScroll: true,
                               direction: Axis.horizontal,
                               endActionPane: ActionPane(
@@ -1628,124 +1805,309 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                                 // Kept local updateItemQuantity for non-API orders.
                                 // Ensured loader is shown during API calls.
                                 onTap: () {
-                                  if (isCouponOrPayout) return; // Build #1.0.187: Fixed - Updating Quantity for non payout or coupons
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => EditProductScreen(
-                                        orderItem: orderItem,
-                                        onQuantityUpdated: (newQuantity) async {
-                                          if (orderHelper.activeOrderId != null) {
+                                  if (isCouponOrPayout) return;// Build #1.0.187: Fixed - Updating Quantity for non payout or coupons
 
-                                            if (orderHelper.cancelledOrderId != null) { // Build #1.0.189: Fixed -> Deleted Order Tab Reappears After Item Edit Flow
-                                              setState(() {
-                                                // Remove only the tab with the cancelledOrderId instead of clearing all tabs
-                                                tabs.removeWhere((tab) => tab["orderId"] == orderHelper.cancelledOrderId);
+                                  if (Misc.enableEditProductScreen) {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => EditProductScreen(
+                                          orderItem: orderItem,
+                                          onQuantityUpdated: (newQuantity) async {
+                                            if (orderHelper.activeOrderId != null) {
 
-                                                if (kDebugMode) {
-                                                  print("##### onQuantityUpdated: removing cancelled order tab");
-                                                  print("##### DEBUG : cancelledOrderId -> ${orderHelper.cancelledOrderId}");
-                                                  print("##### DEBUG : tabs -> $tabs");
-                                                }
-                                                // Reset cancelledOrderId after processing
-                                                orderHelper.cancelledOrderId = null;
-                                              });
-                                              // // If no tabs remain, fetch orders to refresh
-                                              // if (tabs.isEmpty) {
-                                              //   _fetchOrders();
-                                              // } else {
-                                              //   // Reinitialize tab controller and update UI
-                                              //   _initializeTabController();
-                                              //   await fetchOrderItems();
-                                              // }
-                                            }
-                                            // final order = orderHelper.orders.firstWhere(
-                                            //       (order) => order[AppDBConst.orderServerId] == orderHelper.activeOrderId,
-                                            //   orElse: () => {},
-                                            // );
-                                            final serverOrderId = orderHelper.activeOrderId;//order[AppDBConst.orderServerId] as int?;
-                                            final dbOrderId = orderHelper.activeOrderId;
-                                            // Build #1.0.108: Fixed : Edit product not working
-                                            // prev we are passing itemServerId rather than itemProductId & based on variation id we have to pass that id
-                                            final productId = orderItem[AppDBConst.itemProductId] as int?;
-                                            final serverVariationId = orderItem[AppDBConst.itemVariationId] as int?;
-                                            // Use productId if serverVariationId is null or 0, otherwise use serverVariationId
-                                            final variationOrProductId = (serverVariationId == null || serverVariationId == 0)
-                                                ? productId
-                                                : serverVariationId;
-                                            if (serverOrderId != null && dbOrderId != null && productId != null) {
-                                              setState(() => _isLoading = true);
-                                              _updateOrderSubscription?.cancel();
-                                              _updateOrderSubscription = orderBloc.updateOrderStream.listen((response) async {
-                                                if (response.status == Status.LOADING) { // Build #1.0.80
-                                                  const Center(child: CircularProgressIndicator());
-                                                }else if (response.status == Status.COMPLETED) {
+                                              if (orderHelper.cancelledOrderId != null) { // Build #1.0.189: Fixed -> Deleted Order Tab Reappears After Item Edit Flow
+                                                setState(() {
+                                                  // Remove only the tab with the cancelledOrderId instead of clearing all tabs
+                                                  tabs.removeWhere((tab) => tab["orderId"] == orderHelper.cancelledOrderId);
+
                                                   if (kDebugMode) {
-                                                    print("##### DEBUG: EditProductScreen - Quantity updated successfully");
+                                                    print("##### onQuantityUpdated: removing cancelled order tab");
+                                                    print("##### DEBUG : cancelledOrderId -> ${orderHelper.cancelledOrderId}");
+                                                    print("##### DEBUG : tabs -> $tabs");
                                                   }
-                                                  setState(() => _isLoading = false); //Build #1.0.92, Fixed Issue: Loader in order panel does not stop on edit item
+                                                  // Reset cancelledOrderId after processing
+                                                  orderHelper.cancelledOrderId = null;
+                                                });
+                                                // // If no tabs remain, fetch orders to refresh
+                                                // if (tabs.isEmpty) {
+                                                //   _fetchOrders();
+                                                // } else {
+                                                //   // Reinitialize tab controller and update UI
+                                                //   _initializeTabController();
+                                                //   await fetchOrderItems();
+                                                // }
+                                              }
+                                              // final order = orderHelper.orders.firstWhere(
+                                              //       (order) => order[AppDBConst.orderServerId] == orderHelper.activeOrderId,
+                                              //   orElse: () => {},
+                                              // );
+                                              final serverOrderId = orderHelper.activeOrderId;//order[AppDBConst.orderServerId] as int?;
+                                              final dbOrderId = orderHelper.activeOrderId;
+                                              // Build #1.0.108: Fixed : Edit product not working
+                                              // prev we are passing itemServerId rather than itemProductId & based on variation id we have to pass that id
+                                              final productId = orderItem[AppDBConst.itemProductId] as int?;
+                                              final serverVariationId = orderItem[AppDBConst.itemVariationId] as int?;
+                                              // Use productId if serverVariationId is null or 0, otherwise use serverVariationId
+                                              final variationOrProductId = (serverVariationId == null || serverVariationId == 0)
+                                                  ? productId
+                                                  : serverVariationId;
+                                              if (serverOrderId != null && dbOrderId != null && productId != null) {
+                                                setState(() => _isLoading = true);
+                                                _updateOrderSubscription?.cancel();
+                                                _updateOrderSubscription = orderBloc.updateOrderStream.listen((response) async {
+                                                  if (response.status == Status.LOADING) { // Build #1.0.80
+                                                    const Center(child: CircularProgressIndicator());
+                                                  }else if (response.status == Status.COMPLETED) {
+                                                    if (kDebugMode) {
+                                                      print("##### DEBUG: EditProductScreen - Quantity updated successfully");
+                                                    }
+                                                    setState(() => _isLoading = false); //Build #1.0.92, Fixed Issue: Loader in order panel does not stop on edit item
 
+                                                    await fetchOrderItems();
+                                                    _scaffoldMessenger.showSnackBar(
+                                                      SnackBar(
+                                                        content: Text("Quantity updated successfully"),
+                                                        backgroundColor: Colors.green,
+                                                        duration: const Duration(seconds: 2),
+                                                      ),
+                                                    );
+                                                  } else if (response.status == Status.ERROR) {
+                                                    await fetchOrderItems(); // Build 1.0.214: Fixed Issue [SCRUM - 364] -> Item reappears in cart after being deleted while edit screen is open
+                                                    if (response.message!.contains('Unauthorised')) {
+                                                      if (kDebugMode) {
+                                                        print("categories screen 6 ---- Unauthorised : ${response.message!}");
+                                                      }
+                                                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                                                        if (mounted) {
+                                                          Navigator.pushReplacement(context, MaterialPageRoute(
+                                                              builder: (context) => LoginScreen()));
+
+                                                          if (kDebugMode) {
+                                                            print("message 6 --- ${response.message}");
+                                                          }
+                                                          ScaffoldMessenger.of(context).showSnackBar(
+                                                            const SnackBar(
+                                                              content: Text("Unauthorised. Session is expired on this device."),
+                                                              backgroundColor: Colors.red,
+                                                              duration: Duration(seconds: 2),
+                                                            ),
+                                                          );
+                                                        }
+                                                      });
+                                                    } else {
+                                                      if (kDebugMode) {
+                                                        print(
+                                                            "##### ERROR: EditProductScreen - Failed to update quantity: ${response.message}");
+                                                      }
+                                                      _scaffoldMessenger
+                                                          .showSnackBar(
+                                                        SnackBar(
+                                                          content: Text(
+                                                              response.message ?? "Failed to update quantity"),
+                                                          backgroundColor:
+                                                          Colors.red,
+                                                          duration:
+                                                          const Duration(
+                                                              seconds: 2),
+                                                        ),
+                                                      );
+                                                    }
+                                                    setState(() => _isLoading = false); //Build #1.0.92: Fixed Issue: Loader in order panel does not stop on edit item
+                                                  }
+                                                });
+
+                                                if (kDebugMode) { // Build #1.0.108:
+                                                  print("##### DEBUG: 4321 , variationOrProductId: $variationOrProductId, productId: $productId, serverVariationId: $serverVariationId");
+                                                }
+
+                                                await orderBloc.updateOrderProducts(
+                                                  orderId: serverOrderId,
+                                                  dbOrderId: dbOrderId,
+                                                  isEditQuantity: true,
+                                                  lineItems: [
+                                                    OrderLineItem(
+                                                      productId: variationOrProductId, // Build #1.0.108: we have to pass itemProductId or itemVariationId, otherwise it won't update qty.
+                                                      quantity: newQuantity,
+                                                      // sku: orderItem[AppDBConst.itemSKU] ?? '',
+                                                    ),
+                                                  ],
+                                                );
+                                              } else {
+
+                                                ///Todo: do not handle this code, remove if required as we are not saving until API call made with response
+                                                // await orderHelper.updateItemQuantity(
+                                                //   orderItem[AppDBConst.itemId],
+                                                //   newQuantity,
+                                                // );
+                                                await fetchOrderItems();
+                                                _scaffoldMessenger.showSnackBar(
+                                                  SnackBar(
+                                                    content: Text("Failed to update quantity, Network error."),
+                                                    backgroundColor: Colors.green,
+                                                    duration: const Duration(seconds: 2),
+                                                  ),
+                                                );
+                                                setState(() => _isLoading = false);
+                                              }
+                                            }
+                                          },
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                  else{
+                                    showDialog(
+                                        context: context,
+                                        barrierColor: Colors.black.withValues(alpha: 0.5),
+                                        builder: (BuildContext dialogContext) {
+                                          return EditProduct(
+                                              orderItem: orderItem,
+                                            onQuantityUpdated: (newQuantity) async {
+                                              if (orderHelper.activeOrderId != null) {
+
+                                                if (orderHelper.cancelledOrderId != null) { // Build #1.0.189: Fixed -> Deleted Order Tab Reappears After Item Edit Flow
+                                                  setState(() {
+                                                    // Remove only the tab with the cancelledOrderId instead of clearing all tabs
+                                                    tabs.removeWhere((tab) => tab["orderId"] == orderHelper.cancelledOrderId);
+
+                                                    if (kDebugMode) {
+                                                      print("##### onQuantityUpdated: removing cancelled order tab");
+                                                      print("##### DEBUG : cancelledOrderId -> ${orderHelper.cancelledOrderId}");
+                                                      print("##### DEBUG : tabs -> $tabs");
+                                                    }
+                                                    // Reset cancelledOrderId after processing
+                                                    orderHelper.cancelledOrderId = null;
+                                                  });
+                                                  // // If no tabs remain, fetch orders to refresh
+                                                  // if (tabs.isEmpty) {
+                                                  //   _fetchOrders();
+                                                  // } else {
+                                                  //   // Reinitialize tab controller and update UI
+                                                  //   _initializeTabController();
+                                                  //   await fetchOrderItems();
+                                                  // }
+                                                }
+                                                // final order = orderHelper.orders.firstWhere(
+                                                //       (order) => order[AppDBConst.orderServerId] == orderHelper.activeOrderId,
+                                                //   orElse: () => {},
+                                                // );
+                                                final serverOrderId = orderHelper.activeOrderId;//order[AppDBConst.orderServerId] as int?;
+                                                final dbOrderId = orderHelper.activeOrderId;
+                                                // Build #1.0.108: Fixed : Edit product not working
+                                                // prev we are passing itemServerId rather than itemProductId & based on variation id we have to pass that id
+                                                final productId = orderItem[AppDBConst.itemProductId] as int?;
+                                                final serverVariationId = orderItem[AppDBConst.itemVariationId] as int?;
+                                                // Use productId if serverVariationId is null or 0, otherwise use serverVariationId
+                                                final variationOrProductId = (serverVariationId == null || serverVariationId == 0)
+                                                    ? productId
+                                                    : serverVariationId;
+                                                if (serverOrderId != null && dbOrderId != null && productId != null) {
+                                                  setState(() => _isLoading = true);
+                                                  _updateOrderSubscription?.cancel();
+                                                  _updateOrderSubscription = orderBloc.updateOrderStream.listen((response) async {
+                                                    if (response.status == Status.LOADING) { // Build #1.0.80
+                                                      const Center(child: CircularProgressIndicator());
+                                                    }else if (response.status == Status.COMPLETED) {
+                                                      if (kDebugMode) {
+                                                        print("##### DEBUG: EditProductScreen - Quantity updated successfully");
+                                                      }
+                                                      setState(() => _isLoading = false); //Build #1.0.92, Fixed Issue: Loader in order panel does not stop on edit item
+
+                                                      await fetchOrderItems();
+                                                      _scaffoldMessenger.showSnackBar(
+                                                        SnackBar(
+                                                          content: Text("Quantity updated successfully"),
+                                                          backgroundColor: Colors.green,
+                                                          duration: const Duration(seconds: 2),
+                                                        ),
+                                                      );
+                                                    } else if (response.status == Status.ERROR) {
+                                                      await fetchOrderItems(); // Build 1.0.214: Fixed Issue [SCRUM - 364] -> Item reappears in cart after being deleted while edit screen is open
+                                                      if (response.message!.contains('Unauthorised')) {
+                                                        if (kDebugMode) {
+                                                          print("categories screen 6 ---- Unauthorised : ${response.message!}");
+                                                        }
+                                                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                                                          if (mounted) {
+                                                            Navigator.pushReplacement(context, MaterialPageRoute(
+                                                                builder: (context) => LoginScreen()));
+
+                                                            if (kDebugMode) {
+                                                              print("message 6 --- ${response.message}");
+                                                            }
+                                                            ScaffoldMessenger.of(context).showSnackBar(
+                                                              const SnackBar(
+                                                                content: Text("Unauthorised. Session is expired on this device."),
+                                                                backgroundColor: Colors.red,
+                                                                duration: Duration(seconds: 2),
+                                                              ),
+                                                            );
+                                                          }
+                                                        });
+                                                      } else {
+                                                        if (kDebugMode) {
+                                                          print(
+                                                              "##### ERROR: EditProductScreen - Failed to update quantity: ${response.message}");
+                                                        }
+                                                        _scaffoldMessenger
+                                                            .showSnackBar(
+                                                          SnackBar(
+                                                            content: Text(
+                                                                response.message ?? "Failed to update quantity"),
+                                                            backgroundColor:
+                                                            Colors.red,
+                                                            duration:
+                                                            const Duration(
+                                                                seconds: 2),
+                                                          ),
+                                                        );
+                                                      }
+                                                      setState(() => _isLoading = false); //Build #1.0.92: Fixed Issue: Loader in order panel does not stop on edit item
+                                                    }
+                                                  });
+
+                                                  if (kDebugMode) { // Build #1.0.108:
+                                                    print("##### DEBUG: 4321 , variationOrProductId: $variationOrProductId, productId: $productId, serverVariationId: $serverVariationId");
+                                                  }
+
+                                                  await orderBloc.updateOrderProducts(
+                                                    orderId: serverOrderId,
+                                                    dbOrderId: dbOrderId,
+                                                    isEditQuantity: true,
+                                                    lineItems: [
+                                                      OrderLineItem(
+                                                        productId: variationOrProductId, // Build #1.0.108: we have to pass itemProductId or itemVariationId, otherwise it won't update qty.
+                                                        quantity: newQuantity,
+                                                        // sku: orderItem[AppDBConst.itemSKU] ?? '',
+                                                      ),
+                                                    ],
+                                                  );
+                                                } else {
+
+                                                  ///Todo: do not handle this code, remove if required as we are not saving until API call made with response
+                                                  // await orderHelper.updateItemQuantity(
+                                                  //   orderItem[AppDBConst.itemId],
+                                                  //   newQuantity,
+                                                  // );
                                                   await fetchOrderItems();
                                                   _scaffoldMessenger.showSnackBar(
                                                     SnackBar(
-                                                      content: Text("Quantity updated successfully"),
+                                                      content: Text("Failed to update quantity, Network error."),
                                                       backgroundColor: Colors.green,
                                                       duration: const Duration(seconds: 2),
                                                     ),
                                                   );
-                                                } else if (response.status == Status.ERROR) {
-                                                  if (kDebugMode) {
-                                                    print("##### ERROR: EditProductScreen - Failed to update quantity: ${response.message}");
-                                                  }
-                                                  _scaffoldMessenger.showSnackBar(
-                                                    SnackBar(
-                                                      content: Text("Failed to update quantity"),
-                                                      backgroundColor: Colors.red,
-                                                      duration: const Duration(seconds: 2),
-                                                    ),
-                                                  );
-                                                  setState(() => _isLoading = false); //Build #1.0.92: Fixed Issue: Loader in order panel does not stop on edit item
+                                                  setState(() => _isLoading = false);
                                                 }
-                                              });
-
-                                              if (kDebugMode) { // Build #1.0.108:
-                                                print("##### DEBUG: 4321 , variationOrProductId: $variationOrProductId, productId: $productId, serverVariationId: $serverVariationId");
                                               }
+                                            },
+                                            isDialog: true,
+                                          );
+                                        }
+                                    );
+                                  }
 
-                                              await orderBloc.updateOrderProducts(
-                                                orderId: serverOrderId,
-                                                dbOrderId: dbOrderId,
-                                                isEditQuantity: true,
-                                                lineItems: [
-                                                  OrderLineItem(
-                                                    productId: variationOrProductId, // Build #1.0.108: we have to pass itemProductId or itemVariationId, otherwise it won't update qty.
-                                                    quantity: newQuantity,
-                                                    // sku: orderItem[AppDBConst.itemSKU] ?? '',
-                                                  ),
-                                                ],
-                                              );
-                                            } else {
-
-                                              ///Todo: do not handle this code, remove if required as we are not saving until API call made with response
-                                              // await orderHelper.updateItemQuantity(
-                                              //   orderItem[AppDBConst.itemId],
-                                              //   newQuantity,
-                                              // );
-                                              await fetchOrderItems();
-                                              _scaffoldMessenger.showSnackBar(
-                                                SnackBar(
-                                                  content: Text("Failed to update quantity, Network error."),
-                                                  backgroundColor: Colors.green,
-                                                  duration: const Duration(seconds: 2),
-                                                ),
-                                              );
-                                              setState(() => _isLoading = false);
-                                            }
-                                          }
-                                        },
-                                      ),
-                                    ),
-                                  );
                                 },
                                 child: Container(
                                   margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 8),
@@ -2009,9 +2371,13 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                                               );
 
                                               if (merchantDiscountValue.isNotEmpty) {
-                                                final payoutIds = merchantDiscountValue.first[AppDBConst.merchantDiscountIds].toString().split(',') ?? [];
-                                                //remove the empty id
-                                                payoutIds.removeAt(0);
+                                                // final payoutIds = merchantDiscountValue.first[AppDBConst.merchantDiscountIds].toString().split(',') ?? [];
+                                                // //remove the empty id
+                                                // payoutIds.removeAt(0);
+                                                // With this fixed version:
+                                                // Build #1.0.216: FIXED Issue - Merchant discount not deleting, showing error "Payout ID not found"
+                                                String discountIdsString = merchantDiscountValue.first[AppDBConst.merchantDiscountIds].toString();
+                                                List<String> payoutIds = discountIdsString.split(',').where((id) => id.isNotEmpty).toList();
                                                 if (kDebugMode) {
                                                   print("OrderPanel - payouts to delete $payoutIds");
                                                 }
@@ -2037,18 +2403,41 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                                                               ),
                                                             );
                                                           } else if (response.status == Status.ERROR) {
-                                                            if (kDebugMode) {
-                                                              print("###### Delete Discount API error");
-                                                            }
-                                                            setState(() => _isLoading = false);
-                                                            _scaffoldMessenger.showSnackBar(
-                                                              SnackBar(
-                                                                content: Text("Failed to remove discount"),
-                                                                backgroundColor: Colors.red,
-                                                                duration: const Duration(seconds: 2),
-                                                              ),
-                                                            );
-                                                            await CustomDialog.showDiscountNotApplied(context,
+                                                                  if (response.message!.contains('Unauthorised')) {
+                                                                    if (kDebugMode) {
+                                                                      print("categories screen 7 ---- Unauthorised : ${response.message!}");
+                                                                    }
+                                                                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                                                                      if (mounted) {
+                                                                        Navigator.pushReplacement(context,
+                                                                            MaterialPageRoute(builder: (context) => LoginScreen()));
+
+                                                                        if (kDebugMode) {
+                                                                          print("message 7 --- ${response.message}");
+                                                                        }
+                                                                        ScaffoldMessenger.of(context).showSnackBar(
+                                                                          const SnackBar(
+                                                                            content: Text("Unauthorised. Session is expired on this device."),
+                                                                            backgroundColor: Colors.red,
+                                                                            duration: Duration(seconds: 2),
+                                                                          ),
+                                                                        );
+                                                                      }
+                                                                    });
+                                                                  } else {
+                                                                    if (kDebugMode) {
+                                                                      print("###### Delete Discount API error");
+                                                                    }
+                                                                    setState(() => _isLoading = false);
+                                                                    _scaffoldMessenger.showSnackBar(
+                                                                      SnackBar(
+                                                                        content: Text("Failed to remove discount"),
+                                                                        backgroundColor: Colors.red,
+                                                                        duration: const Duration(seconds: 2),
+                                                                      ),
+                                                                    );
+                                                                  }
+                                                                  await CustomDialog.showDiscountNotApplied(context,
                                                               errorMessageTitle: TextConstants.removeDiscountFailed,
                                                               errorMessageDes: response.message ?? TextConstants.discountNotAppliedDescription,
                                                               onRetry: retryCallback,

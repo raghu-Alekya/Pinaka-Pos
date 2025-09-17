@@ -120,8 +120,16 @@ class FastKeyBloc { // Build #1.0.15
       // Build #1.0.200: Clear existing data "await" added, everywhere we have added await while deleting data!
       // Code Updated : Empty fastkey folders show at first logon to multiple fastkeys loaded on created by the user
        await fastKeyDBHelper.deleteAllFastKeyTab(userId);
-        for(var fastkey in response.fastkeys){
-          await fastKeyDBHelper.addFastKeyTab(userId, fastkey.fastkeyTitle, fastkey.fastkeyImage, 0, int.parse(fastkey.fastkeyIndex), fastkey.fastkeyServerId );
+      /// TESTED : We have to delete all products of each exiting tab, otherwise creating duplicate items
+      // Build #1.0.204: Fixed -> Getting Duplicate Items After Login selecting new fastKey tab
+      for (var tab in fastKeyTabs) {
+        final tabServerId = tab[AppDBConst.fastKeyServerId];
+        if (tabServerId != null) {
+          await fastKeyDBHelper.deleteAllFastKeyProductItems(tabServerId);
+         }
+       }
+        for(var fastkey in response.fastkeys){ // Build #1.0.207: updated fastKey itemCount value from api response
+          await fastKeyDBHelper.addFastKeyTab(userId, fastkey.fastkeyTitle, fastkey.fastkeyImage, fastkey.itemCount, int.parse(fastkey.fastkeyIndex), fastkey.fastkeyServerId );
 
           // Build #1.0.197: Fixed [SCRUM - 328] -> At first logon Empty items shows in fast keys for the selected folder
           /// Added FastKey items for this tab from API response
@@ -129,8 +137,8 @@ class FastKeyBloc { // Build #1.0.15
             print("#### Processing ${fastkey.products?.length} products for FastKey serverId: ${fastkey.fastkeyServerId}");
           }
           for (var product in fastkey.products ?? []) {
-            var tagg = product.tags?.firstWhere((element) => element.name == "Age Restricted", orElse: () => Tags());
-            var hasAgeRestriction = tagg?.name?.contains("Age Restricted") ?? false;
+            var tagg = product.tags?.firstWhere((element) => element.name == TextConstants.age_restricted, orElse: () => Tags());
+            var hasAgeRestriction = tagg?.name?.contains(TextConstants.age_restricted) ?? false;
             if (kDebugMode) {
               print("#### Adding FastKey item: ${product.name}, productId: ${product.productId}, hasAgeRestriction: $hasAgeRestriction");
             }

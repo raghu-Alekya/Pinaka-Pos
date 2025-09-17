@@ -10,6 +10,8 @@ import '../../Blocs/Auth/logout_bloc.dart';
 import '../../Constants/text.dart';
 import '../../Database/assets_db_helper.dart';
 import '../../Database/db_helper.dart';
+import '../../Database/fast_key_db_helper.dart';
+import '../../Database/order_panel_db_helper.dart';
 import '../../Database/user_db_helper.dart';
 import '../../Helper/api_response.dart';
 import '../../Models/Auth/login_model.dart';
@@ -132,6 +134,18 @@ class _LoginScreenState extends State<LoginScreen> {
     // }
   }
 
+  // CODE UPDATED!!
+  // Build 1.0.202: Original Fix : SCRUM -> 327 - Empty fastkey folders show at first logon to multiple fastkeys loaded on created by the user
+  // SCRUM - 348 -> Fast Keys not loading on initial login
+  void resetLoadStatus() {
+    FastKeyDBHelper.isFastkeyLoaded = false;
+    OrderHelper.isOrderPanelLoaded = false;
+
+    if (kDebugMode) {
+      print("resetLoadStatus: isFastkeyLoaded -> ${FastKeyDBHelper.isFastkeyLoaded}, isOrderPanelLoaded -> ${OrderHelper.isOrderPanelLoaded}");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     bool isPortrait = MediaQuery.of(context).orientation == Orientation.portrait;
@@ -252,7 +266,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                         unawaited(_assetBloc.fetchImageAssets()); // This will run in background
                                         // Build #1.0.69 : Call Fetch Assets Api after login api call success!
                                         await _assetBloc.fetchAssets(); // Fetch and save assets
-
+                                        /// Fix -> SCRUM - 327, 348
+                                        resetLoadStatus();
                                         // Build #1.0.70 - check shift started or not based on shift id
                                         int? shiftId = await UserDbHelper().getUserShiftId(); // Build #1.0.149 : using from db
                                         if (shiftId != null && snapshot.data?.data?.shiftId != null) { // Build #1.0.154: Updated -> shift_id checking null or not in login response

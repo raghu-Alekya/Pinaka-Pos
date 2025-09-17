@@ -319,7 +319,7 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMix
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Padding(
-                            padding: EdgeInsets.only(top: sidebarPosition == SidebarPosition.bottom ? 5 : 16, right: 16, left: 16),
+                            padding: EdgeInsets.only(top: sidebarPosition == SidebarPosition.bottom ? 3 : 16, right: 16, left: 16,),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
@@ -423,7 +423,8 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMix
                                                     totalAmount: totalAmount,
                                                     overShort: response.data!.overShort.toDouble(),
                                                   );
-                                                } else if (status == TextConstants.closed) {
+                                                }
+                                                else if (status == TextConstants.closed) {
                                                   result = await CustomDialog.showCloseShiftVerification(
                                                     context,
                                                     totalAmount: totalAmount,
@@ -467,6 +468,30 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMix
                                                             Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()),
                                                             );
                                                           } else if (response.status == Status.ERROR) {
+                                                            if (response.message!.contains('Unauthorised')) {
+                                                              if (kDebugMode) {
+                                                                print(" safe open screen -- Unauthorised : response.message ${response.message!}");
+                                                              }
+                                                              isLoading = false;
+                                                              Navigator.of(context).pop();
+                                                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                                                if (mounted) {
+                                                                Navigator.pushReplacement(context, MaterialPageRoute(
+                                                                        builder: (context) => LoginScreen()));
+
+                                                                if (kDebugMode) {
+                                                                  print("message --- ${response.message}");
+                                                                }
+                                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                                  const SnackBar(content: Text("Unauthorised. Session is expired on this device."),
+                                                                    backgroundColor: Colors.red,
+                                                                    duration: Duration(seconds: 2),
+                                                                  ),
+                                                                );
+                                                              }
+                                                              });
+                                                            }
+                                                            else {
                                                             if (kDebugMode) {
                                                               print("Logout failed: ${response.message}");
                                                             }
@@ -477,6 +502,7 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMix
                                                                 duration: const Duration(seconds: 2),
                                                               ),
                                                             );
+                                                            }
                                                             // Update loading state
                                                             isLoading = false;
                                                             Navigator.of(context).pop(); // Close loader dialog
@@ -512,6 +538,32 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMix
                                                   // Cancel subscription after dialog is handled
                                                   await _shiftSubscription?.cancel(); // Build #1.0.70
                                                   Navigator.push(context, MaterialPageRoute(builder: (context) => FastKeyScreen()));
+                                                }
+                                              }
+                                              else{
+                                                if (response.status == Status.ERROR){
+                                                  if (response.message!.contains(TextConstants.unAuth)) {
+                                                    if (kDebugMode) {
+                                                      print(" safe open screen 2 -- Unauthorised : response.message ${response.message!}");
+                                                    }
+                                                    isLoading = false;
+                                                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                                                      if (mounted) {
+                                                        Navigator.pushReplacement(context, MaterialPageRoute(
+                                                            builder: (context) => LoginScreen()));
+
+                                                        if (kDebugMode) {
+                                                          print("message 2 --- ${response.message}");
+                                                        }
+                                                        ScaffoldMessenger.of(context).showSnackBar(
+                                                          const SnackBar(content: Text(TextConstants.unAuthMessage),
+                                                            backgroundColor: Colors.red,
+                                                            duration: Duration(seconds: 2),
+                                                          ),
+                                                        );
+                                                      }
+                                                    });
+                                                  }
                                                 }
                                               }
                                             });

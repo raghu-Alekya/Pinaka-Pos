@@ -42,6 +42,7 @@ class AppDBConst { // Build #1.0.10 - Naveen: Updated DB tables constants
   static const String merchantDiscountIds = 'merchant_discount_ids'; //Build #1.0.94
   static const String orderTax = 'tax'; // Optional: Tax applied to the order
   static const String orderShipping = 'shipping'; // Optional: Shipping charges
+  static const String orderAgeRestricted = 'age_restricted'; //Build #1.0.234: Added column in order table
 
   // Purchased Items Table
   static const String purchasedItemsTable = 'purchased_items_table';
@@ -253,6 +254,7 @@ CREATE TABLE ${AppDBConst.orderTable} (
   ${AppDBConst.merchantDiscountIds} TEXT, -- Optional: Merchant Discount Ids applied to the order 
   ${AppDBConst.orderTax} REAL DEFAULT 0, -- Optional: Tax applied to the order
   ${AppDBConst.orderShipping} REAL DEFAULT 0, -- Optional: Shipping charges
+  ${AppDBConst.orderAgeRestricted} TEXT, -- Added this line
   FOREIGN KEY(${AppDBConst.userId}) REFERENCES ${AppDBConst.userTable}(${AppDBConst.userId}) ON DELETE CASCADE
 )
 ''');

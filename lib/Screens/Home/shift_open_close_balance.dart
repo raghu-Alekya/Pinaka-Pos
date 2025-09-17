@@ -8,16 +8,19 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../Constants/text.dart';
 import '../../Database/assets_db_helper.dart';
 import '../../Database/db_helper.dart';
+import '../../Database/order_panel_db_helper.dart';
 import '../../Database/user_db_helper.dart';
 import '../../Helper/Extentions/nav_layout_manager.dart';
 import '../../Helper/Extentions/theme_notifier.dart';
 import '../../Models/Assets/asset_model.dart';
 import '../../Preferences/pinaka_preferences.dart';
+import '../../Widgets/widget_alert_popup_dialogs.dart';
 import '../../Widgets/widget_custom_num_pad.dart';
 import '../../Widgets/widget_topbar.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../Widgets/widget_navigation_bar.dart' as custom_widgets;
+import 'fast_key_screen.dart';
 
 class ShiftOpenCloseBalanceScreen extends StatefulWidget {
   final int? lastSelectedIndex;
@@ -55,7 +58,7 @@ class _ShiftOpenCloseBalanceScreenState extends State<ShiftOpenCloseBalanceScree
 
     // Simulate a loading delay
     Future.delayed(const Duration(seconds: 3), () {
-     if(mounted) { /// add to fix memory leaks
+      if(mounted) { /// add to fix memory leaks
         setState(() {
           isLoading = false; // Set loading to false after 3 seconds
         });
@@ -324,20 +327,20 @@ class _ShiftOpenCloseBalanceScreenState extends State<ShiftOpenCloseBalanceScree
               screen: Screen.SHIFT,
               onModeChanged: () async{ /// Build #1.0.192: Fixed -> Exception -> setState() callback argument returned a Future. (onModeChanged in all screens)
                 String newLayout;
-                  if (sidebarPosition == SidebarPosition.left) {
-                    newLayout = SharedPreferenceTextConstants.navRightOrderLeft;
-                  } else if (sidebarPosition == SidebarPosition.right) {
-                    newLayout = SharedPreferenceTextConstants.navBottomOrderLeft;
-                  } else {
-                    newLayout = SharedPreferenceTextConstants.navLeftOrderRight;
-                  }
+                if (sidebarPosition == SidebarPosition.left) {
+                  newLayout = SharedPreferenceTextConstants.navRightOrderLeft;
+                } else if (sidebarPosition == SidebarPosition.right) {
+                  newLayout = SharedPreferenceTextConstants.navBottomOrderLeft;
+                } else {
+                  newLayout = SharedPreferenceTextConstants.navLeftOrderRight;
+                }
 
-                  // Update the notifier which will trigger _onLayoutChanged
-                  PinakaPreferences.layoutSelectionNotifier.value = newLayout;
-                  // No need to call saveLayoutSelection here as it's handled in the notifier
+                // Update the notifier which will trigger _onLayoutChanged
+                PinakaPreferences.layoutSelectionNotifier.value = newLayout;
+                // No need to call saveLayoutSelection here as it's handled in the notifier
                 //  _preferences.saveLayoutSelection(newLayout);
-                  //Build #1.0.122: update layout mode change selection to DB
-                  await UserDbHelper().saveUserSettings({AppDBConst.layoutSelection: newLayout}, modeChange: true);
+                //Build #1.0.122: update layout mode change selection to DB
+                await UserDbHelper().saveUserSettings({AppDBConst.layoutSelection: newLayout}, modeChange: true);
                 // update UI
                 setState(() {});
               },
@@ -385,7 +388,7 @@ class _ShiftOpenCloseBalanceScreenState extends State<ShiftOpenCloseBalanceScree
                                           crossAxisAlignment: CrossAxisAlignment.start,
                                           mainAxisAlignment: MainAxisAlignment.center,
                                           children: [
-                                             Text(
+                                            Text(
                                               screenTitle,
                                               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                                             ),
@@ -405,7 +408,28 @@ class _ShiftOpenCloseBalanceScreenState extends State<ShiftOpenCloseBalanceScree
                                               width: MediaQuery.of(context).size.width * 0.1,
                                               child: OutlinedButton(
                                                 onPressed: ((_shiftId == null || _shiftId!.isEmpty) && (previousScreen != TextConstants.navCashier)) ? null : () {
-                                                  Navigator.pop(context);
+
+                                                  // Build #1.0.221 : Fixed Issue
+                                                  // enable back button for close and update time and show "are you sure ? " dialog then exit to fast key screen
+                                                  CustomDialog.showAreYouSure(
+                                                    context,
+                                                    confirm: () {
+                                                      if (kDebugMode) {
+                                                        print("##### DEBUG Back Button confirm Tapped");
+                                                      }
+                                                      //  Navigator.pop(context); // Close the dialog
+                                                      // Use a slight delay to ensure dialog is fully closed before navigating
+                                                      Future.delayed(Duration(milliseconds: 100), () {
+                                                        Navigator.push(
+                                                          context,
+                                                          MaterialPageRoute(builder: (context) => FastKeyScreen(lastSelectedIndex: 0)),
+                                                        );
+                                                      });
+                                                    },
+                                                    description: TextConstants.areYouSureExitShiftDescription,
+                                                    confirmText: TextConstants.yesExit,
+                                                    cancelText: TextConstants.noStay,
+                                                  );
                                                 },
                                                 style: OutlinedButton.styleFrom(
                                                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -452,6 +476,7 @@ class _ShiftOpenCloseBalanceScreenState extends State<ShiftOpenCloseBalanceScree
                                                         cashNotesCoins: _grandTotal,
                                                         previousScreen: _originScreen ?? TextConstants.navShiftHistory, //Build #1.0.74
                                                       ),
+                                                      arguments: TextConstants.navShiftHistory, // Build #1.0.226: Fixed Issue -> Menu items are not disabled in shift closing/update time in second screen
                                                     ),
                                                   ).then((_) {
                                                     // Reset state when returning
@@ -518,7 +543,7 @@ class _ShiftOpenCloseBalanceScreenState extends State<ShiftOpenCloseBalanceScree
                                                     style: TextStyle(
                                                       fontWeight: FontWeight.w500,
                                                       color: themeHelper.themeMode == ThemeMode.dark
-                                                    ? ThemeNotifier.textDark : Colors.grey[700],
+                                                          ? ThemeNotifier.textDark : Colors.grey[700],
                                                     ),
                                                   ),
                                                 ),
@@ -557,12 +582,12 @@ class _ShiftOpenCloseBalanceScreenState extends State<ShiftOpenCloseBalanceScree
                                                 // physics: AlwaysScrollableScrollPhysics(),
                                                 // children: _notesDenominations.map((denom) {
                                                 //   String denomination = denom.denom.toString();
-                                                  itemCount: _notesDenominations.length,
-                                                  physics: const AlwaysScrollableScrollPhysics(),
-                                                  padding: EdgeInsets.zero, // Remove default padding
-                                                  itemBuilder: (context, index) {
-                                                    final denom = _notesDenominations[index];
-                                                    String denomination = denom.denom.toString();
+                                                itemCount: _notesDenominations.length,
+                                                physics: const AlwaysScrollableScrollPhysics(),
+                                                padding: EdgeInsets.zero, // Remove default padding
+                                                itemBuilder: (context, index) {
+                                                  final denom = _notesDenominations[index];
+                                                  String denomination = denom.denom.toString();
                                                   return Padding(
                                                     padding: const EdgeInsets.symmetric(vertical: 7.0, horizontal: 7.0),
                                                     child: Row(
@@ -601,13 +626,13 @@ class _ShiftOpenCloseBalanceScreenState extends State<ShiftOpenCloseBalanceScree
                                                             decoration: InputDecoration(
                                                               hintText: '0',
                                                               hintStyle: TextStyle(color: themeHelper.themeMode == ThemeMode.dark
-                                                                ? ThemeNotifier.textDark : Colors.grey),
+                                                                  ? ThemeNotifier.textDark : Colors.grey),
                                                               border: InputBorder.none,
                                                               contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9.0),
                                                             ),
                                                           ),
                                                         ),
-                                                       Padding(
+                                                        Padding(
                                                           padding: EdgeInsets.symmetric(horizontal: 12.0),
                                                           child: Text(
                                                             '=',
@@ -727,17 +752,17 @@ class _ShiftOpenCloseBalanceScreenState extends State<ShiftOpenCloseBalanceScree
                                                 // Coin rows - Use fetched denominations
                                                 Expanded(
                                                   child: ListView.builder(
-    itemCount: _coinsDenominations.length,
-    physics: const AlwaysScrollableScrollPhysics(),
-    padding: EdgeInsets.zero, // Remove default padding
-    itemBuilder: (context, index) {
-    final denom = _coinsDenominations[index];
-    String denomination = denom.denom.toString();
+                                                    itemCount: _coinsDenominations.length,
+                                                    physics: const AlwaysScrollableScrollPhysics(),
+                                                    padding: EdgeInsets.zero, // Remove default padding
+                                                    itemBuilder: (context, index) {
+                                                      final denom = _coinsDenominations[index];
+                                                      String denomination = denom.denom.toString();
 
-                                                    // scrollDirection: Axis.vertical,
-                                                    // physics: AlwaysScrollableScrollPhysics(),
-                                                    // children: _coinsDenominations.map((denom) {
-                                                    //   String denomination = denom.denom.toString();
+                                                      // scrollDirection: Axis.vertical,
+                                                      // physics: AlwaysScrollableScrollPhysics(),
+                                                      // children: _coinsDenominations.map((denom) {
+                                                      //   String denomination = denom.denom.toString();
                                                       return Padding(
                                                         padding: const EdgeInsets.symmetric(vertical: 7.0, horizontal: 7.0),
                                                         child: Row(
@@ -914,7 +939,8 @@ class _ShiftOpenCloseBalanceScreenState extends State<ShiftOpenCloseBalanceScree
 
 class SlideRightRoute extends PageRouteBuilder {
   final Widget page;
-  SlideRightRoute({required this.page})
+  final String arguments; // Build #1.0.226: Added this parameter
+  SlideRightRoute({required this.page, this.arguments = ''})
       : super(
     pageBuilder: (context, animation, secondaryAnimation) => page,
     transitionDuration: const Duration(milliseconds: 1000), // Control the speed
@@ -932,5 +958,6 @@ class SlideRightRoute extends PageRouteBuilder {
         child: child,
       );
     },
+    settings: RouteSettings(arguments: arguments), // Build #1.0.226: Fixed Issue -> Menu items are not disabled in shift closing/update time in second screen
   );
 }

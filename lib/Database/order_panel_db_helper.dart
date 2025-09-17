@@ -249,9 +249,45 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
         print("#### DEBUG: syncOrdersFromApi - Counts do not match, deleting DB orders");
       }
       // Build #1.0.80: Delete all orders in the database
-      await db.delete(AppDBConst.orderTable);
+     // await db.delete(AppDBConst.orderTable);
+    /// Build #1.0.207: Fixed -> No popup warning for open orders when closing shift via Vendor Payouts [SCRUM- 360]
+    /// When ever navigating to orderPanel to orderScreenPanel related screen's, deleting all orders
+    /// If we go to order screen - prev all processing orders will remove that the cause of checking processing orders while closing shift
+    if (apiOrders.isNotEmpty) {
+      // Check if we're syncing processing orders
+      final isSyncingProcessingOrders = apiOrders.any((order) => order.status == 'processing');
+      if (kDebugMode) {
+        print("#### DEBUG: isSyncingProcessingOrders $isSyncingProcessingOrders");
+      }
+      if (isSyncingProcessingOrders) {
+        // If syncing processing orders, only delete processing orders
+        // when ever orderPanel calls like - fastKey/categories/add screens prev processing orders will remove and re-adding below
+        await db.delete(
+          AppDBConst.orderTable,
+          where: '${AppDBConst.userId} = ? AND ${AppDBConst.orderStatus} = ?',
+          whereArgs: [activeUserId ?? 1, 'processing'],
+        );
+      } else {
+        // If syncing non-processing orders, only delete non-processing orders
+        // when ever orderScreenPanel calls like - order screen prev non-processing orders will remove and re-adding below
+        await db.delete(
+          AppDBConst.orderTable,
+          where: '${AppDBConst.userId} = ? AND ${AppDBConst.orderStatus} != ?',
+          whereArgs: [activeUserId ?? 1, 'processing'],
+        );
+      }
+    } else {
+      ///  BUILD 1.0.213: FIXED RE-OPENED ISSUE [SCRUM-360]: No popup warning for open orders when closing shift via Vendor Payouts
+      // DON'T delete all orders when apiOrders is empty
+      // Just skip the deletion and proceed with sync (which will do nothing)
+      if (kDebugMode) {
+        print("#### DEBUG: syncOrdersFromApi - No orders to sync, skipping deletion");
+      }
+     // await db.delete(AppDBConst.orderTable); // NO NEED TO DELETE COMPLETE ORDER TABLE
+    }
       //  delete purchasedItemsTable related data
-      await db.delete(AppDBConst.purchasedItemsTable);
+     /// Build #1.0.226: purchasedItemsTable foreign key has ON DELETE CASCADE which means when a parent order is deleted, all child purchased items are automatically deleted
+     // await db.delete(AppDBConst.purchasedItemsTable); // NO NEED HERE
       OrderHelper.isOrderPanelLoaded = false;/// set 'false' to load 'processing' orders in order panel again, if db is empty by orders screen loading.
     // }
     // if(!isProcessing) {
@@ -295,6 +331,10 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
             AppDBConst.orderPaymentMethod: apiOrder.paymentMethod,
             AppDBConst.orderDiscount: double.tryParse(apiOrder.discountTotal) ?? 0.0, // Store discount
             AppDBConst.orderTax: double.tryParse(apiOrder.totalTax) ?? 0.0, // Store tax
+            AppDBConst.orderAgeRestricted: apiOrder.metaData.firstWhere( //Build #1.0.234: Saving Age Restricted value in order table
+                  (meta) => meta.key == TextConstants.ageRestrictedKey,
+              orElse: () => model.MetaData(id: 0, key: '', value: 'false'),
+            ).value.toString(),
           },
           where: '${AppDBConst.orderServerId} = ?',
           whereArgs: [apiOrder.id],
@@ -316,6 +356,10 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
           AppDBConst.orderDiscount: double.tryParse(apiOrder.discountTotal) ?? 0.0, // Store discount
           AppDBConst.orderTax: double.tryParse(apiOrder.totalTax) ?? 0.0, // Store tax
           AppDBConst.orderShipping: double.tryParse(apiOrder.shippingTotal) ?? 0.0, // Store shipping
+          AppDBConst.orderAgeRestricted: apiOrder.metaData //Build #1.0.234: Saving Age Restricted value in order table
+              .firstWhere((meta) => meta.key == TextConstants.ageRestrictedKey,
+              orElse: () => model.MetaData(id: 0, key: '', value: 'false'),
+              ).value.toString(),
         });
         if (kDebugMode) {
           print("#### DEBUG: syncOrdersFromApi Inserted new order with serverId: ${apiOrder.id}, orderTotal: ${apiOrder.total}");
@@ -326,6 +370,9 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
       await updateOrderItems(apiOrder.id, apiOrder.lineItems);
       // await updateOrderPayoutItems(apiOrder.id, apiOrder.feeLines ?? []); // Build #1.0.64
       await updateOrderPayoutItem(apiOrder.id, apiOrder.lineItems); // Build #1.0.198
+      // Build #1.0.207: Fixed Issue - Always Merchant discount showing "0"
+      // Ex: updateOrderPayoutItem modified to lineItems but discount we are getting in fee lines only , we are not using this, that's why merchant discount calculation is 0.
+      await updateOrderMerchantDiscount(apiOrder.id, apiOrder.feeLines ?? []);
       await updateOrderCouponItems(apiOrder.id, apiOrder.couponLines ?? []);
     }
 
@@ -747,6 +794,35 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
         print("#### DEBUG: Deleted obsolete payout item ID: ${item[AppDBConst.itemServerId]} for order $orderId");
       }
     }
+  }
+
+  // Build #1.0.207: Fixed Issue - Always Merchant discount showing "0"
+  // Ex: updateOrderPayoutItem modified to lineItems but discount we are getting in fee lines only , we are not using this, that's why merchant discount calculation is 0.
+  // Added this function to handle merchant discounts from feeLines
+  Future<void> updateOrderMerchantDiscount(int orderId, List<model.FeeLine> feeLines) async {
+    final db = await DBHelper.instance.database;
+    double merchantDiscount = 0.0;
+   // Use a list instead of string concatenation
+    List<String> merchantDiscountIdsList = []; // Build #1.0.216: FIXED Issue - Merchant discount not deleting, showing error "Payout ID not found"
+
+    for (var feeLine in feeLines) {
+      if (feeLine.name == TextConstants.discountText) {
+        merchantDiscount += double.parse(feeLine.total ?? '0.0').abs();
+        merchantDiscountIdsList.add(feeLine.id.toString()); // Added to list
+      }
+    }
+    // Build #1.0.216: Join with commas and ensure no leading comma
+    String merchantDiscountIds = merchantDiscountIdsList.join(',');
+
+    await db.update(
+      AppDBConst.orderTable,
+      {
+        AppDBConst.merchantDiscount: merchantDiscount,
+        AppDBConst.merchantDiscountIds: merchantDiscountIds,
+      },
+      where: '${AppDBConst.orderServerId} = ?',
+      whereArgs: [orderId],
+    );
   }
 
   // Build #1.0.64 : Modified updateOrderCouponItems to align with updateOrderItems

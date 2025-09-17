@@ -397,8 +397,8 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
           // Deduplicate products by id
           final uniqueProducts = <int, Map<String, dynamic>>{};
           for (var product in response.data!.products) {
-            var tagg = product.tags?.firstWhere((element) => element.name == "Age Restricted", orElse: () => Tags());
-            var hasAgeRestriction = tagg?.name?.contains("Age Restricted");
+            var tagg = product.tags?.firstWhere((element) => element.name == TextConstants.age_restricted, orElse: () => Tags());
+            var hasAgeRestriction = tagg?.name?.contains(TextConstants.age_restricted);
             if (kDebugMode) {
               print("CategoriesScreen: _loadProductsByCategory hasAgeRestriction $hasAgeRestriction, minAge: ${tagg?.slug ?? "0"}");
             }
@@ -580,14 +580,18 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
               _refreshOrderList();
               subscription?.cancel();
             } else if (response.status == Status.ERROR) {
+              if (Navigator.canPop(context)) { // Build #1.0.197: Fixed [SCRUM - 345] -> Screen blackout when adding item to cart
+                Navigator.pop(context);
+              }
               if (kDebugMode) print("Failed to add item to order: ${response.message}");
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text(TextConstants.failedToAddItemToOrder), // Build #1.0.144
+                  content: Text(response.message ?? TextConstants.failedToAddItemToOrder), // Build #1.0.144
                   backgroundColor: Colors.red,
                   duration: const Duration(seconds: 2),
                 ),
               );
+              _refreshOrderList();
               subscription?.cancel();
             }
           });

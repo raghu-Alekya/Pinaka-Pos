@@ -980,10 +980,32 @@ class CategoryList extends StatelessWidget {
       );
     }
   }
+  // Improved _doesContentOverflow method with debug prints
   bool _doesContentOverflow(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final contentWidth = categories.length * 120;
-    return contentWidth > screenWidth;
+
+    final itemWidth = 100.0; // Increased from 80 to make overflow more likely
+    final totalContentWidth = categories.length * itemWidth;
+
+    final containerPadding = 40.0;
+    final addButtonWidth = isAddButtonEnabled ? 120.0 : 0.0; // Increased
+    final arrowsWidth = 210.0; // Increased reserved space for arrows
+
+    final availableWidth = screenWidth - containerPadding - addButtonWidth - arrowsWidth;
+
+    final overflows = totalContentWidth >= availableWidth;
+
+    if (kDebugMode) {
+      print("### _doesContentOverflow Debug (Sensitive):");
+      print("Screen width: $screenWidth");
+      print("Categories count: ${categories.length}");
+      print("Item width: $itemWidth");
+      print("Total content width: $totalContentWidth");
+      print("Available width: $availableWidth");
+      print("Content overflows: $overflows");
+    }
+
+    return overflows;
   }
 
 //Build 1.1.36: Updated The horizontal list with reOrder functionality
@@ -991,6 +1013,16 @@ class CategoryList extends StatelessWidget {
     var size = MediaQuery.of(context).size;
     final themeHelper = Provider.of<ThemeNotifier>(context);
     ResponsiveLayout.init(context);
+
+    bool contentOverflows = _doesContentOverflow(context);
+
+    // Add debug prints
+    if (kDebugMode) {
+      print("### CategoryList Debug:");
+      print("Categories count: ${categories.length}");
+      print("Screen width: ${MediaQuery.of(context).size.width}");
+      print("Content overflows: $contentOverflows");
+    }
     return GestureDetector(
       onTap: () {
         if (kDebugMode) {
@@ -1018,7 +1050,8 @@ class CategoryList extends StatelessWidget {
           children: [
             Row(
               children: [
-                SizedBox(width: ResponsiveLayout.getWidth(35)),
+                // Only show left padding if arrows are visible
+                SizedBox(width: contentOverflows ? ResponsiveLayout.getWidth(35) : 0),
                 Expanded(
                     child: SizedBox(
                       height: ResponsiveLayout.getHeight(100),
@@ -1064,12 +1097,14 @@ class CategoryList extends StatelessWidget {
                       ),
                     ),
                 ),
-                    const SizedBox(width: 30),
+                // Only show right padding if arrows are visible, otherwise just space for add button
+                SizedBox(width: contentOverflows ? 30 : (isAddButtonEnabled ? 0 : 10)),
                     if (isAddButtonEnabled)
                 _buildAddButton(context , onAddButtonPressed ?? () {}),
               ],
             ),
-            // Left navigation button
+            // Left navigation button - only show if content overflows
+            if (contentOverflows)
             Positioned(
               left: 0,
               child: _buildCircularNavButton(context, Icons.arrow_back_ios, () {
@@ -1083,7 +1118,8 @@ class CategoryList extends StatelessWidget {
                 );
               }),
             ),
-            // Right navigation button
+            // Right navigation button - only show if content overflows
+            if (contentOverflows)
             Positioned(
               right: isAddButtonEnabled ? 75 : 5,
               child: _buildCircularNavButton(context, Icons.arrow_forward_ios, () {

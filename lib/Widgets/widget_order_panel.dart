@@ -1771,6 +1771,9 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                                 // Ensured loader is shown during API calls.
                                 onTap: () {
                                   if (isCouponOrPayout) return;// Build #1.0.187: Fixed - Updating Quantity for non payout or coupons
+                                  if (kDebugMode) {
+                                    print("DEBUG: _isLoading state before dialog: $_isLoading");
+                                  } // Add this
 
                                   if (Misc.enableEditProductScreen) {
                                     Navigator.push(

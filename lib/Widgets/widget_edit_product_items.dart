@@ -55,43 +55,33 @@ class _EditProductState extends State<EditProduct> {
   Widget build(BuildContext context) {
     final themeHelper = Provider.of<ThemeNotifier>(context);
     // Return a layout based on the isDialog flag
+    // Replace the dialog section (isDialog == true) in your EditProduct widget with this:
+
     if(widget.isDialog) {
       // DIALOG LAYOUT: Use the centered Stack layout
       return Center(
         child: Card(
           elevation: 8,
           margin: EdgeInsets.only(top: 10),
-          color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground : null,
+          color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground : Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           child: Container(
             width: widget.isDialog ? MediaQuery.of(context).size.width * 0.5 : MediaQuery.of(context).size.width * 0.65,
-            height: MediaQuery.of(context).size.height * 0.9, // Reduced from 0.9 to 0.85
+            height: MediaQuery.of(context).size.height * 0.9,
             padding: const EdgeInsets.all(5.0),
             child: Stack(
               children: [
-                Center(
+                // Main content - remove Center wrapper and use positioned instead
+                Positioned.fill(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      // Title with close button
-                      // Text(
-                      //   TextConstants.editProductText,
-                      //   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                      //   textAlign: TextAlign.center,
-                      // ),
-                      const SizedBox(height: 50),
+                      const SizedBox(height: 30),
                       // Product information
                       Container(
-                        width: MediaQuery
-                            .of(context)
-                            .size
-                            .width / 3,
-                        height: MediaQuery
-                            .of(context)
-                            .size
-                            .height * 0.16,
-                        // Reduced from 0.16 to 0.14
+                        width: MediaQuery.of(context).size.width / 3,
+                        height: MediaQuery.of(context).size.height * 0.16,
                         padding: EdgeInsets.all(16.0),
                         decoration: BoxDecoration(
                             color: themeHelper.themeMode == ThemeMode.dark
@@ -117,9 +107,9 @@ class _EditProductState extends State<EditProduct> {
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(5),
                                 border: Border.all(
-                                    color: themeHelper.themeMode ==
-                                        ThemeMode.dark ? ThemeNotifier
-                                        .borderColor : Colors.grey.shade300),
+                                    color: themeHelper.themeMode == ThemeMode.dark
+                                        ? ThemeNotifier.borderColor
+                                        : Colors.grey.shade300),
                               ),
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(10),
@@ -127,38 +117,29 @@ class _EditProductState extends State<EditProduct> {
                               ),
                             ),
                             const SizedBox(width: 20),
-
                             // Product details
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 SizedBox(
-                                  width: MediaQuery
-                                      .of(context)
-                                      .size
-                                      .width * 0.23,
+                                  width: MediaQuery.of(context).size.width * 0.23,
                                   child: Text(
                                     widget.orderItem[AppDBConst.itemName],
                                     maxLines: 2,
                                     softWrap: true,
                                     overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(fontSize: 12,
-                                        fontWeight: FontWeight.bold),
+                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                                   ),
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  "Unit Price: ${TextConstants
-                                      .currencySymbol}${(_regularPrice)
-                                      .toStringAsFixed(2)}",
+                                  "Unit Price: ${TextConstants.currencySymbol}${(_regularPrice).toStringAsFixed(2)}",
                                   style: TextStyle(fontSize: 12),
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  "Total: ${TextConstants
-                                      .currencySymbol}${(quantity *
-                                      _regularPrice).toStringAsFixed(2)}",
+                                  "Total: ${TextConstants.currencySymbol}${(quantity * _regularPrice).toStringAsFixed(2)}",
                                   style: TextStyle(
                                       fontSize: 12,
                                       fontWeight: FontWeight.bold,
@@ -180,40 +161,31 @@ class _EditProductState extends State<EditProduct> {
                         onIncrement: updateQuantity,
                       ),
                       const SizedBox(height: 10),
-                      // Reduced from 10 to 8
-                      // NumPad - Make it flexible to take remaining space
-                      Expanded(
-                        flex: 1,
-                        child: SizedBox(
-                          width: MediaQuery
-                              .of(context)
-                              .size
-                              .width / 2.65,
-                          child: CustomNumPad(
-                            isDarkTheme: themeHelper.themeMode == ThemeMode.dark,
-                            onDigitPressed: (digit) {
-                              setState(() {
-                                int newQty = int.tryParse(
-                                    (controller.text.isEmpty ? "0" : controller
-                                        .text) + digit) ?? quantity;
-                                updateQuantity(newQty);
-                              });
-                            },
-                            onClearPressed: () => updateQuantity(0),
-                            onAddPressed: () {
-                              widget.onQuantityUpdated(quantity);
-                              Navigator.pop(context);
-                            },
-                            actionButtonType: ActionButtonType.add,
-                          ),
+                      // NumPad - Use fixed height instead of Expanded
+                      SizedBox(
+                        width: MediaQuery.of(context).size.width / 2.65,
+                        height: MediaQuery.of(context).size.height * 0.5, // Fixed height instead of Expanded
+                        child: CustomNumPad(
+                          isDarkTheme: themeHelper.themeMode == ThemeMode.dark,
+                          onDigitPressed: (digit) {
+                            setState(() {
+                              int newQty = int.tryParse(
+                                  (controller.text.isEmpty ? "0" : controller.text) + digit) ?? quantity;
+                              updateQuantity(newQty);
+                            });
+                          },
+                          onClearPressed: () => updateQuantity(0),
+                          onAddPressed: () {
+                            widget.onQuantityUpdated(quantity);
+                            Navigator.pop(context);
+                          },
+                          actionButtonType: ActionButtonType.add,
                         ),
                       ),
                     ],
                   ),
                 ),
-                Spacer(
-                  flex: 1,
-                ),
+                // Close button - positioned absolutely
                 Positioned(
                   top: 15,
                   right: 15,
@@ -253,7 +225,7 @@ class _EditProductState extends State<EditProduct> {
           elevation: 8,
           margin: EdgeInsets.only(top: 10),
           color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier
-              .primaryBackground : null,
+              .primaryBackground : Colors.white,
           shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20)),
           child: Container(

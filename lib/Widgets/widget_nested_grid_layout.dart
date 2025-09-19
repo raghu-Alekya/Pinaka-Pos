@@ -860,7 +860,8 @@ class NestedGridWidget extends StatelessWidget {
 
     return Expanded(
       child: Container(
-        margin: EdgeInsets.symmetric(vertical: 10, horizontal: 0),
+        //add margins for main container for both fast keys and categories
+        margin: EdgeInsets.symmetric(vertical: 10, horizontal: 8),
         height: MediaQuery.of(context).size.height /2,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
@@ -888,18 +889,18 @@ class NestedGridWidget extends StatelessWidget {
                     key: const ValueKey('add_button'),
                     child: GestureDetector(
                       onTap: onAddButtonPressed ?? () {},
-                      child: _getCardWidget(Column(
+                      child: _getBackCardWidget(Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.add, size: 40, color: Color(0xFFFE6464)),
+                          const Icon(Icons.add, size: 40, color: Color(0xFFFFFFFF)),
                           //SizedBox(height: 2),
-                          Text(TextConstants.addProductText, style: TextStyle(color: Color(0xFFFE6464))),
+                          Text(TextConstants.addProductText, style: TextStyle(color: Color(0xFFFFFFFF))),
                         ],
                       ),themeHelper, accentColor: Colors.redAccent),
                     ),
                   );
                 }
-            
+
                 // Handle "Back to Categories" button if enabled
                 if (showBackButton && index == (showAddButton ? 1 : 0)) {
                   return Container(
@@ -917,13 +918,13 @@ class NestedGridWidget extends StatelessWidget {
                     ),
                   );
                 }
-            
+
                 // Adjust the index based on the presence of "Add" and "Back" buttons
                 final itemIndex = index - (showAddButton ? 1 : 0) - (showBackButton ? 1 : 0);
                 if (itemIndex < 0 || itemIndex >= items.length) {
                   return const SizedBox.shrink();
                 }
-            
+
                 final isReordered = reorderedIndices.isNotEmpty && reorderedIndices[itemIndex] != null;
                 final item = items[itemIndex];
                 return AnimatedContainer(
@@ -1182,6 +1183,39 @@ class NestedGridWidget extends StatelessWidget {
         borderRadius: BorderRadius.circular(15.0), // Optional: for rounded corners
       ),
       child: widget,
+    );
+  }
+
+
+  Widget _getBackCardWidget(
+      Widget widget,
+      ThemeNotifier themeHelper, {
+        MaterialAccentColor accentColor = Colors.blueAccent,
+      }) {
+    return Card(
+      elevation: 5,
+      shadowColor: accentColor, // card shadow color
+      clipBehavior: Clip.antiAliasWithSaveLayer,
+      shape: RoundedRectangleBorder(
+        side: BorderSide(
+          color: accentColor, // border color
+          width: 0.5, // border thickness
+        ),
+        borderRadius: BorderRadius.circular(15.0), // rounded corners
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          gradient:  LinearGradient(
+            colors: [
+              Color(0xFFFFA09A), // top
+              Color(0xFFFE6464), // bottom
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: widget,
+      ),
     );
   }
 

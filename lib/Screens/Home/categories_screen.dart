@@ -515,7 +515,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
     // fix for parent product also adding along with variant product , we have to restrict that like categories screen
     if(variantAdded == true){
       // Build #1.0.148: we have to show loader until product adds into order panel, then hide
-     // Navigator.pop(context); // Hide Loader / VariationPopup dialog
+      // Navigator.pop(context); // Hide Loader / VariationPopup dialog
       if (Navigator.canPop(context)) { // Build #1.0.197: Fixed [SCRUM - 345] -> Screen blackout when adding item to cart
         Navigator.pop(context);
       }
@@ -527,119 +527,119 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
     if (adjustedIndex < 0 || adjustedIndex >= categoryProducts.length) return;
 
     /// Build #1.0.108: No need if condition same as fast key screen _onItemSelected
-   // if (!variantAdded) { //Build 1.1.36
-      // Only add the base product if no variant was added
-      final selectedProduct = categoryProducts[adjustedIndex];
-      ///Comment below code not we are using only server order id as to check orders, skip checking db order id
-      // final order = orderHelper.orders.firstWhere(
-      //       (order) => order[AppDBConst.orderId] == orderHelper.activeOrderId,
-      //   orElse: () => {},
-      // );
-      final serverOrderId = orderHelper.activeOrderId;//order[AppDBConst.orderServerId] as int?;
-      final dbOrderId = orderHelper.activeOrderId;
-      ///Build #1.0.128: No need to check this condition
-      // if (dbOrderId == null) { //Build #1.0.78
-      //   if (kDebugMode) print("No active order selected");
+    // if (!variantAdded) { //Build 1.1.36
+    // Only add the base product if no variant was added
+    final selectedProduct = categoryProducts[adjustedIndex];
+    ///Comment below code not we are using only server order id as to check orders, skip checking db order id
+    // final order = orderHelper.orders.firstWhere(
+    //       (order) => order[AppDBConst.orderId] == orderHelper.activeOrderId,
+    //   orElse: () => {},
+    // );
+    final serverOrderId = orderHelper.activeOrderId;//order[AppDBConst.orderServerId] as int?;
+    final dbOrderId = orderHelper.activeOrderId;
+    ///Build #1.0.128: No need to check this condition
+    // if (dbOrderId == null) { //Build #1.0.78
+    //   if (kDebugMode) print("No active order selected");
+    //   ScaffoldMessenger.of(context).showSnackBar(
+    //     const SnackBar(
+    //       content: Text("No active order selected"),
+    //       backgroundColor: Colors.red,
+    //       duration: Duration(seconds: 2),
+    //     ),
+    //   );
+    //   return;
+    // }
+
+    try {
+      // if (serverOrderId != null) { //Build #1.0.78: if server id is available use API call and save to db else save to db
+      _updateOrderSubscription?.cancel();
+      StreamSubscription? subscription;
+
+      subscription = orderBloc.updateOrderStream.listen((response) async {
+        if (!mounted) {
+          subscription?.cancel();
+          return;
+        }
+        //  setState(() => isAddingItemLoading = false);
+        if (response.status == Status.LOADING) { // Build #1.0.80
+          const Center(child: CircularProgressIndicator());
+        }else if (response.status == Status.COMPLETED) {
+          // Build #1.0.148: we have to show loader until product adds into order panel, then hide
+          // Navigator.pop(context); // Hide Loader / VariationPopup dialog
+          if (Navigator.canPop(context)) { // Build #1.0.197: Fixed [SCRUM - 345] -> Screen blackout when adding item to cart
+            Navigator.pop(context);
+          }
+          if (kDebugMode) print("Item added to order $dbOrderId via API");
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Item '${selectedProduct[AppDBConst.fastKeyItemName]}' added to order"),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+          _refreshOrderList();
+          subscription?.cancel();
+        } else if (response.status == Status.ERROR) {
+          if (Navigator.canPop(context)) { // Build #1.0.197: Fixed [SCRUM - 345] -> Screen blackout when adding item to cart
+            Navigator.pop(context);
+          }
+          if (kDebugMode) print("Failed to add item to order: ${response.message}");
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response.message ?? TextConstants.failedToAddItemToOrder), // Build #1.0.144
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+          _refreshOrderList();
+          subscription?.cancel();
+        }
+      });
+
+      await orderBloc.updateOrderProducts(
+        orderId: serverOrderId,
+        dbOrderId: dbOrderId,
+        lineItems: [
+          OrderLineItem(
+            productId: selectedProduct[AppDBConst.fastKeyProductId],
+            quantity: 1,
+          ),
+        ],
+      );
+      // } else { ///Build #1.0.128: No need
+      //   // await orderHelper.addItemToOrder(
+      //   //   selectedProduct[AppDBConst.fastKeyProductId],
+      //   //   selectedProduct[AppDBConst.fastKeyItemName],
+      //   //   selectedProduct[AppDBConst.fastKeyItemImage],
+      //   //   double.tryParse(selectedProduct[AppDBConst.fastKeyItemPrice].toString()) ?? 0.0,
+      //   //   1,
+      //   //   selectedProduct[AppDBConst.fastKeyItemSKU],
+      //   //   onItemAdded: _refreshOrderList,
+      //   // );
+      // //  setState(() => isAddingItemLoading = false);
       //   ScaffoldMessenger.of(context).showSnackBar(
-      //     const SnackBar(
-      //       content: Text("No active order selected"),
-      //       backgroundColor: Colors.red,
-      //       duration: Duration(seconds: 2),
+      //     SnackBar(
+      //       content: Text("Item '${selectedProduct[AppDBConst.fastKeyItemName]}' did not added to order. OrderId not found."),
+      //       backgroundColor: Colors.green,
+      //       duration: const Duration(seconds: 2),
       //     ),
       //   );
-      //   return;
+      //   _refreshOrderList();
       // }
-
-      try {
-       // if (serverOrderId != null) { //Build #1.0.78: if server id is available use API call and save to db else save to db
-          _updateOrderSubscription?.cancel();
-          StreamSubscription? subscription;
-
-          subscription = orderBloc.updateOrderStream.listen((response) async {
-            if (!mounted) {
-              subscription?.cancel();
-              return;
-            }
-          //  setState(() => isAddingItemLoading = false);
-            if (response.status == Status.LOADING) { // Build #1.0.80
-              const Center(child: CircularProgressIndicator());
-            }else if (response.status == Status.COMPLETED) {
-              // Build #1.0.148: we have to show loader until product adds into order panel, then hide
-             // Navigator.pop(context); // Hide Loader / VariationPopup dialog
-              if (Navigator.canPop(context)) { // Build #1.0.197: Fixed [SCRUM - 345] -> Screen blackout when adding item to cart
-                Navigator.pop(context);
-              }
-              if (kDebugMode) print("Item added to order $dbOrderId via API");
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text("Item '${selectedProduct[AppDBConst.fastKeyItemName]}' added to order"),
-                  backgroundColor: Colors.green,
-                  duration: Duration(seconds: 2),
-                ),
-              );
-              _refreshOrderList();
-              subscription?.cancel();
-            } else if (response.status == Status.ERROR) {
-              if (Navigator.canPop(context)) { // Build #1.0.197: Fixed [SCRUM - 345] -> Screen blackout when adding item to cart
-                Navigator.pop(context);
-              }
-              if (kDebugMode) print("Failed to add item to order: ${response.message}");
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(response.message ?? TextConstants.failedToAddItemToOrder), // Build #1.0.144
-                  backgroundColor: Colors.red,
-                  duration: const Duration(seconds: 2),
-                ),
-              );
-              _refreshOrderList();
-              subscription?.cancel();
-            }
-          });
-
-          await orderBloc.updateOrderProducts(
-            orderId: serverOrderId,
-            dbOrderId: dbOrderId,
-            lineItems: [
-              OrderLineItem(
-                productId: selectedProduct[AppDBConst.fastKeyProductId],
-                quantity: 1,
-              ),
-            ],
-          );
-        // } else { ///Build #1.0.128: No need
-        //   // await orderHelper.addItemToOrder(
-        //   //   selectedProduct[AppDBConst.fastKeyProductId],
-        //   //   selectedProduct[AppDBConst.fastKeyItemName],
-        //   //   selectedProduct[AppDBConst.fastKeyItemImage],
-        //   //   double.tryParse(selectedProduct[AppDBConst.fastKeyItemPrice].toString()) ?? 0.0,
-        //   //   1,
-        //   //   selectedProduct[AppDBConst.fastKeyItemSKU],
-        //   //   onItemAdded: _refreshOrderList,
-        //   // );
-        // //  setState(() => isAddingItemLoading = false);
-        //   ScaffoldMessenger.of(context).showSnackBar(
-        //     SnackBar(
-        //       content: Text("Item '${selectedProduct[AppDBConst.fastKeyItemName]}' did not added to order. OrderId not found."),
-        //       backgroundColor: Colors.green,
-        //       duration: const Duration(seconds: 2),
-        //     ),
-        //   );
-        //   _refreshOrderList();
-        // }
-      } catch (e) {
-        if (kDebugMode) print("Exception in _onItemSelected: $e");
-       // setState(() => isAddingItemLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(TextConstants.errorAddingItem), // Build #1.0.144
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      } finally {
-        _updateOrderSubscription?.cancel(); // Build #1.0.108: Ensure cleanup
-        _updateOrderSubscription = null;
-      }
+    } catch (e) {
+      if (kDebugMode) print("Exception in _onItemSelected: $e");
+      // setState(() => isAddingItemLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(TextConstants.errorAddingItem), // Build #1.0.144
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } finally {
+      _updateOrderSubscription?.cancel(); // Build #1.0.108: Ensure cleanup
+      _updateOrderSubscription = null;
+    }
     // } else {
     //   // If a variant was added, just refresh the UI
     //   _refreshOrderList();
@@ -730,21 +730,21 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
             screen: Screen.CATEGORY,
             onModeChanged: () async{ /// Build #1.0.192: Fixed -> Exception -> setState() callback argument returned a Future. (onModeChanged in all screens)
               String newLayout;
-                if (sidebarPosition == SidebarPosition.left) {
-                  newLayout = SharedPreferenceTextConstants.navRightOrderLeft;
-                } else if (sidebarPosition == SidebarPosition.right) {
-                  newLayout = SharedPreferenceTextConstants.navBottomOrderLeft;
-                } else {
-                  newLayout = SharedPreferenceTextConstants.navLeftOrderRight;
-                }
+              if (sidebarPosition == SidebarPosition.left) {
+                newLayout = SharedPreferenceTextConstants.navRightOrderLeft;
+              } else if (sidebarPosition == SidebarPosition.right) {
+                newLayout = SharedPreferenceTextConstants.navBottomOrderLeft;
+              } else {
+                newLayout = SharedPreferenceTextConstants.navLeftOrderRight;
+              }
 
-                //Build #1.0.54: Update the notifier which will trigger _onLayoutChanged
-                PinakaPreferences.layoutSelectionNotifier.value = newLayout;
-                // No need to call saveLayoutSelection here as it's handled in the notifier
-               // _preferences.saveLayoutSelection(newLayout);
-                //Build #1.0.122: update layout mode change selection to DB
-                await UserDbHelper().saveUserSettings({AppDBConst.layoutSelection: newLayout}, modeChange: true);
-             // update UI
+              //Build #1.0.54: Update the notifier which will trigger _onLayoutChanged
+              PinakaPreferences.layoutSelectionNotifier.value = newLayout;
+              // No need to call saveLayoutSelection here as it's handled in the notifier
+              // _preferences.saveLayoutSelection(newLayout);
+              //Build #1.0.122: update layout mode change selection to DB
+              await UserDbHelper().saveUserSettings({AppDBConst.layoutSelection: newLayout}, modeChange: true);
+              // update UI
               setState(() {});
             },
             onProductSelected: (product) async {
@@ -775,11 +775,11 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
               // }
 
               try {
-               // if (serverOrderId != null) {  ///Build #1.0.128: No need
-                    if (kDebugMode) {
-                      print("###### serverOrderId: $serverOrderId");
-                    }
-                    _refreshOrderList(); // Build #1.0.80: Fix: refresh the order items in order panel after search item selected
+                // if (serverOrderId != null) {  ///Build #1.0.128: No need
+                if (kDebugMode) {
+                  print("###### serverOrderId: $serverOrderId");
+                }
+                _refreshOrderList(); // Build #1.0.80: Fix: refresh the order items in order panel after search item selected
                 // } else {
                 //   // await orderHelper.addItemToOrder(
                 //   //   product.id,
@@ -802,7 +802,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
                 // }
               } catch (e, s) {
                 if (kDebugMode) print("Exception in onProductSelected: $e, Stack: $s");
-              //  setState(() => isAddingItemLoading = false);
+                //  setState(() => isAddingItemLoading = false);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(TextConstants.errorAddingItem), // Build #1.0.144
@@ -925,106 +925,106 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
                       Expanded(
                         child:
                         Misc.enableCategoryProductWithSubCategoryList
-                        ? Column(
-                            children: [
-                              SubCategoryGridWidget(
-                                isLoading: isLoadingNestedContent,
-                                subCategories: subCategoryListItems,
-                                selectedSubCategoryIndex: _selectedSubCategoryIndex,
-                                onSubCategoryTapped: _onSubCategoryTapped,
-                              ),
-                              // :
-                              NestedGridWidget(
-                                productBloc: productBloc,
-                                orderHelper: orderHelper,
-                                isHorizontal: true,
-                                isLoading: isLoadingNestedContent,
-                                showAddButton: false,
-                                showBackButton: showBackButton,
-                                items: categoryProducts,
-                                selectedItemIndex: selectedItemIndex,
-                                reorderedIndices: reorderedIndices,
-                                onAddButtonPressed: null,
-                                onBackButtonPressed: _onBackToCategories,
-                                onItemTapped: (index, {bool? variantAdded}) => _onItemSelected(index, variantAdded!), //Build #1.0.78: Updated to match the new signature
-                                onReorder: (oldIndex, newIndex) {
-                                  if (oldIndex == 0 || newIndex == 0) return;
-                                  final adjustedOldIndex = oldIndex - (showBackButton ? 1 : 0);
-                                  final adjustedNewIndex = newIndex - (showBackButton ? 1 : 0);
-                                  if (adjustedOldIndex < 0 ||
-                                      adjustedNewIndex < 0 ||
-                                      adjustedOldIndex >= categoryProducts.length ||
-                                      adjustedNewIndex >= categoryProducts.length) {
-                                    return;
-                                  }
-                                  setState(() {
-                                    categoryProducts = List<Map<String, dynamic>>.from(categoryProducts);
-                                    final item = categoryProducts.removeAt(adjustedOldIndex);
-                                    categoryProducts.insert(adjustedNewIndex, item);
-                                    reorderedIndices = List.filled(categoryProducts.length, null);
-                                    reorderedIndices[adjustedNewIndex] = adjustedNewIndex;
-                                    selectedItemIndex = adjustedNewIndex;
-                                  });
-                                },
-                                onDeleteItem: (index) {},
-                                onCancelReorder: () {
-                                  setState(() {
-                                    reorderedIndices = List.filled(categoryProducts.length, null);
-                                  });
-                                },
-                                showDeleteButton: false,
-                              ),
-                            ],
-                          )
-                        : (isShowingSubCategories && subCategories.isNotEmpty) ?
+                            ? Column(
+                          children: [
+                            SubCategoryGridWidget(
+                              isLoading: isLoadingNestedContent,
+                              subCategories: subCategoryListItems,
+                              selectedSubCategoryIndex: _selectedSubCategoryIndex,
+                              onSubCategoryTapped: _onSubCategoryTapped,
+                            ),
+                            // :
+                            NestedGridWidget(
+                              productBloc: productBloc,
+                              orderHelper: orderHelper,
+                              isHorizontal: true,
+                              isLoading: isLoadingNestedContent,
+                              showAddButton: false,
+                              showBackButton: showBackButton,
+                              items: categoryProducts,
+                              selectedItemIndex: selectedItemIndex,
+                              reorderedIndices: reorderedIndices,
+                              onAddButtonPressed: null,
+                              onBackButtonPressed: _onBackToCategories,
+                              onItemTapped: (index, {bool? variantAdded}) => _onItemSelected(index, variantAdded!), //Build #1.0.78: Updated to match the new signature
+                              onReorder: (oldIndex, newIndex) {
+                                if (oldIndex == 0 || newIndex == 0) return;
+                                final adjustedOldIndex = oldIndex - (showBackButton ? 1 : 0);
+                                final adjustedNewIndex = newIndex - (showBackButton ? 1 : 0);
+                                if (adjustedOldIndex < 0 ||
+                                    adjustedNewIndex < 0 ||
+                                    adjustedOldIndex >= categoryProducts.length ||
+                                    adjustedNewIndex >= categoryProducts.length) {
+                                  return;
+                                }
+                                setState(() {
+                                  categoryProducts = List<Map<String, dynamic>>.from(categoryProducts);
+                                  final item = categoryProducts.removeAt(adjustedOldIndex);
+                                  categoryProducts.insert(adjustedNewIndex, item);
+                                  reorderedIndices = List.filled(categoryProducts.length, null);
+                                  reorderedIndices[adjustedNewIndex] = adjustedNewIndex;
+                                  selectedItemIndex = adjustedNewIndex;
+                                });
+                              },
+                              onDeleteItem: (index) {},
+                              onCancelReorder: () {
+                                setState(() {
+                                  reorderedIndices = List.filled(categoryProducts.length, null);
+                                });
+                              },
+                              showDeleteButton: false,
+                            ),
+                          ],
+                        )
+                            : (isShowingSubCategories && subCategories.isNotEmpty) ?
 
-                          SubCategoryGridWidget(
-                            isLoading: isLoadingNestedContent,
-                            subCategories: subCategoryListItems,
-                            selectedSubCategoryIndex: _selectedSubCategoryIndex,
-                            onSubCategoryTapped: _onSubCategoryTapped,
-                          )
-                           :
-                          NestedGridWidget(
-                            productBloc: productBloc,
-                            orderHelper: orderHelper,
-                            isHorizontal: true,
-                            isLoading: isLoadingNestedContent,
-                            showAddButton: false,
-                            showBackButton: showBackButton,
-                            items: categoryProducts,
-                            selectedItemIndex: selectedItemIndex,
-                            reorderedIndices: reorderedIndices,
-                            onAddButtonPressed: null,
-                            onBackButtonPressed: _onBackToCategories,
-                            onItemTapped: (index, {bool? variantAdded}) => _onItemSelected(index, variantAdded!), //Build #1.0.78: Updated to match the new signature
-                            onReorder: (oldIndex, newIndex) {
-                              if (oldIndex == 0 || newIndex == 0) return;
-                              final adjustedOldIndex = oldIndex - (showBackButton ? 1 : 0);
-                              final adjustedNewIndex = newIndex - (showBackButton ? 1 : 0);
-                              if (adjustedOldIndex < 0 ||
-                                  adjustedNewIndex < 0 ||
-                                  adjustedOldIndex >= categoryProducts.length ||
-                                  adjustedNewIndex >= categoryProducts.length) {
-                                return;
-                              }
-                              setState(() {
-                                categoryProducts = List<Map<String, dynamic>>.from(categoryProducts);
-                                final item = categoryProducts.removeAt(adjustedOldIndex);
-                                categoryProducts.insert(adjustedNewIndex, item);
-                                reorderedIndices = List.filled(categoryProducts.length, null);
-                                reorderedIndices[adjustedNewIndex] = adjustedNewIndex;
-                                selectedItemIndex = adjustedNewIndex;
-                              });
-                            },
-                            onDeleteItem: (index) {},
-                            onCancelReorder: () {
-                              setState(() {
-                                reorderedIndices = List.filled(categoryProducts.length, null);
-                              });
-                            },
-                            showDeleteButton: false,
-                          ),
+                        SubCategoryGridWidget(
+                          isLoading: isLoadingNestedContent,
+                          subCategories: subCategoryListItems,
+                          selectedSubCategoryIndex: _selectedSubCategoryIndex,
+                          onSubCategoryTapped: _onSubCategoryTapped,
+                        )
+                            :
+                        NestedGridWidget(
+                          productBloc: productBloc,
+                          orderHelper: orderHelper,
+                          isHorizontal: true,
+                          isLoading: isLoadingNestedContent,
+                          showAddButton: false,
+                          showBackButton: showBackButton,
+                          items: categoryProducts,
+                          selectedItemIndex: selectedItemIndex,
+                          reorderedIndices: reorderedIndices,
+                          onAddButtonPressed: null,
+                          onBackButtonPressed: _onBackToCategories,
+                          onItemTapped: (index, {bool? variantAdded}) => _onItemSelected(index, variantAdded!), //Build #1.0.78: Updated to match the new signature
+                          onReorder: (oldIndex, newIndex) {
+                            if (oldIndex == 0 || newIndex == 0) return;
+                            final adjustedOldIndex = oldIndex - (showBackButton ? 1 : 0);
+                            final adjustedNewIndex = newIndex - (showBackButton ? 1 : 0);
+                            if (adjustedOldIndex < 0 ||
+                                adjustedNewIndex < 0 ||
+                                adjustedOldIndex >= categoryProducts.length ||
+                                adjustedNewIndex >= categoryProducts.length) {
+                              return;
+                            }
+                            setState(() {
+                              categoryProducts = List<Map<String, dynamic>>.from(categoryProducts);
+                              final item = categoryProducts.removeAt(adjustedOldIndex);
+                              categoryProducts.insert(adjustedNewIndex, item);
+                              reorderedIndices = List.filled(categoryProducts.length, null);
+                              reorderedIndices[adjustedNewIndex] = adjustedNewIndex;
+                              selectedItemIndex = adjustedNewIndex;
+                            });
+                          },
+                          onDeleteItem: (index) {},
+                          onCancelReorder: () {
+                            setState(() {
+                              reorderedIndices = List.filled(categoryProducts.length, null);
+                            });
+                          },
+                          showDeleteButton: false,
+                        ),
                       ),
                     ],
                   ),

@@ -136,7 +136,8 @@ class CustomNumPad extends StatelessWidget {
     final themeHelper = Provider.of<ThemeNotifier>(context);
     var darkTheme = themeHelper.themeMode == ThemeMode.dark && isDarkTheme;
     return Container(
-      padding: const EdgeInsets.all(16.0),
+      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 16), // ✅ Outside spacing
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6), // ✅ Inside spacing
       child: Column(
         children: [
           // Numbers 1-9 in 3x3 grid
@@ -169,7 +170,11 @@ class CustomNumPad extends StatelessWidget {
                   flex: 2,
                   child: _buildClearKeyForAge(context),
                 ),
-                const SizedBox(width: 12),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2), // ✅ applies around the spacer
+                  child: const SizedBox(width: 2),
+                ),
+                const SizedBox(width: 4),
                 Expanded(
                   child: _buildKey("0", isDarkTheme: darkTheme),
                 ),
@@ -407,16 +412,20 @@ class CustomNumPad extends StatelessWidget {
   Widget _buildClearKeyForAge(BuildContext context) {
     final themeHelper = Provider.of<ThemeNotifier>(context);
     return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 0), // ✅ Outside spacing
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6), // ✅ Inside spacing
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: themeHelper.themeMode == ThemeMode.dark
+            ? const Color(0xFF393B4C) // Dark mode color
+            : const Color(0xFFFBFDFE), // Light mode color
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: const Color(0xFFFF6B35), width: 2), // Orange border
         boxShadow: [
           BoxShadow(
             color: themeHelper.themeMode == ThemeMode.dark
                 ? ThemeNotifier.shadow_F7 : Colors.black.withOpacity(0.05),
-            blurRadius: 2,
+            blurRadius: 0,
             offset: const Offset(0, 0),
           ),
         ],
@@ -425,7 +434,10 @@ class CustomNumPad extends StatelessWidget {
         onPressed: onClearPressed,
         style: TextButton.styleFrom(
           padding: EdgeInsets.zero,
-          backgroundColor: Colors.white,
+          backgroundColor: themeHelper.themeMode == ThemeMode.dark
+              ? const Color(0xFF393B4C) // Dark mode
+              : const Color(0xFFFBFDFE), // Light mode
+
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
           ),
@@ -486,6 +498,8 @@ class CustomNumPad extends StatelessWidget {
   Widget _buildKey(String value, {bool isDarkTheme = false}) {
     //final themeHelper = Provider.of<ThemeNotifier>(context);
     return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 0), // ✅ Outside spacing
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8), // ✅ Inside spacing
       width: double.infinity,
       decoration: BoxDecoration(
         color:  isDarkTheme

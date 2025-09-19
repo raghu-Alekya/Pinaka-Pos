@@ -494,10 +494,28 @@ class _OrdersScreenState extends State<TotalOrdersScreen> with LayoutSelectionMi
                   ),
 
                 SizedBox(
-                  width: sidebarPosition == SidebarPosition.bottom ? 20 : null,
+                  width: sidebarPosition == SidebarPosition.bottom ? 0 : null,
                 ),
                 // Main Content (Table layout View)
                 Expanded(
+                    child: Container(
+                      margin: sidebarPosition == SidebarPosition.bottom
+                          ? EdgeInsets.zero
+                          : const EdgeInsets.fromLTRB(2, 12, 0, 12),
+                      decoration: BoxDecoration(
+                        color: themeHelper.themeMode == ThemeMode.dark
+                            ? ThemeNotifier.primaryBackground
+                            : Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      padding: const EdgeInsets.fromLTRB(4, 4, 0, 4),
                   child: Column(
                     //mainAxisAlignment: MainAxisAlignment.start,
                     // crossAxisAlignment: CrossAxisAlignment.end,
@@ -526,20 +544,6 @@ class _OrdersScreenState extends State<TotalOrdersScreen> with LayoutSelectionMi
                                   });
                                 },
                               ),
-                              // Status Filter
-                              FilterChipWidget(
-                                label: "Status",
-                                options: _filterStatuses.map((filter) => filter.name).toList(),
-                                selectedValue: _selectedStatusFilter,
-                                onSelected: (value) {
-                                  setState(() {
-                                    _selectedStatusFilter = value;
-                                    _currentPage = 1;
-                                    _fetchOrders();
-                                    debugPrint("OrdersScreen: Status filter changed to $value");
-                                  });
-                                },
-                              ),
                               // Order Type Filter
                               FilterChipWidget(
                                 label: "OrderType",
@@ -554,7 +558,21 @@ class _OrdersScreenState extends State<TotalOrdersScreen> with LayoutSelectionMi
                                   });
                                 },
                               ),
-                              // Range Filter
+                              // Status Filter
+                              FilterChipWidget(
+                                label: "Status",
+                                options: _filterStatuses.map((filter) => filter.name).toList(),
+                                selectedValue: _selectedStatusFilter,
+                                onSelected: (value) {
+                                  setState(() {
+                                    _selectedStatusFilter = value;
+                                    _currentPage = 1;
+                                    _fetchOrders();
+                                    debugPrint("OrdersScreen: Status filter changed to $value");
+                                  });
+                                },
+                              ),
+                             // Range Filter
                               // Container(
                               //   height: MediaQuery.of(context).size.height * 0.06,
                               //   margin: EdgeInsets.symmetric(vertical: 10),
@@ -622,7 +640,7 @@ class _OrdersScreenState extends State<TotalOrdersScreen> with LayoutSelectionMi
                                         height: MediaQuery.of(context).size.height * 0.06,
                                         colorFilter: ColorFilter.mode(
                                           _isDateRangeApplied ? Colors.redAccent :themeHelper.themeMode == ThemeMode.dark
-                                              ? ThemeNotifier.textDark : Colors.black,
+                                              ? Colors.grey : Color(0xFF6F6F70),
                                           BlendMode.srcIn,
                                         ),
                                         //color: _isDateRangeApplied ? Colors.white : Colors.black,
@@ -664,132 +682,163 @@ class _OrdersScreenState extends State<TotalOrdersScreen> with LayoutSelectionMi
 
                       // Data Table and Pagination controls
                       Expanded(
-                        // color: Colors.red,
-                        // width: 300,
                         child: isLoading
-                            ? Center(child: CircularProgressIndicator())
-                            : SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          physics: const BouncingScrollPhysics(),
+                            ? const Center(child: CircularProgressIndicator())
+                            : Container(
+                          decoration: BoxDecoration(
+                            color: themeHelper.themeMode == ThemeMode.dark
+                                ? ThemeNotifier.primaryBackground
+                                : Colors.white, // 🔹 White background for whole table
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          padding: const EdgeInsets.all(4),
                           child: SingleChildScrollView(
-                            scrollDirection: Axis.vertical,
+                            scrollDirection: Axis.horizontal,
                             physics: const BouncingScrollPhysics(),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.start,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Table Header with colored container
-                                Container(
-                                  padding: const EdgeInsets.only(left: 0.0, top: 8.0, bottom: 8.0),
-                                  decoration: BoxDecoration(
-                                    color: themeHelper.themeMode == ThemeMode.dark
-                                        ? ThemeNotifier.primaryBackground : Colors.grey[100], // Light grey background
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color:themeHelper.themeMode == ThemeMode.dark
-                                        ? ThemeNotifier.borderColor : Colors.grey.shade300),
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.vertical,
+                              physics: const BouncingScrollPhysics(),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Table Header with colored container
+                                  Container(
+                                    padding: const EdgeInsets.only(left: 0.0, top: 12.0, bottom: 12.0),
+                                    decoration: BoxDecoration(
+                                      color: themeHelper.themeMode == ThemeMode.dark
+                                          ? const Color(0xFF252837) // Dark mode → #252837
+                                          : const Color(0xFF6F6F70), // Light mode → #6F6F70
+                                      borderRadius: const BorderRadius.only(
+                                        topLeft: Radius.circular(12),
+                                        topRight: Radius.circular(12),
+                                        bottomLeft: Radius.circular(0),
+                                        bottomRight: Radius.circular(0),
+                                      ),
+                                      border: Border.all(color:themeHelper.themeMode == ThemeMode.dark
+                                          ? ThemeNotifier.borderColor : Colors.grey.shade300),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.start,
+                                      children: [
+                                        _buildSortableColumn("ID", 'id'),
+                                        _buildSortableColumn("Order Type", 'orderType'),
+                                        _buildSortableColumn("Date", 'date'),
+                                        _buildSortableColumn("Time", 'time'),
+                                        _buildSortableColumn("Total", 'sales_amount'), //Build #1.0.134: changed to "Total"
+                                        _buildSortableColumn("Status", 'status'),
+                                        //_buildHeaderCell(""),
+                                      ],
+                                    ),
                                   ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.start,
-                                    children: [
-                                      _buildSortableColumn("ID", 'id'),
-                                      _buildSortableColumn("Order Type", 'orderType'),
-                                      _buildSortableColumn("Date", 'date'),
-                                      _buildSortableColumn("Time", 'time'),
-                                      _buildSortableColumn("Total", 'sales_amount'), //Build #1.0.134: changed to "Total"
-                                      _buildSortableColumn("Status", 'status'),
-                                      //_buildHeaderCell(""),
-                                    ],
-                                  ),
-                                ),
-                                SizedBox(height: 10),
+                                  const SizedBox(height: 2),
 
-                                // Data Rows
-                                //...filteredData.map((order)
-                                ...paginatedData.map((order){
-                                  final date = DateTime.tryParse(order.dateCreated)?.toLocal();
-                                  final formattedDate = date != null
-                                      ? DateFormat("EEE, MMM d' '${now.year}'").format(date)
-                                      : '';
-                                  final formattedTime = date != null
-                                      ? DateFormat('HH:mm:ss').format(date)
-                                      : '';
-                                  final isSelected = orderHelper.activeOrderId == order.id; // Check if the row is selected
+                                  // Data Rows
+                                  //...filteredData.map((order)
+                                  ...paginatedData.map((order){
+                                    final date = DateTime.tryParse(order.dateCreated)?.toLocal();
+                                    final formattedDate = date != null
+                                        ? DateFormat("EEE, MMM d' '${now.year}'").format(date)
+                                        : '';
+                                    final formattedTime = date != null
+                                        ? DateFormat('HH:mm:ss').format(date)
+                                        : '';
+                                    final isSelected = orderHelper.activeOrderId == order.id; // Check if the row is selected
 
-                                  return Padding(
-                                    padding: EdgeInsets.only(bottom: 8),
-                                    child: GestureDetector( // Add GestureDetector for row click
-                                      onTap: () => _onOrderRowSelected(order.id),
-                                      child: Container(
-                                        padding: EdgeInsets.symmetric(vertical: 8.0),
-                                        decoration: BoxDecoration(
-                                          color: isSelected
-                                              ? (themeHelper.themeMode == ThemeMode.dark
-                                              ? Color(0xFF334756)  // Dark selection color for dark mode
-                                              : Color(0xFFF3ECEC)) // Light selection color for light mode
-                                              : (themeHelper.themeMode == ThemeMode.dark
-                                              ? ThemeNotifier.primaryBackground
-                                              : Colors.white),
-                                          borderRadius: BorderRadius.circular(12),
-                                          border: Border.all(color: themeHelper.themeMode == ThemeMode.dark
-                                              ? ThemeNotifier.borderColor : Colors.grey.shade300),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: themeHelper.themeMode == ThemeMode.dark
-                                                  ? ThemeNotifier.shadow_F7 : Colors.grey.withValues(alpha: 0.2),
-                                              blurRadius: 2,
-                                              offset: const Offset(0, 0),
+                                    return Padding(
+                                      padding: EdgeInsets.only(bottom: 0),
+                                      child: GestureDetector( // Add GestureDetector for row click
+                                        onTap: () => _onOrderRowSelected(order.id),
+                                        child: Container(
+                                          padding: EdgeInsets.symmetric(vertical: 4.0, horizontal: 0),
+                                          decoration: BoxDecoration(
+                                            color: isSelected
+                                                ? (themeHelper.themeMode == ThemeMode.dark
+                                                ? Color(0xFF383B4C)  // Dark selection color for dark mode 334756
+                                                : Color(0xFFDFDFDF)) // Light selection color for light mode F3ECEC
+                                                : (themeHelper.themeMode == ThemeMode.dark
+                                                ? ThemeNotifier.primaryBackground
+                                                : Colors.white),
+                                            borderRadius: const BorderRadius.only(
+                                              topLeft: Radius.circular(0),
+                                              topRight: Radius.circular(0),
+                                              bottomLeft: Radius.circular(0),
+                                              bottomRight: Radius.circular(0),
                                             ),
-                                          ],
+                                            border: Border(
+                                              bottom: BorderSide(
+                                                color: themeHelper.themeMode == ThemeMode.dark
+                                                    ? const Color(0xFF474646) // Dark mode bottom border
+                                                    : const Color(0xFFD8D7D7), // Light mode bottom border
+                                                width: 1.0,
+                                              ),
+                                            ),
+                                            // boxShadow: [
+                                            // BoxShadow(
+                                            // color: themeHelper.themeMode == ThemeMode.dark
+                                            // ? ThemeNotifier.shadow_F7 : Color(0xFF000000).withValues(alpha: 0.2),
+                                            //blurRadius: 2,
+                                            //offset: const Offset(0, 0),
+                                            // ),
+                                            // ],
+                                          ),
+                                          child: Row(
+                                            mainAxisAlignment: MainAxisAlignment.start,
+                                            children: [
+                                              _buildDataCell(order.id.toString()),
+                                              _buildDataCell(_filterOrderType.firstWhere((e) => e.slug == order.createdVia.toString()).name), //AppDBConst.orderType
+                                              _buildDataCell(formattedDate),
+                                              _buildDataCell(formattedTime),
+                                              _buildDataCell('${order.currencySymbol}${order.total}'),
+                                              //  _buildDataCell('N/A'), // Over/short not in API response
+                                              _buildDataCell(order.status, isStatus: true),
+                                              // Add action buttons if needed
+                                            ],
+                                          ),
                                         ),
-                                        child: Row(
-                                          mainAxisAlignment: MainAxisAlignment.start,
-                                          children: [
-                                            _buildDataCell(order.id.toString()),
-                                            _buildDataCell(_filterOrderType.firstWhere((e) => e.slug == order.createdVia.toString()).name), //AppDBConst.orderType
-                                            _buildDataCell(formattedDate),
-                                            _buildDataCell(formattedTime),
-                                            _buildDataCell('${TextConstants.currencySymbol}${order.total}'),
-                                            //  _buildDataCell('N/A'), // Over/short not in API response
-                                            _buildDataCell(order.status, isStatus: true),
-                                            // Add action buttons if needed
-                                          ],
+                                      ),
+                                    );
+                                  }),
+                                  // Show message when no data available
+                                  if (paginatedData.isEmpty && filteredData.isEmpty)
+                                    Container(
+                                      padding: const EdgeInsets.all(20),
+                                      child: Center(
+                                        child: Text(
+                                          'No orders found',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            color: themeHelper.themeMode == ThemeMode.dark
+                                                ? ThemeNotifier.textDark : Colors.grey,
+                                          ),
                                         ),
                                       ),
                                     ),
-                                  );
-                                }),
-                                // Show message when no data available
-                                if (paginatedData.isEmpty && filteredData.isEmpty)
-                                  Container(
-                                    padding: const EdgeInsets.all(20),
-                                    child: Center(
-                                      child: Text(
-                                        'No orders found',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          color: themeHelper.themeMode == ThemeMode.dark
-                                              ? ThemeNotifier.textDark : Colors.grey,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
 
-                                // Show message when filters result in no data
-                                if (paginatedData.isEmpty && filteredData.isEmpty && _orders.isNotEmpty)
-                                  Container(
-                                    padding: const EdgeInsets.all(20),
-                                    child: Center(
-                                      child: Text(
-                                        'No orders match the selected filters',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          color: themeHelper.themeMode == ThemeMode.dark
-                                              ? ThemeNotifier.textDark : Colors.grey,
+                                  // Show message when filters result in no data
+                                  if (paginatedData.isEmpty && filteredData.isEmpty && _orders.isNotEmpty)
+                                    Container(
+                                      padding: const EdgeInsets.all(20),
+                                      child: Center(
+                                        child: Text(
+                                          'No orders match the selected filters',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            color: themeHelper.themeMode == ThemeMode.dark
+                                                ? ThemeNotifier.textDark : Colors.grey,
+                                          ),
                                         ),
                                       ),
                                     ),
-                                  ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         ),
@@ -828,6 +877,7 @@ class _OrdersScreenState extends State<TotalOrdersScreen> with LayoutSelectionMi
                       // ),
                     ],
                   ),
+                ),
                 ),
 
                 if(sidebarPosition == SidebarPosition.bottom)
@@ -1046,7 +1096,7 @@ class _OrdersScreenState extends State<TotalOrdersScreen> with LayoutSelectionMi
   Widget _buildSortableColumn(String label, String columnKey) {
     final themeHelper = Provider.of<ThemeNotifier>(context);
     return SizedBox(
-      width: MediaQuery.of(context).size.width * 0.105,
+      width: MediaQuery.of(context).size.width * 0.103,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 0.0, horizontal: 4.0),
         child: InkWell(
@@ -1061,9 +1111,9 @@ class _OrdersScreenState extends State<TotalOrdersScreen> with LayoutSelectionMi
                   label,
                   style: TextStyle(
                     color: themeHelper.themeMode == ThemeMode.dark
-                        ? ThemeNotifier.textDark : Colors.grey,
+                        ? ThemeNotifier.textDark : Color(0xFFFFFFFF),
                     fontWeight: FontWeight.bold,
-                    fontSize: 14,
+                    fontSize: 16,
                   ),
                   textAlign: TextAlign.center,
                   overflow: TextOverflow.ellipsis,
@@ -1080,7 +1130,7 @@ class _OrdersScreenState extends State<TotalOrdersScreen> with LayoutSelectionMi
                 Icon(
                   Icons.unfold_more,
                   color: themeHelper.themeMode == ThemeMode.dark
-                      ? ThemeNotifier.textDark : Colors.grey,
+                      ? ThemeNotifier.textDark : Colors.white,
                   size: 16,
                 ),
             ],
@@ -1107,12 +1157,13 @@ class _OrdersScreenState extends State<TotalOrdersScreen> with LayoutSelectionMi
   }
 
   // Build data cell
+  // Build data cell
   Widget _buildDataCell(String text, {bool isStatus = false}) {
     final themeHelper = Provider.of<ThemeNotifier>(context);
     return SizedBox(
-      width: MediaQuery.of(context).size.width * 0.105,
+      width: MediaQuery.of(context).size.width * 0.103,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
+        padding: const EdgeInsets.symmetric(vertical: 6.0, horizontal: 4.0),
         child: isStatus
             ? StatusWidget(
           status: text,
@@ -1132,4 +1183,5 @@ class _OrdersScreenState extends State<TotalOrdersScreen> with LayoutSelectionMi
       ),
     );
   }
+
 }

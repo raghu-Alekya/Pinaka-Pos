@@ -116,10 +116,15 @@ class NavigationBar extends StatelessWidget {
               onSidebarItemSelected(0);
 
               /// FastKeyScreen
-              Navigator.pushReplacement(
-                context,
+              // Build #1.0.247 : Updated pushReplacement TO pushAndRemoveUntil
+              Navigator.of(context).pushAndRemoveUntil(
                 MaterialPageRoute(builder: (context) => FastKeyScreen(lastSelectedIndex: lastSelectedIndex)),
+                    (route) => false,
               );
+              // Navigator.pushReplacement(
+              //   context,
+              //   MaterialPageRoute(builder: (context) => FastKeyScreen(lastSelectedIndex: lastSelectedIndex)),
+              // );
             },
             isVertical: isVertical,
             isDisabled: isShiftInvalid || isShiftScreen,
@@ -139,10 +144,14 @@ class NavigationBar extends StatelessWidget {
               onSidebarItemSelected(1);
 
               /// CategoriesScreen
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => CategoriesScreen( lastSelectedIndex: lastSelectedIndex)),
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (context) => CategoriesScreen(lastSelectedIndex: lastSelectedIndex)),
+                    (route) => false,
               );
+              // Navigator.pushReplacement(
+              //   context,
+              //   MaterialPageRoute(builder: (context) => CategoriesScreen( lastSelectedIndex: lastSelectedIndex)),
+              // );
             },
             isVertical: isVertical,
             isDisabled: isShiftInvalid || isShiftScreen,
@@ -160,8 +169,12 @@ class NavigationBar extends StatelessWidget {
               }
               lastSelectedIndex = 2;
               onSidebarItemSelected(2);
-              Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => AddScreen(lastSelectedIndex: lastSelectedIndex)),
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (context) => AddScreen(lastSelectedIndex: lastSelectedIndex)),
+                    (route) => false,
               );
+              //  Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => AddScreen(lastSelectedIndex: lastSelectedIndex)),
+            //  );
             },
             isVertical: isVertical,
             isDisabled: isShiftInvalid || isShiftScreen,
@@ -181,10 +194,17 @@ class NavigationBar extends StatelessWidget {
               onSidebarItemSelected(3);
 
               /// OrdersScreen
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => TotalOrdersScreen(lastSelectedIndex: lastSelectedIndex)), // Build #1.0.226: Updated class name
+              // Build #1.0.245: Fixed Re-Opened [SCRUM - 356] Issue -> Order items not displaying in Bottom Mode
+              // -> the processing order is showing when we switch to bottom mode
+              // -> Empty Cart/ Items shown for pending orders when move navigation bar to bottom mode.
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (context) => TotalOrdersScreen(lastSelectedIndex: lastSelectedIndex)),
+                    (route) => false,
               );
+              // Navigator.pushAndRemoveUntil(
+              //   context,
+              //   MaterialPageRoute(builder: (context) => TotalOrdersScreen(lastSelectedIndex: lastSelectedIndex)), // Build #1.0.226: Updated class name
+              // );
             },
             isVertical: isVertical,
             isDisabled: isShiftInvalid || isShiftScreen,
@@ -202,12 +222,16 @@ class NavigationBar extends StatelessWidget {
               }
               lastSelectedIndex = 4;
               onSidebarItemSelected(4);
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                    builder: (context) =>
-                        AppsDashboardScreen(lastSelectedIndex: lastSelectedIndex)),
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (context) => AppsDashboardScreen(lastSelectedIndex: lastSelectedIndex)),
+                    (route) => false,
               );
+              // Navigator.pushReplacement(
+              //   context,
+              //   MaterialPageRoute(
+              //       builder: (context) =>
+              //           AppsDashboardScreen(lastSelectedIndex: lastSelectedIndex)),
+              // );
             },
             isVertical: isVertical,
           ),
@@ -250,7 +274,7 @@ class NavigationBar extends StatelessWidget {
               svgAsset: SvgUtils.logoutIcon,
               label: TextConstants.logoutText,
               isSelected: selectedSidebarIndex == 6,
-              onTap: isShiftInvalid || isShiftScreen || selectedSidebarIndex == 6
+              onTap: isShiftInvalid || isShiftScreen // Build #1.0.247: Enabled Multiple click for Logout
                   ? () {}
                   : () {
                       onSidebarItemSelected(6);
@@ -314,10 +338,14 @@ class NavigationBar extends StatelessWidget {
               onSidebarItemSelected(0);
 
               /// FastKeyScreen
-              Navigator.pushReplacement(
-                context,
+              Navigator.of(context).pushAndRemoveUntil(
                 MaterialPageRoute(builder: (context) => FastKeyScreen(lastSelectedIndex: lastSelectedIndex)),
+                    (route) => false,
               );
+              // Navigator.pushReplacement(
+              //   context,
+              //   MaterialPageRoute(builder: (context) => FastKeyScreen(lastSelectedIndex: lastSelectedIndex)),
+              // );
             },
             isVertical: false, //Build #1.0.54: updated
             isDisabled: isShiftInvalid || isShiftScreen,
@@ -335,12 +363,16 @@ class NavigationBar extends StatelessWidget {
               }
               lastSelectedIndex = 1; // Store last selection
               onSidebarItemSelected(1);
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                    builder: (context) =>
-                        CategoriesScreen(lastSelectedIndex: lastSelectedIndex)),
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (context) => CategoriesScreen(lastSelectedIndex: lastSelectedIndex)),
+                    (route) => false,
               );
+              // Navigator.pushReplacement(
+              //   context,
+              //   MaterialPageRoute(
+              //       builder: (context) =>
+              //           CategoriesScreen(lastSelectedIndex: lastSelectedIndex)),
+              // );
             },
             isVertical: false,
             isDisabled: isShiftInvalid || isShiftScreen,
@@ -358,9 +390,13 @@ class NavigationBar extends StatelessWidget {
               }
               lastSelectedIndex = 2;
               onSidebarItemSelected(2);
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => AddScreen()),
+              // Navigator.pushReplacement(
+              //   context,
+              //   MaterialPageRoute(builder: (context) => AddScreen()),
+              // );
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (context) => AddScreen(lastSelectedIndex: lastSelectedIndex)),
+                    (route) => false,
               );
             },
             isVertical: false,
@@ -381,10 +417,14 @@ class NavigationBar extends StatelessWidget {
               onSidebarItemSelected(3);
 
               /// OrdersScreen
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => TotalOrdersScreen(lastSelectedIndex: lastSelectedIndex)), // Build #1.0.226: Updated class name
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (context) => TotalOrdersScreen(lastSelectedIndex: lastSelectedIndex)),
+                    (route) => false,
               );
+              // Navigator.pushReplacement(
+              //   context,
+              //   MaterialPageRoute(builder: (context) => TotalOrdersScreen(lastSelectedIndex: lastSelectedIndex)), // Build #1.0.226: Updated class name
+              // );
             },
             isVertical: false,
             isDisabled: isShiftInvalid || isShiftScreen,
@@ -402,10 +442,14 @@ class NavigationBar extends StatelessWidget {
               }
               lastSelectedIndex = 4;
               onSidebarItemSelected(4);
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => AppsDashboardScreen()),
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (context) => AppsDashboardScreen(lastSelectedIndex: lastSelectedIndex)),
+                    (route) => false,
               );
+              // Navigator.pushReplacement(
+              //   context,
+              //   MaterialPageRoute(builder: (context) => AppsDashboardScreen()),
+              // );
             },
             isVertical: false,
           ),
@@ -445,7 +489,7 @@ class NavigationBar extends StatelessWidget {
             svgAsset: SvgUtils.logoutIcon,
             label: TextConstants.logoutText,
             isSelected: selectedSidebarIndex == 6,
-            onTap: isShiftInvalid || isShiftScreen || selectedSidebarIndex == 6
+            onTap: isShiftInvalid || isShiftScreen
                 ? () {}
                 : () {
                     onSidebarItemSelected(6);
@@ -618,7 +662,11 @@ class NavigationBar extends StatelessWidget {
                                 isLoading = false;
                                 Navigator.of(context).pop(); // Close loader dialog
                                 Navigator.of(context).pop(); // Close QuickAlert dialog
-                                Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()),);
+                                Navigator.of(context).pushAndRemoveUntil(
+                                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                                      (route) => false,
+                                );
+                             //   Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()),);
                               } else if (response.status == Status.ERROR) {
                                 if (response.message!.contains('Unauthorised')) {
                                   if (kDebugMode) {
@@ -627,7 +675,11 @@ class NavigationBar extends StatelessWidget {
                                   isLoading = false;
                                   Navigator.of(context).pop();
                                   WidgetsBinding.instance.addPostFrameCallback((_) {
-                                    Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()));
+                                    Navigator.of(context).pushAndRemoveUntil(
+                                      MaterialPageRoute(builder: (context) => LoginScreen()),
+                                          (route) => false,
+                                    );
+                                  //  Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()));
 
                                     if (kDebugMode) {
                                       print("message --- ${response.message}");
@@ -715,7 +767,11 @@ class NavigationBar extends StatelessWidget {
                 isLoading = false;
                 Navigator.of(context).pop(); // Close loader dialog
                 Navigator.of(context).pop(); // Close QuickAlert dialog
-                Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()),);
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                      (route) => false,
+                );
+               // Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()),);
               } else if (response.status == Status.ERROR) {
                 if (response.message!.contains('Unauthorised')) {
                   if (kDebugMode) {
@@ -724,8 +780,11 @@ class NavigationBar extends StatelessWidget {
                   isLoading = false;
                   Navigator.of(context).pop();
                   WidgetsBinding.instance.addPostFrameCallback((_) {
-                    Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()));
-
+                  //  Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()));
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (context) => LoginScreen()),
+                          (route) => false,
+                    );
                     if (kDebugMode) {
                       print("message --- ${response.message}");
                     }

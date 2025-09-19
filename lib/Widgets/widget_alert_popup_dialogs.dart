@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -212,41 +214,62 @@ class CustomDialog {
         BuildContext context, {
           required double totalAmount,
           double? overShort,
+          bool isLoading = false, // Build #1.0.247 : Added loader on button tap of start, update, close shift call
         }) {
-      return _showCashVerificationDialog(
+      Completer<bool?> completer = Completer<bool?>();
+
+      _showCashVerificationDialog(
         context,
         totalAmount: totalAmount,
         overShort: overShort,
         isShiftStarted: false,
+        isLoading: isLoading,
+        completer: completer,
       );
+
+      return completer.future;
     }
 
-    static Future<bool?> showCloseShiftVerification(
+    static Future<bool?> showCloseShiftVerification( // Build #1.0.247 : Added loader on button tap of start, update, close shift call
         BuildContext context, {
           required double totalAmount,
           double? overShort,
+          bool isLoading = false, // Added this parameter
         }) {
-      return _showCashVerificationDialog(
+
+      Completer<bool?> completer = Completer<bool?>();
+      _showCashVerificationDialog(
         context,
         totalAmount: totalAmount,
         overShort: overShort,
         isShiftStarted: true,
+        isLoading: isLoading,
+        completer: completer, // Pass the completer
       );
+
+      return completer.future;
     }
 
-    static Future<bool?> showUpdateShiftVerification(
+    static Future<bool?> showUpdateShiftVerification( // Build #1.0.247 : Added loader on button tap of start, update, close shift call
         BuildContext context, {
           required double totalAmount,
           double? overShort,
+          bool isLoading = false,
         }) {
-      return _showCashVerificationDialog(
+
+      Completer<bool?> completer = Completer<bool?>();
+
+       _showCashVerificationDialog(
         context,
         totalAmount: totalAmount,
         overShort: overShort,
         isShiftStarted: true,
         actionButtonTextOverride: TextConstants.updateShift,
         descriptionTextOverride: TextConstants.updateShiftDescription,
+        isLoading: isLoading,
+        completer: completer,
       );
+      return completer.future;
     }
 
     // Reusable Base Dialog Builder
@@ -480,6 +503,8 @@ class CustomDialog {
           required bool isShiftStarted,
           String? actionButtonTextOverride,
           String? descriptionTextOverride,
+          bool isLoading = false, // Build #1.0.247 : Added this parameter
+          Completer<bool?>? completer, // Added completer parameter
         }) {
       String actionButtonText = actionButtonTextOverride ??
           (isShiftStarted ? TextConstants.closeShift : TextConstants.startShift);
@@ -535,14 +560,22 @@ class CustomDialog {
                   Expanded(
                     child: _buildSecondaryButton(
                       TextConstants.back,
-                          () => Navigator.of(context).pop(false),
+                          () {
+                        Navigator.of(context).pop();
+                        completer?.complete(false);
+                      },
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: _buildPrimaryButton(
+                    child: isLoading
+                        ? _buildPrimaryButtonWithLoader()
+                        : _buildPrimaryButton(
                       actionButtonText,
-                          () => Navigator.of(context).pop(true),
+                          () {
+                        Navigator.of(context).pop();
+                        completer?.complete(true);
+                      },
                     ),
                   ),
                 ],
@@ -552,6 +585,22 @@ class CustomDialog {
         ),
       );
     }
+
+  // Build #1.0.247 : Added this helper method for loader button
+  static Widget _buildPrimaryButtonWithLoader() {
+    return ElevatedButton(
+      style: _primaryButtonStyle,
+      onPressed: null, // Disable button when loading
+      child: SizedBox(
+        width: 20,
+        height: 20,
+        child: CircularProgressIndicator(
+          color: Colors.white,
+          strokeWidth: 2,
+        ),
+      ),
+    );
+  }
 }
 // Reusable Components:
 // 1. Button Styles (lines 7-19):

@@ -1110,7 +1110,7 @@ class NestedGridWidget extends StatelessWidget {
                                             color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight,
                                           ),
                                         ),
-                                        const SizedBox(width: 22), // Space between price and variations
+                                        const SizedBox(width: 16), // Space between price and variations
                                         if (item['variations'] != null && item['variations'].isNotEmpty) // Build #1.0.157: show variationIcon with count
                                           Row(
                                             children: [

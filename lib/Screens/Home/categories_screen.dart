@@ -885,147 +885,315 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
                         },
                       ),
                       if (currentCategoryLevel > 0)
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: SingleChildScrollView(
-                                  scrollDirection: Axis.horizontal,
-                                  child: Row(
-                                    children: List.generate(navigationPath.length, (index) {
-                                      return GestureDetector(
-                                        onTap: () => _onNavigationPathTapped(index),
-                                        child: Row(
-                                          children: [
-                                            Text(
-                                              navigationPath[index],
-                                              style: const TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.blue,
-                                                decoration: TextDecoration.underline,
-                                              ),
-                                            ),
-                                            if (index < navigationPath.length - 1)
-                                              const Padding(
-                                                padding: EdgeInsets.symmetric(horizontal: 8.0),
-                                                child: Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.blue),
-                                              ),
-                                          ],
-                                        ),
-                                      );
-                                    }),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      Expanded(
-                        child:
-                        Misc.enableCategoryProductWithSubCategoryList
-                            ? Column(
-                          children: [
-                            SubCategoryGridWidget(
-                              isLoading: isLoadingNestedContent,
-                              subCategories: subCategoryListItems,
-                              selectedSubCategoryIndex: _selectedSubCategoryIndex,
-                              onSubCategoryTapped: _onSubCategoryTapped,
-                            ),
-                            // :
-                            NestedGridWidget(
-                              productBloc: productBloc,
-                              orderHelper: orderHelper,
-                              isHorizontal: true,
-                              isLoading: isLoadingNestedContent,
-                              showAddButton: false,
-                              showBackButton: showBackButton,
-                              items: categoryProducts,
-                              selectedItemIndex: selectedItemIndex,
-                              reorderedIndices: reorderedIndices,
-                              onAddButtonPressed: null,
-                              onBackButtonPressed: _onBackToCategories,
-                              onItemTapped: (index, {bool? variantAdded}) => _onItemSelected(index, variantAdded!), //Build #1.0.78: Updated to match the new signature
-                              onReorder: (oldIndex, newIndex) {
-                                if (oldIndex == 0 || newIndex == 0) return;
-                                final adjustedOldIndex = oldIndex - (showBackButton ? 1 : 0);
-                                final adjustedNewIndex = newIndex - (showBackButton ? 1 : 0);
-                                if (adjustedOldIndex < 0 ||
-                                    adjustedNewIndex < 0 ||
-                                    adjustedOldIndex >= categoryProducts.length ||
-                                    adjustedNewIndex >= categoryProducts.length) {
-                                  return;
-                                }
-                                setState(() {
-                                  categoryProducts = List<Map<String, dynamic>>.from(categoryProducts);
-                                  final item = categoryProducts.removeAt(adjustedOldIndex);
-                                  categoryProducts.insert(adjustedNewIndex, item);
-                                  reorderedIndices = List.filled(categoryProducts.length, null);
-                                  reorderedIndices[adjustedNewIndex] = adjustedNewIndex;
-                                  selectedItemIndex = adjustedNewIndex;
-                                });
-                              },
-                              onDeleteItem: (index) {},
-                              onCancelReorder: () {
-                                setState(() {
-                                  reorderedIndices = List.filled(categoryProducts.length, null);
-                                });
-                              },
-                              showDeleteButton: false,
-                            ),
-                          ],
-                        )
-                            : (isShowingSubCategories && subCategories.isNotEmpty) ?
+                      // Padding(
+                      //   padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                      //   child: Row(
+                      //     children: [
+                      //       Expanded(
+                      //         child: SingleChildScrollView(
+                      //           scrollDirection: Axis.horizontal,
+                      //           child: Row(
+                      //             children: List.generate(navigationPath.length, (index) {
+                      //               return GestureDetector(
+                      //                 onTap: () => _onNavigationPathTapped(index),
+                      //                 child: Row(
+                      //                   children: [
+                      //                     Text(
+                      //                       navigationPath[index],
+                      //                       style: const TextStyle(
+                      //                         fontSize: 16,
+                      //                         fontWeight: FontWeight.bold,
+                      //                         color: Colors.blue,
+                      //                         decoration: TextDecoration.underline,
+                      //                       ),
+                      //                     ),
+                      //                     if (index < navigationPath.length - 1)
+                      //                       const Padding(
+                      //                         padding: EdgeInsets.symmetric(horizontal: 8.0),
+                      //                         child: Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.blue),
+                      //                       ),
+                      //                   ],
+                      //                 ),
+                      //               );
+                      //             }),
+                      //           ),
+                      //         ),
+                      //       ),
+                      //     ],
+                      //   ),
+                      // ),
 
-                        SubCategoryGridWidget(
-                          isLoading: isLoadingNestedContent,
-                          subCategories: subCategoryListItems,
-                          selectedSubCategoryIndex: _selectedSubCategoryIndex,
-                          onSubCategoryTapped: _onSubCategoryTapped,
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.all(
+                                8.0), // spacing around the frame
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).brightness ==
+                                    Brightness.dark
+                                    ? const Color(0xFF1C1C1E) // dark background
+                                    : Colors.white, // light background
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Theme.of(context).brightness ==
+                                        Brightness.dark
+                                        ? Colors.black.withOpacity(
+                                        0.3) // softer shadow in dark mode
+                                        : Colors.black.withOpacity(0.05),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // ---------- BREADCRUMB ----------
+                                  if (navigationPath.isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.fromLTRB(
+                                          16, 8, 10, 1),
+                                      child: SingleChildScrollView(
+                                        scrollDirection: Axis.horizontal,
+                                        child: Row(
+                                          children: List.generate(
+                                              navigationPath.length, (index) {
+                                            final isDark =
+                                                Theme.of(context).brightness ==
+                                                    Brightness.dark;
+
+                                            return GestureDetector(
+                                              onTap: () =>
+                                                  _onNavigationPathTapped(
+                                                      index),
+                                              child: Row(
+                                                children: [
+                                                  Text(
+                                                    navigationPath[index],
+                                                    style: TextStyle(
+                                                      fontSize: 16,
+                                                      fontFamily: 'poppins',
+                                                      fontWeight:
+                                                      FontWeight.w800,
+                                                      color: isDark
+                                                          ? const Color(
+                                                          0xFFE0E0E0) // light grey for dark
+                                                          : const Color(
+                                                          0xFF4C5F7D), // dark blue for light
+                                                    ),
+                                                  ),
+                                                  if (index <
+                                                      navigationPath.length - 1)
+                                                    Padding(
+                                                      padding: const EdgeInsets
+                                                          .symmetric(
+                                                          horizontal: 8.0),
+                                                      child: Icon(
+                                                        Icons
+                                                            .arrow_forward_ios_rounded,
+                                                        size: 16,
+                                                        color: isDark
+                                                            ? const Color(
+                                                            0xFFB0B0B0) // grey arrow for dark
+                                                            : Colors
+                                                            .blue, // blue arrow for light
+                                                      ),
+                                                    ),
+                                                ],
+                                              ),
+                                            );
+                                          }),
+                                        ),
+                                      ),
+                                    ),
+
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10.0),
+                                    child: Divider(
+                                      thickness: 4,
+                                      color: Theme.of(context).brightness == Brightness.dark
+                                          ? const Color(0xFF2C2C2E)
+                                          : const Color(0xFFF1F1F3),
+                                    ),
+                                  ),
+
+                                  // ---------- SUBCATEGORY + PRODUCTS ----------
+                                  Expanded(
+                                    child: Misc
+                                        .enableCategoryProductWithSubCategoryList
+                                        ? Column(
+                                      children: [
+                                        SizedBox(
+                                          height: 140,
+                                          child: SubCategoryGridWidget(
+                                            isLoading:
+                                            isLoadingNestedContent,
+                                            subCategories:
+                                            subCategoryListItems,
+                                            selectedSubCategoryIndex:
+                                            _selectedSubCategoryIndex,
+                                            onSubCategoryTapped:
+                                            _onSubCategoryTapped,
+                                          ),
+                                        ),
+                                        Expanded(
+                                          child: NestedGridWidget(
+                                            productBloc: productBloc,
+                                            orderHelper: orderHelper,
+                                            isHorizontal: true,
+                                            isLoading:
+                                            isLoadingNestedContent,
+                                            showAddButton: false,
+                                            showBackButton:
+                                            showBackButton,
+                                            items: categoryProducts,
+                                            selectedItemIndex:
+                                            selectedItemIndex,
+                                            reorderedIndices:
+                                            reorderedIndices,
+                                            onAddButtonPressed: null,
+                                            onBackButtonPressed:
+                                            _onBackToCategories,
+                                            onItemTapped: (index,
+                                                {bool?
+                                                variantAdded}) =>
+                                                _onItemSelected(
+                                                    index,
+                                                    variantAdded ??
+                                                        false),
+                                            onReorder:
+                                                (oldIndex, newIndex) {
+                                              if (oldIndex == 0 ||
+                                                  newIndex == 0) return;
+                                              final adjustedOldIndex =
+                                                  oldIndex -
+                                                      (showBackButton
+                                                          ? 1
+                                                          : 0);
+                                              final adjustedNewIndex =
+                                                  newIndex -
+                                                      (showBackButton
+                                                          ? 1
+                                                          : 0);
+                                              if (adjustedOldIndex < 0 ||
+                                                  adjustedNewIndex < 0 ||
+                                                  adjustedOldIndex >=
+                                                      categoryProducts
+                                                          .length ||
+                                                  adjustedNewIndex >=
+                                                      categoryProducts
+                                                          .length) {
+                                                return;
+                                              }
+                                              setState(() {
+                                                categoryProducts = List<
+                                                    Map<String,
+                                                        dynamic>>.from(
+                                                    categoryProducts);
+                                                final item = categoryProducts
+                                                    .removeAt(
+                                                    adjustedOldIndex);
+                                                categoryProducts.insert(
+                                                    adjustedNewIndex,
+                                                    item);
+                                                reorderedIndices =
+                                                    List.filled(
+                                                        categoryProducts
+                                                            .length,
+                                                        null);
+                                                reorderedIndices[
+                                                adjustedNewIndex] =
+                                                    adjustedNewIndex;
+                                                selectedItemIndex =
+                                                    adjustedNewIndex;
+                                              });
+                                            },
+                                            onDeleteItem: (index) {},
+                                            onCancelReorder: () {
+                                              setState(() {
+                                                reorderedIndices =
+                                                    List.filled(
+                                                        categoryProducts
+                                                            .length,
+                                                        null);
+                                              });
+                                            },
+                                            showDeleteButton: false,
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                        : NestedGridWidget(
+                                      productBloc: productBloc,
+                                      orderHelper: orderHelper,
+                                      isHorizontal: true,
+                                      isLoading: isLoadingNestedContent,
+                                      showAddButton: false,
+                                      showBackButton: showBackButton,
+                                      items: categoryProducts,
+                                      selectedItemIndex:
+                                      selectedItemIndex,
+                                      reorderedIndices: reorderedIndices,
+                                      onAddButtonPressed: null,
+                                      onBackButtonPressed:
+                                      _onBackToCategories,
+                                      onItemTapped: (index,
+                                          {bool? variantAdded}) =>
+                                          _onItemSelected(index,
+                                              variantAdded ?? false),
+                                      onReorder: (oldIndex, newIndex) {
+                                        if (oldIndex == 0 ||
+                                            newIndex == 0) return;
+                                        final adjustedOldIndex =
+                                            oldIndex -
+                                                (showBackButton ? 1 : 0);
+                                        final adjustedNewIndex =
+                                            newIndex -
+                                                (showBackButton ? 1 : 0);
+                                        if (adjustedOldIndex < 0 ||
+                                            adjustedNewIndex < 0 ||
+                                            adjustedOldIndex >=
+                                                categoryProducts.length ||
+                                            adjustedNewIndex >=
+                                                categoryProducts.length) {
+                                          return;
+                                        }
+                                        setState(() {
+                                          categoryProducts = List<
+                                              Map<String,
+                                                  dynamic>>.from(
+                                              categoryProducts);
+                                          final item = categoryProducts
+                                              .removeAt(adjustedOldIndex);
+                                          categoryProducts.insert(
+                                              adjustedNewIndex, item);
+                                          reorderedIndices = List.filled(
+                                              categoryProducts.length,
+                                              null);
+                                          reorderedIndices[
+                                          adjustedNewIndex] =
+                                              adjustedNewIndex;
+                                          selectedItemIndex =
+                                              adjustedNewIndex;
+                                        });
+                                      },
+                                      onDeleteItem: (index) {},
+                                      onCancelReorder: () {
+                                        setState(() {
+                                          reorderedIndices = List.filled(
+                                              categoryProducts.length,
+                                              null);
+                                        });
+                                      },
+                                      showDeleteButton: false,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                         )
-                            :
-                        NestedGridWidget(
-                          productBloc: productBloc,
-                          orderHelper: orderHelper,
-                          isHorizontal: true,
-                          isLoading: isLoadingNestedContent,
-                          showAddButton: false,
-                          showBackButton: showBackButton,
-                          items: categoryProducts,
-                          selectedItemIndex: selectedItemIndex,
-                          reorderedIndices: reorderedIndices,
-                          onAddButtonPressed: null,
-                          onBackButtonPressed: _onBackToCategories,
-                          onItemTapped: (index, {bool? variantAdded}) => _onItemSelected(index, variantAdded!), //Build #1.0.78: Updated to match the new signature
-                          onReorder: (oldIndex, newIndex) {
-                            if (oldIndex == 0 || newIndex == 0) return;
-                            final adjustedOldIndex = oldIndex - (showBackButton ? 1 : 0);
-                            final adjustedNewIndex = newIndex - (showBackButton ? 1 : 0);
-                            if (adjustedOldIndex < 0 ||
-                                adjustedNewIndex < 0 ||
-                                adjustedOldIndex >= categoryProducts.length ||
-                                adjustedNewIndex >= categoryProducts.length) {
-                              return;
-                            }
-                            setState(() {
-                              categoryProducts = List<Map<String, dynamic>>.from(categoryProducts);
-                              final item = categoryProducts.removeAt(adjustedOldIndex);
-                              categoryProducts.insert(adjustedNewIndex, item);
-                              reorderedIndices = List.filled(categoryProducts.length, null);
-                              reorderedIndices[adjustedNewIndex] = adjustedNewIndex;
-                              selectedItemIndex = adjustedNewIndex;
-                            });
-                          },
-                          onDeleteItem: (index) {},
-                          onCancelReorder: () {
-                            setState(() {
-                              reorderedIndices = List.filled(categoryProducts.length, null);
-                            });
-                          },
-                          showDeleteButton: false,
-                        ),
-                      ),
                     ],
                   ),
                 ),

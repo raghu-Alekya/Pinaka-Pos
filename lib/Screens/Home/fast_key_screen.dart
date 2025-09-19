@@ -1739,8 +1739,7 @@ class _FastKeyScreenState extends State<FastKeyScreen>
                                       SizedBox(
                                         width: 60,
                                         height: 60,
-                                        child: _buildImageWidget(
-                                            imagePath, context),
+                                        child: _buildImageWidget(imagePath),
                                       ),
                                       const SizedBox(height: 10),
                                       Text(
@@ -2122,7 +2121,7 @@ class _FastKeyScreenState extends State<FastKeyScreen>
         },
         child: Container(
           padding: EdgeInsets.all(10),
-          child: _buildImageWidget(image.url, context),
+          child: _buildImageWidget(image.url),
         ),
       ));
     }
@@ -2228,8 +2227,7 @@ class _FastKeyScreenState extends State<FastKeyScreen>
     return image ?? imagePath;
   }
 
-  Widget _buildImageWidget(String imagePath, BuildContext context) {
-    final themeHelper = Provider.of<ThemeNotifier>(context);
+  Widget _buildImageWidget(String imagePath) {
     if (kDebugMode) {
       print("_buildImageWidget for imagePath: $imagePath");
     }
@@ -2259,17 +2257,8 @@ class _FastKeyScreenState extends State<FastKeyScreen>
                 return Container(
                   width: 75,
                   height: 75,
-                  child: themeHelper.themeMode == ThemeMode.dark
-                      ? Image.asset(
-                          "assets/dark_mode_image.png",
-                          fit: BoxFit.contain,
-                          color: Colors.white,
-                        )
-                      : Image.asset(
-                          "assets/lite_mode_image.png",
-                          fit: BoxFit.contain,
-                          color: Colors.black,
-                        ),
+                  color: Colors.grey.shade300,
+                  child: const Icon(Icons.broken_image, color: Colors.grey),
                 );
               },
             )),
@@ -2309,6 +2298,8 @@ class _FastKeyScreenState extends State<FastKeyScreen>
           child: Image.asset('assets/default.png', height: 80, width: 80));
     }
   }
+
+
 
   // Build #1.0.104: updated delete dialog with this new implementation
   void _showDeleteConfirmationDialog({

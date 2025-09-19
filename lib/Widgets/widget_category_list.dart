@@ -1062,7 +1062,7 @@ class CategoryList extends StatelessWidget {
       },
       child: Container(
         height: ResponsiveLayout.getHeight(100),
-        margin: const EdgeInsets.only(top: 5),
+        margin: EdgeInsets.fromLTRB(0, 0, 0, 0),
         decoration: BoxDecoration(
           color: themeHelper.themeMode == ThemeMode.dark
               ? ThemeNotifier.primaryBackground
@@ -1519,23 +1519,23 @@ class CategoryList extends StatelessWidget {
       height: LayoutValues.size_110,
       width: LayoutValues.size_70,
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Color(0xFFFFA09A), // top
-            Color(0xFFFE6464), // bottom
-          ],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        ),
-        //color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : Colors.white,
+        // gradient: LinearGradient(
+        //   colors: [
+        //     Color(0xFFFFA09A), // top
+        //     Color(0xFFFE6464), // bottom
+        //   ],
+        //   begin: Alignment.topCenter,
+        //   end: Alignment.bottomCenter,
+        // ),
+        color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : Colors.white,
         borderRadius: BorderRadius.circular(LayoutValues.radius_12),
-        border: Border.all(color: Colors.black12),
+        border: Border.all(color: Color(0xFFFE6464)),
         boxShadow: [
           BoxShadow(
-            color: Color(0x66000000),
-            offset: Offset(0, 4),
-            blurRadius: 4,
-            spreadRadius: 0,
+            color: themeHelper.themeMode == ThemeMode.dark ? Colors.grey : Color(0x50FE6464),
+            // offset: Offset(0, 1),
+            // blurRadius: 1,
+            // spreadRadius: 1,
           ),
         ],
       ),
@@ -1546,24 +1546,24 @@ class CategoryList extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Icon(Icons.add,
-                color: Colors.white,
+                color: Color(0xFFFE6464),
                 //redAccent,
                 size: TextFontSize.size_32),
             Text(
               TextConstants.add,
               textAlign: TextAlign.center,
               style: TextStyle(
-                  color: Colors.white,
-                  //redAccent,
-                  fontSize: 10),
+                  color: Color(0xFFFE6464),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12),
             ),
             Text(
               TextConstants.fastKey,
               textAlign: TextAlign.center,
               style: TextStyle(
-                  color: Colors.white,
-                  //redAccent,
-                  fontSize: 10),
+                  color: Color(0xFFFE6464),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12),
             ),
           ],
         ),

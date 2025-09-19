@@ -809,32 +809,11 @@ class NestedGridWidget extends StatelessWidget {
 
   Widget _buildImage(String imagePath) {
     final imageWidget = imagePath.startsWith("http")
-      ? SizedBox(
-           width: 75,
-           height: 75,
-        child: Image.network(
-          imagePath,
-          width: 75,
-          height: 75,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return Container(
-              width: 75,
-              height: 75,
-              color: Colors.grey.shade300,
-              child: const Icon(Icons.broken_image, color: Colors.grey),
-            );
-          },
-        ),
-      )
-      : Platform.isWindows
-        ? Image.asset(
-      'assets/default.png',
-      height: 75,
+        ? SizedBox(
       width: 75,
-    )
-        : Image.file(
-        File(imagePath),
+      height: 75,
+      child: Image.network(
+        imagePath,
         width: 75,
         height: 75,
         fit: BoxFit.cover,
@@ -846,7 +825,28 @@ class NestedGridWidget extends StatelessWidget {
             child: const Icon(Icons.broken_image, color: Colors.grey),
           );
         },
-      );
+      ),
+    )
+        : Platform.isWindows
+        ? Image.asset(
+      'assets/default.png',
+      height: 75,
+      width: 75,
+    )
+        : Image.file(
+      File(imagePath),
+      width: 75,
+      height: 75,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        return Container(
+          width: 75,
+          height: 75,
+          color: Colors.grey.shade300,
+          child: const Icon(Icons.broken_image, color: Colors.grey),
+        );
+      },
+    );
     return ClipRRect(
       borderRadius: BorderRadius.circular(5),
       child: imageWidget,
@@ -860,8 +860,7 @@ class NestedGridWidget extends StatelessWidget {
 
     return Expanded(
       child: Container(
-        //add margins for main container for both fast keys and categories
-        margin: EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+        margin: EdgeInsets.fromLTRB(6, 0, 8, 10),
         height: MediaQuery.of(context).size.height /2,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
@@ -871,308 +870,308 @@ class NestedGridWidget extends StatelessWidget {
             ? ShimmerEffect.rectangular(height: 200)
             : Material(
           color: Colors.transparent,
-            child: ReorderableGridView.builder(
-              padding: const EdgeInsets.all(8),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 4,
-                mainAxisSpacing: 8,
-                crossAxisSpacing: 8,
-                childAspectRatio: 2.2,
-              ),
-              itemCount: totalCount,
-              dragEnabled: Misc.enableReordering, // Build #1.0.204: Disable Re-Order for grid & Added this line to control drag functionality
-              onReorder: Misc.enableReordering ? onReorder : (oldIndex, newIndex) {}, // Disable reorder callback if not enabled
-              itemBuilder: (context, index) {
-                // Handle "Add" button if enabled
-                if (showAddButton && index == 0) {
-                  return Container(
-                    key: const ValueKey('add_button'),
-                    child: GestureDetector(
-                      onTap: onAddButtonPressed ?? () {},
-                      child: _getBackCardWidget(Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.add, size: 40, color: Color(0xFFFFFFFF)),
-                          //SizedBox(height: 2),
-                          Text(TextConstants.addProductText, style: TextStyle(color: Color(0xFFFFFFFF))),
-                        ],
-                      ),themeHelper, accentColor: Colors.redAccent),
-                    ),
-                  );
-                }
-
-                // Handle "Back to Categories" button if enabled
-                if (showBackButton && index == (showAddButton ? 1 : 0)) {
-                  return Container(
-                    key: const ValueKey('back_button'),
-                    child: GestureDetector(
-                      onTap: onBackButtonPressed ?? () {},
-                      child: _getCardWidget(Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
-                          Icon(Icons.arrow_back, size: 50, color: Colors.blue),
-                          SizedBox(height: 5),
-                          Text(TextConstants.backToCategories, style: TextStyle(color: Colors.blue)),
-                        ],
-                      ), themeHelper),
-                    ),
-                  );
-                }
-
-                // Adjust the index based on the presence of "Add" and "Back" buttons
-                final itemIndex = index - (showAddButton ? 1 : 0) - (showBackButton ? 1 : 0);
-                if (itemIndex < 0 || itemIndex >= items.length) {
-                  return const SizedBox.shrink();
-                }
-
-                final isReordered = reorderedIndices.isNotEmpty && reorderedIndices[itemIndex] != null;
-                final item = items[itemIndex];
-                return AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  decoration: BoxDecoration(
-                    border: isReordered ? Border.all(color: Colors.blue, width: 3) : null,
-                    borderRadius: BorderRadius.circular(8),
+          child: ReorderableGridView.builder(
+            padding: const EdgeInsets.all(8),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 4,
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
+              childAspectRatio: 2.2,
+            ),
+            itemCount: totalCount,
+            dragEnabled: Misc.enableReordering, // Build #1.0.204: Disable Re-Order for grid & Added this line to control drag functionality
+            onReorder: Misc.enableReordering ? onReorder : (oldIndex, newIndex) {}, // Disable reorder callback if not enabled
+            itemBuilder: (context, index) {
+              // Handle "Add" button if enabled
+              if (showAddButton && index == 0) {
+                return Container(
+                  key: const ValueKey('add_button'),
+                  child: GestureDetector(
+                    onTap: onAddButtonPressed ?? () {},
+                    child: _getCardWidget(Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.add, size: 40, color: Color(0xFFFE6464)),
+                        //SizedBox(height: 2),
+                        Text(TextConstants.addProductText, style: TextStyle(color: Color(0xFFFE6464),fontSize: 17,fontWeight: FontWeight.bold)),
+                      ],
+                    ),themeHelper, accentColor: Colors.redAccent),
                   ),
-                  key: ValueKey('grid_item_${itemIndex}_${item["fast_key_item_name"]}'),
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      GestureDetector( //Build 1.1.36: updated code for variations dialog conditions
-                        onTap: () async {
-                          if (productBloc == null) {
-                            if (kDebugMode) {
-                              print("NestedGridWidget - productBloc is null, cannot fetch variations");
-                            }
-                            onItemTapped(index);
-                            return;
-                          }
+                );
+              }
 
-                          final productId = int.tryParse(item["fast_key_product_id"].toString()) ?? -1; //Build #1.0.54: fixed variant dialog issue
+              // Handle "Back to Categories" button if enabled
+              if (showBackButton && index == (showAddButton ? 1 : 0)) {
+                return Container(
+                  key: const ValueKey('back_button'),
+                  child: GestureDetector(
+                    onTap: onBackButtonPressed ?? () {},
+                    child: _getCardWidget(Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: const [
+                        Icon(Icons.arrow_back, size: 50, color: Colors.blue),
+                        SizedBox(height: 5),
+                        Text(TextConstants.backToCategories, style: TextStyle(color: Colors.blue)),
+                      ],
+                    ), themeHelper),
+                  ),
+                );
+              }
+
+              // Adjust the index based on the presence of "Add" and "Back" buttons
+              final itemIndex = index - (showAddButton ? 1 : 0) - (showBackButton ? 1 : 0);
+              if (itemIndex < 0 || itemIndex >= items.length) {
+                return const SizedBox.shrink();
+              }
+
+              final isReordered = reorderedIndices.isNotEmpty && reorderedIndices[itemIndex] != null;
+              final item = items[itemIndex];
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                decoration: BoxDecoration(
+                  border: isReordered ? Border.all(color: Colors.blue, width: 3) : null,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                key: ValueKey('grid_item_${itemIndex}_${item["fast_key_item_name"]}'),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    GestureDetector( //Build 1.1.36: updated code for variations dialog conditions
+                      onTap: () async {
+                        if (productBloc == null) {
                           if (kDebugMode) {
-                            print("NestedGridWidget - Product tapped: ${item['fast_key_item_name']}, ID: $productId, (${item["fast_key_product_id"]})");
-                            print("NestedGridWidget - minAge ${item[AppDBConst.fastKeyItemMinAge] ?? 0}");
-                            print("TEST 11 - fast_key_item_has_variant ${item[AppDBConst.fastKeyItemHasVariant]}");
+                            print("NestedGridWidget - productBloc is null, cannot fetch variations");
                           }
-                          /// use product id:22, sku:woo-fashion-socks
-                          //var isVerified = await _ageRestrictedProduct(context, minAge: item[AppDBConst.fastKeyItemMinAge] ?? 0);
-                          //Build #1.0.234: Checking stored age restriction before verifying -> Age
-                          final order = orderHelper?.orders.firstWhere(
-                                (order) => order[AppDBConst.orderServerId] == orderHelper?.activeOrderId,
-                            orElse: () => {},
-                          );
-                          final String ageRestrictedValue = order?[AppDBConst.orderAgeRestricted]?.toString() ?? 'false';
-                          final bool isAgeRestricted = ageRestrictedValue.toLowerCase() == 'true' || ageRestrictedValue == "1";
+                          onItemTapped(index);
+                          return;
+                        }
 
-                          if (!isAgeRestricted) {
+                        final productId = int.tryParse(item["fast_key_product_id"].toString()) ?? -1; //Build #1.0.54: fixed variant dialog issue
+                        if (kDebugMode) {
+                          print("NestedGridWidget - Product tapped: ${item['fast_key_item_name']}, ID: $productId, (${item["fast_key_product_id"]})");
+                          print("NestedGridWidget - minAge ${item[AppDBConst.fastKeyItemMinAge] ?? 0}");
+                          print("TEST 11 - fast_key_item_has_variant ${item[AppDBConst.fastKeyItemHasVariant]}");
+                        }
+                        /// use product id:22, sku:woo-fashion-socks
+                        //var isVerified = await _ageRestrictedProduct(context, minAge: item[AppDBConst.fastKeyItemMinAge] ?? 0);
+                        //Build #1.0.234: Checking stored age restriction before verifying -> Age
+                        final order = orderHelper?.orders.firstWhere(
+                              (order) => order[AppDBConst.orderServerId] == orderHelper?.activeOrderId,
+                          orElse: () => {},
+                        );
+                        final String ageRestrictedValue = order?[AppDBConst.orderAgeRestricted]?.toString() ?? 'false';
+                        final bool isAgeRestricted = ageRestrictedValue.toLowerCase() == 'true' || ageRestrictedValue == "1";
+
+                        if (!isAgeRestricted) {
                           /// Verify Age and proceed else return
                           final ageVerificationProvider = AgeVerificationProvider();
                           var isVerified = await ageVerificationProvider.verifyAge(context, minAge: item[AppDBConst.fastKeyItemMinAge] ?? 0);
                           if(!isVerified){
                             return;
                           }
-                         }
-                          /// Build #1.0.157: Added to check before calling variation API for saving loading time issue
-                         //  if (item['type'] == 'variable' || item['fast_key_item_has_variant'] == 1) {
-                         //    if (kDebugMode) {
-                         //      print("##### NestedGridWidget - Item Type: ${item['type']}, productId: $productId");
-                         //    }
-                         //    VariationPopup(productId, item['fast_key_item_name'], orderHelper!, onProductSelected: ({required bool isVariant}) {
-                         //
-                         //      onItemTapped(index, variantAdded: isVariant);
-                         //      if (kDebugMode) {
-                         //        print("##### NestedGridWidget - Variant $isVariant");
-                         //      }
-                         //    }).showVariantDialog(context: context);
-                         //  } else {
-                         //    if (kDebugMode) {
-                         //      print("##### NestedGridWidget - NO Variant, productId: $productId");
-                         //    }
-                         // //   Center(child: CircularProgressIndicator());
-                         //    onItemTapped(index, variantAdded: false);
-                         //  }
+                        }
+                        /// Build #1.0.157: Added to check before calling variation API for saving loading time issue
+                        //  if (item['type'] == 'variable' || item['fast_key_item_has_variant'] == 1) {
+                        //    if (kDebugMode) {
+                        //      print("##### NestedGridWidget - Item Type: ${item['type']}, productId: $productId");
+                        //    }
+                        //    VariationPopup(productId, item['fast_key_item_name'], orderHelper!, onProductSelected: ({required bool isVariant}) {
+                        //
+                        //      onItemTapped(index, variantAdded: isVariant);
+                        //      if (kDebugMode) {
+                        //        print("##### NestedGridWidget - Variant $isVariant");
+                        //      }
+                        //    }).showVariantDialog(context: context);
+                        //  } else {
+                        //    if (kDebugMode) {
+                        //      print("##### NestedGridWidget - NO Variant, productId: $productId");
+                        //    }
+                        // //   Center(child: CircularProgressIndicator());
+                        //    onItemTapped(index, variantAdded: false);
+                        //  }
 
-                          VariationPopup(productId, item['fast_key_item_name'], orderHelper!,onProductSelected: ({required bool isVariant}) {
-                            // Navigator.pop(context); // Build #1.0.148: loader/dialog popping after product adds into order panel in _onItemSelected in fastKey/categories screen
-                            onItemTapped(index, variantAdded: isVariant); //Build #1.0.78: Pass isVariant to onItemTapped
-                          },
-                          ).showVariantDialog(context: context);
-                          // // Fetch variations for the product
-                          // productBloc!.fetchProductVariations(productId);
-                          //
-                          // // Show dialog and listen to the variation stream
-                          // if (context.mounted) {
-                          //   showDialog(
-                          //     context: context,
-                          //     builder: (context) => StreamBuilder<APIResponse<List<ProductVariation>>>(
-                          //       stream: productBloc!.variationStream,
-                          //       builder: (context, snapshot) {
-                          //         if (!snapshot.hasData) {
-                          //           if (kDebugMode) {
-                          //             print("NestedGridWidget - No data in stream, waiting...");
-                          //           }
-                          //           return const Center(child: CircularProgressIndicator());
-                          //         }
-                          //
-                          //         final response = snapshot.data!;
-                          //         if (response.status == Status.LOADING) {
-                          //           return const Center(child: CircularProgressIndicator());
-                          //         } else if (response.status == Status.COMPLETED) {
-                          //           final variations = response.data!;
-                          //           if (variations.isNotEmpty) {
-                          //             if (kDebugMode) {
-                          //               print("NestedGridWidget - Variations found: ${variations.length}");
-                          //             }
-                          //             return VariantsDialog(
-                          //               title: item["fast_key_item_name"],
-                          //               variations: variations
-                          //                   .map((v) => {
-                          //                 "id": v.id,
-                          //                 "name": v.name,
-                          //                 "price": v.regularPrice,
-                          //                 "image": v.image.src,
-                          //               }).toList(),
-                          //               onAddVariant: (variant, quantity) {
-                          //                 if (kDebugMode) {
-                          //                   print("NestedGridWidget - Adding variant to order: ID=${variant['id']}, Name=${variant['name']}, Quantity=$quantity");
-                          //                 }
-                          //                 orderHelper?.addItemToOrder(
-                          //                   variant["name"],
-                          //                   variant["image"],
-                          //                   double.tryParse(variant["price"].toString()) ?? 0.0,
-                          //                   quantity,
-                          //                   'SKU${variant["name"]}',
-                          //                   onItemAdded: () {
-                          //                     Navigator.pop(context);
-                          //                     onItemTapped(index, variantAdded: true);
-                          //                   },
-                          //                 );
-                          //               },
-                          //             );
-                          //           } else {
-                          //             if (kDebugMode) {
-                          //               print("NestedGridWidget - No variations found, proceeding with product");
-                          //             }
-                          //             Navigator.pop(context);
-                          //             onItemTapped(index);
-                          //             return const SizedBox.shrink();
-                          //           }
-                          //         } else {
-                          //           if (kDebugMode) {
-                          //             print("NestedGridWidget - Error fetching variations: ${response.message}");
-                          //           }
-                          //           Navigator.pop(context);
-                          //           onItemTapped(index);
-                          //           return const SizedBox.shrink();
-                          //         }
-                          //       },
-                          //     ),
-                          //   );
-                          // }
+                        VariationPopup(productId, item['fast_key_item_name'], orderHelper!,onProductSelected: ({required bool isVariant}) {
+                          // Navigator.pop(context); // Build #1.0.148: loader/dialog popping after product adds into order panel in _onItemSelected in fastKey/categories screen
+                          onItemTapped(index, variantAdded: isVariant); //Build #1.0.78: Pass isVariant to onItemTapped
                         },
-                        onLongPress: () {
-                          if (onLongPress != null) { // Build #1.0.204
-                            onLongPress!(itemIndex); // Safe to use ! since we checked for null
-                            if (kDebugMode) {
-                              print("### TEST onLongPress");
-                            }
-                          } else {
-                            if (kDebugMode) {
-                              print("### onLongPress is null, skipping");
-                            }
+                        ).showVariantDialog(context: context);
+                        // // Fetch variations for the product
+                        // productBloc!.fetchProductVariations(productId);
+                        //
+                        // // Show dialog and listen to the variation stream
+                        // if (context.mounted) {
+                        //   showDialog(
+                        //     context: context,
+                        //     builder: (context) => StreamBuilder<APIResponse<List<ProductVariation>>>(
+                        //       stream: productBloc!.variationStream,
+                        //       builder: (context, snapshot) {
+                        //         if (!snapshot.hasData) {
+                        //           if (kDebugMode) {
+                        //             print("NestedGridWidget - No data in stream, waiting...");
+                        //           }
+                        //           return const Center(child: CircularProgressIndicator());
+                        //         }
+                        //
+                        //         final response = snapshot.data!;
+                        //         if (response.status == Status.LOADING) {
+                        //           return const Center(child: CircularProgressIndicator());
+                        //         } else if (response.status == Status.COMPLETED) {
+                        //           final variations = response.data!;
+                        //           if (variations.isNotEmpty) {
+                        //             if (kDebugMode) {
+                        //               print("NestedGridWidget - Variations found: ${variations.length}");
+                        //             }
+                        //             return VariantsDialog(
+                        //               title: item["fast_key_item_name"],
+                        //               variations: variations
+                        //                   .map((v) => {
+                        //                 "id": v.id,
+                        //                 "name": v.name,
+                        //                 "price": v.regularPrice,
+                        //                 "image": v.image.src,
+                        //               }).toList(),
+                        //               onAddVariant: (variant, quantity) {
+                        //                 if (kDebugMode) {
+                        //                   print("NestedGridWidget - Adding variant to order: ID=${variant['id']}, Name=${variant['name']}, Quantity=$quantity");
+                        //                 }
+                        //                 orderHelper?.addItemToOrder(
+                        //                   variant["name"],
+                        //                   variant["image"],
+                        //                   double.tryParse(variant["price"].toString()) ?? 0.0,
+                        //                   quantity,
+                        //                   'SKU${variant["name"]}',
+                        //                   onItemAdded: () {
+                        //                     Navigator.pop(context);
+                        //                     onItemTapped(index, variantAdded: true);
+                        //                   },
+                        //                 );
+                        //               },
+                        //             );
+                        //           } else {
+                        //             if (kDebugMode) {
+                        //               print("NestedGridWidget - No variations found, proceeding with product");
+                        //             }
+                        //             Navigator.pop(context);
+                        //             onItemTapped(index);
+                        //             return const SizedBox.shrink();
+                        //           }
+                        //         } else {
+                        //           if (kDebugMode) {
+                        //             print("NestedGridWidget - Error fetching variations: ${response.message}");
+                        //           }
+                        //           Navigator.pop(context);
+                        //           onItemTapped(index);
+                        //           return const SizedBox.shrink();
+                        //         }
+                        //       },
+                        //     ),
+                        //   );
+                        // }
+                      },
+                      onLongPress: () {
+                        if (onLongPress != null) { // Build #1.0.204
+                          onLongPress!(itemIndex); // Safe to use ! since we checked for null
+                          if (kDebugMode) {
+                            print("### TEST onLongPress");
                           }
-                        },
-                        child: _getCardWidget(Padding(
-                          padding: const EdgeInsets.all(10.0),
-                          child: Row(
-                            children: [
-                              _buildImage(item["fast_key_item_image"]),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                                  children: [
-                                    Text(
-                                      item["fast_key_item_name"],
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        //fontWeight: FontWeight.bold,
-                                        color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
+                        } else {
+                          if (kDebugMode) {
+                            print("### onLongPress is null, skipping");
+                          }
+                        }
+                      },
+                      child: _getCardWidget(Padding(
+                        padding: const EdgeInsets.all(10.0),
+                        child: Row(
+                          children: [
+                            _buildImage(item["fast_key_item_image"]),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                children: [
+                                  Text(
+                                    item["fast_key_item_name"],
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      //fontWeight: FontWeight.bold,
+                                      color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight,
                                     ),
-                                    Row(
-                                      children: [
-                                        Text(
-                                          '${TextConstants.currencySymbol}${double.tryParse(item["fast_key_item_price"].toString())?.toStringAsFixed(2) ?? "0.00"}',
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.bold,
-                                            color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight,
-                                          ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        '${TextConstants.currencySymbol}${double.tryParse(item["fast_key_item_price"].toString())?.toStringAsFixed(2) ?? "0.00"}',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                          color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight,
                                         ),
-                                        const SizedBox(width: 22), // Space between price and variations
-                                        if (item['variations'] != null && item['variations'].isNotEmpty) // Build #1.0.157: show variationIcon with count
-                                          Row(
-                                            children: [
-                                              SvgPicture.asset(SvgUtils.variationIcon, height: 10, width: 10),
-                                              // SizedBox(width: 4),
-                                              // Text(
-                                              //   '${item["variations"].length}',
-                                              //   style: TextStyle(
-                                              //     fontSize: 12,
-                                              //     color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight,
-                                              //   ),
-                                              // ),
-                                            ],
-                                          ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
+                                      ),
+                                      const SizedBox(width: 16), // Space between price and variations
+                                      if (item['variations'] != null && item['variations'].isNotEmpty) // Build #1.0.157: show variationIcon with count
+                                        Row(
+                                          children: [
+                                            SvgPicture.asset(SvgUtils.variationIcon, height: 10, width: 10),
+                                            // SizedBox(width: 4),
+                                            // Text(
+                                            //   '${item["variations"].length}',
+                                            //   style: TextStyle(
+                                            //     fontSize: 12,
+                                            //     color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight,
+                                            //   ),
+                                            // ),
+                                          ],
+                                        ),
+                                    ],
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                        ), themeHelper),
-                      ),
-                      if (enableIcons == true && itemIndex == selectedItemIndex) // Build #1.0.204: Show icons only for long-pressed item
-                        Positioned(
-                          top: -5,
-                          right: -2,
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (showDeleteButton)
+                            ),
+                          ],
+                        ),
+                      ), themeHelper),
+                    ),
+                    if (enableIcons == true && itemIndex == selectedItemIndex) // Build #1.0.204: Show icons only for long-pressed item
+                      Positioned(
+                        top: -5,
+                        right: -2,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (showDeleteButton)
                               IconButton(
                                 icon: const Icon(Icons.delete, color: Colors.red, size: 20),
                                 onPressed: () => onDeleteItem(itemIndex),
                               ),
-                              IconButton(
-                                icon: const Icon(Icons.close, color: Colors.grey, size: 20),
-                                onPressed: onCancelReorder,
-                              ),
-                            ],
-                          ),
+                            IconButton(
+                              icon: const Icon(Icons.close, color: Colors.grey, size: 20),
+                              onPressed: onCancelReorder,
+                            ),
+                          ],
                         ),
-                    ],
-                  ),
-                );
-              },
-            ),
+                      ),
+                  ],
+                ),
+              );
+            },
+          ),
 
         ),
       ),
     );
   }
 
-/// Customize products card layout for the grid, here
+  /// Customize products card layout for the grid, here
   // pass widget - contents of the card
   // themeHelper - to support dark and light theme background
   // optional accentColor - to apply changes in shadow and border color
   Widget _getCardWidget(Widget widget, ThemeNotifier themeHelper, {MaterialAccentColor accentColor = Colors.blueAccent}){
     return Card(
       color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground :Colors.white,/// card color
-      elevation: 5,
+      elevation: 3,
       shadowColor: accentColor, /// card shadow color
       clipBehavior: Clip.antiAliasWithSaveLayer ,
       shape: RoundedRectangleBorder( /// Optional: remove if no border required
@@ -1183,39 +1182,6 @@ class NestedGridWidget extends StatelessWidget {
         borderRadius: BorderRadius.circular(15.0), // Optional: for rounded corners
       ),
       child: widget,
-    );
-  }
-
-
-  Widget _getBackCardWidget(
-      Widget widget,
-      ThemeNotifier themeHelper, {
-        MaterialAccentColor accentColor = Colors.blueAccent,
-      }) {
-    return Card(
-      elevation: 5,
-      shadowColor: accentColor, // card shadow color
-      clipBehavior: Clip.antiAliasWithSaveLayer,
-      shape: RoundedRectangleBorder(
-        side: BorderSide(
-          color: accentColor, // border color
-          width: 0.5, // border thickness
-        ),
-        borderRadius: BorderRadius.circular(15.0), // rounded corners
-      ),
-      child: Container(
-        decoration: BoxDecoration(
-          gradient:  LinearGradient(
-            colors: [
-              Color(0xFFFFA09A), // top
-              Color(0xFFFE6464), // bottom
-            ],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-        child: widget,
-      ),
     );
   }
 

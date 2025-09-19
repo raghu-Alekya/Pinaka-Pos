@@ -1,4 +1,4 @@
- import 'dart:async';
+import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -311,12 +311,13 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMix
                         color: themeHelper.themeMode == ThemeMode.dark
                             ? ThemeNotifier.primaryBackground : Colors.white,
                         borderRadius: BorderRadius.circular(5),
-                        // boxShadow: [BoxShadow(color: themeHelper.themeMode == ThemeMode.dark
-                        //     ? ThemeNotifier.shadow_F7 : Colors.grey.shade100, blurRadius: 2,
+                        boxShadow: [BoxShadow(color: themeHelper.themeMode == ThemeMode.dark
+                            ? ThemeNotifier.shadow_F7 : Colors.grey.shade100, blurRadius: 2,
                           // spreadRadius: 1
-                       // )],
+                        )],
                       ),
-                      child: Column(
+                      child: SingleChildScrollView(
+                      child:Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Padding(
@@ -369,10 +370,15 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMix
                                               int? shiftId = await UserDbHelper().getUserShiftId(); // Build #1.0.149 : using from db
                                               String? previousScreen = widget.previousScreen;
                                               String status = TextConstants.open;
+                                              String? closeShiftStatus; // Build #1.0.247
 
                                               if (shiftId != null) {
                                                 if (previousScreen == TextConstants.navLogout) {
-                                                  status = TextConstants.closed;
+                                                  // status = TextConstants.closed;
+                                                  // Build #1.0.247 : While Closing Shift scenario, first call update shift then popUp confirm close shift call
+                                                  // Code Updated according to that !
+                                                  status = TextConstants.update;
+                                                  closeShiftStatus = TextConstants.closed;
                                                 } else if (previousScreen == TextConstants.navShiftHistory) { //Build #1.0.74
                                                   status = TextConstants.update;
                                                 }
@@ -418,71 +424,87 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMix
                                                       totalAmount: totalAmount,
                                                       overShort: response.data!.overShort.toDouble(), //Build #1.0.74
                                                     );
-                                                  } else if (status == TextConstants.update) {
+                                                  } else if (status == TextConstants.update && closeShiftStatus == null) { // Build #1.0.247
                                                     result = await CustomDialog.showUpdateShiftVerification(
                                                       context,
                                                       totalAmount: totalAmount,
                                                       overShort: response.data!.overShort.toDouble(),
                                                     );
                                                   }
-                                                  else if (status == TextConstants.closed) {
-                                                    result = await CustomDialog.showCloseShiftVerification(
+                                                  else if (status == TextConstants.update && closeShiftStatus == TextConstants.closed) { // Build #1.0.247
+                                                    bool? result = await CustomDialog.showCloseShiftVerification(
                                                       context,
                                                       totalAmount: totalAmount,
                                                       overShort: response.data!.overShort.toDouble(),
                                                     );
 
-                                                    if(mounted && result != null && result == true){ // Build #1.0.75
-                                                      if (mounted) {
-                                                        _resetAllTubes();
-                                                        if (kDebugMode) {
-                                                          print("##### Dialog result: $result");
-                                                        }
+                                                    if(mounted && result != null && result == true){
+                                                      if (kDebugMode) {
+                                                        print("##### Close shift dialog confirmed, calling manageShift with closed status");
                                                       }
-                                                      // Cancel subscription after dialog is handled
-                                                      await _shiftSubscription?.cancel();
-                                                      // final prefs = await SharedPreferences.getInstance();
-                                                      // await prefs.remove(TextConstants.shiftId);
-                                                      await UserDbHelper().updateUserShiftId(null); // Build #1.0.149 : Remove shiftId on close
 
-                                                      // Build #1.0.163: call Logout API after close shift
-                                                      showDialog(
-                                                        context: context,
-                                                        barrierDismissible: false,
-                                                        builder: (BuildContext context) {
-                                                          bool isLoading = true; // Initial loading state
-                                                          logoutBloc.logoutStream.listen((response) {
-                                                            if (response.status == Status.COMPLETED) {
+                                                      // Re-show dialog with loader on Close Shift button
+                                                      CustomDialog.showCloseShiftVerification(
+                                                        context,
+                                                        totalAmount: totalAmount,
+                                                        overShort: response.data!.overShort.toDouble(),
+                                                        isLoading: true, // Show loader on button
+                                                      );
+
+                                                      // Cancel previous subscription
+                                                      await _shiftSubscription?.cancel();
+
+                                                      // Create close shift request
+                                                      final closeRequest = _buildShiftRequest(
+                                                        shiftId: shiftId,
+                                                        status: TextConstants.closed,
+                                                      );
+
+                                                      _shiftBloc.manageShift(closeRequest);
+
+                                                      // Listen for close shift response
+                                                      _shiftSubscription = _shiftBloc.shiftStream.listen((closeResponse) async {
+                                                        if (closeResponse.status == Status.COMPLETED) {
+                                                          if (kDebugMode) {
+                                                            print("##### Close shift COMPLETED");
+                                                          }
+
+                                                          if (mounted) {
+                                                            _resetAllTubes();
+                                                            if (kDebugMode) {
+                                                              print("##### Dialog result: $result");
+                                                            }
+                                                          }
+
+                                                          await UserDbHelper().updateUserShiftId(null);
+
+                                                          // KEEP THE LOGOUT STREAM HANDLING - call logout API
+                                                          logoutBloc.performLogout();
+
+                                                          // Listen for logout response
+                                                          logoutBloc.logoutStream.listen((logoutResponse) {
+                                                            if (logoutResponse.status == Status.COMPLETED) {
+                                                              // Close the verification dialog with loader
+                                                              Navigator.of(context).pop(); // This will close the loader dialog
                                                               if (kDebugMode) {
                                                                 print("Logout successful, navigating to LoginScreen");
                                                               }
                                                               ScaffoldMessenger.of(context).showSnackBar(
                                                                 SnackBar(
-                                                                  content: Text(response.message ?? TextConstants.successfullyLogout),
+                                                                  content: Text(logoutResponse.message ?? TextConstants.successfullyLogout),
                                                                   backgroundColor: Colors.green,
                                                                   duration: const Duration(seconds: 2),
                                                                 ),
                                                               );
-                                                              // Update loading state and navigate
-                                                              isLoading = false;
-                                                              Navigator.of(context).pop(); // Close loader dialog
-                                                              Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()),
-                                                              );
-                                                            } else if (response.status == Status.ERROR) {
-                                                              if (response.message!.contains('Unauthorised')) {
+                                                              Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()));
+                                                            } else if (logoutResponse.status == Status.ERROR) {
+                                                              if (logoutResponse.message!.contains('Unauthorised')) {
                                                                 if (kDebugMode) {
-                                                                  print(" safe open screen -- Unauthorised : response.message ${response.message!}");
+                                                                  print(" safe open screen -- Unauthorised : response.message ${logoutResponse.message!}");
                                                                 }
-                                                                isLoading = false;
-                                                                Navigator.of(context).pop();
                                                                 WidgetsBinding.instance.addPostFrameCallback((_) {
                                                                   if (mounted) {
-                                                                    Navigator.pushReplacement(context, MaterialPageRoute(
-                                                                        builder: (context) => LoginScreen()));
-
-                                                                    if (kDebugMode) {
-                                                                      print("message --- ${response.message}");
-                                                                    }
+                                                                    Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()));
                                                                     ScaffoldMessenger.of(context).showSnackBar(
                                                                       const SnackBar(content: Text("Unauthorised. Session is expired on this device."),
                                                                         backgroundColor: Colors.red,
@@ -491,44 +513,58 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMix
                                                                     );
                                                                   }
                                                                 });
-                                                              }
-                                                              else {
+                                                              } else {
                                                                 if (kDebugMode) {
-                                                                  print("Logout failed: ${response.message}");
+                                                                  print("Logout failed: ${logoutResponse.message}");
                                                                 }
                                                                 ScaffoldMessenger.of(context).showSnackBar(
                                                                   SnackBar(
-                                                                    content: Text(response.message ?? TextConstants.failedToLogout),
+                                                                    content: Text(logoutResponse.message ?? TextConstants.failedToLogout),
                                                                     backgroundColor: Colors.red,
                                                                     duration: const Duration(seconds: 2),
                                                                   ),
                                                                 );
                                                               }
-                                                              // Update loading state
-                                                              isLoading = false;
-                                                              Navigator.of(context).pop(); // Close loader dialog
                                                             }
                                                           });
 
-                                                          // Trigger logout API call
-                                                          logoutBloc.performLogout();
+                                                        } else if (closeResponse.status == Status.ERROR) {
+                                                          // Close the verification dialog on error
+                                                          Navigator.of(context).pop();
 
-                                                          // Show circular loader
-                                                          return StatefulBuilder(
-                                                            builder: (context, setState) {
-                                                              return Center(
-                                                                child: CircularProgressIndicator(),
-                                                              );
-                                                            },
-                                                          );
-                                                        },
-                                                      );
-                                                      //  Navigator.push(context, MaterialPageRoute(builder: (context) => LoginScreen()));
-                                                      return;
+                                                          if (closeResponse.message!.contains(TextConstants.unAuth)) {
+                                                            if (kDebugMode) {
+                                                              print(" safe open screen -- Unauthorised in close shift: response.message ${closeResponse.message!}");
+                                                            }
+                                                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                                                              if (mounted) {
+                                                                Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()));
+                                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                                  const SnackBar(content: Text(TextConstants.unAuthMessage),
+                                                                    backgroundColor: Colors.red,
+                                                                    duration: Duration(seconds: 2),
+                                                                  ),
+                                                                );
+                                                              }
+                                                            });
+                                                          } else {
+                                                            if (kDebugMode) {
+                                                              print("Close shift failed: ${closeResponse.message}");
+                                                            }
+                                                            ScaffoldMessenger.of(context).showSnackBar(
+                                                              SnackBar(
+                                                                content: Text(closeResponse.message ?? "Failed to close shift"),
+                                                                backgroundColor: Colors.red,
+                                                                duration: const Duration(seconds: 2),
+                                                              ),
+                                                            );
+                                                          }
+                                                        }
+                                                      });
                                                     }
                                                   }
 
-                                                  if(mounted && result != null && result == true){ //Build #1.0.78: fix : don't reset after back button tap on alert/ don't go to fastKey screen if back tap
+                                                  if(mounted && result != null && result == true && closeShiftStatus != TextConstants.closed){ //Build #1.0.78: fix : don't reset after back button tap on alert/ don't go to fastKey screen if back tap
                                                     if (mounted) {
                                                       _resetAllTubes();
                                                       if (kDebugMode) {
@@ -540,14 +576,13 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMix
                                                     await _shiftSubscription?.cancel(); // Build #1.0.70
                                                     Navigator.push(context, MaterialPageRoute(builder: (context) => FastKeyScreen()));
                                                   }
-                                                }
-                                                else{
+                                                } else{
                                                   if (response.status == Status.ERROR){
                                                     if (response.message!.contains(TextConstants.unAuth)) {
                                                       if (kDebugMode) {
                                                         print(" safe open screen 2 -- Unauthorised : response.message ${response.message!}");
                                                       }
-                                                      isLoading = false;
+                                                      setState(() => _isSubmitting = false); // Build #1.0. 140: hide loader
                                                       WidgetsBinding.instance.addPostFrameCallback((_) {
                                                         if (mounted) {
                                                           Navigator.pushReplacement(context, MaterialPageRoute(
@@ -608,7 +643,7 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMix
                                 width: MediaQuery.of(context).size.width * 0.0725,
                                 //color: Colors.green,
                                 alignment: Alignment.bottomLeft,
-                                padding: EdgeInsets.only(left:8,bottom: 10),
+                                padding: EdgeInsets.only(left:5,bottom: 10),
                                 child: Row(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
@@ -649,6 +684,73 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMix
                                         ),
                                       ],
                                     ),
+                                    // const SizedBox(width: 5),
+                                    // // Right input columns
+                                    // Expanded(
+                                    //   child: Column(
+                                    //     crossAxisAlignment: CrossAxisAlignment.start,
+                                    //     children: [
+                                    //       // Row of dropdowns
+                                    //       Row(
+                                    //         mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                    //         children: List.generate(
+                                    //           denominations.length,
+                                    //               (index) => Container(
+                                    //             width: 70,
+                                    //             height: 35,
+                                    //             decoration: BoxDecoration(
+                                    //               border: Border.all(color: Colors.grey.shade300),
+                                    //               borderRadius: BorderRadius.circular(5),
+                                    //             ),
+                                    //             padding: EdgeInsets.symmetric(horizontal: 8),
+                                    //             child: DropdownButtonHideUnderline(
+                                    //               child: DropdownButton<int>(
+                                    //                 value: denominations[index]['tubeCount'],
+                                    //                 onChanged: (value) {
+                                    //                   setState(() {
+                                    //                     denominations[index]['tubeCount'] = value ?? 0;
+                                    //                   });
+                                    //                   updateAmounts();
+                                    //                 },
+                                    //                 items: List.generate(11, (i) => i).map((value) {
+                                    //                   return DropdownMenuItem<int>(
+                                    //                     value: value,
+                                    //                     child: Text(
+                                    //                       value.toString().padLeft(2, '0'),
+                                    //                       style: TextStyle(fontWeight: FontWeight.w500),
+                                    //                     ),
+                                    //                   );
+                                    //                 }).toList(),
+                                    //               ),
+                                    //             ),
+                                    //           ),
+                                    //         ),
+                                    //       ),
+                                    //       const SizedBox(height: 12),
+                                    //       // Row of amount boxes
+                                    //       Row(
+                                    //         mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                    //         children: List.generate(
+                                    //           denominations.length,
+                                    //               (index) => Container(
+                                    //             width: 70,
+                                    //             height: 35,
+                                    //             padding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                                    //             decoration: BoxDecoration(
+                                    //               border: Border.all(color: Colors.grey.shade300),
+                                    //               borderRadius: BorderRadius.circular(5),
+                                    //             ),
+                                    //             child: Text(
+                                    //               '${TextConstants.currencySymbol}${denominations[index]['amount'].toStringAsFixed(0)}',
+                                    //               style: TextStyle(fontWeight: FontWeight.w500),
+                                    //               textAlign: TextAlign.center,
+                                    //             ),
+                                    //           ),
+                                    //         ),
+                                    //       ),
+                                    //     ],
+                                    //   ),
+                                    // ),
                                   ],
                                 ),
                               ),
@@ -662,6 +764,7 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMix
                                     child: Column(
                                       children: [
                                         SizedBox(
+
                                           child: Row(
                                             mainAxisAlignment: MainAxisAlignment.start,
                                             crossAxisAlignment: CrossAxisAlignment.end,
@@ -1068,6 +1171,7 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMix
                           ),
                         ],
                       ),
+                      ),
                     ),
                   ),
                 ),
@@ -1207,7 +1311,7 @@ class MoneyColumn extends StatelessWidget {
                                   (index) => Container(
                                 height: 1,
                                 width: MediaQuery.of(context).size.width * 0.05,
-                               // color: Colors.white.withValues(alpha: 1),
+                                color: Colors.white.withValues(alpha: 1),
                               ),
                             ),
                           ),

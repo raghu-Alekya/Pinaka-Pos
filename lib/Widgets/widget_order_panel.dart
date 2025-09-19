@@ -35,7 +35,6 @@ import '../Constants/misc_features.dart';
 import '../Constants/text.dart';
 import '../Database/db_helper.dart';
 import '../Database/order_panel_db_helper.dart';
-import '../Helper/CustomerDisplayHelper.dart';
 import '../Helper/Extentions/theme_notifier.dart';
 import '../Helper/api_response.dart';
 import '../Screens/Auth/login_screen.dart';
@@ -47,26 +46,21 @@ import '../Repositories/Orders/order_repository.dart';
 import '../Repositories/Search/product_search_repository.dart';
 import '../Screens/Home/add_screen.dart';
 import '../Screens/Home/edit_product_screen.dart';
-import '../services/CustomerDisplayService.dart';
 
-bool isOrderInForeground = true;
-
-///Add visibility code to check if order panel is visible or not
+bool isOrderInForeground = true;  ///Add visibility code to check if order panel is visible or not
 class RightOrderPanel extends StatefulWidget {
   final String formattedDate;
   final String formattedTime;
   final List<int> quantities;
   final VoidCallback? refreshOrderList;
-  final int
-      refreshKey; //Build #1.0.170: Added: Key to trigger refresh only when explicitly needed
+  final int refreshKey; //Build #1.0.170: Added: Key to trigger refresh only when explicitly needed
 
   const RightOrderPanel({
     required this.formattedDate,
     required this.formattedTime,
     required this.quantities,
     this.refreshOrderList,
-    this.refreshKey =
-        0, //Build #1.0.170: Default to 0, increment externally to trigger refresh
+    this.refreshKey = 0, //Build #1.0.170: Default to 0, increment externally to trigger refresh
     Key? key,
   }) : super(key: key);
 
@@ -74,32 +68,25 @@ class RightOrderPanel extends StatefulWidget {
   _RightOrderPanelState createState() => _RightOrderPanelState();
 }
 
-class _RightOrderPanelState extends State<RightOrderPanel>
-    with TickerProviderStateMixin {
+class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderStateMixin {
   List<Map<String, Object>> tabs = []; // List of order tabs
   TabController? _tabController; // Controller for tab switching
-  final ScrollController _scrollController =
-      ScrollController(); // Scroll controller for tab scrolling
-  List<Map<String, dynamic>> orderItems =
-      []; // List of items in the selected order
-  final OrderHelper orderHelper =
-      OrderHelper(); // Helper instance to manage orders
+  final ScrollController _scrollController = ScrollController(); // Scroll controller for tab scrolling
+  List<Map<String, dynamic>> orderItems = []; // List of items in the selected order
+  final OrderHelper orderHelper = OrderHelper(); // Helper instance to manage orders
   bool _isLoading = false;
   bool _isPayBtnLoading = false;
   late OrderBloc orderBloc;
   StreamSubscription? _updateOrderSubscription;
   StreamSubscription? _fetchOrdersSubscription;
-  final ProductBloc productBloc = ProductBloc(
-      ProductRepository()); // Build #1.0.44 : Added for barcode scanning
-  StreamSubscription?
-      _productBySkuSubscription; // Build #1.0.44 : Added for product stream
+  final ProductBloc productBloc = ProductBloc(ProductRepository()); // Build #1.0.44 : Added for barcode scanning
+  StreamSubscription? _productBySkuSubscription; // Build #1.0.44 : Added for product stream
   StreamSubscription? _removePayoutOrDiscountSubscription;
   StreamSubscription? _removeCouponSubscription;
   bool _showFullSummary = false;
   late ScaffoldMessengerState _scaffoldMessenger;
-  bool _isFetchingInitialData =
-      false; // Build #1.0.128: Added this flag to track if we're in the middle of initial fetch
-  int _listVersion = 0; // Build 1.0.214: Added this version counter
+  bool _isFetchingInitialData = false; // Build #1.0.128: Added this flag to track if we're in the middle of initial fetch
+  int _listVersion = 0;  // Build 1.0.214: Added this version counter
 
   void _toggleSummary() {
     setState(() {
@@ -115,37 +102,31 @@ class _RightOrderPanelState extends State<RightOrderPanel>
     orderBloc = OrderBloc(OrderRepository());
     // Build #1.0.161 - Fixed Issue: when comes from orders screen to order panel screens selected orderId changing
     orderHelper.restoreActiveOrderId(); // Build #1.0.161:
-    if (!_isFetchingInitialData) {
-      //Build #1.0.170: Fixed -  Order Cart Flickering When Clicking on Fast Keys
+    if (!_isFetchingInitialData) { //Build #1.0.170: Fixed -  Order Cart Flickering When Clicking on Fast Keys
       fetchOrdersData(); // Build #1.0.104
     } else {
       if (kDebugMode) {
-        print(
-            "##### RightOrderPanel initState: Fetch already in done, skipping -> _isFetchingInitialData:$_isFetchingInitialData");
+        print("##### RightOrderPanel initState: Fetch already in done, skipping -> _isFetchingInitialData:$_isFetchingInitialData");
       }
     }
     super.initState();
   }
 
   // Build #1.0.104: created this function for initial call & while back to this screen
-  void fetchOrdersData() {
+  void fetchOrdersData(){
     if (kDebugMode) {
       print("##### fetchOrdersData called");
-      print(
-          "##### fetchOrdersData -> isOrderPanelLoaded : ${OrderHelper.isOrderPanelLoaded}");
+      print("##### fetchOrdersData -> isOrderPanelLoaded : ${OrderHelper.isOrderPanelLoaded}");
     }
-    if (OrderHelper.isOrderPanelLoaded) {
-      setState(() => _isFetchingInitialData =
-          false); // Build #1.0.128: Initial fetch complete
+    if(OrderHelper.isOrderPanelLoaded){
+      setState(() => _isFetchingInitialData = false); // Build #1.0.128: Initial fetch complete
       _getOrderTabs();
       return;
     }
-    setState(() {
-      // Build #1.0.128: Added this flag to track if we're in the middle of initial fetch
+    setState(() { // Build #1.0.128: Added this flag to track if we're in the middle of initial fetch
       _isFetchingInitialData = true;
       _isLoading = true;
     });
-
     /// No need _getOrderTabs here calling inside _fetchOrders (because of this before api call db order tabs showing)
     // _getOrderTabs(); //Build #1.0.40: Load existing orders into tabs
     _fetchOrders(); //Build #1.0.40: Fetch orders on initialization
@@ -162,12 +143,8 @@ class _RightOrderPanelState extends State<RightOrderPanel>
     ///Build #1.0.170: Fixed -  Order Cart Flickering When Clicking on Fast Keys
     // Only trigger loading if refreshKey changed (indicating an external update like item add/delete)
     // This prevents unnecessary loading/flickering on unrelated parent rebuilds (e.g., time changes or screen switches)
-    if (widget.refreshKey != oldWidget.refreshKey &&
-        mounted &&
-        !_isFetchingInitialData) {
-      // Build #1.0.128: hOnly update if not in initial fetch
-      setState(() => _isLoading =
-          true); // Build #1.0.131: show loader in order panel after selecting item/product
+    if (widget.refreshKey != oldWidget.refreshKey && mounted && !_isFetchingInitialData) { // Build #1.0.128: hOnly update if not in initial fetch
+      setState(() => _isLoading = true); // Build #1.0.131: show loader in order panel after selecting item/product
       if (kDebugMode) {
         print("##### _isFetchingInitialData : $_isFetchingInitialData");
       }
@@ -180,17 +157,14 @@ class _RightOrderPanelState extends State<RightOrderPanel>
   }
 
   // Build #1.0.10: Fetches the list of order tabs from OrderHelper
-  Future<void> _getOrderTabs() async {
-    // Build  #1.0.177: add await to loadTabs to fix delay in loading
+  Future<void> _getOrderTabs() async { // Build  #1.0.177: add await to loadTabs to fix delay in loading
     if (kDebugMode) {
-      print(
-          "##### DEBUG: _getOrderTabs - Loading order tabs, loadOrderItems 1");
+      print("##### DEBUG: _getOrderTabs - Loading order tabs, loadOrderItems 1");
     }
     await orderHelper.loadProcessingData(); // Load order data from DB
 
     if (kDebugMode) {
-      print(
-          "#### Order Panel loadData: activeOrderId = ${orderHelper.activeOrderId}");
+      print("#### Order Panel loadData: activeOrderId = ${orderHelper.activeOrderId}");
       print("#### Order Panel loadData: orderIds = ${orderHelper.orderIds}");
     }
     if (mounted) {
@@ -200,29 +174,23 @@ class _RightOrderPanelState extends State<RightOrderPanel>
             .asMap()
             .entries
             .map((entry) => {
-                  "title":
-                      "#${entry.value[AppDBConst.orderServerId] ?? entry.value[AppDBConst.orderId]}",
-                  "subtitle": "Tab ${entry.key + 1}",
-                  "orderId": entry.value[AppDBConst.orderServerId]
-                      as Object, // Use db orderId, not serverId
-                })
-            .toList();
+          "title": "#${entry.value[AppDBConst.orderServerId] ?? entry.value[AppDBConst.orderId]}",
+          "subtitle": "Tab ${entry.key + 1}",
+          "orderId": entry.value[AppDBConst.orderServerId] as Object, // Use db orderId, not serverId
+        }).toList();
         if (kDebugMode) {
-          print(
-              "##### DEBUG: _getOrderTabs - Loaded ${tabs.length} tabs: $tabs");
+          print("##### DEBUG: _getOrderTabs - Loaded ${tabs.length} tabs: $tabs");
         }
       });
     }
     if (kDebugMode) {
-      print(
-          "##### DEBUG: _getOrderTabs - orderHelper.activeOrderId ${orderHelper.activeOrderId} tab: $tabs, index: ${orderHelper.orderIds.indexOf(orderHelper.activeOrderId ?? 0)}"); // Build #1.0.104: unwrap issue fixed
+      print("##### DEBUG: _getOrderTabs - orderHelper.activeOrderId ${orderHelper.activeOrderId} tab: $tabs, index: ${orderHelper.orderIds.indexOf(orderHelper.activeOrderId ?? 0)}"); // Build #1.0.104: unwrap issue fixed
     }
 
     if (!mounted) return; // Prevent controller initialization if unmounted
     _initializeTabController(); // Initialize tab controller
     if (kDebugMode) {
-      print(
-          "##### _getOrderTabs saveLastActiveOrderId tabs.isNotEmpty ${tabs.isNotEmpty}");
+      print("##### _getOrderTabs saveLastActiveOrderId tabs.isNotEmpty ${tabs.isNotEmpty}");
     }
     if (tabs.isNotEmpty) {
       int index = -1;
@@ -233,37 +201,31 @@ class _RightOrderPanelState extends State<RightOrderPanel>
         }
         if (index == -1) {
           if (kDebugMode) {
-            print(
-                "##### DEBUG: _getOrderTabs - Active order ID ${orderHelper.activeOrderId} not found, defaulting to last tab");
+            print("##### DEBUG: _getOrderTabs - Active order ID ${orderHelper.activeOrderId} not found, defaulting to last tab");
           }
           index = tabs.length - 1;
         }
         await orderHelper.setActiveOrder(tabs[index]["orderId"] as int);
         if (kDebugMode) {
-          print(
-              "saveLastActiveOrderId _getOrderTabs yes active tab, orderHelper.activeOrderId: ${orderHelper.activeOrderId}, orderID: ${tabs[index]["orderId"]}");
+          print("saveLastActiveOrderId _getOrderTabs yes active tab, orderHelper.activeOrderId: ${orderHelper.activeOrderId}, orderID: ${tabs[index]["orderId"]}");
         }
-        await orderHelper.saveLastActiveOrderId(
-            tabs[index]["orderId"] as int); // Build #1.0.161
+        await orderHelper.saveLastActiveOrderId(tabs[index]["orderId"] as int); // Build #1.0.161
+
       } else {
         if (kDebugMode) {
-          print(
-              "##### DEBUG: _getOrderTabs - No active order, setting to last tab");
+          print("##### DEBUG: _getOrderTabs - No active order, setting to last tab");
         }
         index = tabs.length - 1;
         await orderHelper.setActiveOrder(tabs[index]["orderId"] as int);
         if (kDebugMode) {
-          print(
-              "saveLastActiveOrderId _getOrderTabs no active tab, orderHelper.activeOrderId: ${orderHelper.activeOrderId}, orderID: ${tabs[index]["orderId"]}");
+          print("saveLastActiveOrderId _getOrderTabs no active tab, orderHelper.activeOrderId: ${orderHelper.activeOrderId}, orderID: ${tabs[index]["orderId"]}");
         }
-        await orderHelper.saveLastActiveOrderId(
-            tabs[index]["orderId"] as int); // Build #1.0.161
+        await orderHelper.saveLastActiveOrderId(tabs[index]["orderId"] as int); // Build #1.0.161
       }
       if (mounted && _tabController != null) {
         _tabController?.index = index;
         if (kDebugMode) {
-          print(
-              "##### DEBUG: _getOrderTabs - Set tab index to $index, orderID: ${tabs[index]["orderId"]} activeOrderId: ${orderHelper.activeOrderId}");
+          print("##### DEBUG: _getOrderTabs - Set tab index to $index, orderID: ${tabs[index]["orderId"]} activeOrderId: ${orderHelper.activeOrderId}");
         }
       }
 
@@ -271,11 +233,9 @@ class _RightOrderPanelState extends State<RightOrderPanel>
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (_scrollController.hasClients && _tabController != null) {
           final tabWidth = 180.0; // Adjust this based on your actual tab width
-          final screenWidth =
-              MediaQuery.of(context).size.width * 0.58; // Panel width
+          final screenWidth = MediaQuery.of(context).size.width * 0.58; // Panel width
           final activeIndex = _tabController!.index;
-          final offset =
-              (activeIndex * tabWidth) - (screenWidth / 2) + (tabWidth / 2);
+          final offset = (activeIndex * tabWidth) - (screenWidth / 2) + (tabWidth / 2);
 
           _scrollController.animateTo(
             offset.clamp(0.0, _scrollController.position.maxScrollExtent),
@@ -286,7 +246,7 @@ class _RightOrderPanelState extends State<RightOrderPanel>
       });
 
       await fetchOrderItems(); // Load items for active order
-      if (mounted) {
+      if(mounted) {
         setState(() => _isLoading = false); // Build #1.0.104: Hide loader
       }
     } else {
@@ -295,7 +255,7 @@ class _RightOrderPanelState extends State<RightOrderPanel>
       }
       if (mounted) {
         setState(() {
-          orderItems = []; // Build #1.0.104: Clear items if no tabs
+          orderItems = [];// Build #1.0.104: Clear items if no tabs
         });
       }
       _initializeTabController(); // Build #1.0.189: required here
@@ -305,30 +265,25 @@ class _RightOrderPanelState extends State<RightOrderPanel>
     }
   }
 
-  void _fetchOrders() {
-    //Build #1.0.40: fetch orders items from API sync & updating to UI
+  void _fetchOrders() { //Build #1.0.40: fetch orders items from API sync & updating to UI
     // updated above
     // setState(() => _isLoading = true); // Build #1.0.104: Show loader
     _fetchOrdersSubscription?.cancel(); //Build #1.0.170
-    _fetchOrdersSubscription =
-        orderBloc.fetchOrdersStream.listen((response) async {
+    _fetchOrdersSubscription = orderBloc.fetchOrdersStream.listen((response) async {
       if (!mounted) return;
 
       if (response.status == Status.COMPLETED) {
         if (kDebugMode) {
-          print(
-              "##### DEBUG: Fetched orders successfully 33333, total orders: ${orderHelper.orders.length}");
+          print("##### DEBUG: Fetched orders successfully 33333, total orders: ${orderHelper.orders.length}");
         }
-        setState(() => _isFetchingInitialData =
-            false); // Build #1.0.128: Initial fetch complete
+        setState(() => _isFetchingInitialData = false); // Build #1.0.128: Initial fetch complete
         await _getOrderTabs(); // Build  #1.0.177: add await to loadTabs to fix delay in loading
         OrderHelper.isOrderPanelLoaded = true;
         //_fetchOrdersSubscription?.cancel();
       } else if (response.status == Status.ERROR) {
         if (response.message!.contains('Unauthorised')) {
           if (kDebugMode) {
-            print(
-                "categories screen 1  ---- Unauthorised : ${response.message!}");
+            print("categories screen 1  ---- Unauthorised : ${response.message!}");
           }
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) {
@@ -340,15 +295,16 @@ class _RightOrderPanelState extends State<RightOrderPanel>
               }
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content:
-                      Text("Unauthorised. Session is expired on this device."),
+                  content: Text(
+                      "Unauthorised. Session is expired on this device."),
                   backgroundColor: Colors.red,
                   duration: Duration(seconds: 2),
                 ),
               );
             }
           });
-        } else {
+        }
+        else {
           if (kDebugMode) {
             print("##### ERROR: Fetch orders failed - ${response.message}");
           }
@@ -377,16 +333,13 @@ class _RightOrderPanelState extends State<RightOrderPanel>
     }
     if (orderHelper.activeOrderId != null) {
       if (kDebugMode) {
-        print(
-            "##### DEBUG: order panel fetchOrderItems - Fetching items for activeOrderId: ${orderHelper.activeOrderId}");
+        print("##### DEBUG: order panel fetchOrderItems - Fetching items for activeOrderId: ${orderHelper.activeOrderId}");
       }
-      try {
-        // Build #1.0.189: Refresh tabs to reflect no active order
+      try { // Build #1.0.189: Refresh tabs to reflect no active order
         var orders = await orderHelper.getOrderById(orderHelper.activeOrderId!);
         if (orders.isEmpty) {
           if (kDebugMode) {
-            print(
-                "##### DEBUG: fetchOrderItems - No order found for activeOrderId: ${orderHelper.activeOrderId}, clearing items");
+            print("##### DEBUG: fetchOrderItems - No order found for activeOrderId: ${orderHelper.activeOrderId}, clearing items");
           }
           setState(() {
             orderItems = []; // Clear items if no order exists
@@ -400,22 +353,17 @@ class _RightOrderPanelState extends State<RightOrderPanel>
         var order = orders.first;
         if (kDebugMode) {
           print("##### DEBUG: fetchOrderItems - Retrieved ${order.length}");
-          print(
-              "##### DEBUG: fetchOrderItems - Retrieved order: ${order[AppDBConst.orderServerId]}");
-          print(
-              "##### DEBUG: fetchOrderItems - Retrieved items: ${order[AppDBConst.itemProductId]}");
+          print("##### DEBUG: fetchOrderItems - Retrieved order: ${order[AppDBConst.orderServerId]}");
+          print("##### DEBUG: fetchOrderItems - Retrieved items: ${order[AppDBConst.itemProductId]}");
         }
-        List<Map<String, dynamic>> items =
-            await orderHelper.getOrderItems(order[AppDBConst.orderServerId]);
+        List<Map<String, dynamic>> items = await orderHelper.getOrderItems(order[AppDBConst.orderServerId]);
         if (kDebugMode) {
-          print(
-              "##### DEBUG: fetchOrderItems - Retrieved ${items.length} items: $items");
+          print("##### DEBUG: fetchOrderItems - Retrieved ${items.length} items: $items");
         }
 
         if (mounted) {
           setState(() {
-            orderItems =
-                List<Map<String, dynamic>>.from(items); // Create mutable copy
+            orderItems = List<Map<String, dynamic>>.from(items); // Create mutable copy
             _listVersion++; // Build 1.0.214: Increment version when items change
           });
         }
@@ -444,67 +392,34 @@ class _RightOrderPanelState extends State<RightOrderPanel>
   }
 
   // Build #1.0.10: Initializes the tab controller and handles tab switching
-  Future<void> _initializeTabController() async {
+  void _initializeTabController() {
     if (kDebugMode) {
       print("##### _initializeTabController");
     }
     if (!mounted) return; // Prevent initialization if unmounted
-
-    // Dispose any existing controller
-    _tabController?.dispose();
-
-    // Case: No tabs → show Welcome screen
-    if (tabs.isEmpty) {
-      if (kDebugMode) print("##### No tabs available → showing Welcome screen");
-      await CustomerDisplayService.showWelcome();
-      return;
-    }
-
-    // Create new TabController
+    _tabController?.dispose(); // Dispose existing controller
     _tabController = TabController(length: tabs.length, vsync: this);
 
-    // Listen for tab changes
     _tabController!.addListener(() async {
       if (!_tabController!.indexIsChanging && mounted) {
-        int selectedIndex = _tabController!.index;
+        int selectedIndex = _tabController!.index; // Get selected tab index
         int selectedOrderId = tabs[selectedIndex]["orderId"] as int;
 
         if (kDebugMode) {
-          print(
-              "##### DEBUG: Tab changed to index: $selectedIndex, orderId: $selectedOrderId");
+          print("##### DEBUG: Tab changed to index: $selectedIndex, orderId: $selectedOrderId");
         }
 
-        // Update active order
-        await orderHelper.setActiveOrder(selectedOrderId);
-        await orderHelper.saveLastActiveOrderId(selectedOrderId);
-
-        // Reload items for this order
-        await fetchOrderItems();
-
-        // Update customer display
-        await CustomerDisplayHelper.updateCustomerDisplay(selectedOrderId);
-
-        if (mounted) setState(() {}); // Refresh UI
+        await orderHelper.setActiveOrder(selectedOrderId); // Set new active order
+        if (kDebugMode) {
+          print("saveLastActiveOrderId _initializeTabController, selectedOrderId: $selectedOrderId, Tab selectedIndex: $selectedIndex");
+        }
+        await orderHelper.saveLastActiveOrderId(selectedOrderId); // Build #1.0.161
+        await fetchOrderItems(); // Load items for the selected order
+        if (mounted) {
+          setState(() {}); // Refresh UI
+        }
       }
     });
-
-    // Determine default tab index
-    int defaultIndex = 0;
-    if (orderHelper.activeOrderId != null) {
-      int idx = orderHelper.orderIds.indexOf(orderHelper.activeOrderId!);
-      if (idx != -1) defaultIndex = idx;
-    } else {
-      defaultIndex = tabs.length - 1;
-      await orderHelper.setActiveOrder(tabs[defaultIndex]["orderId"] as int);
-    }
-
-    // Apply default tab + update customer display
-    if (mounted) {
-      _tabController!.index = defaultIndex;
-      await CustomerDisplayHelper.updateCustomerDisplay(
-        tabs[defaultIndex]["orderId"] as int,
-      );
-    }
   }
 
   // Build #1.0.10: Creates a new order and adds it as a new tab
@@ -518,7 +433,6 @@ class _RightOrderPanelState extends State<RightOrderPanel>
     if (kDebugMode) {
       print("##### DEBUG: addNewTab - Creating new order");
     }
-
     /// Build #1.0.128: No need here , now we are handling from Order repository class
     // final prefs = await SharedPreferences.getInstance();
     // final shiftId = prefs.getString(TextConstants.shiftId);
@@ -542,15 +456,13 @@ class _RightOrderPanelState extends State<RightOrderPanel>
     // List<OrderMetaData> metaData = [device, placedBy, shiftIdValue];
 
     _updateOrderSubscription?.cancel();
-    _updateOrderSubscription =
-        orderBloc.createOrderStream.listen((response) async {
+    _updateOrderSubscription = orderBloc.createOrderStream.listen((response) async {
       if (!mounted) return;
 
       if (response.status == Status.COMPLETED) {
         setState(() => _isLoading = false); // Hide loader
         if (kDebugMode) {
-          print(
-              "##### DEBUG: addNewTab - Order created successfully, serverOrderId: ${response.data!.id}");
+          print("##### DEBUG: addNewTab - Order created successfully, serverOrderId: ${response.data!.id}");
         }
         setState(() {
           tabs.add({
@@ -575,8 +487,7 @@ class _RightOrderPanelState extends State<RightOrderPanel>
       } else if (response.status == Status.ERROR) {
         if (response.message!.contains('Unauthorised')) {
           if (kDebugMode) {
-            print(
-                "categories screen 2  ---- Unauthorised : ${response.message!}");
+            print("categories screen 2  ---- Unauthorised : ${response.message!}");
           }
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) {
@@ -588,19 +499,20 @@ class _RightOrderPanelState extends State<RightOrderPanel>
               }
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content:
-                      Text("Unauthorised. Session is expired on this device."),
+                  content: Text(
+                      "Unauthorised. Session is expired on this device."),
                   backgroundColor: Colors.red,
                   duration: Duration(seconds: 2),
                 ),
               );
             }
           });
-        } else {
+        }
+        else {
           setState(() => _isLoading = false); //Build #1.0.99: Hide loader
           if (kDebugMode) {
-            print(
-                "##### ERROR: addNewTab - Failed to create order: ${response.message}");
+            print("##### ERROR: addNewTab - Failed to create order: ${response
+                .message}");
           }
           _scaffoldMessenger.showSnackBar(
             SnackBar(
@@ -645,22 +557,18 @@ class _RightOrderPanelState extends State<RightOrderPanel>
 
       if (serverOrderId != null) {
         _updateOrderSubscription?.cancel();
-        _updateOrderSubscription =
-            orderBloc.changeOrderStatusStream.listen((response) async {
+        _updateOrderSubscription = orderBloc.changeOrderStatusStream.listen((response) async {
           if (!mounted) return;
           if (response.status == Status.COMPLETED) {
             setState(() => _isLoading = false); //Build #1.0.92: loader hide
             if (kDebugMode) {
-              print(
-                  "##### DEBUG: removeTab - Order $orderId successfully cancelled");
+              print("##### DEBUG: removeTab - Order $orderId successfully cancelled");
             }
 
-            await orderHelper
-                .deleteOrder(orderId); // Build #1.0.189: Delete from database
+            await orderHelper.deleteOrder(orderId); // Build #1.0.189: Delete from database
             orderHelper.cancelledOrderId = serverOrderId;
             if (kDebugMode) {
-              print(
-                  "##### TEST DD : cancelledOrderId -> ${orderHelper.cancelledOrderId}");
+              print("##### TEST DD : cancelledOrderId -> ${orderHelper.cancelledOrderId}");
             }
             setState(() {
               tabs.removeAt(index); // Remove tab from UI
@@ -674,8 +582,7 @@ class _RightOrderPanelState extends State<RightOrderPanel>
               int newActiveOrderId = tabs[newIndex]["orderId"] as int;
               if (isRemovedTabActive) {
                 if (kDebugMode) {
-                  print(
-                      "##### DEBUG: removeTab - Setting new active order: $newActiveOrderId");
+                  print("##### DEBUG: removeTab - Setting new active order: $newActiveOrderId");
                 }
                 await orderHelper.setActiveOrder(newActiveOrderId);
                 await orderHelper.saveLastActiveOrderId(newActiveOrderId);
@@ -685,8 +592,7 @@ class _RightOrderPanelState extends State<RightOrderPanel>
               await fetchOrderItems(); // Load items for new active order
             } else {
               if (kDebugMode) {
-                print(
-                    "##### DEBUG: removeTab - No tabs left, clearing activeOrderId");
+                print("##### DEBUG: removeTab - No tabs left, clearing activeOrderId");
               }
               // await orderHelper.setActiveOrder(null);
               // await orderHelper.saveLastActiveOrderId(null);
@@ -701,16 +607,14 @@ class _RightOrderPanelState extends State<RightOrderPanel>
             _scaffoldMessenger.showSnackBar(
               SnackBar(
                 content: Text(TextConstants.orderCancelled),
-                backgroundColor:
-                    Colors.red, // Build #1.0.175: Added as red for cancel
+                backgroundColor: Colors.red, // Build #1.0.175: Added as red for cancel
                 duration: const Duration(seconds: 2),
               ),
             );
           } else if (response.status == Status.ERROR) {
             if (response.message!.contains('Unauthorised')) {
               if (kDebugMode) {
-                print(
-                    "categories screen 3  ---- Unauthorised : ${response.message!}");
+                print("categories screen 3  ---- Unauthorised : ${response.message!}");
               }
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (mounted) {
@@ -730,11 +634,12 @@ class _RightOrderPanelState extends State<RightOrderPanel>
                   );
                 }
               });
-            } else {
+            }
+            else {
               setState(() => _isLoading = false); //Build #1.0.99: Hide loader
               if (kDebugMode) {
-                print(
-                    "##### ERROR: removeTab - Cancel failed: ${response.message}");
+                print("##### ERROR: removeTab - Cancel failed: ${response
+                    .message}");
               }
               _scaffoldMessenger.showSnackBar(
                 SnackBar(
@@ -746,12 +651,10 @@ class _RightOrderPanelState extends State<RightOrderPanel>
             }
           }
         });
-        await orderBloc.changeOrderStatus(
-            orderId: serverOrderId, status: TextConstants.cancelled);
+        await orderBloc.changeOrderStatus(orderId: serverOrderId, status: TextConstants.cancelled);
       } else {
         if (kDebugMode) {
-          print(
-              "##### DEBUG: removeTab - Local deletion for orderId: $orderId");
+          print("##### DEBUG: removeTab - Local deletion for orderId: $orderId");
         }
         await orderHelper.deleteOrder(orderId);
         setState(() {
@@ -766,8 +669,7 @@ class _RightOrderPanelState extends State<RightOrderPanel>
           int newActiveOrderId = tabs[newIndex]["orderId"] as int;
           if (isRemovedTabActive) {
             if (kDebugMode) {
-              print(
-                  "##### DEBUG: removeTab - Setting new active order: $newActiveOrderId");
+              print("##### DEBUG: removeTab - Setting new active order: $newActiveOrderId");
             }
             await orderHelper.setActiveOrder(newActiveOrderId);
             await orderHelper.saveLastActiveOrderId(newActiveOrderId);
@@ -777,8 +679,7 @@ class _RightOrderPanelState extends State<RightOrderPanel>
           await fetchOrderItems();
         } else {
           if (kDebugMode) {
-            print(
-                "##### DEBUG: removeTab - No tabs left, clearing activeOrderId");
+            print("##### DEBUG: removeTab - No tabs left, clearing activeOrderId");
           }
           // await orderHelper.setActiveOrder(null);
           // await orderHelper.saveLastActiveOrderId(null);
@@ -808,7 +709,9 @@ class _RightOrderPanelState extends State<RightOrderPanel>
   // Ensured loader is shown during API calls.
   // Kept local deletion for non-API orders.
   void deleteItemFromOrder(int itemId) async {
+
     if (orderHelper.activeOrderId != null) {
+
       setState(() {
         _isLoading = true;
         if (kDebugMode) {
@@ -820,17 +723,14 @@ class _RightOrderPanelState extends State<RightOrderPanel>
       //       (order) => order[AppDBConst.orderServerId] == orderHelper.activeOrderId,
       //   orElse: () => {},
       // );
-      final serverOrderId =
-          orderHelper.activeOrderId; //order[AppDBConst.orderServerId] as int?;
+      final serverOrderId = orderHelper.activeOrderId;//order[AppDBConst.orderServerId] as int?;
       // final dbOrderId = orderHelper.activeOrderId!;
       final item = orderItems.firstWhere(
-        (item) => item[AppDBConst.itemServerId] == itemId,
+            (item) => item[AppDBConst.itemServerId] == itemId,
         orElse: () => {},
       );
-      final itemType =
-          item[AppDBConst.itemType]?.toString().toLowerCase() ?? '';
-      final isPayout =
-          false; //itemType.contains(TextConstants.payoutText);// Build #1.0.198: uncomment if want to delete payout from fee_lines
+      final itemType = item[AppDBConst.itemType]?.toString().toLowerCase() ?? '';
+      final isPayout = false;//itemType.contains(TextConstants.payoutText);// Build #1.0.198: uncomment if want to delete payout from fee_lines
       final isCoupon = itemType.contains(TextConstants.couponText);
       final isCustomItem = itemType.contains(TextConstants.customItemText);
 
@@ -840,8 +740,7 @@ class _RightOrderPanelState extends State<RightOrderPanel>
           final db = await DBHelper.instance.database;
           final payoutItem = await db.query(
             AppDBConst.purchasedItemsTable,
-            where:
-                '${AppDBConst.itemServerId} = ? AND ${AppDBConst.itemType} = ?',
+            where: '${AppDBConst.itemServerId} = ? AND ${AppDBConst.itemType} = ?',
             whereArgs: [itemId, ItemType.payout.value],
           );
           if (payoutItem.isNotEmpty) {
@@ -850,27 +749,17 @@ class _RightOrderPanelState extends State<RightOrderPanel>
               _removePayoutOrDiscountSubscription?.cancel(); //Build #1.0.99
               retryCallback() async {
                 setState(() => _isLoading = true);
-                await orderBloc.removeFeeLine(
-                    orderId: serverOrderId,
-                    feeLineId:
-                        payoutId); //Build #1.0.92: dbOrderId and serverOrderId is same, no need then
+                await orderBloc.removeFeeLine(orderId: serverOrderId, feeLineId: payoutId); //Build #1.0.92: dbOrderId and serverOrderId is same, no need then
                 //Build #1.0.99: Dismiss dialog after retry
                 Navigator.of(context, rootNavigator: true).pop();
               }
-
-              _removePayoutOrDiscountSubscription =
-                  orderBloc.removePayoutStream.listen((response) async {
-                await _handleResponse(response, item,
-                    isPayout: true, retryCallback: retryCallback);
+              _removePayoutOrDiscountSubscription = orderBloc.removePayoutStream.listen((response) async {
+                await _handleResponse(response, item, isPayout: true, retryCallback: retryCallback);
               });
-              await orderBloc.removeFeeLine(
-                  orderId: serverOrderId,
-                  feeLineId:
-                      payoutId); //Build #1.0.92: dbOrderId and serverOrderId is same
+              await orderBloc.removeFeeLine(orderId: serverOrderId, feeLineId: payoutId); //Build #1.0.92: dbOrderId and serverOrderId is same
             } else {
               await _handleLocalDelete(item, context);
-              _handleError("Payout ID not found in database, removed locally",
-                  isPayout: true);
+              _handleError("Payout ID not found in database, removed locally", isPayout: true);
             }
           } else {
             _handleError("Payout not found", isPayout: true);
@@ -881,35 +770,27 @@ class _RightOrderPanelState extends State<RightOrderPanel>
             _removeCouponSubscription?.cancel(); //Build #1.0.99
             retryCallback() async {
               setState(() => _isLoading = true);
-              await orderBloc.removeCoupon(
-                  orderId: serverOrderId, couponCode: couponCode);
+              await orderBloc.removeCoupon(orderId: serverOrderId, couponCode: couponCode);
               //Build #1.0.99: Dismiss dialog after retry
               Navigator.of(context, rootNavigator: true).pop();
             }
-
-            _removeCouponSubscription =
-                orderBloc.removeCouponStream.listen((response) async {
-              await _handleResponse(response, item,
-                  isCoupon: true, retryCallback: retryCallback);
+            _removeCouponSubscription = orderBloc.removeCouponStream.listen((response) async {
+              await _handleResponse(response, item, isCoupon: true, retryCallback: retryCallback);
             });
-            await orderBloc.removeCoupon(
-                orderId: serverOrderId, couponCode: couponCode);
+            await orderBloc.removeCoupon(orderId: serverOrderId, couponCode: couponCode);
           } else {
             await _handleLocalDelete(item, context);
-            _handleError("Coupon code not found in database, removed locally",
-                isCoupon: true);
+            _handleError("Coupon code not found in database, removed locally", isCoupon: true);
           }
         } else if (isCustomItem) {
           final db = await DBHelper.instance.database;
           final customItem = await db.query(
             AppDBConst.purchasedItemsTable,
-            where:
-                '${AppDBConst.itemServerId} = ? AND ${AppDBConst.itemType} = ?', //Build #1.0.92: updated to itemServerId
+            where: '${AppDBConst.itemServerId} = ? AND ${AppDBConst.itemType} = ?', //Build #1.0.92: updated to itemServerId
             whereArgs: [itemId, ItemType.customProduct.value],
           );
           if (customItem.isNotEmpty) {
-            final customItemId =
-                customItem.first[AppDBConst.itemServerId] as int?;
+            final customItemId = customItem.first[AppDBConst.itemServerId] as int?;
             if (customItemId != null) {
               retryCallback() async {
                 setState(() => _isLoading = true);
@@ -928,11 +809,8 @@ class _RightOrderPanelState extends State<RightOrderPanel>
                 //Build #1.0.99 : Dismiss dialog after retry
                 Navigator.of(context, rootNavigator: true).pop();
               }
-
-              _updateOrderSubscription =
-                  orderBloc.deleteOrderItemStream.listen((response) async {
-                await _handleResponse(response, item,
-                    isCustomItem: true, retryCallback: retryCallback);
+              _updateOrderSubscription = orderBloc.deleteOrderItemStream.listen((response) async {
+                await _handleResponse(response, item, isCustomItem: true, retryCallback: retryCallback);
               });
               await orderBloc.deleteOrderItem(
                 orderId: serverOrderId,
@@ -948,9 +826,7 @@ class _RightOrderPanelState extends State<RightOrderPanel>
               );
             } else {
               await _handleLocalDelete(item, context);
-              _handleError(
-                  "Custom item ID not found in database, removed locally",
-                  isCustomItem: true);
+              _handleError("Custom item ID not found in database, removed locally", isCustomItem: true);
             }
           } else {
             _handleError("Custom item not found", isCustomItem: true);
@@ -975,11 +851,8 @@ class _RightOrderPanelState extends State<RightOrderPanel>
               //Build #1.0.99 : Dismiss dialog after retry
               Navigator.of(context, rootNavigator: true).pop();
             }
-
-            _updateOrderSubscription =
-                orderBloc.deleteOrderItemStream.listen((response) async {
-              await _handleResponse(response, item,
-                  retryCallback: retryCallback);
+            _updateOrderSubscription = orderBloc.deleteOrderItemStream.listen((response) async {
+              await _handleResponse(response, item, retryCallback: retryCallback);
             });
             await orderBloc.deleteOrderItem(
               orderId: serverOrderId,
@@ -1018,18 +891,15 @@ class _RightOrderPanelState extends State<RightOrderPanel>
     productBloc.dispose();
     _tabController?.dispose();
     _scrollController.dispose(); // Dispose ScrollController
-    _productBySkuSubscription
-        ?.cancel(); // Build #1.0.44 : Added Cancel product subscription
+    _productBySkuSubscription?.cancel(); // Build #1.0.44 : Added Cancel product subscription
     // productBloc.dispose(); // Added: Dispose ProductBloc
     super.dispose();
   }
 
-  Future<String> getDeviceId() async {
-    // Build #1.0.44 : Get Device Id
+  Future<String> getDeviceId() async { // Build #1.0.44 : Get Device Id
     final storeValidationRepository = StoreValidationRepository();
     try {
-      final deviceDetails = await GlobalUtility
-          .getDeviceDetails(); //Build #1.0.126: updated to GlobalUtility
+      final deviceDetails = await GlobalUtility.getDeviceDetails(); //Build #1.0.126: updated to GlobalUtility
       return deviceDetails['device_id'] ?? 'unknown';
     } catch (e) {
       if (kDebugMode) {
@@ -1064,17 +934,16 @@ class _RightOrderPanelState extends State<RightOrderPanel>
 
   @override
   Widget build(BuildContext context) {
+
     final themeHelper = Provider.of<ThemeNotifier>(context);
     return FocusDetector(
-      onFocusLost: () {
-        // Build #1.0.219 -> FIXED ISSUE [SCRUM - 366] : Swipe-to-Delete UI State Not Resetting
+      onFocusLost: () { // Build #1.0.219 -> FIXED ISSUE [SCRUM - 366] : Swipe-to-Delete UI State Not Resetting
         // When this widget regains focus, reset slidable states
         setState(() {
           _listVersion++;
         });
       },
-      child: BarcodeKeyboardListener(
-        // Build #1.0.44 : Added - Wrap with BarcodeKeyboardListener for barcode scanning
+      child: BarcodeKeyboardListener( // Build #1.0.44 : Added - Wrap with BarcodeKeyboardListener for barcode scanning
         bufferDuration: Duration(milliseconds: 5000),
         //Build #1.0.78: Removed orderHelper.addItemToOrder from the API success block, as it’s now in OrderBloc.updateOrderProducts.
         // Kept local addItemToOrder for non-API orders.
@@ -1084,17 +953,14 @@ class _RightOrderPanelState extends State<RightOrderPanel>
         onBarcodeScanned: (barcode) async {
           //barcode = barcode.trim().replaceAll(' ', '');
           if (kDebugMode) {
-            print(
-                "##### DEBUG: onBarcodeScanned - Scanned barcode: -$barcode, isOrderInForeground = $isOrderInForeground");
+            print("##### DEBUG: onBarcodeScanned - Scanned barcode: -$barcode, isOrderInForeground = $isOrderInForeground");
           }
-          if (!isOrderInForeground) {
-            // to restrict order panel in background to scanner events
+          if(!isOrderInForeground){ // to restrict order panel in background to scanner events
             return;
           }
 
           if (barcode.isNotEmpty) {
             var dobScanned = "";
-
             /// Testing code: not working, Scanner will generate multiple tap events and call when scanned driving licence with PDF417 format irrespective of this code here
             // if (barcode.startsWith('@') || barcode.contains('\n') || barcode.startsWith('ansi') || barcode.startsWith('2') || barcode.startsWith('DBB')) {
             //   // if (barcode.startsWith('@') || barcode.contains('\n')) {
@@ -1114,110 +980,88 @@ class _RightOrderPanelState extends State<RightOrderPanel>
             //   }
             // }
             if (kDebugMode) {
-              print(
-                  "##### DEBUG: onBarcodeScanned - Scanned barcode: $barcode, $dobScanned");
+              print("##### DEBUG: onBarcodeScanned - Scanned barcode: $barcode, $dobScanned");
             }
 
             // Create new order if none exists
             if (tabs.isEmpty) {
               addNewTab();
               if (kDebugMode) {
-                print(
-                    "##### DEBUG: onBarcodeScanned - No tabs, creating new order");
+                print("##### DEBUG: onBarcodeScanned - No tabs, creating new order");
               }
             }
             setState(() => _isLoading = true); // Show loader
             productBloc.fetchProductBySku(barcode);
             _productBySkuSubscription?.cancel();
-            _productBySkuSubscription =
-                productBloc.productBySkuStream.listen((response) async {
-              if (response.status == Status.COMPLETED &&
-                  response.data!.isNotEmpty) {
+            _productBySkuSubscription = productBloc.productBySkuStream.listen((response) async {
+
+              if (response.status == Status.COMPLETED && response.data!.isNotEmpty) {
                 setState(() => _isLoading = false); //Build #1.0.92
                 final product = response.data!.first;
                 if (kDebugMode) {
-                  print(
-                      "##### DEBUG: onBarcodeScanned - Product found: ${product.name}, variations: ${product.variations.length}");
+                  print("##### DEBUG: onBarcodeScanned - Product found: ${product.name}, variations: ${product.variations.length}");
                 }
                 // Build #1.0.80: MISSED CODE ADDED
                 /// use product id:22, sku:woo-fashion-socks
                 // var isVerified = await _ageRestrictedProduct(product);
                 // Use the new provider to check for age restriction
-                if (!mounted) {
+                if(!mounted) {
                   return;
                 }
                 //Build #1.0.234: Checking stored age restriction before verifying -> Age
                 final order = orderHelper.orders.firstWhere(
-                  (order) =>
-                      order[AppDBConst.orderServerId] ==
-                      orderHelper.activeOrderId,
+                      (order) => order[AppDBConst.orderServerId] == orderHelper.activeOrderId,
                   orElse: () => {},
                 );
-                final String ageRestrictedValue =
-                    order[AppDBConst.orderAgeRestricted]?.toString() ?? 'false';
-                final bool isAgeRestricted =
-                    ageRestrictedValue.toLowerCase() == 'true' ||
-                        ageRestrictedValue == "1";
+                final String ageRestrictedValue = order[AppDBConst.orderAgeRestricted]?.toString() ?? 'false';
+                final bool isAgeRestricted = ageRestrictedValue.toLowerCase() == 'true' || ageRestrictedValue == "1";
 
                 if (!isAgeRestricted) {
                   ///Age Verification code
                   final ageVerificationProvider = AgeVerificationProvider();
-                  var isVerified = await ageVerificationProvider
-                      .ageRestrictedProduct(context, product);
+                  var isVerified = await ageVerificationProvider.ageRestrictedProduct(context, product);
 
                   /// Verify Age and proceed else return
-                  if (!isVerified) {
+                  if(!isVerified){
                     return;
                   }
                 }
-
                 ///Todo: Need to call variation service before adding product to the order
                 if (product.variations.isNotEmpty) {
                   ///1. Call _productBloc.fetchProductVariations(product.id!);
                   ///2. load Variation popup
                   ///3. On add button from variation popup -> add to order list
-                  VariationPopup(
-                    product.id,
-                    product.name,
-                    orderHelper,
-                    onProductSelected: ({required bool isVariant}) {
-                      if (kDebugMode) {
-                        print(
-                            "VariationPopup returned with isVariant $isVariant");
-                      }
-                      Navigator.pop(context);
-                      fetchOrderItems(); //onItemTapped(index, variantAdded: isVariant); //Build #1.0.78: Pass isVariant to onItemTapped
-                    },
+                  VariationPopup(product.id, product.name, orderHelper, onProductSelected: ({required bool isVariant}) {
+                    if (kDebugMode) {
+                      print("VariationPopup returned with isVariant $isVariant");
+                    }
+                    Navigator.pop(context);
+                    fetchOrderItems(); //onItemTapped(index, variantAdded: isVariant); //Build #1.0.78: Pass isVariant to onItemTapped
+                  },
                   ).showVariantDialog(context: context);
 
                   // Show variants dialog for products with variations
                   if (kDebugMode) {
-                    print(
-                        "##### DEBUG: onBarcodeScanned - Showing variants dialog");
+                    print("##### DEBUG: onBarcodeScanned - Showing variants dialog");
                   }
                 } else {
+
                   ///Comment below code not we are using only server order id as to check orders, skip checking db order id
                   // final order = orderHelper.orders.firstWhere(
                   //       (order) => order[AppDBConst.orderId] == orderHelper.activeOrderId,
                   //   orElse: () => {},
                   // );
-                  final serverOrderId = orderHelper
-                      .activeOrderId; //order[AppDBConst.orderServerId] as int?;
+                  final serverOrderId = orderHelper.activeOrderId;//order[AppDBConst.orderServerId] as int?;
                   final dbOrderId = orderHelper.activeOrderId;
-                  if (product.id != null) {
-                    // Build #1.0.128
+                  if (product.id != null) { // Build #1.0.128
                     setState(() => _isLoading = true);
                     _updateOrderSubscription?.cancel();
-                    _updateOrderSubscription =
-                        orderBloc.updateOrderStream.listen((response) async {
-                      if (response.status == Status.LOADING) {
-                        // Build #1.0.80
-                        const Center(
-                            child: CircularProgressIndicator()); // Added Loader
-                      } else if (response.status == Status.COMPLETED) {
+                    _updateOrderSubscription = orderBloc.updateOrderStream.listen((response) async {
+                      if (response.status == Status.LOADING) { // Build #1.0.80
+                        const Center(child: CircularProgressIndicator()); // Added Loader
+                      }else if (response.status == Status.COMPLETED) {
                         if (kDebugMode) {
-                          print(
-                              "##### DEBUG: onBarcodeScanned - Product added successfully");
+                          print("##### DEBUG: onBarcodeScanned - Product added successfully");
                         }
                         await fetchOrderItems();
                         setState(() {
@@ -1233,15 +1077,12 @@ class _RightOrderPanelState extends State<RightOrderPanel>
                       } else if (response.status == Status.ERROR) {
                         if (response.message!.contains('Unauthorised')) {
                           if (kDebugMode) {
-                            print(
-                                "categories 4 ---- Unauthorised : ${response.message!}");
+                            print("categories 4 ---- Unauthorised : ${response.message!}");
                           }
                           WidgetsBinding.instance.addPostFrameCallback((_) {
                             if (mounted) {
-                              Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (context) => LoginScreen()));
+                              Navigator.pushReplacement(context,
+                                  MaterialPageRoute(builder: (context) => LoginScreen()));
 
                               if (kDebugMode) {
                                 print("message 4 --- ${response.message}");
@@ -1256,12 +1097,14 @@ class _RightOrderPanelState extends State<RightOrderPanel>
                               );
                             }
                           });
-                        } else {
+                        }
+                        else {
                           setState(() =>
-                              _isLoading = false); //Build #1.0.99 : Hide loader
+                          _isLoading = false); //Build #1.0.99 : Hide loader
                           if (kDebugMode) {
                             print(
-                                "##### ERROR: onBarcodeScanned - Failed to add product: ${response.message}");
+                                "##### ERROR: onBarcodeScanned - Failed to add product: ${response
+                                    .message}");
                           }
                           _scaffoldMessenger.showSnackBar(
                             SnackBar(
@@ -1288,8 +1131,7 @@ class _RightOrderPanelState extends State<RightOrderPanel>
                   } else {
                     // Add product directly to order
                     if (kDebugMode) {
-                      print(
-                          "##### DEBUG: onBarcodeScanned - Not Adding product to DB directly: ${product.name}");
+                      print("##### DEBUG: onBarcodeScanned - Not Adding product to DB directly: ${product.name}");
                     }
                     // await orderHelper.addItemToOrder(
                     //   product.id,
@@ -1312,8 +1154,7 @@ class _RightOrderPanelState extends State<RightOrderPanel>
                     await fetchOrderItems();
                     _scaffoldMessenger.showSnackBar(
                       SnackBar(
-                        content: Text(
-                            "Product did not added to order. OrderId not found."),
+                        content: Text("Product did not added to order. OrderId not found."),
                         backgroundColor: Colors.green,
                         duration: const Duration(seconds: 2),
                       ),
@@ -1324,11 +1165,10 @@ class _RightOrderPanelState extends State<RightOrderPanel>
               } else {
                 // Show error if product not found
                 if (kDebugMode) {
-                  print(
-                      "##### DEBUG: onBarcodeScanned - Product not found for SKU: $barcode");
+                  print("##### DEBUG: onBarcodeScanned - Product not found for SKU: $barcode");
                 }
                 if (!mounted) return;
-                await CustomDialog.showCustomItemNotAdded(context, onRetry: () {
+                await CustomDialog.showCustomItemNotAdded(context,onRetry: (){
                   // Navigate to AddScreen when "Let's Try Again" is pressed
                   Navigator.push(
                     context,
@@ -1339,8 +1179,8 @@ class _RightOrderPanelState extends State<RightOrderPanel>
                       ),
                     ),
                   );
-                }).then((_) {
-                  //Build #1.0.54: added
+                }).then((_) { //Build #1.0.54: added
+
                 });
                 setState(() => _isLoading = false);
               }
@@ -1348,32 +1188,17 @@ class _RightOrderPanelState extends State<RightOrderPanel>
           }
         },
         child: Container(
-          width: MediaQuery.of(context).size.width * 0.30,
-          padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+          width: MediaQuery.of(context).size.width * 0.31,
+          padding: const EdgeInsets.fromLTRB(2, 0, 10, 10),
           child: Card(
-            elevation: 4,
+            // elevation: 2,
             margin: const EdgeInsets.only(top: 10),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             child: Column(
               children: [
                 Container(
-                  decoration: BoxDecoration(
-                    // color: themeHelper.themeMode == ThemeMode.dark
-                    //     ? Colors.black // dark mode background
-                    //     : Colors.white, // light mode background
-                    // borderRadius: BorderRadius.circular(20), // ✅ 4 sides rounded the background curves for top of the tab
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(12), // match card’s radius
-                      topRight: Radius.circular(12),
-                      bottomLeft: Radius.circular(12),
-                      bottomRight: Radius.circular(12), // match card’s radius
-                    ),
-                  ),
-                  //color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground: null,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 2, vertical: 0),
-
+                  color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground: null,
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -1383,10 +1208,9 @@ class _RightOrderPanelState extends State<RightOrderPanel>
                           controller: _scrollController,
                           child: Row(
                             children: List.generate(tabs.length, (index) {
-                              final bool isSelected =
-                                  _tabController!.index == index;
+                              final bool isSelected = _tabController!.index == index;
                               return Padding(
-                                padding: const EdgeInsets.fromLTRB(4, 5, 4, 0),
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
                                 child: GestureDetector(
                                   onTap: () {
                                     setState(() {
@@ -1394,29 +1218,29 @@ class _RightOrderPanelState extends State<RightOrderPanel>
                                     });
                                   },
                                   child: Container(
-                                    height: isSelected
-                                        ? 60
-                                        : 50, // selected tab taller
+                                    // height: isSelected
+                                    //     ? 50
+                                    //     : 50, // selected tab taller
                                     // padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
                                     padding: EdgeInsets.symmetric(
                                       horizontal: 12,
                                       vertical: isSelected
-                                          ? 18
+                                          ? 12
                                           : 12, // adjust internal padding only
                                     ),
                                     decoration: BoxDecoration(
                                       color: isSelected
                                           ? (themeHelper.themeMode ==
-                                                  ThemeMode.dark
-                                              ? Color(
-                                                  0xFF353848) // selected top bar in dark
-                                              : const Color(0xFFE0E5F7))
+                                          ThemeMode.dark
+                                          ? Color(
+                                          0xFFFCDFDC) // selected top bar in dark
+                                          : const Color(0xFFFCDFDC))
                                           : (themeHelper.themeMode ==
-                                                  ThemeMode.dark
-                                              ? Color(
-                                                  0xFF252837) // order panel tob bar and unselected tab color in dark
-                                              : const Color(
-                                                  0xFFF2F0F0)), // unselected tab in light
+                                          ThemeMode.dark
+                                          ? Color(
+                                          0xFF31354A) // order panel tob bar and unselected tab color in dark
+                                          : const Color(
+                                          0xFFEFEEEE)), // unselected tab in light
                                       // color: isSelected ?  ThemeNotifier.orderPanelTabSelection : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.orderPanelTabBackground : Colors.grey.shade400,
                                       //borderRadius: BorderRadius.circular(10),
                                       borderRadius: BorderRadius.only(
@@ -1425,10 +1249,10 @@ class _RightOrderPanelState extends State<RightOrderPanel>
                                         //bottomLeft: isSelected ? Radius.circular(0) : Radius.circular(10),
                                         // bottomRight: isSelected ? Radius.circular(0) : Radius.circular(10),
                                         bottomLeft: isSelected
-                                            ? const Radius.circular(0)
+                                            ? const Radius.circular(10)
                                             : const Radius.circular(10),
                                         bottomRight: isSelected
-                                            ? const Radius.circular(0)
+                                            ? const Radius.circular(10)
                                             : const Radius.circular(10),
                                       ),
                                     ),
@@ -1436,9 +1260,9 @@ class _RightOrderPanelState extends State<RightOrderPanel>
                                       children: [
                                         Column(
                                           mainAxisAlignment:
-                                              MainAxisAlignment.center,
+                                          MainAxisAlignment.center,
                                           crossAxisAlignment:
-                                              CrossAxisAlignment.start,
+                                          CrossAxisAlignment.start,
                                           children: [
                                             Text(
                                               tabs[index]["title"] as String,
@@ -1472,17 +1296,17 @@ class _RightOrderPanelState extends State<RightOrderPanel>
                                             ///call alert  box before delete
                                             CustomDialog.showAreYouSure(context,
                                                 confirm: () {
-                                              removeTab(index);
-                                            });
+                                                  removeTab(index);
+                                                });
                                           },
                                           child: isSelected
                                               ? Image.asset(
-                                                  "assets/deletecircle.png",
-                                                  width: 20,
-                                                  height: 20,
-                                                )
+                                            "assets/deletecircle.png",
+                                            width: 20,
+                                            height: 20,
+                                          )
                                               : SizedBox
-                                                  .shrink(), // hides the widget when not selected
+                                              .shrink(), // hides the widget when not selected
 
                                           // child: const Icon(Icons.close, size: 18, color: Colors.red),
                                         ),
@@ -1495,75 +1319,43 @@ class _RightOrderPanelState extends State<RightOrderPanel>
                           ),
                         ),
                       ),
-                      ElevatedButton(
-                        onPressed: addNewTab,
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.only(
-                              right: 4), // ⬅ increase this value
-                          //padding: EdgeInsets.zero,
-                          backgroundColor: Colors.transparent,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                        child: Ink(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: const Alignment(1.09, 0.57),
-                              end: const Alignment(-0.08, 0.57),
-                              colors: themeHelper.themeMode == ThemeMode.dark
-                                  ? const [Color(0xFFFFA099), Color(0xFFFE6464)]
-                                  : const [
-                                      Color(0xFFFFA099),
-                                      Color(0xFFFE6464)
-                                    ],
+                        ElevatedButton(
+                          onPressed: addNewTab,
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.only(right: 4),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
                             ),
-                            borderRadius: BorderRadius.circular(18),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Color(0x3F000000),
-                                blurRadius: 1,
-                                offset: Offset(0, 0),
-                                spreadRadius: 0,
-                              ),
-                            ],
+                            backgroundColor: Colors.transparent, // so container decoration shows
+                            shadowColor: Colors.transparent, // to remove default shadow if any
                           ),
                           child: Container(
-                            width: 85, // ⬅ Custom width
-                            height: 50, // ⬅ Custom height
+                            width: 85,
+                            height: 45,
+                            alignment: Alignment.center,
                             decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: const Alignment(1.09, 0.57),
-                                end: const Alignment(-0.08, 0.57),
-                                colors: themeHelper.themeMode == ThemeMode.dark
-                                    ? const [
-                                        Color(0xFFFFA099),
-                                        Color(0xFFFE6464)
-                                      ]
-                                    : const [
-                                        Color(0xFFFFA099),
-                                        Color(0xFFFE6464)
-                                      ],
+                              color: themeHelper.themeMode == ThemeMode.dark
+                                  ? const Color(0xFF221E2B)
+                                  : const Color(0xFFFFFFFF),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: const Color(0xFFFE6464),
+                                width: 1.0,
                               ),
-                              borderRadius: BorderRadius.circular(16),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Theme.of(context).brightness ==
-                                          Brightness.dark
-                                      ? const Color(0xFF6A6C6E) // dark mode
-                                      : const Color(0xFFB2AFAF), // light mode
+                                  color: themeHelper.themeMode == ThemeMode.dark
+                                      ? const Color(0xFF525252)
+                                      : const Color(0xFFB2AFAF),
                                   blurRadius: 4,
-                                  offset:
-                                      const Offset(0, 4), // shadow goes down
+                                  offset: const Offset(0, 4),
                                   spreadRadius: 0,
                                 ),
                               ],
                             ),
-                            alignment: Alignment.center,
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
                                 Container(
                                   width: 22,
@@ -1571,20 +1363,21 @@ class _RightOrderPanelState extends State<RightOrderPanel>
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
                                     border: Border.all(
-                                        color: Colors.white,
-                                        width: 2), //color: Colors.white,
+                                      color: const Color(0xFFFE6464),
+                                      width: 2,
+                                    ),
                                   ),
                                   child: const Icon(
                                     Icons.add,
                                     size: 16,
-                                    color: Colors.white,
+                                    color: const Color(0xFFFE6464),
                                   ),
                                 ),
                                 const SizedBox(width: 8),
                                 const Text(
                                   "New",
                                   style: TextStyle(
-                                    color: Colors.white,
+                                    color: const Color(0xFFFE6464),
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -1592,13 +1385,11 @@ class _RightOrderPanelState extends State<RightOrderPanel>
                               ],
                             ),
                           ),
-                        ),
-                      )
+                        )
                     ],
                   ),
                 ),
                 Expanded(child: buildCurrentOrder()),
-
               ],
             ),
           ),
@@ -1659,21 +1450,20 @@ class _RightOrderPanelState extends State<RightOrderPanel>
 
   //Build #1.0.67: Handler methods for response and error
   Future<void> _handleResponse(
-    APIResponse response,
-    Map<String, dynamic> orderItem, {
-    bool isPayout = false,
-    bool isCoupon = false,
-    bool isCustomItem = false,
-    VoidCallback? retryCallback, // Call back
-  }) async {
+      APIResponse response,
+      Map<String, dynamic> orderItem, {
+        bool isPayout = false,
+        bool isCoupon = false,
+        bool isCustomItem = false,
+        VoidCallback? retryCallback, // Call back
+      }) async {
     if (!mounted) return;
     if (response.status == Status.COMPLETED) {
       //Build #1.0.170: Updated - No need to make _isLoading is false here , we are doing after refresh!
       // setState(() => _isLoading = false); //Build #1.0.92
       _scaffoldMessenger.showSnackBar(
         SnackBar(
-          content: Text(
-              "${isPayout ? 'Payout' : isCoupon ? 'Coupon' : isCustomItem ? 'Custom Item' : 'Item'} removed successfully"),
+          content: Text("${isPayout ? 'Payout' : isCoupon ? 'Coupon' : isCustomItem ? 'Custom Item' : 'Item'} removed successfully"),
           backgroundColor: Colors.green,
           duration: const Duration(seconds: 2),
         ),
@@ -1696,20 +1486,22 @@ class _RightOrderPanelState extends State<RightOrderPanel>
             }
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content:
-                    Text("Unauthorised. Session is expired on this device."),
+                content: Text(
+                    "Unauthorised. Session is expired on this device."),
                 backgroundColor: Colors.red,
                 duration: Duration(seconds: 2),
               ),
             );
           }
         });
-      } else {
+      }
+      else {
         setState(() => _isLoading = false); //Build #1.0.99 : hide loader
         _scaffoldMessenger.showSnackBar(
           SnackBar(
-            content: Text(
-                "Failed to remove ${isPayout ? 'payout' : isCoupon ? 'coupon' : isCustomItem ? 'custom item' : 'item'}"),
+            content: Text("Failed to remove ${isPayout ? 'payout' : isCoupon
+                ? 'coupon'
+                : isCustomItem ? 'custom item' : 'item'}"),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 2),
           ),
@@ -1718,16 +1510,16 @@ class _RightOrderPanelState extends State<RightOrderPanel>
           await CustomDialog.showDiscountNotApplied(
             context,
             errorMessageTitle: TextConstants.removePayoutFailed,
-            errorMessageDes:
-                response.message ?? TextConstants.discountNotAppliedDescription,
+            errorMessageDes: response.message ??
+                TextConstants.discountNotAppliedDescription,
             onRetry: retryCallback, // Pass retry callback
           );
         } else if (isCoupon) {
           await CustomDialog.showCouponNotApplied(
             context,
             errorMessageTitle: TextConstants.removeCouponFailed,
-            errorMessageDes:
-                response.message ?? TextConstants.couponNotAppliedDescription,
+            errorMessageDes: response.message ??
+                TextConstants.couponNotAppliedDescription,
             onRetry: retryCallback, // Pass retry callback
           );
         } else if (isCustomItem) {
@@ -1744,10 +1536,7 @@ class _RightOrderPanelState extends State<RightOrderPanel>
   }
 
   //Build #1.0.67
-  void _handleError(String message,
-      {bool isPayout = false,
-      bool isCoupon = false,
-      bool isCustomItem = false}) async {
+  void _handleError(String message, {bool isPayout = false, bool isCoupon = false, bool isCustomItem = false}) async {
     if (!mounted) return; // Check if widget is still mounted
     setState(() => _isLoading = false);
     _scaffoldMessenger.showSnackBar(
@@ -1762,12 +1551,10 @@ class _RightOrderPanelState extends State<RightOrderPanel>
   }
 
   //Build #1.0.67
-  Future<void> _handleLocalDelete(
-      Map<String, dynamic> orderItem, BuildContext context) async {
+  Future<void> _handleLocalDelete(Map<String, dynamic> orderItem, BuildContext context) async {
     if (!mounted) return; // Check if widget is still mounted
     setState(() => _isLoading = false);
-    await orderHelper
-        .deleteItem(orderItem[AppDBConst.itemServerId]); //Build #1.0.92
+    await orderHelper.deleteItem(orderItem[AppDBConst.itemServerId]); //Build #1.0.92
     await fetchOrderItems();
     widget.refreshOrderList?.call();
     _scaffoldMessenger.showSnackBar(
@@ -1781,13 +1568,12 @@ class _RightOrderPanelState extends State<RightOrderPanel>
 
 // Current Order UI
   Widget buildCurrentOrder() {
-    final theme =
-        Theme.of(context); // Build #1.0.6 - added theme for order panel
+    final theme = Theme.of(context); // Build #1.0.6 - added theme for order panel
     bool isKeyboardVisible = View.of(context).viewInsets.bottom > 0;
     if (kDebugMode) {
       print("keyBoard visible : $isKeyboardVisible");
     }
-    if (_isLoading == true) {
+    if(_isLoading == true){
       if (kDebugMode) {
         print("###### buildCurrentOrder: _isLoading: $_isLoading");
       }
@@ -1796,17 +1582,15 @@ class _RightOrderPanelState extends State<RightOrderPanel>
     // ADD THIS: Create a ScrollController for the scrollbar
     final ScrollController scrollController = ScrollController();
     if (kDebugMode) {
-      print(
-          "Building Current Order Widget _isLoading: $_isLoading and orderHelper.activeOrderId : ${orderHelper.activeOrderId}");
+      print("Building Current Order Widget _isLoading: $_isLoading and orderHelper.activeOrderId : ${orderHelper.activeOrderId}");
     } // Debug print
     // Fetch discount and tax for the active order
     double orderDiscount = 0.0;
     double merchantDiscount = 0.0;
     double orderTax = 0.0;
-    num grossTotal =
-        GlobalUtility.getGrossTotal(orderItems); // Get Items Gross Total
+    num grossTotal = GlobalUtility.getGrossTotal(orderItems);  // Get Items Gross Total
     num netTotal = 0.0;
-    num netPayable = 0.0; //Build #1.0.67
+    num netPayable = 0.0;  //Build #1.0.67
 
     // Initialize display date and time variables
     String displayDate = widget.formattedDate;
@@ -1821,10 +1605,11 @@ class _RightOrderPanelState extends State<RightOrderPanel>
 
     // Update the calculation section in buildCurrentOrder:
     if (orderHelper.activeOrderId != null) {
+
       // var orders = await orderHelper.getOrderById(orderHelper.activeOrderId!);
       // var order = orders.first;
       final order = orderHelper.orders.firstWhere(
-        (order) => order[AppDBConst.orderServerId] == orderHelper.activeOrderId,
+            (order) => order[AppDBConst.orderServerId] == orderHelper.activeOrderId,
         orElse: () => {},
       );
       if (orderItems.isNotEmpty && order.isNotEmpty) {
@@ -1840,7 +1625,7 @@ class _RightOrderPanelState extends State<RightOrderPanel>
         netTotal = netTotal - merchantDiscount;
 
         ///map total with netPayable
-        netPayable = order[AppDBConst.orderTotal] as double? ?? 0.0;
+        netPayable =  order[AppDBConst.orderTotal] as double? ?? 0.0;
 
         // Ensure netPayable is not negative
         // Build #1.0.138: Ensure no negative values
@@ -1850,27 +1635,22 @@ class _RightOrderPanelState extends State<RightOrderPanel>
         // Determine the date and time to display from order data
         if (order.isNotEmpty && order[AppDBConst.orderDate] != null) {
           try {
-            final DateTime createdDateTime =
-                DateTime.parse(order[AppDBConst.orderDate].toString());
-            displayDate =
-                DateFormat("EEE, MMM d, yyyy").format(createdDateTime);
+            final DateTime createdDateTime = DateTime.parse(order[AppDBConst.orderDate].toString());
+            displayDate = DateFormat("EEE, MMM d, yyyy").format(createdDateTime);
             displayTime = DateFormat('hh:mm:ss a').format(createdDateTime);
           } catch (e) {
             if (kDebugMode) {
               print("Error parsing order creation date: $e");
             }
             // Fallback to raw data or default if parsing fails
-            displayDate =
-                order[AppDBConst.orderDate].toString().split(' ').first;
+            displayDate = order[AppDBConst.orderDate].toString().split(' ').first;
           }
         }
       } else {
         if (kDebugMode) {
           print("#### Reset values when orderItems is empty");
-          print(
-              "#### Order Items is empty -> ${orderItems.isNotEmpty} , Order is empty -> ${order.isNotEmpty}");
-          print(
-              "#### Discount ${order[AppDBConst.orderDiscount] as double? ?? 0.0}");
+          print("#### Order Items is empty -> ${orderItems.isNotEmpty} , Order is empty -> ${order.isNotEmpty}");
+          print("#### Discount ${order[AppDBConst.orderDiscount] as double? ?? 0.0}");
           print("#### Tax ${order[AppDBConst.orderTax] as double? ?? 0.0}");
           print("#### Total ${order[AppDBConst.orderTotal] as double? ?? 0.0}");
         }
@@ -1897,13 +1677,11 @@ class _RightOrderPanelState extends State<RightOrderPanel>
         // );
       }
       if (kDebugMode) {
-        print(
-            "#### netPayable: $netPayable, orderTotal: ${order[AppDBConst.orderTotal] as double? ?? 0.0}");
+        print("#### netPayable: $netPayable, orderTotal: ${order[AppDBConst.orderTotal] as double? ?? 0.0}");
       }
     }
 
-    if (kDebugMode) {
-      //Build #1.0.67
+    if (kDebugMode) {  //Build #1.0.67
       print("#### ACTIVE ORDER ID: ${orderHelper.activeOrderId}");
       print("#### orderItems: $orderItems");
       print("#### grossTotal: $grossTotal");
@@ -1916,514 +1694,230 @@ class _RightOrderPanelState extends State<RightOrderPanel>
 
     return Stack(
       children: [
-        Column(children: [
-          Container(
-            margin: const EdgeInsets.symmetric(
-                horizontal: 6,
-                vertical: 0), // leaves background visible on left & right
-            decoration: BoxDecoration(
-              color: themeHelper.themeMode == ThemeMode.dark
-                  ? const Color(0xFF353848) // dark mode background 3D4154
-                  : const Color(0xFFE0E5F7),
-              //color: const Color(0xFFE0E5F7), // ✅ background
-              borderRadius: BorderRadius.only(
-                topRight: Radius.circular(16), // ✅ only top-right is curved
-              ),
-              //borderRadius: BorderRadius.circular(12),
-            ),
-            //color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground: null,
-            padding: const EdgeInsets.fromLTRB(10, 5, 16, 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // Need to do in tommarrow in first hour
-                if (orderHelper.activeOrderId != null)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SvgPicture.asset(
-                        'assets/svg/calendar.svg',
-                        width: 20,
-                        height: 20,
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? Colors.white
-                            : Color(0xFF656161), // or your light mode color
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        displayDate,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
+        Column(
+          children: [
+            Container(
+              color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground: null,
+              padding: const EdgeInsets.fromLTRB(10, 5, 16, 5),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  if (orderHelper.activeOrderId != null)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SvgPicture.asset(
+                          'assets/svg/calendar.svg',
+                          width: 20,
+                          height: 20,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.white
+                              : Color(0xFF656161), // or your light mode color
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          displayDate,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color:
+                            Theme.of(context).brightness == Brightness.dark
+                                ? Colors.white
+                                : Color(0xFF656161),
+                          ),
+                        ),
+                        const SizedBox(width: 138),
+                        SvgPicture.asset(
+                          'assets/svg/clock.svg',
+                          width: 20,
+                          height: 20,
                           color: Theme.of(context).brightness == Brightness.dark
                               ? Colors.white
                               : Color(0xFF656161),
                         ),
-                      ),
-                      const SizedBox(width: 90),
-                      SvgPicture.asset(
-                        'assets/svg/clock.svg',
-                        width: 20,
-                        height: 20,
-                        color: Theme.of(context).brightness == Brightness.dark
-                            ? Colors.white
-                            : Color(0xFF656161),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        displayTime,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Theme.of(context).brightness == Brightness.dark
-                              ? Colors.white
-                              : Color(0xFF656161),
+                        const SizedBox(width: 4),
+                        Text(
+                          displayTime,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color:
+                            Theme.of(context).brightness == Brightness.dark
+                                ? Colors.white
+                                : Color(0xFF656161),
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-              ],
-            ),
-          ),
-          // Padding(
-          //   padding: EdgeInsets.symmetric(horizontal: 10),
-          //   child: DottedLine(
-          //     dashLength: 4,
-          //     dashGapLength: 4,
-          //     lineThickness: 1,
-          //     dashColor: theme.secondaryHeaderColor,
-          //   ),
-          // ),
-          Expanded(
-            child: Container(
-              margin: EdgeInsets.symmetric(horizontal: 6),
-              decoration: BoxDecoration(
-                color: themeHelper.themeMode == ThemeMode.dark
-                    ? const Color(0xFF353848) // dark mode background
-                    : const Color(0xFFE0E5F7),
+                      ],
+                    ),
+                ],
               ),
-              child: Padding(
-                padding: const EdgeInsets.only(left: 0, right: 0),
-                child: Scrollbar(
-                  controller: scrollController,
-                  scrollbarOrientation: ScrollbarOrientation.right,
-                  thumbVisibility: true,
-                  thickness: 8.0,
-                  interactive: false,
-                  radius: const Radius.circular(8),
-                  trackVisibility: true,
-                  child: ReorderableListView.builder(
-                    onReorder: (oldIndex, newIndex) {
-                      if (kDebugMode) {
-                        print("Reordering item from $oldIndex to $newIndex");
-                      } // Debug print
-                      if (oldIndex < newIndex) newIndex -= 1;
+            ),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 10),
+              child: DottedLine(
+                dashLength: 4,
+                dashGapLength: 4,
+                lineThickness: 1,
+                dashColor: theme.secondaryHeaderColor,
+              ),
+            ),
+            Expanded(
+              child: Container(
+                color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground: null,
+                child: Padding(
+                  padding: const EdgeInsets.only(left:3, right: 3),
+                  child: Scrollbar(
+                    controller: scrollController,
+                    scrollbarOrientation: ScrollbarOrientation.right,
+                    thumbVisibility: true,
+                    thickness: 8.0,
+                    interactive: false,
+                    radius: const Radius.circular(8),
+                    trackVisibility: true,
+                    child: ReorderableListView.builder(
+                      onReorder: (oldIndex, newIndex) {
+                        if (kDebugMode) {
+                          print("Reordering item from $oldIndex to $newIndex");
+                        } // Debug print
+                        if (oldIndex < newIndex) newIndex -= 1;
 
-                      setState(() {
-                        final movedItem = orderItems.removeAt(oldIndex);
-                        orderItems.insert(newIndex, movedItem);
-                      });
-                    },
-                    scrollController: scrollController,
-                    itemCount: orderItems.length,
-                    proxyDecorator:
-                        (Widget child, int index, Animation<double> animation) {
-                      return Material(
-                        color: Colors.transparent, // Removes white background
-                        child: child,
-                      );
-                    },
-                    itemBuilder: (context, index) {
-                      final orderItem = orderItems[index];
-                      if (kDebugMode) {
-                        print("@@@@@@@@@@@@@@@@@ orderItem Data : $orderItem");
-                      }
-
-                      ///Build #1.0.64:  added conditions
-                      /// Compare item type
-                      /// if it is payout change icon, name is empty, show amount in red colour
-                      /// if it is coupon change icon, name is coupon code (show last 4 digits, prefix with 'X' for each character before last 4), show amount in red colour
-                      final itemType = orderItem[AppDBConst.itemType]
-                              ?.toString()
-                              .toLowerCase() ??
-                          '';
-
-                      /// Check if the item is a payout or a coupon
-                      final isPayout =
-                          itemType.contains(TextConstants.payoutText);
-                      final isCoupon =
-                          itemType.contains(TextConstants.couponText);
-                      final isCustomItem =
-                          itemType.contains(TextConstants.customItemText);
-                      final isPayoutOrCouponOrCustomItem =
-                          isPayout || isCoupon || isCustomItem;
-                      final isCouponOrPayout = isPayout || isCoupon;
-
-                      /// Get the original name
-                      final originalName =
-                          orderItem[AppDBConst.itemName]?.toString() ?? '';
-                      final variationName =
-                          orderItem[AppDBConst.itemVariationCustomName]
-                                  ?.toString() ??
-                              'N/A';
-                      final variationCount =
-                          orderItem[AppDBConst.itemVariationCount] ?? 0;
-                      final combo = orderItem[AppDBConst.itemCombo] ?? '';
-                      if (kDebugMode) {
-                        print(
-                            "#### originalName: $originalName, itemType: $itemType, isPayoutOrCouponOrCustomItem: $isPayoutOrCouponOrCustomItem");
-                        print(
-                            "#### variationName: $variationName, variationCount: $variationCount");
-                        print(
-                            "#### isCouponOrPayout: $isCouponOrPayout"); // Build #1.0.181: Debug print
-                      }
-
-                      /// Set display name based on item type
-                      String displayName = originalName;
-                      if (isPayout) {
-                        displayName = '';
-                      } else if (isCoupon) {
-                        final visiblePartLength = 4;
-                        final nameLength = originalName.length;
-                        if (nameLength > visiblePartLength) {
-                          final maskedLength = nameLength - visiblePartLength;
-                          final maskedPart = 'X' * maskedLength;
-                          final visiblePart = originalName
-                              .substring(nameLength - visiblePartLength);
-                          displayName = '$maskedPart$visiblePart';
+                        setState(() {
+                          final movedItem = orderItems.removeAt(oldIndex);
+                          orderItems.insert(newIndex, movedItem);
+                        });
+                      },
+                      scrollController: scrollController,
+                      itemCount: orderItems.length,
+                      proxyDecorator: (Widget child, int index, Animation<double> animation) {
+                        return Material(
+                          color: Colors.transparent,// Removes white background
+                          child: child,
+                        );
+                      },
+                      itemBuilder: (context, index) {
+                        final orderItem = orderItems[index];
+                        if (kDebugMode) {
+                          print("@@@@@@@@@@@@@@@@@ orderItem Data : $orderItem");
                         }
-                      }
+                        ///Build #1.0.64:  added conditions
+                        /// Compare item type
+                        /// if it is payout change icon, name is empty, show amount in red colour
+                        /// if it is coupon change icon, name is coupon code (show last 4 digits, prefix with 'X' for each character before last 4), show amount in red colour
+                        final itemType = orderItem[AppDBConst.itemType]?.toString().toLowerCase() ?? '';
+                        /// Check if the item is a payout or a coupon
+                        final isPayout = itemType.contains(TextConstants.payoutText);
+                        final isCoupon = itemType.contains(TextConstants.couponText);
+                        final isCustomItem = itemType.contains(TextConstants.customItemText);
+                        final isPayoutOrCouponOrCustomItem = isPayout || isCoupon || isCustomItem;
+                        final isCouponOrPayout = isPayout || isCoupon;
+                        /// Get the original name
+                        final originalName = orderItem[AppDBConst.itemName]?.toString() ?? '';
+                        final variationName = orderItem[AppDBConst.itemVariationCustomName]?.toString() ?? 'N/A';
+                        final variationCount = orderItem[AppDBConst.itemVariationCount] ?? 0;
+                        final combo = orderItem[AppDBConst.itemCombo] ?? '';
+                        if (kDebugMode) {
+                          print("#### originalName: $originalName, itemType: $itemType, isPayoutOrCouponOrCustomItem: $isPayoutOrCouponOrCustomItem");
+                          print("#### variationName: $variationName, variationCount: $variationCount");
+                          print("#### isCouponOrPayout: $isCouponOrPayout"); // Build #1.0.181: Debug print
+                        }
+                        /// Set display name based on item type
+                        String displayName = originalName;
+                        if (isPayout) {
+                          displayName = '';
+                        } else if (isCoupon) {
+                          final visiblePartLength = 4;
+                          final nameLength = originalName.length;
+                          if (nameLength > visiblePartLength) {
+                            final maskedLength = nameLength - visiblePartLength;
+                            final maskedPart = 'X' * maskedLength;
+                            final visiblePart = originalName.substring(nameLength - visiblePartLength);
+                            displayName = '$maskedPart$visiblePart';
+                          }
+                        }
 
-                      /// Build #1.0.134: Item Price will check sales price if it is null/empty, check regular price else unit price
-                      final salesPrice = (orderItem[
-                                      AppDBConst.itemSalesPrice] ==
-                                  null ||
-                              (orderItem[AppDBConst.itemSalesPrice]
-                                          ?.toDouble() ??
-                                      0.0) ==
-                                  0.0)
-                          ? (orderItem[AppDBConst.itemRegularPrice] == null ||
-                                  (orderItem[AppDBConst.itemRegularPrice]
-                                              ?.toDouble() ??
-                                          0.0) ==
-                                      0.0)
-                              ? orderItem[AppDBConst.itemUnitPrice]
-                                      ?.toDouble() ??
-                                  0.0
-                              : orderItem[AppDBConst.itemRegularPrice]!
-                                  .toDouble()
-                          : orderItem[AppDBConst.itemSalesPrice]!.toDouble();
+                        /// Build #1.0.134: Item Price will check sales price if it is null/empty, check regular price else unit price
+                        final salesPrice =
+                        (orderItem[AppDBConst.itemSalesPrice] == null || (orderItem[AppDBConst.itemSalesPrice]?.toDouble() ?? 0.0) == 0.0)
+                            ? (orderItem[AppDBConst.itemRegularPrice] == null || (orderItem[AppDBConst.itemRegularPrice]?.toDouble() ?? 0.0) == 0.0)
+                            ? orderItem[AppDBConst.itemUnitPrice]?.toDouble() ?? 0.0
+                            : orderItem[AppDBConst.itemRegularPrice]!.toDouble()
+                            : orderItem[AppDBConst.itemSalesPrice]!.toDouble();
 
-                      final regularPrice =
-                          (orderItem[AppDBConst.itemRegularPrice] == null ||
-                                  (orderItem[AppDBConst.itemRegularPrice]
-                                              ?.toDouble() ??
-                                          0.0) ==
-                                      0.0)
-                              ? orderItem[AppDBConst.itemUnitPrice]
-                                      ?.toDouble() ??
-                                  0.0
-                              : orderItem[AppDBConst.itemRegularPrice]!
-                                  .toDouble();
+                        final regularPrice =  (orderItem[AppDBConst.itemRegularPrice] == null || (orderItem[AppDBConst.itemRegularPrice]?.toDouble() ?? 0.0) == 0.0)
+                            ? orderItem[AppDBConst.itemUnitPrice]?.toDouble() ?? 0.0
+                            : orderItem[AppDBConst.itemRegularPrice]!.toDouble();
 
-                      return ClipRRect(
-                        // Build #1.0.151: FIXED - change ensures that sliding an item in one order does not affect the Slidable state of items at the same index in other orders.
-                        key: ValueKey(
-                            '${orderItem[AppDBConst.itemServerId]}_$_listVersion'), // Build 1.0.214: Fixed Issue [SCRUM - 366] -> Swipe-to-Delete UI State Not Resetting After Add/Delete Operations // Updated key to include order ID
-                        borderRadius: BorderRadius.circular(20),
-                        child: SizedBox(
-                          height: 70,
-                          child: Slidable(
-                            // Build #1.0.151: FIXED - change ensures that sliding an item in one order does not affect the Slidable state of items at the same index in other orders.
-                            key: ValueKey(
-                                '${orderItem[AppDBConst.itemServerId]}_$_listVersion'), // Build 1.0.214: Fixed Issue [SCRUM - 366] -> Swipe-to-Delete UI State Not Resetting After Add/Delete Operations // Updated key to include order ID
-                            closeOnScroll: true,
-                            direction: Axis.horizontal,
-                            endActionPane: ActionPane(
-                              motion: const DrawerMotion(),
-                              children: [
-                                CustomSlidableAction(
-                                  onPressed: (context) async {
-                                    if (isPayoutOrCouponOrCustomItem) {
-                                      if (kDebugMode) {
-                                        print(
-                                            "#### CustomSlidableAction isPayoutOrCouponOrCustomItem true");
+                        return ClipRRect(
+                          // Build #1.0.151: FIXED - change ensures that sliding an item in one order does not affect the Slidable state of items at the same index in other orders.
+                          key: ValueKey('${orderItem[AppDBConst.itemServerId]}_$_listVersion'), // Build 1.0.214: Fixed Issue [SCRUM - 366] -> Swipe-to-Delete UI State Not Resetting After Add/Delete Operations // Updated key to include order ID
+                          borderRadius: BorderRadius.circular(20),
+                          child: SizedBox(
+                            height: 70,
+                            //height: MediaQuery.of(context).size.height * 0.12,
+                            child: Slidable(
+                              // Build #1.0.151: FIXED - change ensures that sliding an item in one order does not affect the Slidable state of items at the same index in other orders.
+                              key: ValueKey('${orderItem[AppDBConst.itemServerId]}_$_listVersion'), // Build 1.0.214: Fixed Issue [SCRUM - 366] -> Swipe-to-Delete UI State Not Resetting After Add/Delete Operations // Updated key to include order ID
+                              closeOnScroll: true,
+                              direction: Axis.horizontal,
+                              endActionPane: ActionPane(
+                                motion: const DrawerMotion(),
+                                children: [
+                                  CustomSlidableAction(
+                                    onPressed: (context) async {
+                                      if (isPayoutOrCouponOrCustomItem) {
+                                        if (kDebugMode) {
+                                          print("#### CustomSlidableAction isPayoutOrCouponOrCustomItem true");
+                                        }
+                                        await CustomDialog.showRemoveSpecialOrderItemsConfirmation(context, type: itemType, confirm: () async {
+                                          deleteItemFromOrder(orderItem[AppDBConst.itemServerId]);
+                                        });
+                                      } else {
+                                        deleteItemFromOrder(orderItem[AppDBConst.itemServerId]);
                                       }
-                                      await CustomDialog
-                                          .showRemoveSpecialOrderItemsConfirmation(
-                                              context,
-                                              type: itemType,
-                                              confirm: () async {
-                                        deleteItemFromOrder(
-                                            orderItem[AppDBConst.itemServerId]);
-                                      });
-                                    } else {
-                                      deleteItemFromOrder(
-                                          orderItem[AppDBConst.itemServerId]);
-                                    }
-                                  },
-                                  backgroundColor: Colors.transparent,
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.delete, color: Colors.red),
-                                      const SizedBox(height: 4),
-                                      const Text(TextConstants.deleteText,
-                                          style: TextStyle(
-                                              color: Colors.red,
-                                              fontWeight: FontWeight.bold)),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            child: GestureDetector(
-                              //Removed orderHelper.updateItemQuantity from the API success block, as it’s now in OrderBloc.updateOrderProducts.
-                              // Kept local updateItemQuantity for non-API orders.
-                              // Ensured loader is shown during API calls.
-                              onTap: () {
-                                if (isCouponOrPayout)
-                                  return; // Build #1.0.187: Fixed - Updating Quantity for non payout or coupons
-
-                                if (Misc.enableEditProductScreen) {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => EditProductScreen(
-                                        orderItem: orderItem,
-                                        onQuantityUpdated: (newQuantity) async {
-                                          if (orderHelper.activeOrderId !=
-                                              null) {
-                                            if (orderHelper.cancelledOrderId !=
-                                                null) {
-                                              // Build #1.0.189: Fixed -> Deleted Order Tab Reappears After Item Edit Flow
-                                              setState(() {
-                                                // Remove only the tab with the cancelledOrderId instead of clearing all tabs
-                                                tabs.removeWhere((tab) =>
-                                                    tab["orderId"] ==
-                                                    orderHelper
-                                                        .cancelledOrderId);
-
-                                                if (kDebugMode) {
-                                                  print(
-                                                      "##### onQuantityUpdated: removing cancelled order tab");
-                                                  print(
-                                                      "##### DEBUG : cancelledOrderId -> ${orderHelper.cancelledOrderId}");
-                                                  print(
-                                                      "##### DEBUG : tabs -> $tabs");
-                                                }
-                                                // Reset cancelledOrderId after processing
-                                                orderHelper.cancelledOrderId =
-                                                    null;
-                                              });
-                                              // // If no tabs remain, fetch orders to refresh
-                                              // if (tabs.isEmpty) {
-                                              //   _fetchOrders();
-                                              // } else {
-                                              //   // Reinitialize tab controller and update UI
-                                              //   _initializeTabController();
-                                              //   await fetchOrderItems();
-                                              // }
-                                            }
-                                            // final order = orderHelper.orders.firstWhere(
-                                            //       (order) => order[AppDBConst.orderServerId] == orderHelper.activeOrderId,
-                                            //   orElse: () => {},
-                                            // );
-                                            final serverOrderId = orderHelper
-                                                .activeOrderId; //order[AppDBConst.orderServerId] as int?;
-                                            final dbOrderId =
-                                                orderHelper.activeOrderId;
-                                            // Build #1.0.108: Fixed : Edit product not working
-                                            // prev we are passing itemServerId rather than itemProductId & based on variation id we have to pass that id
-                                            final productId = orderItem[
-                                                    AppDBConst.itemProductId]
-                                                as int?;
-                                            final serverVariationId = orderItem[
-                                                    AppDBConst.itemVariationId]
-                                                as int?;
-                                            // Use productId if serverVariationId is null or 0, otherwise use serverVariationId
-                                            final variationOrProductId =
-                                                (serverVariationId == null ||
-                                                        serverVariationId == 0)
-                                                    ? productId
-                                                    : serverVariationId;
-                                            if (serverOrderId != null &&
-                                                dbOrderId != null &&
-                                                productId != null) {
-                                              setState(() => _isLoading = true);
-                                              _updateOrderSubscription
-                                                  ?.cancel();
-                                              _updateOrderSubscription =
-                                                  orderBloc.updateOrderStream
-                                                      .listen((response) async {
-                                                if (response.status ==
-                                                    Status.LOADING) {
-                                                  // Build #1.0.80
-                                                  const Center(
-                                                      child:
-                                                          CircularProgressIndicator());
-                                                } else if (response.status ==
-                                                    Status.COMPLETED) {
-                                                  if (kDebugMode) {
-                                                    print(
-                                                        "##### DEBUG: EditProductScreen - Quantity updated successfully");
-                                                  }
-                                                  setState(() => _isLoading =
-                                                      false); //Build #1.0.92, Fixed Issue: Loader in order panel does not stop on edit item
-
-                                                  await fetchOrderItems();
-                                                  _scaffoldMessenger
-                                                      .showSnackBar(
-                                                    SnackBar(
-                                                      content: Text(
-                                                          "Quantity updated successfully"),
-                                                      backgroundColor:
-                                                          Colors.green,
-                                                      duration: const Duration(
-                                                          seconds: 2),
-                                                    ),
-                                                  );
-                                                } else if (response.status ==
-                                                    Status.ERROR) {
-                                                  await fetchOrderItems(); // Build 1.0.214: Fixed Issue [SCRUM - 364] -> Item reappears in cart after being deleted while edit screen is open
-                                                  if (response.message!
-                                                      .contains(
-                                                          'Unauthorised')) {
-                                                    if (kDebugMode) {
-                                                      print(
-                                                          "categories screen 6 ---- Unauthorised : ${response.message!}");
-                                                    }
-                                                    WidgetsBinding.instance
-                                                        .addPostFrameCallback(
-                                                            (_) {
-                                                      if (mounted) {
-                                                        Navigator.pushReplacement(
-                                                            context,
-                                                            MaterialPageRoute(
-                                                                builder:
-                                                                    (context) =>
-                                                                        LoginScreen()));
-
-                                                        if (kDebugMode) {
-                                                          print(
-                                                              "message 6 --- ${response.message}");
-                                                        }
-                                                        ScaffoldMessenger.of(
-                                                                context)
-                                                            .showSnackBar(
-                                                          const SnackBar(
-                                                            content: Text(
-                                                                "Unauthorised. Session is expired on this device."),
-                                                            backgroundColor:
-                                                                Colors.red,
-                                                            duration: Duration(
-                                                                seconds: 2),
-                                                          ),
-                                                        );
-                                                      }
-                                                    });
-                                                  } else {
-                                                    if (kDebugMode) {
-                                                      print(
-                                                          "##### ERROR: EditProductScreen - Failed to update quantity: ${response.message}");
-                                                    }
-                                                    _scaffoldMessenger
-                                                        .showSnackBar(
-                                                      SnackBar(
-                                                        content: Text(response
-                                                                .message ??
-                                                            "Failed to update quantity"),
-                                                        backgroundColor:
-                                                            Colors.red,
-                                                        duration:
-                                                            const Duration(
-                                                                seconds: 2),
-                                                      ),
-                                                    );
-                                                  }
-                                                  setState(() => _isLoading =
-                                                      false); //Build #1.0.92: Fixed Issue: Loader in order panel does not stop on edit item
-                                                }
-                                              });
-
-                                              if (kDebugMode) {
-                                                // Build #1.0.108:
-                                                print(
-                                                    "##### DEBUG: 4321 , variationOrProductId: $variationOrProductId, productId: $productId, serverVariationId: $serverVariationId");
-                                              }
-
-                                              await orderBloc
-                                                  .updateOrderProducts(
-                                                orderId: serverOrderId,
-                                                dbOrderId: dbOrderId,
-                                                isEditQuantity: true,
-                                                lineItems: [
-                                                  OrderLineItem(
-                                                    productId:
-                                                        variationOrProductId, // Build #1.0.108: we have to pass itemProductId or itemVariationId, otherwise it won't update qty.
-                                                    quantity: newQuantity,
-                                                    // sku: orderItem[AppDBConst.itemSKU] ?? '',
-                                                  ),
-                                                ],
-                                              );
-                                            } else {
-                                              ///Todo: do not handle this code, remove if required as we are not saving until API call made with response
-                                              // await orderHelper.updateItemQuantity(
-                                              //   orderItem[AppDBConst.itemId],
-                                              //   newQuantity,
-                                              // );
-                                              await fetchOrderItems();
-                                              _scaffoldMessenger.showSnackBar(
-                                                SnackBar(
-                                                  content: Text(
-                                                      "Failed to update quantity, Network error."),
-                                                  backgroundColor: Colors.green,
-                                                  duration: const Duration(
-                                                      seconds: 2),
-                                                ),
-                                              );
-                                              setState(
-                                                  () => _isLoading = false);
-                                            }
-                                          }
-                                        },
-                                      ),
+                                    },
+                                    backgroundColor: Colors.transparent,
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.delete, color: Colors.red),
+                                        const SizedBox(height: 4),
+                                        const Text(TextConstants.deleteText, style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                                      ],
                                     ),
-                                  );
-                                } else {
-                                  showDialog(
-                                      context: context,
-                                      barrierColor:
-                                          Colors.black.withValues(alpha: 0.5),
-                                      builder: (BuildContext dialogContext) {
-                                        return EditProduct(
+                                  ),
+                                ],
+                              ),
+                              child: GestureDetector(
+                                //Removed orderHelper.updateItemQuantity from the API success block, as it’s now in OrderBloc.updateOrderProducts.
+                                // Kept local updateItemQuantity for non-API orders.
+                                // Ensured loader is shown during API calls.
+                                onTap: () {
+                                  if (isCouponOrPayout) return;// Build #1.0.187: Fixed - Updating Quantity for non payout or coupons
+                                  if (kDebugMode) {
+                                    print("DEBUG: _isLoading state before dialog: $_isLoading");
+                                  } // Add this
+
+                                  if (Misc.enableEditProductScreen) {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => EditProductScreen(
                                           orderItem: orderItem,
-                                          onQuantityUpdated:
-                                              (newQuantity) async {
-                                            if (orderHelper.activeOrderId !=
-                                                null) {
-                                              if (orderHelper
-                                                      .cancelledOrderId !=
-                                                  null) {
-                                                // Build #1.0.189: Fixed -> Deleted Order Tab Reappears After Item Edit Flow
+                                          onQuantityUpdated: (newQuantity) async {
+                                            if (orderHelper.activeOrderId != null) {
+
+                                              if (orderHelper.cancelledOrderId != null) { // Build #1.0.189: Fixed -> Deleted Order Tab Reappears After Item Edit Flow
                                                 setState(() {
                                                   // Remove only the tab with the cancelledOrderId instead of clearing all tabs
-                                                  tabs.removeWhere((tab) =>
-                                                      tab["orderId"] ==
-                                                      orderHelper
-                                                          .cancelledOrderId);
+                                                  tabs.removeWhere((tab) => tab["orderId"] == orderHelper.cancelledOrderId);
 
                                                   if (kDebugMode) {
-                                                    print(
-                                                        "##### onQuantityUpdated: removing cancelled order tab");
-                                                    print(
-                                                        "##### DEBUG : cancelledOrderId -> ${orderHelper.cancelledOrderId}");
-                                                    print(
-                                                        "##### DEBUG : tabs -> $tabs");
+                                                    print("##### onQuantityUpdated: removing cancelled order tab");
+                                                    print("##### DEBUG : cancelledOrderId -> ${orderHelper.cancelledOrderId}");
+                                                    print("##### DEBUG : tabs -> $tabs");
                                                   }
                                                   // Reset cancelledOrderId after processing
-                                                  orderHelper.cancelledOrderId =
-                                                      null;
+                                                  orderHelper.cancelledOrderId = null;
                                                 });
                                                 // // If no tabs remain, fetch orders to refresh
                                                 // if (tabs.isEmpty) {
@@ -2438,101 +1932,55 @@ class _RightOrderPanelState extends State<RightOrderPanel>
                                               //       (order) => order[AppDBConst.orderServerId] == orderHelper.activeOrderId,
                                               //   orElse: () => {},
                                               // );
-                                              final serverOrderId = orderHelper
-                                                  .activeOrderId; //order[AppDBConst.orderServerId] as int?;
-                                              final dbOrderId =
-                                                  orderHelper.activeOrderId;
+                                              final serverOrderId = orderHelper.activeOrderId;//order[AppDBConst.orderServerId] as int?;
+                                              final dbOrderId = orderHelper.activeOrderId;
                                               // Build #1.0.108: Fixed : Edit product not working
                                               // prev we are passing itemServerId rather than itemProductId & based on variation id we have to pass that id
-                                              final productId = orderItem[
-                                                      AppDBConst.itemProductId]
-                                                  as int?;
-                                              final serverVariationId =
-                                                  orderItem[AppDBConst
-                                                      .itemVariationId] as int?;
+                                              final productId = orderItem[AppDBConst.itemProductId] as int?;
+                                              final serverVariationId = orderItem[AppDBConst.itemVariationId] as int?;
                                               // Use productId if serverVariationId is null or 0, otherwise use serverVariationId
-                                              final variationOrProductId =
-                                                  (serverVariationId == null ||
-                                                          serverVariationId ==
-                                                              0)
-                                                      ? productId
-                                                      : serverVariationId;
-                                              if (serverOrderId != null &&
-                                                  dbOrderId != null &&
-                                                  productId != null) {
-                                                setState(
-                                                    () => _isLoading = true);
-                                                _updateOrderSubscription
-                                                    ?.cancel();
-                                                _updateOrderSubscription =
-                                                    orderBloc.updateOrderStream
-                                                        .listen(
-                                                            (response) async {
-                                                  if (response.status ==
-                                                      Status.LOADING) {
-                                                    // Build #1.0.80
-                                                    const Center(
-                                                        child:
-                                                            CircularProgressIndicator());
-                                                  } else if (response.status ==
-                                                      Status.COMPLETED) {
+                                              final variationOrProductId = (serverVariationId == null || serverVariationId == 0)
+                                                  ? productId
+                                                  : serverVariationId;
+                                              if (serverOrderId != null && dbOrderId != null && productId != null) {
+                                                setState(() => _isLoading = true);
+                                                _updateOrderSubscription?.cancel();
+                                                _updateOrderSubscription = orderBloc.updateOrderStream.listen((response) async {
+                                                  if (response.status == Status.LOADING) { // Build #1.0.80
+                                                    const Center(child: CircularProgressIndicator());
+                                                  }else if (response.status == Status.COMPLETED) {
                                                     if (kDebugMode) {
-                                                      print(
-                                                          "##### DEBUG: EditProductScreen - Quantity updated successfully");
+                                                      print("##### DEBUG: EditProductScreen - Quantity updated successfully");
                                                     }
-                                                    setState(() => _isLoading =
-                                                        false); //Build #1.0.92, Fixed Issue: Loader in order panel does not stop on edit item
+                                                    setState(() => _isLoading = false); //Build #1.0.92, Fixed Issue: Loader in order panel does not stop on edit item
 
                                                     await fetchOrderItems();
-                                                    _scaffoldMessenger
-                                                        .showSnackBar(
+                                                    _scaffoldMessenger.showSnackBar(
                                                       SnackBar(
-                                                        content: Text(
-                                                            "Quantity updated successfully"),
-                                                        backgroundColor:
-                                                            Colors.green,
-                                                        duration:
-                                                            const Duration(
-                                                                seconds: 2),
+                                                        content: Text("Quantity updated successfully"),
+                                                        backgroundColor: Colors.green,
+                                                        duration: const Duration(seconds: 2),
                                                       ),
                                                     );
-                                                  } else if (response.status ==
-                                                      Status.ERROR) {
+                                                  } else if (response.status == Status.ERROR) {
                                                     await fetchOrderItems(); // Build 1.0.214: Fixed Issue [SCRUM - 364] -> Item reappears in cart after being deleted while edit screen is open
-                                                    if (response.message!
-                                                        .contains(
-                                                            'Unauthorised')) {
+                                                    if (response.message!.contains('Unauthorised')) {
                                                       if (kDebugMode) {
-                                                        print(
-                                                            "categories screen 6 ---- Unauthorised : ${response.message!}");
+                                                        print("categories screen 6 ---- Unauthorised : ${response.message!}");
                                                       }
-                                                      WidgetsBinding.instance
-                                                          .addPostFrameCallback(
-                                                              (_) {
+                                                      WidgetsBinding.instance.addPostFrameCallback((_) {
                                                         if (mounted) {
-                                                          Navigator.pushReplacement(
-                                                              context,
-                                                              MaterialPageRoute(
-                                                                  builder:
-                                                                      (context) =>
-                                                                          LoginScreen()));
+                                                          Navigator.pushReplacement(context, MaterialPageRoute(
+                                                              builder: (context) => LoginScreen()));
 
                                                           if (kDebugMode) {
-                                                            print(
-                                                                "message 6 --- ${response.message}");
+                                                            print("message 6 --- ${response.message}");
                                                           }
-                                                          ScaffoldMessenger.of(
-                                                                  context)
-                                                              .showSnackBar(
+                                                          ScaffoldMessenger.of(context).showSnackBar(
                                                             const SnackBar(
-                                                              content: Text(
-                                                                  "Unauthorised. Session is expired on this device."),
-                                                              backgroundColor:
-                                                                  Colors.red,
-                                                              duration:
-                                                                  Duration(
-                                                                      seconds:
-                                                                          2),
+                                                              content: Text("Unauthorised. Session is expired on this device."),
+                                                              backgroundColor: Colors.red,
+                                                              duration: Duration(seconds: 2),
                                                             ),
                                                           );
                                                         }
@@ -2545,43 +1993,38 @@ class _RightOrderPanelState extends State<RightOrderPanel>
                                                       _scaffoldMessenger
                                                           .showSnackBar(
                                                         SnackBar(
-                                                          content: Text(response
-                                                                  .message ??
-                                                              "Failed to update quantity"),
+                                                          content: Text(
+                                                              response.message ?? "Failed to update quantity"),
                                                           backgroundColor:
-                                                              Colors.red,
+                                                          Colors.red,
                                                           duration:
-                                                              const Duration(
-                                                                  seconds: 2),
+                                                          const Duration(
+                                                              seconds: 2),
                                                         ),
                                                       );
                                                     }
-                                                    setState(() => _isLoading =
-                                                        false); //Build #1.0.92: Fixed Issue: Loader in order panel does not stop on edit item
+                                                    setState(() => _isLoading = false); //Build #1.0.92: Fixed Issue: Loader in order panel does not stop on edit item
                                                   }
                                                 });
 
-                                                if (kDebugMode) {
-                                                  // Build #1.0.108:
-                                                  print(
-                                                      "##### DEBUG: 4321 , variationOrProductId: $variationOrProductId, productId: $productId, serverVariationId: $serverVariationId");
+                                                if (kDebugMode) { // Build #1.0.108:
+                                                  print("##### DEBUG: 4321 , variationOrProductId: $variationOrProductId, productId: $productId, serverVariationId: $serverVariationId");
                                                 }
 
-                                                await orderBloc
-                                                    .updateOrderProducts(
+                                                await orderBloc.updateOrderProducts(
                                                   orderId: serverOrderId,
                                                   dbOrderId: dbOrderId,
                                                   isEditQuantity: true,
                                                   lineItems: [
                                                     OrderLineItem(
-                                                      productId:
-                                                          variationOrProductId, // Build #1.0.108: we have to pass itemProductId or itemVariationId, otherwise it won't update qty.
+                                                      productId: variationOrProductId, // Build #1.0.108: we have to pass itemProductId or itemVariationId, otherwise it won't update qty.
                                                       quantity: newQuantity,
                                                       // sku: orderItem[AppDBConst.itemSKU] ?? '',
                                                     ),
                                                   ],
                                                 );
                                               } else {
+
                                                 ///Todo: do not handle this code, remove if required as we are not saving until API call made with response
                                                 // await orderHelper.updateItemQuantity(
                                                 //   orderItem[AppDBConst.itemId],
@@ -2590,1095 +2033,1164 @@ class _RightOrderPanelState extends State<RightOrderPanel>
                                                 await fetchOrderItems();
                                                 _scaffoldMessenger.showSnackBar(
                                                   SnackBar(
-                                                    content: Text(
-                                                        "quantity, Network error."),
-                                                    backgroundColor:
-                                                        Colors.green,
-                                                    duration: const Duration(
-                                                        seconds: 2),
+                                                    content: Text("Failed to update quantity, Network error."),
+                                                    backgroundColor: Colors.green,
+                                                    duration: const Duration(seconds: 2),
                                                   ),
                                                 );
-                                                setState(
-                                                    () => _isLoading = false);
+                                                setState(() => _isLoading = false);
                                               }
                                             }
                                           },
-                                          isDialog: true,
-                                        );
-                                      });
-                                }
-                              },
-                              child: Container(
-                                margin: const EdgeInsets.symmetric(
-                                    vertical: 1, horizontal: 8),
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: themeHelper.themeMode == ThemeMode.dark
-                                      ? Color(0xFF252837)
-                                      : Colors
-                                          .white, // ThemeNotifier.secondaryBackground color of items in order panel
-                                  borderRadius: BorderRadius.circular(8),
-                                  // boxShadow: const [
-                                  //BoxShadow(
-                                  //  color: Colors.black12,
-                                  //blurRadius: 1,
-                                  // spreadRadius: 1,
-                                  // )
-                                  //],
-                                ),
-                                child: Row(
-                                  children: [
-                                    ClipRRect(
-                                      borderRadius: BorderRadius.circular(5),
-                                      child: orderItem[AppDBConst.itemImage]
-                                              .toString()
-                                              .startsWith('http')
-                                          ? SizedBox(
-                                              height: MediaQuery.of(context)
-                                                      .size
-                                                      .height *
-                                                  0.08,
-                                              width: MediaQuery.of(context)
-                                                      .size
-                                                      .height *
-                                                  0.075,
-                                              child: Image.network(
-                                                orderItem[AppDBConst.itemImage],
-                                                height: MediaQuery.of(context)
-                                                        .size
-                                                        .height *
-                                                    0.08,
-                                                width: MediaQuery.of(context)
-                                                        .size
-                                                        .height *
-                                                    0.075,
-                                                fit: BoxFit.cover,
-                                                errorBuilder: (context, error,
-                                                    stackTrace) {
-                                                  return SvgPicture.asset(
-                                                    'assets/svg/password_placeholder.svg',
-                                                    height:
-                                                        MediaQuery.of(context)
-                                                                .size
-                                                                .height *
-                                                            0.08,
-                                                    width:
-                                                        MediaQuery.of(context)
-                                                                .size
-                                                                .height *
-                                                            0.08,
-                                                    fit: BoxFit.cover,
-                                                  );
-                                                },
-                                              ),
-                                            )
-                                          : orderItem[AppDBConst.itemImage]
-                                                  .toString()
-                                                  .startsWith('assets/')
-                                              ? SvgPicture.asset(
-                                                  orderItem[
-                                                      AppDBConst.itemImage],
-                                                  height: MediaQuery.of(context)
-                                                          .size
-                                                          .height *
-                                                      0.08,
-                                                  width: MediaQuery.of(context)
-                                                          .size
-                                                          .height *
-                                                      0.075,
-                                                  fit: BoxFit.cover,
-                                                )
-                                              : Platform.isWindows
-                                                  ? Image.asset(
-                                                      'assets/default.png',
-                                                      height:
-                                                          MediaQuery.of(context)
-                                                                  .size
-                                                                  .height *
-                                                              0.08,
-                                                      width:
-                                                          MediaQuery.of(context)
-                                                                  .size
-                                                                  .height *
-                                                              0.075,
-                                                      fit: BoxFit.cover,
-                                                    )
-                                                  : Image.file(
-                                                      File(orderItem[AppDBConst
-                                                          .itemImage]),
-                                                      height:
-                                                          MediaQuery.of(context)
-                                                                  .size
-                                                                  .height *
-                                                              0.08,
-                                                      width:
-                                                          MediaQuery.of(context)
-                                                                  .size
-                                                                  .height *
-                                                              0.075,
-                                                      fit: BoxFit.cover,
-                                                      errorBuilder: (context,
-                                                          error, stackTrace) {
-                                                        return SvgPicture.asset(
-                                                          'assets/svg/password_placeholder.svg',
-                                                          height: MediaQuery.of(
-                                                                      context)
-                                                                  .size
-                                                                  .height *
-                                                              0.08,
-                                                          width: MediaQuery.of(
-                                                                      context)
-                                                                  .size
-                                                                  .height *
-                                                              0.075,
-                                                          fit: BoxFit.cover,
-                                                        );
-                                                      },
-                                                    ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceEvenly,
-                                        children: [
-                                          /// TODO: Change here to apply meta values for (mix & match) "combo" and "variation"
-                                          Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.start,
-                                            children: [
-                                              RichText(
-                                                maxLines: 2,
-                                                softWrap: true,
-                                                text: TextSpan(
-                                                  children: [
-                                                    TextSpan(
-                                                      text: displayName,
-                                                      style: TextStyle(
-                                                          fontFamily: 'inter',
-                                                          fontSize: 12,
-                                                          fontWeight:
-                                                              FontWeight.w700,
-                                                          color: themeHelper
-                                                                      .themeMode ==
-                                                                  ThemeMode.dark
-                                                              ? ThemeNotifier
-                                                                  .textDark
-                                                              : ThemeNotifier
-                                                                  .textLight),
-                                                    ),
-                                                    TextSpan(
-                                                      text:
-
-                                                          ///Todo: use combo here
-                                                          combo == ''
-                                                              ? ''
-                                                              : " (Combo)",
-                                                      style: TextStyle(
-                                                          fontSize: 8,
-                                                          color: Colors.cyan),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                              variationCount == 0
-                                                  ? SizedBox(
-                                                      width: 0,
-                                                    )
-                                                  : Row(
-                                                      children: [
-                                                        Text(
-                                                          ///Todo: use variation name here
-                                                          variationName == ''
-                                                              ? ""
-                                                              : "(${variationName ?? ''})",
-                                                          overflow: TextOverflow
-                                                              .ellipsis,
-                                                          style: TextStyle(
-                                                              fontSize: 10,
-                                                              color: themeHelper
-                                                                          .themeMode ==
-                                                                      ThemeMode
-                                                                          .dark
-                                                                  ? ThemeNotifier
-                                                                      .textDark
-                                                                  : Colors
-                                                                      .grey),
-                                                        ),
-                                                        SizedBox(
-                                                          width: 4,
-                                                        ),
-
-                                                        ///Todo: show variation icon if variation count is no zero
-                                                        SvgPicture.asset(
-                                                          "assets/svg/variation.svg",
-                                                          height: 10,
-                                                          width: 10,
-                                                        ),
-                                                        SizedBox(
-                                                          width: 4,
-                                                        ),
-                                                        Text(
-                                                          ///Todo: show variation count if no zero
-                                                          "${variationCount ?? 0}",
-                                                          overflow: TextOverflow
-                                                              .ellipsis,
-                                                          style: TextStyle(
-                                                              fontSize: 10,
-                                                              color: Color(
-                                                                  0xFFFE6464)),
-                                                        ),
-                                                      ],
-                                                    ),
-                                            ],
-                                          ),
-                                          // Build #1.0.181: Fixed - Quantity for Custom Item Not Displayed After Switching Screens [JIRA #319]
-                                          // we have to show price * qty for custom item also / condition updated, only dont show for payout and coupons
-                                          if (!isCouponOrPayout)
-                                            Text(
-                                              "${TextConstants.currencySymbol} ${regularPrice.toStringAsFixed(2)} * ${orderItem[AppDBConst.itemCount]} ", //Build #1.0.134: updated price * count
-                                              style: TextStyle(
-                                                  color: themeHelper
-                                                              .themeMode ==
-                                                          ThemeMode.dark
-                                                      ? ThemeNotifier.textDark
-                                                      : Colors.black87,
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.w500),
-                                            ),
-                                        ],
+                                        ),
                                       ),
-                                    ),
-                                    SizedBox(width: 8),
-                                    if (!isCouponOrPayout)
-                                      Text(
-                                        "${TextConstants.currencySymbol} ${(regularPrice * orderItem[AppDBConst.itemCount]).toStringAsFixed(2)}",
-                                        style: TextStyle(
-                                            color: themeHelper.themeMode ==
-                                                    ThemeMode.dark
-                                                ? ThemeNotifier.textDark
-                                                : Colors.blueGrey,
-                                            fontSize: 14),
-                                      ),
-                                    SizedBox(width: 20),
-                                    Text(
-                                      isCouponOrPayout
-                                          ? "${TextConstants.currencySymbol}${(orderItem[AppDBConst.itemCount] * orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}"
-                                          : "${TextConstants.currencySymbol}${(orderItem[AppDBConst.itemCount] * salesPrice).toStringAsFixed(2)}",
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                        // Build #1.0.181: Fixed - show price value red for payout and coupons only , not custom item
-                                        color: isCouponOrPayout
-                                            ? Colors.red
-                                            : themeHelper.themeMode ==
-                                                    ThemeMode.dark
-                                                ? ThemeNotifier.textDark
-                                                : ThemeNotifier
-                                                    .textLight, // Added: Red color for Payout/Coupon
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ),
-            ),
-          ),
+                                    );
+                                  }
+                                  else{
+                                    showDialog(
+                                        context: context,
+                                        barrierColor: Colors.black.withValues(alpha: 0.5),
+                                        builder: (BuildContext dialogContext) {
+                                          return EditProduct(
+                                            orderItem: orderItem,
+                                            onQuantityUpdated: (newQuantity) async {
+                                              if (orderHelper.activeOrderId != null) {
 
-          ///Todo: update ui as per loading from screen
-          ///Show print and email invoice buttons if coming from order history screen
-          ///else show regular buttons
-          Container(
-            color: themeHelper.themeMode == ThemeMode.dark
-                ? ThemeNotifier.primaryBackground
-                : null,
-            child: Column(
-              children: [
-                // Summary container
-                if (tabs.isNotEmpty)
-                  AnimatedSize(
-                    duration: Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
-                    child: (!isKeyboardVisible && _showFullSummary)
-                        ? Container(
-                            margin: const EdgeInsets.only(
-                                top: 8, right: 6, left: 6),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.only(
-                                  topRight: Radius.circular(8),
-                                  topLeft: Radius.circular(8)),
-                              color: themeHelper.themeMode == ThemeMode.dark
-                                  ? ThemeNotifier.orderPanelSummary
-                                  : Colors.white,
-                              boxShadow: [
-                                // Shadow at the bottom
-                                BoxShadow(
-                                  // color: Colors.black.withOpacity(0.25),
-                                  color: themeHelper.themeMode == ThemeMode.dark
-                                      ? Color(0xFFF0F0F0).withOpacity(
-                                          0.15) // stronger shadow for dark mode
-                                      : Colors.black.withOpacity(
-                                          0.25), // lighter shadow for light mode
-                                  offset: Offset(
-                                      0, 4), // 0 horizontal, 4 vertical (down)
-                                  blurRadius: 6,
-                                  spreadRadius: -0.5,
-                                ),
-                                // Shadow at the top
-                                BoxShadow(
-                                  color: themeHelper.themeMode == ThemeMode.dark
-                                      ? Color(0xFFF0F0F0).withOpacity(
-                                          0.15) // dark mode top shadow
-                                      : Colors.black.withOpacity(
-                                          0.15), // light mode top shadow
-                                  // color: Colors.black.withOpacity(0.15),
-                                  offset: Offset(
-                                      0, -4), // 0 horizontal, -4 vertical (up)
-                                  blurRadius: 6,
-                                  spreadRadius: -0.5,
-                                ),
-                              ],
-                            ),
-                            padding: const EdgeInsets.all(8),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      TextConstants.grossTotal,
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 18,
-                                          color: themeHelper.themeMode ==
-                                                  ThemeMode.dark
-                                              ? ThemeNotifier.textDark
-                                              : ThemeNotifier.textLight),
-                                    ),
-                                    Text(
-                                        "${TextConstants.currencySymbol}${grossTotal.toStringAsFixed(2)}", //Build #1.0.68
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 14,
-                                            color: themeHelper.themeMode ==
-                                                    ThemeMode.dark
-                                                ? ThemeNotifier.textDark
-                                                : ThemeNotifier.textLight)),
-                                  ],
-                                ),
-                                SizedBox(height: 2),
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Row(
-                                      spacing: 5,
-                                      children: [
-                                        SvgPicture.asset(
-                                            "assets/svg/discount_star.svg",
-                                            height: 12,
-                                            width: 12),
-                                        Text(TextConstants.discountText,
-                                            style: TextStyle(
-                                                color: Color(0xFF05B10C),
-                                                fontSize:
-                                                    14)), // font size increased according to new figma design
-                                      ],
-                                    ),
-                                    Text(
-                                        "-${TextConstants.currencySymbol}${orderDiscount.toStringAsFixed(2)}",
-                                        style: TextStyle(
-                                            color: Color(0xFF05B10C),
-                                            fontSize:
-                                                12)), // the font size increased based on new figma design10-14
-                                  ],
-                                ),
-                                SizedBox(height: 2),
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Row(
-                                      spacing: 5,
-                                      children: [
-                                        SvgPicture.asset(
-                                            "assets/svg/discount_star.svg",
-                                            height: 12,
-                                            width: 12,
-                                            color: Colors.blue),
-                                        Text(TextConstants.merchantDiscount,
-                                            style: TextStyle(
-                                                color: Color(0xFF007BFF),
-                                                fontSize:
-                                                    14)), // changes as per new design
-                                        merchantDiscount.toStringAsFixed(2) ==
-                                                '0.00'
-                                            ? SizedBox()
-                                            : GestureDetector(
-                                                onTap: () async {
-                                                  //Passed dbOrderId to removeFeeLines.
-                                                  // Removed database operations, as they’re now in OrderBloc.removeFeeLines.
-                                                  // Ensured loader is shown during API calls.
-                                                  if (kDebugMode) {
-                                                    print(
-                                                        "####################### Merchant Discount onTap");
-                                                  }
-                                                  if (orderHelper
-                                                          .activeOrderId !=
-                                                      null) {
-                                                    // Step 1: Show confirmation dialog
-                                                    await CustomDialog
-                                                        .showRemoveSpecialOrderItemsConfirmation(
-                                                            context,
-                                                            confirm: () async {
-                                                      // Step 2: Show loader
-                                                      setState(() =>
-                                                          _isLoading = true);
-                                                      // final order = orderHelper.orders.firstWhere(
-                                                      //       (order) => order[AppDBConst.orderServerId] == orderHelper.activeOrderId,
-                                                      //   orElse: () => {},
-                                                      // );
-                                                      final serverOrderId =
-                                                          orderHelper
-                                                              .activeOrderId; //order[AppDBConst.orderServerId] as int?;
-                                                      final dbOrderId =
-                                                          orderHelper
-                                                              .activeOrderId!;
+                                                if (orderHelper.cancelledOrderId != null) { // Build #1.0.189: Fixed -> Deleted Order Tab Reappears After Item Edit Flow
+                                                  setState(() {
+                                                    // Remove only the tab with the cancelledOrderId instead of clearing all tabs
+                                                    tabs.removeWhere((tab) => tab["orderId"] == orderHelper.cancelledOrderId);
 
-                                                      if (serverOrderId !=
-                                                          null) {
-                                                        final db =
-                                                            await DBHelper
-                                                                .instance
-                                                                .database;
+                                                    if (kDebugMode) {
+                                                      print("##### onQuantityUpdated: removing cancelled order tab");
+                                                      print("##### DEBUG : cancelledOrderId -> ${orderHelper.cancelledOrderId}");
+                                                      print("##### DEBUG : tabs -> $tabs");
+                                                    }
+                                                    // Reset cancelledOrderId after processing
+                                                    orderHelper.cancelledOrderId = null;
+                                                  });
+                                                  // // If no tabs remain, fetch orders to refresh
+                                                  // if (tabs.isEmpty) {
+                                                  //   _fetchOrders();
+                                                  // } else {
+                                                  //   // Reinitialize tab controller and update UI
+                                                  //   _initializeTabController();
+                                                  //   await fetchOrderItems();
+                                                  // }
+                                                }
+                                                // final order = orderHelper.orders.firstWhere(
+                                                //       (order) => order[AppDBConst.orderServerId] == orderHelper.activeOrderId,
+                                                //   orElse: () => {},
+                                                // );
+                                                final serverOrderId = orderHelper.activeOrderId;//order[AppDBConst.orderServerId] as int?;
+                                                final dbOrderId = orderHelper.activeOrderId;
+                                                // Build #1.0.108: Fixed : Edit product not working
+                                                // prev we are passing itemServerId rather than itemProductId & based on variation id we have to pass that id
+                                                final productId = orderItem[AppDBConst.itemProductId] as int?;
+                                                final serverVariationId = orderItem[AppDBConst.itemVariationId] as int?;
+                                                // Use productId if serverVariationId is null or 0, otherwise use serverVariationId
+                                                final variationOrProductId = (serverVariationId == null || serverVariationId == 0)
+                                                    ? productId
+                                                    : serverVariationId;
+                                                if (serverOrderId != null && dbOrderId != null && productId != null) {
+                                                  setState(() => _isLoading = true);
+                                                  _updateOrderSubscription?.cancel();
+                                                  _updateOrderSubscription = orderBloc.updateOrderStream.listen((response) async {
+                                                    if (response.status == Status.LOADING) { // Build #1.0.80
+                                                      const Center(child: CircularProgressIndicator());
+                                                    }else if (response.status == Status.COMPLETED) {
+                                                      if (kDebugMode) {
+                                                        print("##### DEBUG: EditProductScreen - Quantity updated successfully");
+                                                      }
+                                                      setState(() => _isLoading = false); //Build #1.0.92, Fixed Issue: Loader in order panel does not stop on edit item
 
-                                                        ///TODO : Update below table code for new discount id code
-                                                        final merchantDiscountValue =
-                                                            await db.query(
-                                                          AppDBConst.orderTable,
-                                                          where:
-                                                              '${AppDBConst.orderServerId} = ? AND ${AppDBConst.merchantDiscount} = ?',
-                                                          whereArgs: [
-                                                            dbOrderId,
-                                                            merchantDiscount
-                                                          ],
-                                                        );
+                                                      await fetchOrderItems();
+                                                      _scaffoldMessenger.showSnackBar(
+                                                        SnackBar(
+                                                          content: Text("Quantity updated successfully"),
+                                                          backgroundColor: Colors.green,
+                                                          duration: const Duration(seconds: 2),
+                                                        ),
+                                                      );
+                                                    } else if (response.status == Status.ERROR) {
+                                                      await fetchOrderItems(); // Build 1.0.214: Fixed Issue [SCRUM - 364] -> Item reappears in cart after being deleted while edit screen is open
+                                                      if (response.message!.contains('Unauthorised')) {
+                                                        if (kDebugMode) {
+                                                          print("categories screen 6 ---- Unauthorised : ${response.message!}");
+                                                        }
+                                                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                                                          if (mounted) {
+                                                            Navigator.pushReplacement(context, MaterialPageRoute(
+                                                                builder: (context) => LoginScreen()));
 
-                                                        if (merchantDiscountValue
-                                                            .isNotEmpty) {
-                                                          final payoutIds =
-                                                              merchantDiscountValue
-                                                                      .first[AppDBConst
-                                                                          .merchantDiscountIds]
-                                                                      .toString()
-                                                                      .split(
-                                                                          ',') ??
-                                                                  [];
-                                                          //remove the empty id
-                                                          payoutIds.removeAt(0);
-                                                          if (kDebugMode) {
-                                                            print(
-                                                                "OrderPanel - payouts to delete $payoutIds");
-                                                          }
-                                                          if (payoutIds
-                                                              .isNotEmpty) {
-                                                            //Build #1.0.99: Cancel any existing subscription to prevent multiple listeners
-                                                            _removePayoutOrDiscountSubscription
-                                                                ?.cancel();
-                                                            retryCallback() async {
-                                                              setState(() =>
-                                                                  _isLoading =
-                                                                      true);
-                                                              await orderBloc
-                                                                  .removeFeeLines(
-                                                                      orderId:
-                                                                          serverOrderId,
-                                                                      feeLineIds:
-                                                                          payoutIds);
-                                                              // Dismiss dialog after retry
-                                                              Navigator.of(
-                                                                      context,
-                                                                      rootNavigator:
-                                                                          true)
-                                                                  .pop();
+                                                            if (kDebugMode) {
+                                                              print("message 6 --- ${response.message}");
                                                             }
-
-                                                            ;
-                                                            _removePayoutOrDiscountSubscription =
-                                                                orderBloc
-                                                                    .removePayoutStream
-                                                                    .listen(
-                                                                        (response) async {
-                                                              if (response
-                                                                      .status ==
-                                                                  Status
-                                                                      .COMPLETED) {
-                                                                setState(() =>
-                                                                    _isLoading =
-                                                                        false); //Build #1.0.92
-                                                                await fetchOrderItems();
-                                                                widget
-                                                                    .refreshOrderList
-                                                                    ?.call();
-                                                                _scaffoldMessenger
-                                                                    .showSnackBar(
-                                                                  SnackBar(
-                                                                    content: Text(
-                                                                        "Merchant Discount removed successfully"),
-                                                                    backgroundColor:
-                                                                        Colors
-                                                                            .green,
-                                                                    duration: const Duration(
-                                                                        seconds:
-                                                                            2),
-                                                                  ),
-                                                                );
-                                                              } else if (response
-                                                                      .status ==
-                                                                  Status
-                                                                      .ERROR) {
-                                                                if (kDebugMode) {
-                                                                  print(
-                                                                      "###### Delete Discount API error");
-                                                                }
-                                                                setState(() =>
-                                                                    _isLoading =
-                                                                        false);
-                                                                _scaffoldMessenger
-                                                                    .showSnackBar(
-                                                                  SnackBar(
-                                                                    content: Text(
-                                                                        "Failed to remove discount"),
-                                                                    backgroundColor:
-                                                                        Colors
-                                                                            .red,
-                                                                    duration: const Duration(
-                                                                        seconds:
-                                                                            2),
-                                                                  ),
-                                                                );
-                                                                await CustomDialog
-                                                                    .showDiscountNotApplied(
-                                                                  context,
-                                                                  errorMessageTitle:
-                                                                      TextConstants
-                                                                          .removeDiscountFailed,
-                                                                  errorMessageDes: response
-                                                                          .message ??
-                                                                      TextConstants
-                                                                          .discountNotAppliedDescription,
-                                                                  onRetry:
-                                                                      retryCallback,
-                                                                );
-                                                              }
-                                                            });
-                                                            await orderBloc
-                                                                .removeFeeLines(
-                                                                    orderId:
-                                                                        serverOrderId,
-                                                                    feeLineIds:
-                                                                        payoutIds);
-                                                          } else {
-                                                            setState(() =>
-                                                                _isLoading =
-                                                                    false);
-                                                            _scaffoldMessenger
-                                                                .showSnackBar(
-                                                              SnackBar(
-                                                                content: Text(
-                                                                    "Payout ID not found"),
-                                                                backgroundColor:
-                                                                    Colors.red,
-                                                                duration:
-                                                                    const Duration(
-                                                                        seconds:
-                                                                            2),
+                                                            ScaffoldMessenger.of(context).showSnackBar(
+                                                              const SnackBar(
+                                                                content: Text("Unauthorised. Session is expired on this device."),
+                                                                backgroundColor: Colors.red,
+                                                                duration: Duration(seconds: 2),
                                                               ),
                                                             );
                                                           }
-                                                        } else {
-                                                          setState(() =>
-                                                              _isLoading =
-                                                                  false);
-                                                          _scaffoldMessenger
-                                                              .showSnackBar(
-                                                            SnackBar(
-                                                              content: Text(
-                                                                  "No payout found for this order"),
-                                                              backgroundColor:
-                                                                  Colors.red,
-                                                              duration:
-                                                                  const Duration(
-                                                                      seconds:
-                                                                          2),
-                                                            ),
-                                                          );
-                                                        }
+                                                        });
                                                       } else {
-                                                        setState(() =>
-                                                            _isLoading = false);
+                                                        if (kDebugMode) {
+                                                          print(
+                                                              "##### ERROR: EditProductScreen - Failed to update quantity: ${response.message}");
+                                                        }
                                                         _scaffoldMessenger
                                                             .showSnackBar(
                                                           SnackBar(
                                                             content: Text(
-                                                                "Server Order ID not found"),
+                                                                response.message ?? "Failed to update quantity"),
                                                             backgroundColor:
-                                                                Colors.red,
+                                                            Colors.red,
                                                             duration:
-                                                                const Duration(
-                                                                    seconds: 2),
+                                                            const Duration(
+                                                                seconds: 2),
                                                           ),
                                                         );
                                                       }
-                                                    });
+                                                      setState(() => _isLoading = false); //Build #1.0.92: Fixed Issue: Loader in order panel does not stop on edit item
+                                                    }
+                                                  });
+
+                                                  if (kDebugMode) { // Build #1.0.108:
+                                                    print("##### DEBUG: 4321 , variationOrProductId: $variationOrProductId, productId: $productId, serverVariationId: $serverVariationId");
                                                   }
-                                                },
-                                                child: Image.asset(
-                                                  "assets/delete.png",
-                                                  height: 24,
-                                                  width: 24,
+
+                                                  await orderBloc.updateOrderProducts(
+                                                    orderId: serverOrderId,
+                                                    dbOrderId: dbOrderId,
+                                                    isEditQuantity: true,
+                                                    lineItems: [
+                                                      OrderLineItem(
+                                                        productId: variationOrProductId, // Build #1.0.108: we have to pass itemProductId or itemVariationId, otherwise it won't update qty.
+                                                        quantity: newQuantity,
+                                                        // sku: orderItem[AppDBConst.itemSKU] ?? '',
+                                                      ),
+                                                    ],
+                                                  );
+                                                } else {
+
+                                                  ///Todo: do not handle this code, remove if required as we are not saving until API call made with response
+                                                  // await orderHelper.updateItemQuantity(
+                                                  //   orderItem[AppDBConst.itemId],
+                                                  //   newQuantity,
+                                                  // );
+                                                  await fetchOrderItems();
+                                                  _scaffoldMessenger.showSnackBar(
+                                                    SnackBar(
+                                                      content: Text("Failed to update quantity, Network error."),
+                                                      backgroundColor: Colors.green,
+                                                      duration: const Duration(seconds: 2),
+                                                    ),
+                                                  );
+                                                  setState(() => _isLoading = false);
+                                                }
+                                              }
+                                            },
+                                            isDialog: true,
+                                          );
+                                        }
+                                    );
+                                  }
+
+                                },
+                                child: Container(
+                                  margin: const EdgeInsets.symmetric(
+                                      vertical: 1, horizontal: 8),
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: themeHelper.themeMode ==
+                                        ThemeMode.dark
+                                        ? Color(0xFF252837)
+                                        : Color(0xFFE8E8E8), // ThemeNotifier.secondaryBackground color of items in order panel
+                                    borderRadius: BorderRadius.circular(8),
+                                    // boxShadow: const [
+                                    //BoxShadow(
+                                    //  color: Colors.black12,
+                                    //blurRadius: 1,
+                                    // spreadRadius: 1,
+                                    // )
+                                    //],
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(5),
+                                        child: orderItem[AppDBConst.itemImage]
+                                            .toString()
+                                            .startsWith('http')
+                                            ? SizedBox(
+                                          height: MediaQuery.of(context)
+                                              .size
+                                              .height *
+                                              0.08,
+                                          width: MediaQuery.of(context)
+                                              .size
+                                              .height *
+                                              0.075,
+                                          child: Image.network(
+                                            orderItem[
+                                            AppDBConst.itemImage],
+                                            height: MediaQuery.of(context)
+                                                .size
+                                                .height *
+                                                0.08,
+                                            width: MediaQuery.of(context)
+                                                .size
+                                                .height *
+                                                0.075,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (context, error,
+                                                stackTrace) {
+                                              return SvgPicture.asset(
+                                                'assets/svg/password_placeholder.svg',
+                                                height:
+                                                MediaQuery.of(context)
+                                                    .size
+                                                    .height *
+                                                    0.08,
+                                                width:
+                                                MediaQuery.of(context)
+                                                    .size
+                                                    .height *
+                                                    0.08,
+                                                fit: BoxFit.cover,
+                                              );
+                                            },
+                                          ),
+                                        )
+                                            : orderItem[AppDBConst.itemImage]
+                                            .toString()
+                                            .startsWith('assets/')
+                                            ? SvgPicture.asset(
+                                          orderItem[
+                                          AppDBConst.itemImage],
+                                          height:
+                                          MediaQuery.of(context)
+                                              .size
+                                              .height *
+                                              0.08,
+                                          width:
+                                          MediaQuery.of(context)
+                                              .size
+                                              .height *
+                                              0.075,
+                                          fit: BoxFit.cover,
+                                        )
+                                            : Platform.isWindows
+                                            ? Image.asset(
+                                          'assets/default.png',
+                                          height: MediaQuery.of(
+                                              context)
+                                              .size
+                                              .height *
+                                              0.08,
+                                          width: MediaQuery.of(
+                                              context)
+                                              .size
+                                              .height *
+                                              0.075,
+                                          fit: BoxFit.cover,
+                                        )
+                                            : Image.file(
+                                          File(orderItem[
+                                          AppDBConst
+                                              .itemImage]),
+                                          height: MediaQuery.of(
+                                              context)
+                                              .size
+                                              .height *
+                                              0.08,
+                                          width: MediaQuery.of(
+                                              context)
+                                              .size
+                                              .height *
+                                              0.075,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (context,
+                                              error, stackTrace) {
+                                            return SvgPicture
+                                                .asset(
+                                              'assets/svg/password_placeholder.svg',
+                                              height: MediaQuery.of(
+                                                  context)
+                                                  .size
+                                                  .height *
+                                                  0.08,
+                                              width: MediaQuery.of(
+                                                  context)
+                                                  .size
+                                                  .height *
+                                                  0.075,
+                                              fit: BoxFit.cover,
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                          mainAxisAlignment:
+                                          MainAxisAlignment.spaceEvenly,
+                                          children: [
+                                            /// TODO: Change here to apply meta values for (mix & match) "combo" and "variation"
+                                            Column(
+                                              crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                              mainAxisAlignment:
+                                              MainAxisAlignment.start,
+                                              children: [
+                                                RichText(
+                                                  maxLines: 2,
+                                                  softWrap: true,
+                                                  text: TextSpan(
+                                                    children: [
+                                                      TextSpan(
+                                                        text: displayName,
+                                                        style: TextStyle(
+                                                            fontFamily: 'inter',
+                                                            fontSize: 12,
+                                                            fontWeight:
+                                                            FontWeight.w700,
+                                                            color: themeHelper
+                                                                .themeMode ==
+                                                                ThemeMode
+                                                                    .dark
+                                                                ? ThemeNotifier
+                                                                .textDark
+                                                                : ThemeNotifier
+                                                                .textLight),
+                                                      ),
+                                                      TextSpan(
+                                                        text:
+
+                                                        ///Todo: use combo here
+                                                        combo == ''
+                                                            ? ''
+                                                            : " (Combo)",
+                                                        style: TextStyle(
+                                                            fontSize: 8,
+                                                            color: Colors.cyan),
+                                                      ),
+                                                    ],
+                                                  ),
                                                 ),
+                                                variationCount == 0
+                                                    ? SizedBox(
+                                                  width: 0,
+                                                )
+                                                    : Row(
+                                                  children: [
+                                                    Text(
+                                                      ///Todo: use variation name here
+                                                      variationName == ''
+                                                          ? ""
+                                                          : "(${variationName ?? ''})",
+                                                      overflow:
+                                                      TextOverflow
+                                                          .ellipsis,
+                                                      style: TextStyle(
+                                                          fontSize: 10,
+                                                          color: themeHelper
+                                                              .themeMode ==
+                                                              ThemeMode
+                                                                  .dark
+                                                              ? ThemeNotifier
+                                                              .textDark
+                                                              : Colors
+                                                              .grey),
+                                                    ),
+                                                    SizedBox(
+                                                      width: 4,
+                                                    ),
+
+                                                    ///Todo: show variation icon if variation count is no zero
+                                                    SvgPicture.asset(
+                                                      "assets/svg/variation.svg",
+                                                      height: 10,
+                                                      width: 10,
+                                                    ),
+                                                    SizedBox(
+                                                      width: 4,
+                                                    ),
+                                                    Text(
+                                                      ///Todo: show variation count if no zero
+                                                      "${variationCount ?? 0}",
+                                                      overflow:
+                                                      TextOverflow
+                                                          .ellipsis,
+                                                      style: TextStyle(
+                                                          fontSize: 10,
+                                                          color: Color(
+                                                              0xFFFE6464)),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ],
+                                            ),
+                                            // Build #1.0.181: Fixed - Quantity for Custom Item Not Displayed After Switching Screens [JIRA #319]
+                                            // we have to show price * qty for custom item also / condition updated, only dont show for payout and coupons
+                                            if (!isCouponOrPayout)
+                                              Text(
+                                                "${TextConstants.currencySymbol} ${regularPrice.toStringAsFixed(2)} * ${orderItem[AppDBConst.itemCount]} ", //Build #1.0.134: updated price * count
+                                                style: TextStyle(
+                                                    color: themeHelper
+                                                        .themeMode ==
+                                                        ThemeMode.dark
+                                                        ? ThemeNotifier.textDark
+                                                        : Colors.black87,
+                                                    fontSize: 11,
+                                                    fontWeight:
+                                                    FontWeight.w500),
                                               ),
-                                      ],
-                                    ),
-                                    Text(
-                                        "-${TextConstants.currencySymbol}${merchantDiscount.toStringAsFixed(2)}",
+                                          ],
+                                        ),
+                                      ),
+                                      SizedBox(width: 8),
+                                      if (!isCouponOrPayout)
+                                        Text(
+                                          "${TextConstants.currencySymbol} ${(regularPrice * orderItem[AppDBConst.itemCount]).toStringAsFixed(2)}",
+                                          style: TextStyle(
+                                              color: themeHelper.themeMode ==
+                                                  ThemeMode.dark
+                                                  ? ThemeNotifier.textDark
+                                                  : Colors.blueGrey,
+                                              fontSize: 14),
+                                        ),
+                                      SizedBox(width: 20),
+                                      Text(
+                                        isCouponOrPayout
+                                            ? "${TextConstants.currencySymbol}${(orderItem[AppDBConst.itemCount] * orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}"
+                                            : "${TextConstants.currencySymbol}${(orderItem[AppDBConst.itemCount] * salesPrice).toStringAsFixed(2)}",
                                         style: TextStyle(
-                                            color: Colors.blue, fontSize: 12)),
-                                  ],
-                                ),
-                                SizedBox(height: 2),
-                                ShaderMask(
-                                  shaderCallback: (Rect bounds) {
-                                    return LinearGradient(
-                                      begin: Alignment.centerLeft,
-                                      end: Alignment.centerRight,
-                                      colors: themeHelper.themeMode ==
-                                              ThemeMode.dark
-                                          ? [
-                                              Colors.white.withOpacity(0.1),
-                                              Colors.white.withOpacity(0.7),
-                                              Colors.white.withOpacity(0.1),
-                                            ]
-                                          : [
-                                              Colors.black.withOpacity(0.1),
-                                              Colors.black.withOpacity(0.7),
-                                              Colors.black.withOpacity(0.1),
-                                            ],
-                                      stops: const [0.0, 0.5, 1.0],
-                                    ).createShader(bounds);
-                                  },
-                                  blendMode: BlendMode.srcIn,
-                                  child: DottedLine(
-                                    dashLength: 6,
-                                    dashGapLength: 4,
-                                    lineThickness: 1,
-                                    direction: Axis.horizontal,
-                                    dashColor: themeHelper.themeMode ==
-                                            ThemeMode.dark
-                                        ? Colors.white
-                                        : Colors
-                                            .black, // ✅ ensures gradient works correctly
-                                  ),
-                                ),
-
-                                SizedBox(height: 2),
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      TextConstants.netTotalText,
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.bold,
                                           fontSize: 14,
-                                          color: themeHelper.themeMode ==
-                                                  ThemeMode.dark
-                                              ? ThemeNotifier.textDark
-                                              : ThemeNotifier.textLight),
-                                    ),
-                                    Text(
-                                        "${TextConstants.currencySymbol}${netTotal.toStringAsFixed(2)}",
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 12,
-                                            color: themeHelper.themeMode ==
-                                                    ThemeMode.dark
-                                                ? ThemeNotifier.textDark
-                                                : ThemeNotifier.textLight)),
-                                  ],
-                                ),
-                                SizedBox(height: 2),
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      TextConstants.taxText,
-                                      style: TextStyle(
                                           fontWeight: FontWeight.bold,
-                                          fontSize: 12,
-                                          color: themeHelper.themeMode ==
-                                                  ThemeMode.dark
-                                              ? Colors.white54
-                                              : Colors.grey),
-                                    ),
-                                    Text(
-                                        "${TextConstants.currencySymbol}${orderTax.toStringAsFixed(2)}", //Build #1.0.92: removed minus "-"
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 12,
-                                            color: themeHelper.themeMode ==
-                                                    ThemeMode.dark
-                                                ? Colors.white54
-                                                : Colors.grey)),
-                                  ],
-                                ),
-                                SizedBox(height: 2),
-                                // const DottedLine(),
-                                ShaderMask(
-                                  shaderCallback: (Rect bounds) {
-                                    return LinearGradient(
-                                      begin: Alignment.centerLeft,
-                                      end: Alignment.centerRight,
-                                      colors: themeHelper.themeMode ==
+                                          // Build #1.0.181: Fixed - show price value red for payout and coupons only , not custom item
+                                          color: isCouponOrPayout
+                                              ? Colors.red
+                                              : themeHelper.themeMode ==
                                               ThemeMode.dark
-                                          ? [
-                                              Colors.white.withOpacity(0.1),
-                                              Colors.white.withOpacity(0.7),
-                                              Colors.white.withOpacity(0.1),
-                                            ]
-                                          : [
-                                              Colors.black.withOpacity(0.1),
-                                              Colors.black.withOpacity(0.7),
-                                              Colors.black.withOpacity(0.1),
-                                            ],
-                                      stops: const [0.0, 0.5, 1.0],
-                                    ).createShader(bounds);
-                                  },
-                                  blendMode: BlendMode.srcIn,
-                                  child: DottedLine(
-                                    dashLength: 6,
-                                    dashGapLength: 4,
-                                    lineThickness: 1,
-                                    direction: Axis.horizontal,
-                                    dashColor: themeHelper.themeMode ==
-                                            ThemeMode.dark
-                                        ? Colors.white
-                                        : Colors
-                                            .black, // ✅ ensures gradient works correctly
+                                              ? ThemeNotifier.textDark
+                                              : ThemeNotifier
+                                              .textLight, // Added: Red color for Payout/Coupon
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-
-                                SizedBox(height: 2),
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: [
-                                    Text(TextConstants.netPayable,
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 18,
-                                            color: themeHelper.themeMode ==
-                                                    ThemeMode.dark
-                                                ? ThemeNotifier.textDark
-                                                : ThemeNotifier.textLight)),
-                                    Text(
-                                        "${TextConstants.currencySymbol}${netPayable.toStringAsFixed(2)}",
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            color: themeHelper.themeMode ==
-                                                    ThemeMode.dark
-                                                ? ThemeNotifier.textDark
-                                                : ThemeNotifier.textLight)),
-                                  ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            ///Todo: update ui as per loading from screen
+            ///Show print and email invoice buttons if coming from order history screen
+            ///else show regular buttons
+            Container(
+              color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground: null,
+              child: Column(
+                children: [
+                  // Summary container
+                  if (tabs.isNotEmpty)
+                    AnimatedSize(
+                      duration: Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                      child: (!isKeyboardVisible && _showFullSummary)
+                          ? Container(
+                        margin: const EdgeInsets.only(
+                            top: 8, right: 6, left: 6),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.only(
+                              topRight: Radius.circular(8),
+                              topLeft: Radius.circular(8)),
+                          color: themeHelper.themeMode == ThemeMode.dark
+                              ? ThemeNotifier.orderPanelSummary
+                              : Colors.white,
+                          boxShadow: [
+                            // Shadow at the bottom
+                            BoxShadow(
+                              // color: Colors.black.withOpacity(0.25),
+                              color: themeHelper.themeMode ==
+                                  ThemeMode.dark
+                                  ? Color(0xFFF0F0F0).withOpacity(
+                                  0.15) // stronger shadow for dark mode
+                                  : Colors.black.withOpacity(
+                                  0.25), // lighter shadow for light mode
+                              offset: Offset(0,
+                                  4), // 0 horizontal, 4 vertical (down)
+                              blurRadius: 6,
+                              spreadRadius: -0.5,
+                            ),
+                            // Shadow at the top
+                            BoxShadow(
+                              color:
+                              themeHelper.themeMode == ThemeMode.dark
+                                  ? Color(0xFFF0F0F0).withOpacity(
+                                  0.15) // dark mode top shadow
+                                  : Colors.black.withOpacity(
+                                  0.15), // light mode top shadow
+                              // color: Colors.black.withOpacity(0.15),
+                              offset: Offset(0,
+                                  -4), // 0 horizontal, -4 vertical (up)
+                              blurRadius: 6,
+                              spreadRadius: -0.5,
+                            ),
+                          ],
+                        ),
+                        padding: const EdgeInsets.all(8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment:
+                              MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  TextConstants.grossTotal,
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 18,
+                                      color: themeHelper.themeMode ==
+                                          ThemeMode.dark
+                                          ? ThemeNotifier.textDark
+                                          : ThemeNotifier.textLight),
                                 ),
+                                Text(
+                                    "${TextConstants.currencySymbol}${grossTotal.toStringAsFixed(2)}", //Build #1.0.68
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                        color: themeHelper.themeMode ==
+                                            ThemeMode.dark
+                                            ? ThemeNotifier.textDark
+                                            : ThemeNotifier.textLight)),
                               ],
                             ),
-                          )
-                        : SizedBox.shrink(),
-                  ),
-                if (tabs.isNotEmpty || tabs.isEmpty)
-                  GestureDetector(
-                    onTap: isKeyboardVisible ? null : _toggleSummary,
-                    child: Container(
-                      margin: const EdgeInsets.only(top: 0, right: 6, left: 6),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.only(
-                            bottomRight: Radius.circular(8),
-                            bottomLeft: Radius.circular(8)),
-                        // color: themeHelper.themeMode == ThemeMode.dark ?const Color(0xFF393C48) : Colors.grey.shade300
-                        color: themeHelper.themeMode == ThemeMode.dark
-                            ? const Color(
-                                0xFF2A2C36) // ✅ dark mode background 393C48
-                            : Colors.grey.shade300, // ✅ light mode background
-                        boxShadow: [
-                          // Shadow at the bottom
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.25),
-                            offset: const Offset(0, 4), // moves shadow down
-                            blurRadius: 6,
-                            spreadRadius: 1,
-                          ),
-                          // Shadow at the top
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.15),
-                            offset: const Offset(0, 4), // moves shadow up
-                            blurRadius: 6,
-                            spreadRadius: 1,
-                          ),
-                        ],
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 5),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                              "${TextConstants.totalItemsText}: ${orderItems.length}",
-                              style: TextStyle(
-                                  fontSize: 12, fontWeight: FontWeight.bold)),
-                          Row(
-                            children: [
-                              Text(
-                                  _showFullSummary
-                                      ? 'Net Payable : ${TextConstants.currencySymbol}${netPayable.toStringAsFixed(2)}'
-                                      : 'Net Payable : ${TextConstants.currencySymbol}${netPayable.toStringAsFixed(2)}',
-                                  style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold)),
-                              const SizedBox(width: 8),
-                              Icon(_showFullSummary
-                                  ? Icons.keyboard_arrow_down
-                                  : Icons.keyboard_arrow_up),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                // if (tabs.isNotEmpty)
-                //   GestureDetector(
-                //     onTap: isKeyboardVisible ? null : _toggleSummary,
-                //     child: Container(
-                //       margin: const EdgeInsets.only(top: 2, right: 8, left: 8),
-                //       decoration: BoxDecoration(
-                //           borderRadius: BorderRadius.only(
-                //               bottomRight: Radius.circular(8),
-                //               bottomLeft: Radius.circular(8)),
-                //           color: themeHelper.themeMode == ThemeMode.dark
-                //               ? ThemeNotifier.orderPanelSummary
-                //               : Colors.grey.shade300),
-                //       padding: const EdgeInsets.symmetric(
-                //           horizontal: 5, vertical: 5),
-                //       child: Row(
-                //         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                //         children: [
-                //           Text(
-                //               "${TextConstants.totalItemsText}: ${orderItems.length}",
-                //               style: TextStyle(
-                //                   fontSize: 12, fontWeight: FontWeight.bold)),
-                //           Row(
-                //             children: [
-                //               Text(
-                //                   _showFullSummary
-                //                       ? 'Net Payable : ${TextConstants.currencySymbol}${netPayable.toStringAsFixed(2)}'
-                //                       : 'Net Payable : ${TextConstants.currencySymbol}${netPayable.toStringAsFixed(2)}',
-                //                   style: TextStyle(
-                //                       fontSize: 12,
-                //                       fontWeight: FontWeight.bold)),
-                //               const SizedBox(width: 8),
-                //               Icon(_showFullSummary
-                //                   ? Icons.keyboard_arrow_down
-                //                   : Icons.keyboard_arrow_up),
-                //             ],
-                //           ),
-                //         ],
-                //       ),
-                //     ),
-                //   ),
-
-                // Payment button - outside the container
-                if (tabs.isNotEmpty || tabs.isEmpty)
-                  Container(
-                    margin:
-                        const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-                    width: double.infinity,
-                    height: MediaQuery.of(context).size.height * 0.0575,
-                    decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.5),
-                            offset: const Offset(0, 4),
-                            blurRadius: 4,
-                            spreadRadius: 0,
-                          )
-                        ]),
-                    child: ElevatedButton(
-                      //Build 1.1.36: on pay tap calling updateOrderProducts api call
-                      onPressed: /*netPayable >= 0 && */ orderItems.isNotEmpty
-                          ? () async {
-                              setState(() => _isPayBtnLoading = true);
-                              // await Navigator.push(
-                              //   context,
-                              //   MaterialPageRoute(builder: (context) => OrderSummaryScreen()),
-                              // );
-                              // On the first screen (Screen 1)
-                              // Build #1.0.104: Navigate to OrderSummaryScreen and listen for result
-                              final result = await Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (_) => OrderSummaryScreen(
-                                          formattedDate: '',
-                                          formattedTime: '',
-                                        )),
-                              );
-                              if (kDebugMode) {
-                                print(
-                                    "###### FastKeyScreen: Returned from OrderSummaryScreen with result: $result");
-                              }
-                              // Handle refresh if result is 'refresh'
-                              if (result == TextConstants.refresh) {
-                                if (kDebugMode) {
-                                  print(
-                                      "###### FastKeyScreen: Refresh signal received, reinitializing entire screen");
-                                }
-                                setState(() {
-                                  OrderHelper.isOrderPanelLoaded =
-                                      false; // Build #1.0.175: making isOrderPanelLoaded false when ever return from OrderSummaryScreen with 'refresh' we have to reload the order panel
-                                  fetchOrdersData(); // call
-                                });
-                              }
-                              setState(() => _isPayBtnLoading = false);
-
-                              ///No need to update here now, may cause empty items added to order
-                              //                       if (orderHelper.activeOrderId != null) {
-                              //                         setState(() => _isPayBtnLoading = true);
-                              //                         // final order = orderHelper.orders.firstWhere(
-                              //                         //       (order) => order[AppDBConst.orderServerId] == orderHelper.activeOrderId,
-                              //                         //   orElse: () => {},
-                              //                         // );
-                              //                         final serverOrderId = orderHelper.activeOrderId;//order[AppDBConst.orderServerId] as int?;
-                              //                         final dbOrderId = orderHelper.activeOrderId!;
-                              //
-                              //                         if (serverOrderId == null) {
-                              //                           setState(() => _isPayBtnLoading = false);
-                              //                           ScaffoldMessenger.of(context).showSnackBar(
-                              //                             SnackBar(content: Text("Server Order ID not found")),
-                              //                           );
-                              //                           return;
-                              //                         }
-                              //
-                              //                         // Assign the subscription to your class variable
-                              //                         _updateOrderSubscription = orderBloc.updateOrderStream.listen((response) async {
-                              //                           if (!mounted) return;
-                              //                           if (response.status == Status.COMPLETED) {
-                              //                             setState(() => _isPayBtnLoading = false);
-                              //                             if (kDebugMode) {
-                              //                               print("###### updateOrder COMPLETED");
-                              //                             }
-                              //                             Navigator.push(
-                              //                               context,
-                              //                               MaterialPageRoute(builder: (context) => OrderSummaryScreen()),
-                              //                             );
-                              //                           } else if (response.status == Status.ERROR) {
-                              //                             ScaffoldMessenger.of(context).showSnackBar(
-                              //                               SnackBar(content: Text(response.message ?? "Failed to update order")),
-                              //                             );
-                              //                           }
-                              //                         });
-                              //                         // Prepare line items for API
-                              //                         List<OrderLineItem> lineItems = orderItems.map((item) => OrderLineItem(
-                              //                           productId: item[AppDBConst.itemServerId],
-                              //                           quantity: item[AppDBConst.itemCount],
-                              //                           //  sku: item[AppDBConst.itemSKU] ?? '',
-                              //                         )).toList();
-                              //
-                              //                         await orderBloc.updateOrderProducts(
-                              //                           dbOrderId: dbOrderId,
-                              //                           orderId: serverOrderId,
-                              //                           lineItems: lineItems,
-                              //                         );
-                              //                       }
-                            }
-                          : null,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            Colors.transparent, // 🔑 keep transparent
-                        shadowColor:
-                            Colors.transparent, // 🔑 remove shadow blending
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        padding: EdgeInsets
-                            .zero, // 🔑 so gradient fills entire button
-                      ),
-                      child: Ink(
-                        decoration: BoxDecoration(
-                          gradient: orderItems.isNotEmpty
-                              ? LinearGradient(
-                                  // begin: const Alignment(1.09, 0.57),
-                                  // end: const Alignment(-0.08, 0.57),
-                                  begin: Alignment.topRight,
-                                  end: Alignment.bottomRight,
-                                  colors:
-                                      themeHelper.themeMode == ThemeMode.dark
-                                          ? [
-                                              Color(0xFF43517E),
-                                              Color(0xFF172145)
-                                            ] // dark mode
-                                          : [
-                                              Color(0xFF43517E),
-                                              Color(0xFF172145)
-                                            ], // light mode
-                                  // begin: Alignment.topRight,
-                                  // end: Alignment.bottomLeft
-                                )
-                              : null,
-                          color: orderItems.isEmpty
-                              ? const Color(0xFF172145)
-                              : null, // fallback
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Container(
-                          alignment: Alignment.center,
-                          height: 60, // ensure consistent button height
-                          child: _isPayBtnLoading
-                              ? const CircularProgressIndicator(
-                                  color: Colors.white)
-                              : Text(
-                                  "Pay ${TextConstants.currencySymbol}${netPayable.toStringAsFixed(2)}",
-                                  style: const TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.white,
-                                  ),
+                            SizedBox(height: 2),
+                            Row(
+                              mainAxisAlignment:
+                              MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  spacing: 5,
+                                  children: [
+                                    SvgPicture.asset(
+                                        "assets/svg/discount_star.svg",
+                                        height: 12,
+                                        width: 12),
+                                    Text(TextConstants.discountText,
+                                        style: TextStyle(
+                                            color: Color(0xFF05B10C),
+                                            fontSize:
+                                            14)), // font size increased according to new figma design
+                                  ],
                                 ),
+                                Text(
+                                    "-${TextConstants.currencySymbol}${orderDiscount.toStringAsFixed(2)}",
+                                    style: TextStyle(
+                                        color: Color(0xFF05B10C),
+                                        fontSize:
+                                        12)), // the font size increased based on new figma design10-14
+                              ],
+                            ),
+                            SizedBox(height: 2),
+                            Row(
+                              mainAxisAlignment:
+                              MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  spacing: 5,
+                                  children: [
+                                    SvgPicture.asset(
+                                        "assets/svg/discount_star.svg",
+                                        height: 12,
+                                        width: 12,
+                                        color: Colors.blue),
+                                    Text(TextConstants.merchantDiscount,
+                                        style: TextStyle(
+                                            color: Color(0xFF007BFF),
+                                            fontSize:
+                                            14)), // changes as per new design
+                                    merchantDiscount.toStringAsFixed(2) ==
+                                        '0.00'
+                                        ? SizedBox()
+                                        : GestureDetector(
+                                      onTap: () async {
+                                        //Passed dbOrderId to removeFeeLines.
+                                        // Removed database operations, as they’re now in OrderBloc.removeFeeLines.
+                                        // Ensured loader is shown during API calls.
+                                        if (kDebugMode) {
+                                          print(
+                                              "####################### Merchant Discount onTap");
+                                        }
+                                        if (orderHelper
+                                            .activeOrderId !=
+                                            null) {
+                                          // Step 1: Show confirmation dialog
+                                          await CustomDialog
+                                              .showRemoveSpecialOrderItemsConfirmation(
+                                              context, confirm:
+                                              () async {
+                                            // Step 2: Show loader
+                                            setState(() =>
+                                            _isLoading = true);
+                                            // final order = orderHelper.orders.firstWhere(
+                                            //       (order) => order[AppDBConst.orderServerId] == orderHelper.activeOrderId,
+                                            //   orElse: () => {},
+                                            // );
+                                            final serverOrderId =
+                                                orderHelper
+                                                    .activeOrderId; //order[AppDBConst.orderServerId] as int?;
+                                            final dbOrderId =
+                                            orderHelper
+                                                .activeOrderId!;
+
+                                            if (serverOrderId !=
+                                                null) {
+                                              final db =
+                                              await DBHelper
+                                                  .instance
+                                                  .database;
+
+                                              ///TODO : Update below table code for new discount id code
+                                              final merchantDiscountValue =
+                                              await db.query(
+                                                AppDBConst
+                                                    .orderTable,
+                                                where:
+                                                '${AppDBConst.orderServerId} = ? AND ${AppDBConst.merchantDiscount} = ?',
+                                                whereArgs: [
+                                                  dbOrderId,
+                                                  merchantDiscount
+                                                ],
+                                              );
+
+                                              if (merchantDiscountValue
+                                                  .isNotEmpty) {
+                                                final payoutIds = merchantDiscountValue
+                                                    .first[AppDBConst
+                                                    .merchantDiscountIds]
+                                                    .toString()
+                                                    .split(
+                                                    ',') ??
+                                                    [];
+                                                //remove the empty id
+                                                payoutIds
+                                                    .removeAt(0);
+                                                if (kDebugMode) {
+                                                  print(
+                                                      "OrderPanel - payouts to delete $payoutIds");
+                                                }
+                                                if (payoutIds
+                                                    .isNotEmpty) {
+                                                  //Build #1.0.99: Cancel any existing subscription to prevent multiple listeners
+                                                  _removePayoutOrDiscountSubscription
+                                                      ?.cancel();
+                                                  retryCallback() async {
+                                                    setState(() =>
+                                                    _isLoading =
+                                                    true);
+                                                    await orderBloc.removeFeeLines(
+                                                        orderId:
+                                                        serverOrderId,
+                                                        feeLineIds:
+                                                        payoutIds);
+                                                    // Dismiss dialog after retry
+                                                    Navigator.of(
+                                                        context,
+                                                        rootNavigator:
+                                                        true)
+                                                        .pop();
+                                                  }
+
+                                                  ;
+                                                  _removePayoutOrDiscountSubscription =
+                                                      orderBloc
+                                                          .removePayoutStream
+                                                          .listen(
+                                                              (response) async {
+                                                            if (response
+                                                                .status ==
+                                                                Status
+                                                                    .COMPLETED) {
+                                                              setState(() =>
+                                                              _isLoading =
+                                                              false); //Build #1.0.92
+                                                              await fetchOrderItems();
+                                                              widget
+                                                                  .refreshOrderList
+                                                                  ?.call();
+                                                              _scaffoldMessenger
+                                                                  .showSnackBar(
+                                                                SnackBar(
+                                                                  content: Text(
+                                                                      "Merchant Discount removed successfully"),
+                                                                  backgroundColor:
+                                                                  Colors
+                                                                      .green,
+                                                                  duration: const Duration(
+                                                                      seconds:
+                                                                      2),
+                                                                ),
+                                                              );
+                                                            } else if (response
+                                                                .status ==
+                                                                Status
+                                                                    .ERROR) {
+                                                              if (kDebugMode) {
+                                                                print(
+                                                                    "###### Delete Discount API error");
+                                                              }
+                                                              setState(() =>
+                                                              _isLoading =
+                                                              false);
+                                                              _scaffoldMessenger
+                                                                  .showSnackBar(
+                                                                SnackBar(
+                                                                  content: Text(
+                                                                      "Failed to remove discount"),
+                                                                  backgroundColor:
+                                                                  Colors
+                                                                      .red,
+                                                                  duration: const Duration(
+                                                                      seconds:
+                                                                      2),
+                                                                ),
+                                                              );
+                                                              await CustomDialog
+                                                                  .showDiscountNotApplied(
+                                                                context,
+                                                                errorMessageTitle:
+                                                                TextConstants
+                                                                    .removeDiscountFailed,
+                                                                errorMessageDes: response
+                                                                    .message ??
+                                                                    TextConstants
+                                                                        .discountNotAppliedDescription,
+                                                                onRetry:
+                                                                retryCallback,
+                                                              );
+                                                            }
+                                                          });
+                                                  await orderBloc
+                                                      .removeFeeLines(
+                                                      orderId:
+                                                      serverOrderId,
+                                                      feeLineIds:
+                                                      payoutIds);
+                                                } else {
+                                                  setState(() =>
+                                                  _isLoading =
+                                                  false);
+                                                  _scaffoldMessenger
+                                                      .showSnackBar(
+                                                    SnackBar(
+                                                      content: Text(
+                                                          "Payout ID not found"),
+                                                      backgroundColor:
+                                                      Colors
+                                                          .red,
+                                                      duration:
+                                                      const Duration(
+                                                          seconds:
+                                                          2),
+                                                    ),
+                                                  );
+                                                }
+                                              } else {
+                                                setState(() =>
+                                                _isLoading =
+                                                false);
+                                                _scaffoldMessenger
+                                                    .showSnackBar(
+                                                  SnackBar(
+                                                    content: Text(
+                                                        "No payout found for this order"),
+                                                    backgroundColor:
+                                                    Colors.red,
+                                                    duration:
+                                                    const Duration(
+                                                        seconds:
+                                                        2),
+                                                  ),
+                                                );
+                                              }
+                                            } else {
+                                              setState(() =>
+                                              _isLoading =
+                                              false);
+                                              _scaffoldMessenger
+                                                  .showSnackBar(
+                                                SnackBar(
+                                                  content: Text(
+                                                      "Server Order ID not found"),
+                                                  backgroundColor:
+                                                  Colors.red,
+                                                  duration:
+                                                  const Duration(
+                                                      seconds:
+                                                      2),
+                                                ),
+                                              );
+                                            }
+                                          });
+                                        }
+                                      },
+                                      child: Image.asset(
+                                        "assets/delete.png",
+                                        height: 24,
+                                        width: 24,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Text(
+                                    "-${TextConstants.currencySymbol}${merchantDiscount.toStringAsFixed(2)}",
+                                    style: TextStyle(
+                                        color: Colors.blue,
+                                        fontSize: 12)),
+                              ],
+                            ),
+                            SizedBox(height: 2),
+                            ShaderMask(
+                              shaderCallback: (Rect bounds) {
+                                return LinearGradient(
+                                  begin: Alignment.centerLeft,
+                                  end: Alignment.centerRight,
+                                  colors: themeHelper.themeMode ==
+                                      ThemeMode.dark
+                                      ? [
+                                    Colors.white.withOpacity(0.1),
+                                    Colors.white.withOpacity(0.7),
+                                    Colors.white.withOpacity(0.1),
+                                  ]
+                                      : [
+                                    Colors.black.withOpacity(0.1),
+                                    Colors.black.withOpacity(0.7),
+                                    Colors.black.withOpacity(0.1),
+                                  ],
+                                  stops: const [0.0, 0.5, 1.0],
+                                ).createShader(bounds);
+                              },
+                              blendMode: BlendMode.srcIn,
+                              child: DottedLine(
+                                dashLength: 6,
+                                dashGapLength: 4,
+                                lineThickness: 1,
+                                direction: Axis.horizontal,
+                                dashColor: themeHelper.themeMode ==
+                                    ThemeMode.dark
+                                    ? Colors.white
+                                    : Colors
+                                    .black, // ✅ ensures gradient works correctly
+                              ),
+                            ),
+
+                            SizedBox(height: 2),
+                            Row(
+                              mainAxisAlignment:
+                              MainAxisAlignment.spaceBetween,
+                              crossAxisAlignment:
+                              CrossAxisAlignment.center,
+                              children: [
+                                Text(
+                                  TextConstants.netTotalText,
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                      color: themeHelper.themeMode ==
+                                          ThemeMode.dark
+                                          ? ThemeNotifier.textDark
+                                          : ThemeNotifier.textLight),
+                                ),
+                                Text(
+                                    "${TextConstants.currencySymbol}${netTotal.toStringAsFixed(2)}",
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                        color: themeHelper.themeMode ==
+                                            ThemeMode.dark
+                                            ? ThemeNotifier.textDark
+                                            : ThemeNotifier.textLight)),
+                              ],
+                            ),
+                            SizedBox(height: 2),
+                            Row(
+                              mainAxisAlignment:
+                              MainAxisAlignment.spaceBetween,
+                              crossAxisAlignment:
+                              CrossAxisAlignment.center,
+                              children: [
+                                Text(
+                                  TextConstants.taxText,
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                      color: themeHelper.themeMode ==
+                                          ThemeMode.dark
+                                          ? Colors.white54
+                                          : Colors.grey),
+                                ),
+                                Text(
+                                    "${TextConstants.currencySymbol}${orderTax.toStringAsFixed(2)}", //Build #1.0.92: removed minus "-"
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                        color: themeHelper.themeMode ==
+                                            ThemeMode.dark
+                                            ? Colors.white54
+                                            : Colors.grey)),
+                              ],
+                            ),
+                            SizedBox(height: 2),
+                            // const DottedLine(),
+                            ShaderMask(
+                              shaderCallback: (Rect bounds) {
+                                return LinearGradient(
+                                  begin: Alignment.centerLeft,
+                                  end: Alignment.centerRight,
+                                  colors: themeHelper.themeMode ==
+                                      ThemeMode.dark
+                                      ? [
+                                    Colors.white.withOpacity(0.1),
+                                    Colors.white.withOpacity(0.7),
+                                    Colors.white.withOpacity(0.1),
+                                  ]
+                                      : [
+                                    Colors.black.withOpacity(0.1),
+                                    Colors.black.withOpacity(0.7),
+                                    Colors.black.withOpacity(0.1),
+                                  ],
+                                  stops: const [0.0, 0.5, 1.0],
+                                ).createShader(bounds);
+                              },
+                              blendMode: BlendMode.srcIn,
+                              child: DottedLine(
+                                dashLength: 6,
+                                dashGapLength: 4,
+                                lineThickness: 1,
+                                direction: Axis.horizontal,
+                                dashColor: themeHelper.themeMode ==
+                                    ThemeMode.dark
+                                    ? Colors.white
+                                    : Colors
+                                    .black, // ✅ ensures gradient works correctly
+                              ),
+                            ),
+
+                            SizedBox(height: 2),
+                            Row(
+                              mainAxisAlignment:
+                              MainAxisAlignment.spaceBetween,
+                              crossAxisAlignment:
+                              CrossAxisAlignment.center,
+                              children: [
+                                Text(TextConstants.netPayable,
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18,
+                                        color: themeHelper.themeMode ==
+                                            ThemeMode.dark
+                                            ? ThemeNotifier.textDark
+                                            : ThemeNotifier.textLight)),
+                                Text(
+                                    "${TextConstants.currencySymbol}${netPayable.toStringAsFixed(2)}",
+                                    style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: themeHelper.themeMode ==
+                                            ThemeMode.dark
+                                            ? ThemeNotifier.textDark
+                                            : ThemeNotifier.textLight)),
+                              ],
+                            ),
+                          ],
+                        ),
+                      )
+                          : SizedBox.shrink(),
+                    ),
+                  if (tabs.isNotEmpty)
+                    GestureDetector(
+                      onTap: isKeyboardVisible ? null : _toggleSummary,
+                      child: Container(
+                        margin:
+                        const EdgeInsets.only(top: 0, right: 6, left: 6),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.only(
+                              bottomRight: Radius.circular(8),
+                              bottomLeft: Radius.circular(8)),
+                          // color: themeHelper.themeMode == ThemeMode.dark ?const Color(0xFF393C48) : Colors.grey.shade300
+                          color: themeHelper.themeMode == ThemeMode.dark
+                              ? const Color(
+                              0xFF2A2C36) // ✅ dark mode background 393C48
+                              : Colors.grey.shade300, // ✅ light mode background
+                          boxShadow: [
+                            // Shadow at the bottom
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.25),
+                              offset: const Offset(0, 4), // moves shadow down
+                              blurRadius: 6,
+                              spreadRadius: 1,
+                            ),
+                            // Shadow at the top
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.15),
+                              offset: const Offset(0, 4), // moves shadow up
+                              blurRadius: 6,
+                              spreadRadius: 1,
+                            ),
+                          ],
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 5),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                                "${TextConstants.totalItemsText}: ${orderItems.length}",
+                                style: TextStyle(
+                                    fontSize: 12, fontWeight: FontWeight.bold)),
+                            Row(
+                              children: [
+                                Text(
+                                    _showFullSummary
+                                        ? 'Net Payable : ${TextConstants.currencySymbol}${netPayable.toStringAsFixed(2)}'
+                                        : 'Net Payable : ${TextConstants.currencySymbol}${netPayable.toStringAsFixed(2)}',
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold)),
+                                const SizedBox(width: 8),
+                                Icon(_showFullSummary
+                                    ? Icons.keyboard_arrow_down
+                                    : Icons.keyboard_arrow_up),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                  ),
-              ],
+                  const SizedBox(height: 10),
+
+                  // Payment button - outside the container
+                  if (tabs.isNotEmpty)
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+                      width: double.infinity,
+                      height: MediaQuery.of(context).size.height * 0.0575,
+                      child: ElevatedButton( //Build 1.1.36: on pay tap calling updateOrderProducts api call
+                        onPressed: /*netPayable >= 0 && */orderItems.isNotEmpty
+                            ? () async {
+                          setState(() => _isPayBtnLoading = true);
+                          // await Navigator.push(
+                          //   context,
+                          //   MaterialPageRoute(builder: (context) => OrderSummaryScreen()),
+                          // );
+                          // On the first screen (Screen 1)
+                          // Build #1.0.104: Navigate to OrderSummaryScreen and listen for result
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => OrderSummaryScreen(formattedDate: '',formattedTime: '',)),
+                          );
+                          if (kDebugMode) {
+                            print("###### FastKeyScreen: Returned from OrderSummaryScreen with result: $result");
+                          }
+                          // Handle refresh if result is 'refresh'
+                          if (result == TextConstants.refresh) {
+                            if (kDebugMode) {
+                              print("###### FastKeyScreen: Refresh signal received, reinitializing entire screen");
+                            }
+                            setState(() {
+                              OrderHelper.isOrderPanelLoaded = false; // Build #1.0.175: making isOrderPanelLoaded false when ever return from OrderSummaryScreen with 'refresh' we have to reload the order panel
+                              fetchOrdersData(); // call
+                            });
+                          }
+                          setState(() => _isPayBtnLoading = false);
+                          ///No need to update here now, may cause empty items added to order
+                          //                       if (orderHelper.activeOrderId != null) {
+                          //                         setState(() => _isPayBtnLoading = true);
+                          //                         // final order = orderHelper.orders.firstWhere(
+                          //                         //       (order) => order[AppDBConst.orderServerId] == orderHelper.activeOrderId,
+                          //                         //   orElse: () => {},
+                          //                         // );
+                          //                         final serverOrderId = orderHelper.activeOrderId;//order[AppDBConst.orderServerId] as int?;
+                          //                         final dbOrderId = orderHelper.activeOrderId!;
+                          //
+                          //                         if (serverOrderId == null) {
+                          //                           setState(() => _isPayBtnLoading = false);
+                          //                           ScaffoldMessenger.of(context).showSnackBar(
+                          //                             SnackBar(content: Text("Server Order ID not found")),
+                          //                           );
+                          //                           return;
+                          //                         }
+                          //
+                          //                         // Assign the subscription to your class variable
+                          //                         _updateOrderSubscription = orderBloc.updateOrderStream.listen((response) async {
+                          //                           if (!mounted) return;
+                          //                           if (response.status == Status.COMPLETED) {
+                          //                             setState(() => _isPayBtnLoading = false);
+                          //                             if (kDebugMode) {
+                          //                               print("###### updateOrder COMPLETED");
+                          //                             }
+                          //                             Navigator.push(
+                          //                               context,
+                          //                               MaterialPageRoute(builder: (context) => OrderSummaryScreen()),
+                          //                             );
+                          //                           } else if (response.status == Status.ERROR) {
+                          //                             ScaffoldMessenger.of(context).showSnackBar(
+                          //                               SnackBar(content: Text(response.message ?? "Failed to update order")),
+                          //                             );
+                          //                           }
+                          //                         });
+                          //                         // Prepare line items for API
+                          //                         List<OrderLineItem> lineItems = orderItems.map((item) => OrderLineItem(
+                          //                           productId: item[AppDBConst.itemServerId],
+                          //                           quantity: item[AppDBConst.itemCount],
+                          //                           //  sku: item[AppDBConst.itemSKU] ?? '',
+                          //                         )).toList();
+                          //
+                          //                         await orderBloc.updateOrderProducts(
+                          //                           dbOrderId: dbOrderId,
+                          //                           orderId: serverOrderId,
+                          //                           lineItems: lineItems,
+                          //                         );
+                          //                       }
+                        }
+                            : null,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: /*netPayable >= 0 &&*/ orderItems.isNotEmpty ? const Color(0xFFFF6B6B) : Colors.grey,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: _isPayBtnLoading  //Build 1.1.36: added loader for pay button in order panel
+                            ? CircularProgressIndicator(color: Colors.white)
+                            : Text(
+                          "Pay ${TextConstants.currencySymbol}${netPayable.toStringAsFixed(2)}",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
-          ),
-        ]),
+          ],
+        ),
         if (_isLoading)
           Container(
             color: Colors.black.withOpacity(0.5),
@@ -3692,8 +3204,7 @@ class _RightOrderPanelState extends State<RightOrderPanel>
       ],
     );
   }
-
-  /// //Build #1.0.2 : Added showNumPadDialog if user tap on order layout list item
+/// //Build #1.0.2 : Added showNumPadDialog if user tap on order layout list item
 
 // New method to show product edit screen (replace the existing showNumPadDialog)
 // void showProductEditScreen(BuildContext context, Map<String, dynamic> orderItem) {

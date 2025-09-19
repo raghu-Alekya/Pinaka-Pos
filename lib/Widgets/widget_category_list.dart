@@ -894,7 +894,6 @@ import '../Constants/text.dart';
 import '../Utilities/shimmer_effect.dart';
 import '../Utilities/responsive_layout.dart';
 
-
 // Stateless CategoryList widget for reusable horizontal/vertical category list
 class CategoryList extends StatelessWidget {
   final bool isHorizontal;
@@ -922,10 +921,12 @@ class CategoryList extends StatelessWidget {
     required this.onCategoryTapped,
     this.onReorder,
     this.onEditButtonPressed,
-    this.onDismissEditMode, this.onReorderStarted,
+    this.onDismissEditMode,
+    this.onReorderStarted,
   });
 
-  Widget _buildImage(String imagePath) {
+  Widget _buildImage(String imagePath, BuildContext context) {
+    final themeHelper = Provider.of<ThemeNotifier>(context);
     if (kDebugMode) {
       print("Category List _buildImage : $imagePath");
     }
@@ -942,7 +943,8 @@ class CategoryList extends StatelessWidget {
         height: 40,
         width: 40,
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => const Icon(Icons.image, size: 40),
+        errorBuilder: (context, error, stackTrace) =>
+            const Icon(Icons.image, size: 40),
       );
     } else if (imagePath.startsWith("http")) {
       return SizedBox(
@@ -957,29 +959,54 @@ class CategoryList extends StatelessWidget {
             return Container(
               width: 40,
               height: 40,
-              color: Colors.grey.shade300,
-              child: const Icon(Icons.broken_image, color: Colors.grey),
+              // color: themeHelper.themeMode == ThemeMode.dark
+              // ? Colors.grey.shade300
+              // :Colors.white,
+              child: themeHelper.themeMode == ThemeMode.dark
+                  ? Image.asset(
+                      "assets/dark_mode_image.png",
+                      fit: BoxFit.contain,
+                      color: Colors.white,
+                    )
+                  : Image.asset(
+                      "assets/lite_mode_image.png",
+                      fit: BoxFit.contain,
+                      color: Colors.black,
+                    ),
+              //Icon(Icons.broken_image, color: Colors.grey),
             );
           },
         ),
       );
     } else {
-      return Platform.isWindows ?
-        Image.asset( // Use Image.asset for PNG
-          'assets/default.png',
-          width: 40,
-          height: 40,
-        )
-      :
-        Image.file(
-        File(imagePath),
-        height: 40,
-        width: 40,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => const Icon(Icons.image, size: 40),
-      );
+      return Platform.isWindows
+          ? Image.asset(
+              // Use Image.asset for PNG
+              'assets/default.png',
+              width: 40,
+              height: 40,
+            )
+          : Image.file(
+              File(imagePath),
+              height: 40,
+              width: 40,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) =>
+                  themeHelper.themeMode == ThemeMode.dark
+                      ? Image.asset(
+                          "assets/dark_mode_image.png",
+                          fit: BoxFit.contain,
+                          color: Colors.white,
+                        )
+                      : Image.asset(
+                          "assets/lite_mode_image.png",
+                          fit: BoxFit.contain,
+                          color: Colors.black,
+                        ),
+            );
     }
   }
+
   // Improved _doesContentOverflow method with debug prints
   bool _doesContentOverflow(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -991,7 +1018,8 @@ class CategoryList extends StatelessWidget {
     final addButtonWidth = isAddButtonEnabled ? 120.0 : 0.0; // Increased
     final arrowsWidth = 210.0; // Increased reserved space for arrows
 
-    final availableWidth = screenWidth - containerPadding - addButtonWidth - arrowsWidth;
+    final availableWidth =
+        screenWidth - containerPadding - addButtonWidth - arrowsWidth;
 
     final overflows = totalContentWidth >= availableWidth;
 
@@ -1009,7 +1037,8 @@ class CategoryList extends StatelessWidget {
   }
 
 //Build 1.1.36: Updated The horizontal list with reOrder functionality
-  Widget _buildHorizontalList(BuildContext context, ScrollController scrollController) {
+  Widget _buildHorizontalList(
+      BuildContext context, ScrollController scrollController) {
     var size = MediaQuery.of(context).size;
     final themeHelper = Provider.of<ThemeNotifier>(context);
     ResponsiveLayout.init(context);
@@ -1026,7 +1055,8 @@ class CategoryList extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         if (kDebugMode) {
-          print("### CategoryList: GestureDetector onTap triggered for dismissing edit mode");
+          print(
+              "### CategoryList: GestureDetector onTap triggered for dismissing edit mode");
         }
         onDismissEditMode!(); // Dismiss edit mode
       },
@@ -1034,12 +1064,16 @@ class CategoryList extends StatelessWidget {
         height: ResponsiveLayout.getHeight(100),
         margin: const EdgeInsets.only(top: 5),
         decoration: BoxDecoration(
-          color: themeHelper.themeMode == ThemeMode.dark? ThemeNotifier.primaryBackground : Colors.white,
+          color: themeHelper.themeMode == ThemeMode.dark
+              ? ThemeNotifier.primaryBackground
+              : Colors.white,
           borderRadius: BorderRadius.circular(15),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withAlpha(200), // withOpacity(0.1),
-              blurRadius: 5,
+              color: themeHelper.themeMode == ThemeMode.dark
+                  ? Color(0x25CCC8C8)
+                  : Color(0x80BDB9B9), // withOpacity(0.1),
+              blurRadius: 10,
               offset: const Offset(0, 2),
             ),
           ],
@@ -1051,95 +1085,110 @@ class CategoryList extends StatelessWidget {
             Row(
               children: [
                 // Only show left padding if arrows are visible
-                SizedBox(width: contentOverflows ? ResponsiveLayout.getWidth(35) : 0),
+                SizedBox(
+                    width:
+                        contentOverflows ? ResponsiveLayout.getWidth(35) : 0),
                 Expanded(
-                    child: SizedBox(
-                      height: ResponsiveLayout.getHeight(100),
-                      child: ReorderableListView(
-                        buildDefaultDragHandles: Platform.isWindows ? false : true, /// to remove drag icons in windows
-                        scrollController: scrollController,
-                        scrollDirection: Axis.horizontal,
-                        onReorderStart: (index) {
-                          if (kDebugMode) {
-                            print("### CategoryList: Reorder started at index: $index");
-                          }
-                          onReorderStarted?.call(index); // Notify reorder start
-                        },
-                        onReorder: (oldIndex, newIndex) async {
-                          if (kDebugMode) {
-                            print("### CategoryList: Reordering from $oldIndex to $newIndex");
-                          }
-                          if (newIndex > oldIndex) newIndex--; // Adjust newIndex for ReorderableListView
-                          onReorder!(oldIndex, newIndex); // Call provided reorder callback
-                          // Update editingIndex to show edit button only on the reordered item
-                        //  onReorderStarted?.call(newIndex);
-                        },
-                        proxyDecorator: (child, index, animation) => Material(
-                          elevation: 0,
-                          color: Colors.transparent,
-                          child: child,
-                        ),
-                        children: List.generate(categories.length, (index) {
-                          final category = categories[index];
-                          bool isSelected = selectedIndex == index;
-                          bool showEditButton = editingIndex == index;
+                  child: SizedBox(
+                    height: ResponsiveLayout.getHeight(100),
+                    child: ReorderableListView(
+                      buildDefaultDragHandles:
+                          Platform.isWindows ? false : true,
 
-                          return Platform.isWindows ?
-                            ReorderableDelayedDragStartListener(  /// to remove drag icons in windows
-                              key: ValueKey('${category['title']}_$index'),
-                              index: index,
-                              child: _fastKeyTabGesture(context, index, isSelected, showEditButton),
-                            )
-                          :
-                            _fastKeyTabGesture(context, index, isSelected, showEditButton)
-                          ;
-                        }),
+                      /// to remove drag icons in windows
+                      scrollController: scrollController,
+                      scrollDirection: Axis.horizontal,
+                      onReorderStart: (index) {
+                        if (kDebugMode) {
+                          print(
+                              "### CategoryList: Reorder started at index: $index");
+                        }
+                        onReorderStarted?.call(index); // Notify reorder start
+                      },
+                      onReorder: (oldIndex, newIndex) async {
+                        if (kDebugMode) {
+                          print(
+                              "### CategoryList: Reordering from $oldIndex to $newIndex");
+                        }
+                        if (newIndex > oldIndex)
+                          newIndex--; // Adjust newIndex for ReorderableListView
+                        onReorder!(oldIndex,
+                            newIndex); // Call provided reorder callback
+                        // Update editingIndex to show edit button only on the reordered item
+                        //  onReorderStarted?.call(newIndex);
+                      },
+                      proxyDecorator: (child, index, animation) => Material(
+                        elevation: 0,
+                        color: Colors.transparent,
+                        child: child,
                       ),
+                      children: List.generate(categories.length, (index) {
+                        final category = categories[index];
+                        bool isSelected = selectedIndex == index;
+                        bool showEditButton = editingIndex == index;
+
+                        return Platform.isWindows
+                            ? ReorderableDelayedDragStartListener(
+                                /// to remove drag icons in windows
+                                key: ValueKey('${category['title']}_$index'),
+                                index: index,
+                                child: _fastKeyTabGesture(
+                                    context, index, isSelected, showEditButton),
+                              )
+                            : _fastKeyTabGesture(
+                                context, index, isSelected, showEditButton);
+                      }),
                     ),
+                  ),
                 ),
                 // Only show right padding if arrows are visible, otherwise just space for add button
-                SizedBox(width: contentOverflows ? 30 : (isAddButtonEnabled ? 0 : 10)),
-                    if (isAddButtonEnabled)
-                _buildAddButton(context , onAddButtonPressed ?? () {}),
+                SizedBox(
+                    width:
+                        contentOverflows ? 30 : (isAddButtonEnabled ? 0 : 10)),
+                if (isAddButtonEnabled)
+                  _buildAddButton(context, onAddButtonPressed ?? () {}),
               ],
             ),
             // Left navigation button - only show if content overflows
             if (contentOverflows)
-            Positioned(
-              left: 0,
-              child: _buildCircularNavButton(context, Icons.arrow_back_ios, () {
-                if (kDebugMode) {
-                  print("### CategoryList: Left navigation button pressed");
-                }
-                scrollController.animateTo(
-                  scrollController.offset - size.width * 0.5,
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeInOut,
-                );
-              }),
-            ),
+              Positioned(
+                left: 0,
+                child:
+                    _buildCircularNavButton(context, Icons.arrow_back_ios, () {
+                  if (kDebugMode) {
+                    print("### CategoryList: Left navigation button pressed");
+                  }
+                  scrollController.animateTo(
+                    scrollController.offset - size.width * 0.5,
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                  );
+                }),
+              ),
             // Right navigation button - only show if content overflows
             if (contentOverflows)
-            Positioned(
-              right: isAddButtonEnabled ? 75 : 5,
-              child: _buildCircularNavButton(context, Icons.arrow_forward_ios, () {
-                if (kDebugMode) {
-                  print("### CategoryList: Right navigation button pressed");
-                }
-                scrollController.animateTo(
-                  scrollController.offset + size.width * 0.5,
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeInOut,
-                );
-              }),
-            ),
+              Positioned(
+                right: isAddButtonEnabled ? 75 : 5,
+                child: _buildCircularNavButton(context, Icons.arrow_forward_ios,
+                    () {
+                  if (kDebugMode) {
+                    print("### CategoryList: Right navigation button pressed");
+                  }
+                  scrollController.animateTo(
+                    scrollController.offset + size.width * 0.5,
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                  );
+                }),
+              ),
           ],
         ),
       ),
     );
   }
 
-  Widget _fastKeyTabGesture(BuildContext context, int index, bool isSelected, bool showEditButton ){
+  Widget _fastKeyTabGesture(
+      BuildContext context, int index, bool isSelected, bool showEditButton) {
     final category = categories[index];
     final themeHelper = Provider.of<ThemeNotifier>(context);
     return GestureDetector(
@@ -1147,7 +1196,8 @@ class CategoryList extends StatelessWidget {
       onTap: () {
         if (editingIndex != null) {
           if (kDebugMode) {
-            print("### CategoryList: Tap ignored due to active edit mode at index: $editingIndex");
+            print(
+                "### CategoryList: Tap ignored due to active edit mode at index: $editingIndex");
           }
           onDismissEditMode!(); // Dismiss edit mode instead of selecting
           return;
@@ -1160,15 +1210,23 @@ class CategoryList extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 5.0),
         child: AnimatedContainer(
-          width: ResponsiveLayout.getHeight(70),
+          width: ResponsiveLayout.getHeight(80),
           duration: const Duration(milliseconds: 300),
           //padding: const EdgeInsets.fromLTRB(8, 0, 8, 0),
           decoration: BoxDecoration(
-            color: isSelected ? ThemeNotifier.tabSelection : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground :  Colors.white,
+            color: isSelected
+                ? ThemeNotifier.tabSelection
+                : themeHelper.themeMode == ThemeMode.dark
+                    ? ThemeNotifier.secondaryBackground
+                    : Colors.white,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: showEditButton ? Colors.blueAccent : isSelected ? Colors.red : Colors.black12,
-              width: showEditButton ? 2 : 1,
+              color: showEditButton
+                  ? Colors.blueAccent
+                  : isSelected
+                      ? Colors.red
+                      : Colors.black12,
+              width: showEditButton ? 2 : 1.2,
             ),
             boxShadow: [
               BoxShadow(
@@ -1190,7 +1248,8 @@ class CategoryList extends StatelessWidget {
                   child: GestureDetector(
                     onTap: () {
                       if (kDebugMode) {
-                        print("### CategoryList: Edit button pressed at index: $index");
+                        print(
+                            "### CategoryList: Edit button pressed at index: $index");
                       }
                       onEditButtonPressed!(index); // Trigger edit dialog
                     },
@@ -1200,7 +1259,8 @@ class CategoryList extends StatelessWidget {
                         color: Colors.transparent,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.edit, size: 14, color: Colors.blueAccent),
+                      child: const Icon(Icons.edit,
+                          size: 14, color: Colors.blueAccent),
                     ),
                   ),
                 ),
@@ -1209,7 +1269,7 @@ class CategoryList extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  _buildImage(category['image']),
+                  _buildImage(category['image'], context),
                   Text(
                     category['title'],
                     maxLines: 1,
@@ -1217,8 +1277,14 @@ class CategoryList extends StatelessWidget {
                       fontSize: 12,
                       overflow: TextOverflow.ellipsis,
                       fontWeight: FontWeight.normal,
-                      fontVariations: const <FontVariation>[FontVariation('wght', 900.0)],
-                      color: isSelected ? Colors.black87 : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.black87,
+                      fontVariations: const <FontVariation>[
+                        FontVariation('wght', 900.0)
+                      ],
+                      color: isSelected
+                          ? Colors.black87
+                          : themeHelper.themeMode == ThemeMode.dark
+                              ? ThemeNotifier.textDark
+                              : Colors.black87,
                     ),
                   ),
                 ],
@@ -1230,13 +1296,13 @@ class CategoryList extends StatelessWidget {
     );
   }
 
-
   Widget _buildVerticalList(BuildContext context) {
     final themeHelper = Provider.of<ThemeNotifier>(context);
     return GestureDetector(
       onTap: () {
         if (kDebugMode) {
-          print("### CategoryList: Vertical GestureDetector onTap triggered for dismissing edit mode");
+          print(
+              "### CategoryList: Vertical GestureDetector onTap triggered for dismissing edit mode");
         }
         onDismissEditMode!(); // Dismiss edit mode
       },
@@ -1249,17 +1315,21 @@ class CategoryList extends StatelessWidget {
               scrollDirection: Axis.vertical,
               onReorderStart: (index) {
                 if (kDebugMode) {
-                  print("### CategoryList: Vertical reorder started at index: $index");
+                  print(
+                      "### CategoryList: Vertical reorder started at index: $index");
                 }
                 onReorderStarted?.call(index); // Notify reorder start
               },
               onReorder: (oldIndex, newIndex) async {
                 if (kDebugMode) {
-                  print("### CategoryList: Vertical reordering from $oldIndex to $newIndex");
+                  print(
+                      "### CategoryList: Vertical reordering from $oldIndex to $newIndex");
                 }
-                if (newIndex > oldIndex) newIndex--; // Adjust newIndex for ReorderableListView
+                if (newIndex > oldIndex)
+                  newIndex--; // Adjust newIndex for ReorderableListView
                 onReorder!(oldIndex, newIndex); // Call reorder callback
-                onReorderStarted?.call(newIndex); // Update editingIndex for reordered item
+                onReorderStarted
+                    ?.call(newIndex); // Update editingIndex for reordered item
               },
               proxyDecorator: (child, index, animation) => Material(
                 elevation: 0,
@@ -1276,24 +1346,29 @@ class CategoryList extends StatelessWidget {
                   onTap: () {
                     if (editingIndex != null) {
                       if (kDebugMode) {
-                        print("### CategoryList: Vertical tap ignored due to active edit mode at index: $editingIndex");
+                        print(
+                            "### CategoryList: Vertical tap ignored due to active edit mode at index: $editingIndex");
                       }
                       onDismissEditMode!(); // Dismiss edit mode instead of selecting
                       return;
                     }
                     if (kDebugMode) {
-                      print("### CategoryList: Vertical category tapped at index: $index");
+                      print(
+                          "### CategoryList: Vertical category tapped at index: $index");
                     }
                     onCategoryTapped(index); // Trigger category selection
                   },
                   onLongPress: () {
                     if (kDebugMode) {
-                      print("### CategoryList: Vertical long press at index: $index");
+                      print(
+                          "### CategoryList: Vertical long press at index: $index");
                     }
-                    onEditButtonPressed!(index); // Show edit button on long press
+                    onEditButtonPressed!(
+                        index); // Show edit button on long press
                   },
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 5.0),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 8.0, horizontal: 5.0),
                     child: AnimatedContainer(
                       width: 120,
                       duration: const Duration(milliseconds: 300),
@@ -1302,7 +1377,9 @@ class CategoryList extends StatelessWidget {
                         color: isSelected ? Colors.red : Colors.white,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: showEditButton ? Colors.blueAccent : Colors.black12,
+                          color: showEditButton
+                              ? Colors.blueAccent
+                              : Colors.black12,
                           width: showEditButton ? 2 : 1,
                         ),
                       ),
@@ -1317,9 +1394,11 @@ class CategoryList extends StatelessWidget {
                               child: GestureDetector(
                                 onTap: () {
                                   if (kDebugMode) {
-                                    print("### CategoryList: Vertical edit button pressed at index: $index");
+                                    print(
+                                        "### CategoryList: Vertical edit button pressed at index: $index");
                                   }
-                                  onEditButtonPressed!(index); // Trigger edit dialog
+                                  onEditButtonPressed!(
+                                      index); // Trigger edit dialog
                                 },
                                 child: Container(
                                   padding: const EdgeInsets.all(4),
@@ -1327,14 +1406,15 @@ class CategoryList extends StatelessWidget {
                                     color: Colors.transparent,
                                     shape: BoxShape.circle,
                                   ),
-                                  child: const Icon(Icons.edit, size: 14, color: Colors.blueAccent),
+                                  child: const Icon(Icons.edit,
+                                      size: 14, color: Colors.blueAccent),
                                 ),
                               ),
                             ),
                           ),
                           Row(
                             children: [
-                              _buildImage(category['image']),
+                              _buildImage(category['image'], context),
                               const SizedBox(width: 8),
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1343,13 +1423,23 @@ class CategoryList extends StatelessWidget {
                                     category['title'],
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
-                                      color: isSelected ? Colors.black87 : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.black87,
+                                      color: isSelected
+                                          ? Colors.black87
+                                          : themeHelper.themeMode ==
+                                                  ThemeMode.dark
+                                              ? ThemeNotifier.textDark
+                                              : Colors.black87,
                                     ),
                                   ),
                                   Text(
                                     category['itemCount'].toString(),
                                     style: TextStyle(
-                                      color: isSelected ? Colors.grey : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.grey,
+                                      color: isSelected
+                                          ? Colors.grey
+                                          : themeHelper.themeMode ==
+                                                  ThemeMode.dark
+                                              ? ThemeNotifier.textDark
+                                              : Colors.grey,
                                     ),
                                   ),
                                 ],
@@ -1370,7 +1460,9 @@ class CategoryList extends StatelessWidget {
             padding: const EdgeInsets.all(5),
             decoration: BoxDecoration(
               border: Border.all(color: Colors.black12),
-              color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : Colors.white,
+              color: themeHelper.themeMode == ThemeMode.dark
+                  ? ThemeNotifier.secondaryBackground
+                  : Colors.white,
               borderRadius: BorderRadius.circular(12),
             ),
             child: SizedBox(
@@ -1391,14 +1483,17 @@ class CategoryList extends StatelessWidget {
     );
   }
 
-  Widget _buildCircularNavButton(BuildContext context, IconData icon, VoidCallback onPressed) {
+  Widget _buildCircularNavButton(
+      BuildContext context, IconData icon, VoidCallback onPressed) {
     final themeHelper = Provider.of<ThemeNotifier>(context);
     return Container(
       width: 50,
       height: 50,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: themeHelper.themeMode == ThemeMode.dark? ThemeNotifier.circularNavBackground : Colors.white,
+        color: themeHelper.themeMode == ThemeMode.dark
+            ? ThemeNotifier.circularNavBackground
+            : Colors.white,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.2),
@@ -1409,7 +1504,9 @@ class CategoryList extends StatelessWidget {
       ),
       child: IconButton(
         icon: Icon(icon, size: 24),
-        color: themeHelper.themeMode == ThemeMode.dark? Colors.white : Colors.black45,
+        color: themeHelper.themeMode == ThemeMode.dark
+            ? Colors.white
+            : Colors.black45,
         onPressed: onPressed,
         padding: EdgeInsets.zero,
       ),
@@ -1422,15 +1519,23 @@ class CategoryList extends StatelessWidget {
       height: LayoutValues.size_110,
       width: LayoutValues.size_70,
       decoration: BoxDecoration(
-        color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : Colors.white,
+        gradient: LinearGradient(
+          colors: [
+            Color(0xFFFFA09A), // top
+            Color(0xFFFE6464), // bottom
+          ],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+        //color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : Colors.white,
         borderRadius: BorderRadius.circular(LayoutValues.radius_12),
         border: Border.all(color: Colors.black12),
         boxShadow: [
           BoxShadow(
-            color: ThemeNotifier.shadow_F7,
-            blurRadius: LayoutValues.radius_5,
-            // spreadRadius: LayoutValues.radius_5,
-            offset: Offset(LayoutValues.zero,LayoutValues.zero),
+            color: Color(0x66000000),
+            offset: Offset(0, 4),
+            blurRadius: 4,
+            spreadRadius: 0,
           ),
         ],
       ),
@@ -1440,25 +1545,25 @@ class CategoryList extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Icon(
-                Icons.add,
-                color: Colors.redAccent,
+            Icon(Icons.add,
+                color: Colors.white,
+                //redAccent,
                 size: TextFontSize.size_32),
             Text(
               TextConstants.add,
               textAlign: TextAlign.center,
               style: TextStyle(
-                  color: Colors.redAccent,
-                  fontSize: 10
-              ),
+                  color: Colors.white,
+                  //redAccent,
+                  fontSize: 10),
             ),
             Text(
               TextConstants.fastKey,
               textAlign: TextAlign.center,
               style: TextStyle(
-                  color: Colors.redAccent,
-                  fontSize: 10
-              ),
+                  color: Colors.white,
+                  //redAccent,
+                  fontSize: 10),
             ),
           ],
         ),
@@ -1483,11 +1588,11 @@ class CategoryList extends StatelessWidget {
         padding: const EdgeInsets.all(8.0),
         child: isLoading
             ? ShimmerEffect.rectangular(
-          height: isHorizontal ? 100 : 800,
-        )
+                height: isHorizontal ? 100 : 800,
+              )
             : isHorizontal
-            ? _buildHorizontalList(context, scrollController)
-            : _buildVerticalList(context),
+                ? _buildHorizontalList(context, scrollController)
+                : _buildVerticalList(context),
       ),
     );
   }

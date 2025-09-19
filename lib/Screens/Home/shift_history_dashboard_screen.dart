@@ -23,15 +23,18 @@ class ShiftHistoryDashboardScreen extends StatefulWidget {
   const ShiftHistoryDashboardScreen({super.key, this.lastSelectedIndex});
 
   @override
-  State<ShiftHistoryDashboardScreen> createState() => _ShiftHistoryDashboardScreenState();
+  State<ShiftHistoryDashboardScreen> createState() =>
+      _ShiftHistoryDashboardScreenState();
 }
 
-class _ShiftHistoryDashboardScreenState extends State<ShiftHistoryDashboardScreen> with LayoutSelectionMixin {
+class _ShiftHistoryDashboardScreenState
+    extends State<ShiftHistoryDashboardScreen> with LayoutSelectionMixin {
   int _selectedSidebarIndex = 4;
   late ShiftBloc shiftBloc; //Build #1.0.74
   final PinakaPreferences _preferences = PinakaPreferences(); // Added this
   List<Shift> _cachedShifts = []; // Store previously loaded shifts
-  bool _isDataLoaded = false; // // Build #1.0.192: ADDED: Flag to track if data has been loaded at least once
+  bool _isDataLoaded =
+  false; // // Build #1.0.192: ADDED: Flag to track if data has been loaded at least once
   @override
   void initState() {
     super.initState();
@@ -58,7 +61,8 @@ class _ShiftHistoryDashboardScreenState extends State<ShiftHistoryDashboardScree
 
   @override
   Widget build(BuildContext context) {
-    if (kDebugMode) { //DEBUG
+    if (kDebugMode) {
+      //DEBUG
       print("ShiftHistoryDashboardScreen: Widget build");
     }
     return Scaffold(
@@ -66,26 +70,29 @@ class _ShiftHistoryDashboardScreenState extends State<ShiftHistoryDashboardScree
         children: [
           TopBar(
             screen: Screen.SHIFT,
-            onModeChanged: () async { /// Build #1.0.192: Fixed -> Exception -> setState() callback argument returned a Future. (onModeChanged in all screens)
+            onModeChanged: () async {
+              /// Build #1.0.192: Fixed -> Exception -> setState() callback argument returned a Future. (onModeChanged in all screens)
               String newLayout;
 
-                if (sidebarPosition == SidebarPosition.left) {
-                  newLayout = SharedPreferenceTextConstants.navRightOrderLeft;
-                } else if (sidebarPosition == SidebarPosition.right) {
-                  newLayout = SharedPreferenceTextConstants.navBottomOrderLeft;
-                } else {
-                  newLayout = SharedPreferenceTextConstants.navLeftOrderRight;
-                }
+              if (sidebarPosition == SidebarPosition.left) {
+                newLayout = SharedPreferenceTextConstants.navRightOrderLeft;
+              } else if (sidebarPosition == SidebarPosition.right) {
+                newLayout = SharedPreferenceTextConstants.navBottomOrderLeft;
+              } else {
+                newLayout = SharedPreferenceTextConstants.navLeftOrderRight;
+              }
 
-                // Update the notifier which will trigger _onLayoutChanged
-                PinakaPreferences.layoutSelectionNotifier.value = newLayout;
-                // No need to call saveLayoutSelection here as it's handled in the notifier
-               // _preferences.saveLayoutSelection(newLayout);
-                //Build #1.0.122: update layout mode change selection to DB
-                await UserDbHelper().saveUserSettings({AppDBConst.layoutSelection: newLayout}, modeChange: true);
+              // Update the notifier which will trigger _onLayoutChanged
+              PinakaPreferences.layoutSelectionNotifier.value = newLayout;
+              // No need to call saveLayoutSelection here as it's handled in the notifier
+              // _preferences.saveLayoutSelection(newLayout);
+              //Build #1.0.122: update layout mode change selection to DB
+              await UserDbHelper().saveUserSettings(
+                  {AppDBConst.layoutSelection: newLayout},
+                  modeChange: true);
 
-                // Update UI state
-                 setState(() {});
+              // Update UI state
+              setState(() {});
             },
           ),
           Divider(
@@ -139,187 +146,318 @@ class _ShiftHistoryDashboardScreenState extends State<ShiftHistoryDashboardScree
 
   Widget _buildShiftHistoryContent() {
     final themeHelper = Provider.of<ThemeNotifier>(context);
-    return Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Container(
-              margin: EdgeInsets.only(left: 10.0),
-              width: MediaQuery.of(context).size.width * 0.025,
-              decoration: BoxDecoration(
-                color: Colors.transparent,
-                shape: BoxShape.circle,
-                border: Border.all(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.black),
-              ),
-              child: IconButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-                icon: Icon(
-                  Icons.arrow_back_rounded,
-                  color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.black,
-                  size: 15,
+    return Container(
+      margin: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: themeHelper.themeMode == ThemeMode.dark
+            ? Color(0xFF1F1D2B)
+            : Color(0xFFFFFFFF),
+        borderRadius: BorderRadius.circular(6.0),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                margin: EdgeInsets.only(left: 15.0, top: 10.0),
+                width: MediaQuery.of(context).size.width * 0.075,
+                height: MediaQuery.of(context).size.height * 0.05,
+                decoration: BoxDecoration(
+                  color: Color(0xFF3B4259),
+                  borderRadius: BorderRadius.circular(6.0),
+                  border: Border.all(color: Color(0xFF3B4259)),
                 ),
-              ),
-            ),
-            Container(
-              margin: EdgeInsets.only(right: 16.0),
-              width: MediaQuery.of(context).size.width * 0.075,
-              height: MediaQuery.of(context).size.height * 0.05,
-              decoration: BoxDecoration(
-                color: Colors.transparent,
-                borderRadius: BorderRadius.circular(6.0),
-                border: Border.all(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.black),
-              ),
-              child: TextButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => ShiftOpenCloseBalanceScreen(),
-                      settings: RouteSettings(arguments: TextConstants.navShiftHistory),
-                    ),
-                  );
-                },
-                icon: Icon(
-                  Icons.add,
-                  color:  themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark :Colors.black,
-                  size: 14,
-                  weight: 10,
-                ),
-                label: Text(
-                  'Add',
-                  style: TextStyle(
-                    color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.black,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
+                child: TextButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  icon: Icon(
+                    Icons.arrow_back_rounded,
+                    color: Colors.white,
+                    size: 14,
+                    weight: 10,
                   ),
-                ),
-                style: TextButton.styleFrom(
-                  padding: EdgeInsets.symmetric(vertical: 5),
-                ),
-              ),
-            ),
-          ],
-        ),
-        Expanded(
-          child: Container(
-            margin: EdgeInsets.fromLTRB(16, 16, 16, 16),
-            decoration: BoxDecoration(
-              color: themeHelper.themeMode == ThemeMode.dark
-                  ? ThemeNotifier.primaryBackground : Colors.white,
-              borderRadius: BorderRadius.circular(8.0),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 4,
-                  spreadRadius: 4,
-                  offset: Offset(0, 0),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: themeHelper.themeMode == ThemeMode.dark
-                        ? ThemeNotifier.primaryBackground : Colors.white,
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(8.0),
-                      topRight: Radius.circular(8.0),
+                  label: Text(
+                    'Back',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                  child: Row(
-                    children: [
-                      Expanded(flex: 2, child: Text('Date', style: _headerStyle(context))),
-                      Expanded(flex: 2, child: Text('Duration', style: _headerStyle(context))),
-                      Expanded(flex: 2, child: Text('Start Time', style: _headerStyle(context))),
-                      Expanded(flex: 2, child: Text('End Time', style: _headerStyle(context))),
-                      Expanded(flex: 2, child: Text('Sales Amount', style: _headerStyle(context))),
-                      Expanded(flex: 2, child: Text('Over/Short', style: _headerStyle(context))),
-                      Expanded(flex: 1, child: SizedBox()),
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.symmetric(vertical: 5),
+                  ),
+                ),
+              ),
+              Container(
+                margin: const EdgeInsets.only(right: 16.0, top: 10),
+                width: MediaQuery.of(context).size.width * 0.075,
+                height: MediaQuery.of(context).size.height * 0.05,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [
+                      Color(0xFFFF5463),
+                      Color(0xFFFF384A),
                     ],
+                    begin: Alignment.topLeft, // start at top-left
+                    end: Alignment.topRight, // end at top-right
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: themeHelper.themeMode == ThemeMode.dark
+                          ? Color(0xFFFF384A).withOpacity(0.60)
+                          : Color(0xFFFF384A).withOpacity(0.50),
+                      blurRadius: 10,
+                      spreadRadius: 1,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: TextButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ShiftOpenCloseBalanceScreen(),
+                        settings: const RouteSettings(
+                            arguments: TextConstants.navShiftHistory),
+                      ),
+                    );
+                  },
+                  icon: const Icon(
+                    Icons.add,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                  label: const Text(
+                    'Add',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  style: TextButton.styleFrom(
+                    backgroundColor: Colors
+                        .transparent, // make button background transparent
+                    padding: const EdgeInsets.symmetric(vertical: 5),
                   ),
                 ),
-                Container(
-                  // margin: EdgeInsets.only(left: 10, right: 10),
-                  height: 1,
-                  color: themeHelper.themeMode == ThemeMode.dark
-                      ?  Colors.white70 :Colors.grey.shade300,
-                ),
-                Expanded(
-                  child: StreamBuilder<APIResponse<ShiftsByUserResponse>>(
-                    stream: shiftBloc.shiftsByUserStream,
-                    builder: (context, snapshot) {
-                      if (snapshot.hasData) { /// Build #1.0.192: Fixed -> JIRA - 331 , Shift Summary screen stuck on continuous loading when mode is changed Summary
-                        // Update flag when we get data
-                        _isDataLoaded = true;
-
-                        switch (snapshot.data!.status) {
-                          case Status.LOADING:
-                          // If data already loaded, show cached data instead of loading indicator
-                            if (_isDataLoaded && _cachedShifts.isNotEmpty) {
-                              return _buildShiftListView(_cachedShifts, themeHelper);
-                            }
-                            return Center(child: CircularProgressIndicator());
-                          case Status.COMPLETED:
-                            final shifts = snapshot.data!.data!.shifts;
-                            if (shifts.isEmpty) {
-                              return Center(child: Text('No shifts found'));
-                            }
-                            // STORE THE DATA WHEN WE HAVE IT
-                            if (snapshot.data!.data != null) {
-                              _cachedShifts = snapshot.data!.data!.shifts;
-                            }
-                            return _buildShiftListView(shifts, themeHelper);
-                          case Status.ERROR:
-                            if (kDebugMode) {
-                              print(" Test --- Unauthorised : response.message ${snapshot.data!.message ?? " "}");
-                            }
-                            if (snapshot.data!.message != null) {
-                              if (snapshot.data!.message!
-                                  .contains('Unauthorised')) {
-                                if (kDebugMode) {
-                                  print(
-                                      "Unauthorised : response.message ${snapshot.data!.message!}");
-                                }
-                                WidgetsBinding.instance.addPostFrameCallback((_) {
-                                  if (mounted) {
-                                    Navigator.pushReplacement(context, MaterialPageRoute(
-                                        builder: (context) => LoginScreen()));
-
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                            "Unauthorised. Session is expired on this device."),
-                                        backgroundColor: Colors.red,
-                                        duration: Duration(seconds: 2),
-                                      ),
-                                    );
-                                  }
-                                });
+              ),
+            ],
+          ),
+          Expanded(
+            child: Container(
+              margin: EdgeInsets.fromLTRB(16, 16, 16, 16),
+              decoration: BoxDecoration(
+                color: themeHelper.themeMode == ThemeMode.dark
+                    ? Color(0xFF1F1D2B)
+                    : Color(0xFFFFFFFF),
+                borderRadius: BorderRadius.circular(8.0),
+                // boxShadow: [
+                //   BoxShadow(
+                //     color: Colors.black.withValues(alpha: 0.05),
+                //     blurRadius: 4,
+                //     spreadRadius: 4,
+                //     offset: Offset(0, 0),
+                //   ),
+                // ],
+              ),
+              child: Column(
+                children: [
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: themeHelper.themeMode == ThemeMode.dark
+                          ? Color(0xFF252837)
+                          : Color(0xFF838383),
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(8.0),
+                        topRight: Radius.circular(8.0),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          flex: 5,
+                          child: SizedBox(),
+                        ),
+                        Expanded(
+                            flex: 18,
+                            child: Text('Date', style: _headerStyle(context))),
+                        Expanded(
+                            flex: 18,
+                            child:
+                            Text('Duration', style: _headerStyle(context))),
+                        Expanded(
+                            flex: 18,
+                            child: Text('Start Time',
+                                style: _headerStyle(context))),
+                        Expanded(
+                            flex: 18,
+                            child:
+                            Text('End Time', style: _headerStyle(context))),
+                        Expanded(
+                            flex: 18,
+                            child: Text('Sales Amount',
+                                style: _headerStyle(context))),
+                        Expanded(
+                            flex: 18,
+                            child: Text('Over/Short',
+                                style: _headerStyle(context))),
+                        Expanded(flex: 0, child: SizedBox()),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    margin: EdgeInsets.only(left: 10),
+                    height: 1,
+                    color: themeHelper.themeMode == ThemeMode.dark
+                        ? Color(0xFF0A122D)
+                        : Color(0xFFF8F8F8),
+                  ),
+                  Expanded(
+                    child: StreamBuilder<APIResponse<ShiftsByUserResponse>>(
+                      stream: shiftBloc.shiftsByUserStream,
+                      builder: (context, snapshot) {
+                        if (snapshot.hasData) {
+                          switch (snapshot.data!.status) {
+                            case Status.LOADING:
+                              return Center(child: CircularProgressIndicator());
+                            case Status.COMPLETED:
+                              final shifts = snapshot.data!.data!.shifts;
+                              if (shifts.isEmpty) {
+                                return Center(child: Text('No shifts found'));
                               }
-                            } else {
-                              return Center(child: Text(TextConstants.failedToFetchShifts)); // Build #1.0.144
-                            }
-                          default:
-                            return SizedBox();
+                              return ListView.builder(
+                                itemCount: shifts.length,
+                                itemBuilder: (context, index) {
+                                  final shift = shifts[index];
+                                  return InkWell(
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              ShiftSummaryDashboardScreen(
+                                                lastSelectedIndex:
+                                                _selectedSidebarIndex,
+                                                shiftId: shift.shiftId,
+                                              ),
+                                        ),
+                                      );
+                                    },
+                                    child: Container(
+                                      padding: EdgeInsets.symmetric(
+                                          horizontal: 16, vertical: 16),
+                                      decoration: BoxDecoration(
+                                        color: themeHelper.themeMode ==
+                                            ThemeMode.dark
+                                            ? Color(0xFF0A122D)
+                                            : Color(0xFFF8F8F8),
+                                        border: Border(
+                                          bottom: BorderSide(
+                                            color: themeHelper.themeMode ==
+                                                ThemeMode.dark
+                                                ? Color(0x70616060)
+                                                : Color(0xFFD8D7D7),
+                                            width: 1,
+                                            style: BorderStyle.solid,
+                                          ),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Expanded(
+                                            flex: 5,
+                                            child: SizedBox(),
+                                          ),
+                                          Expanded(
+                                            flex: 18,
+                                            child: Text(
+                                              DateTimeHelper.extractDate(
+                                                  shift.startTime),
+                                              style: _cellStyle(context),
+                                            ),
+                                          ),
+                                          Expanded(
+                                            flex: 18,
+                                            child: Text(
+                                              DateTimeHelper.calculateDuration(
+                                                  shift.startTime,
+                                                  shift.endTime),
+                                              style: _cellStyle(context),
+                                            ),
+                                          ),
+                                          Expanded(
+                                            flex: 18,
+                                            child: Text(
+                                              DateTimeHelper.extractTime(
+                                                  shift.startTime),
+                                              style: _cellStyle(context),
+                                            ),
+                                          ),
+                                          Expanded(
+                                            flex: 18,
+                                            child: Text(
+                                              shift.endTime.isEmpty
+                                                  ? ''
+                                                  : DateTimeHelper.extractTime(
+                                                  shift.endTime),
+                                              style: _cellStyle(context),
+                                            ),
+                                          ),
+                                          Expanded(
+                                            flex: 18,
+                                            child: Text(
+                                              '${TextConstants.currencySymbol}${shift.totalSaleAmount.toStringAsFixed(2)}',
+                                              style: _cellStyle(context),
+                                            ),
+                                          ),
+                                          Expanded(
+                                            flex: 18,
+                                            child: Text(
+                                              '${shift.overShort < 0 ? '-' : ''}${TextConstants.currencySymbol}${shift.overShort.abs().toStringAsFixed(2)}',
+                                              style: TextStyle(
+                                                color: shift.overShort >= 0
+                                                    ? Colors.green
+                                                    : Colors
+                                                    .red, //Fix: all values are showing red , only show negative values as red text
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                          ),
+                                          Expanded(
+                                            flex: 0,
+                                            child: SizedBox(),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              );
+                            case Status.ERROR:
+                              return Center(
+                                  child: Text(TextConstants
+                                      .failedToFetchShifts)); // Build #1.0.144
+                            default:
+                              return SizedBox();
+                          }
                         }
-                      }
-                      // If no data yet but UI is rebuilding, show loading only if no data loaded before
-                      return _isDataLoaded && _cachedShifts.isNotEmpty
-                          ? _buildShiftListView(_cachedShifts, themeHelper) // Show cached data
-                          : Center(child: CircularProgressIndicator()); // Show loading for first time
-                    },
+                        return Center(child: CircularProgressIndicator());
+                      },
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -342,15 +480,16 @@ class _ShiftHistoryDashboardScreenState extends State<ShiftHistoryDashboardScree
             );
           },
           child: Container(
-            // margin: EdgeInsets.only(left: 10, right: 10),
             padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             decoration: BoxDecoration(
               color: themeHelper.themeMode == ThemeMode.dark
-                  ? ThemeNotifier.tabsBackground : null,
+                  ? ThemeNotifier.tabsBackground
+                  : null,
               border: Border(
                 bottom: BorderSide(
                   color: themeHelper.themeMode == ThemeMode.dark
-                      ? Colors.white38 : Colors.grey.shade200,
+                      ? Colors.white38
+                      : Colors.grey.shade200,
                   width: 1,
                   style: BorderStyle.solid,
                 ),
@@ -359,52 +498,62 @@ class _ShiftHistoryDashboardScreenState extends State<ShiftHistoryDashboardScree
             child: Row(
               children: [
                 Expanded(
-                  flex: 2,
+                  flex: 5,
+                  child: SizedBox(),
+                ),
+                Expanded(
+                  flex: 18,
                   child: Text(
                     DateTimeHelper.extractDate(shift.startTime),
                     style: _cellStyle(context),
                   ),
                 ),
                 Expanded(
-                  flex: 2,
+                  flex: 18,
                   child: Text(
-                    DateTimeHelper.calculateDuration(shift.startTime, shift.endTime),
+                    DateTimeHelper.calculateDuration(
+                        shift.startTime, shift.endTime),
                     style: _cellStyle(context),
                   ),
                 ),
                 Expanded(
-                  flex: 2,
+                  flex: 18,
                   child: Text(
                     DateTimeHelper.extractTime(shift.startTime),
                     style: _cellStyle(context),
                   ),
                 ),
                 Expanded(
-                  flex: 2,
+                  flex: 18,
                   child: Text(
-                    shift.endTime.isEmpty ? '' : DateTimeHelper.extractTime(shift.endTime),
+                    shift.endTime.isEmpty
+                        ? ''
+                        : DateTimeHelper.extractTime(shift.endTime),
                     style: _cellStyle(context),
                   ),
                 ),
                 Expanded(
-                  flex: 2,
+                  flex: 18,
                   child: Text(
                     '${TextConstants.currencySymbol}${shift.totalSaleAmount.toStringAsFixed(2)}',
                     style: _cellStyle(context),
                   ),
                 ),
                 Expanded(
-                  flex: 2,
+                  flex: 18,
                   child: Text(
                     '${shift.overShort < 0 ? '-' : ''}${TextConstants.currencySymbol}${shift.overShort.abs().toStringAsFixed(2)}',
                     style: TextStyle(
-                      color: shift.overShort >= 0 ? Colors.green : Colors.red,
+                      color: shift.overShort >= 0
+                          ? Colors.green
+                          : Colors
+                          .red, //Fix: all values are showing red , only show negative values as red text
                       fontSize: 14,
                     ),
                   ),
                 ),
                 Expanded(
-                  flex: 1,
+                  flex: 0,
                   child: SizedBox(),
                 ),
               ],
@@ -419,7 +568,8 @@ class _ShiftHistoryDashboardScreenState extends State<ShiftHistoryDashboardScree
     final themeHelper = Provider.of<ThemeNotifier>(context);
     return TextStyle(
       color: themeHelper.themeMode == ThemeMode.dark
-          ? ThemeNotifier.textDark : Colors.black54,
+          ? ThemeNotifier.textDark
+          : Colors.white,
       fontSize: 14,
       fontWeight: FontWeight.bold,
     );
@@ -428,8 +578,9 @@ class _ShiftHistoryDashboardScreenState extends State<ShiftHistoryDashboardScree
   TextStyle _cellStyle(BuildContext context) {
     final themeHelper = Provider.of<ThemeNotifier>(context);
     return TextStyle(
-      color:  themeHelper.themeMode == ThemeMode.dark
-          ? ThemeNotifier.textDark : Colors.black87,
+      color: themeHelper.themeMode == ThemeMode.dark
+          ? ThemeNotifier.textDark
+          : Colors.black87,
       fontSize: 14,
     );
   }
@@ -471,13 +622,15 @@ class DateTimeHelper {
     try {
       final DateFormat dateFormat = DateFormat('yyyy-MM-dd HH:mm:ss');
       final DateTime start = dateFormat.parse(startTime);
-      final DateTime end = endTime.isNotEmpty ? dateFormat.parse(endTime) : DateTime.now();
+      final DateTime end =
+      endTime.isNotEmpty ? dateFormat.parse(endTime) : DateTime.now();
       final Duration duration = end.difference(start);
       final int hours = duration.inHours;
       final int minutes = duration.inMinutes.remainder(60);
       final int seconds = duration.inSeconds.remainder(60);
       if (kDebugMode) {
-        print('Calculated duration for start: $startTime, end: $endTime -> $hours:$minutes:$seconds');
+        print(
+            'Calculated duration for start: $startTime, end: $endTime -> $hours:$minutes:$seconds');
       }
       return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
     } catch (e) {

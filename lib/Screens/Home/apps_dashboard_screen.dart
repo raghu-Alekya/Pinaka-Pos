@@ -29,7 +29,7 @@ class AppsDashboardScreen extends StatefulWidget {
 class _AppsDashboardScreenState extends State<AppsDashboardScreen> with LayoutSelectionMixin {
   final List<String> items = List.generate(18, (index) => 'Bud Light');
   int _selectedSidebarIndex =
-      4; //Build #1.0.2 : By default fast key should be selected after login
+  4; //Build #1.0.2 : By default fast key should be selected after login
   DateTime now = DateTime.now();
   List<int> quantities = [1, 1, 1, 1];
   bool isLoading = true; // Add a loading state
@@ -53,7 +53,7 @@ class _AppsDashboardScreenState extends State<AppsDashboardScreen> with LayoutSe
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-
+    final themeHelper = Provider.of<ThemeNotifier>(context);
     return Scaffold(
       body: Column(
         children: [
@@ -62,20 +62,20 @@ class _AppsDashboardScreenState extends State<AppsDashboardScreen> with LayoutSe
             screen: Screen.APPS,
             onModeChanged: () async{ /// Build #1.0.192: Fixed -> Exception -> setState() callback argument returned a Future. (onModeChanged in all screens)
               String newLayout;
-                if (sidebarPosition == SidebarPosition.left) {
-                  newLayout = SharedPreferenceTextConstants.navRightOrderLeft;
-                } else if (sidebarPosition == SidebarPosition.right) {
-                  newLayout = SharedPreferenceTextConstants.navBottomOrderLeft;
-                } else {
-                  newLayout = SharedPreferenceTextConstants.navLeftOrderRight;
-                }
+              if (sidebarPosition == SidebarPosition.left) {
+                newLayout = SharedPreferenceTextConstants.navRightOrderLeft;
+              } else if (sidebarPosition == SidebarPosition.right) {
+                newLayout = SharedPreferenceTextConstants.navBottomOrderLeft;
+              } else {
+                newLayout = SharedPreferenceTextConstants.navLeftOrderRight;
+              }
 
-                //Update the notifier which will trigger _onLayoutChanged
-                PinakaPreferences.layoutSelectionNotifier.value = newLayout;
-                // No need to call saveLayoutSelection here as it's handled in the notifier
-               // _preferences.saveLayoutSelection(newLayout);
-                //Build #1.0.122: update layout mode change selection to DB
-                await UserDbHelper().saveUserSettings({AppDBConst.layoutSelection: newLayout}, modeChange: true);
+              //Update the notifier which will trigger _onLayoutChanged
+              PinakaPreferences.layoutSelectionNotifier.value = newLayout;
+              // No need to call saveLayoutSelection here as it's handled in the notifier
+              // _preferences.saveLayoutSelection(newLayout);
+              //Build #1.0.122: update layout mode change selection to DB
+              await UserDbHelper().saveUserSettings({AppDBConst.layoutSelection: newLayout}, modeChange: true);
               // update UI
               setState(() {});
             },
@@ -111,27 +111,38 @@ class _AppsDashboardScreenState extends State<AppsDashboardScreen> with LayoutSe
                     padding: const EdgeInsets.all(8.0),
                     child: GridView.count(
                       crossAxisCount: 4,
-                      childAspectRatio: 1 ,
-                      crossAxisSpacing: 16.0,
-                      mainAxisSpacing: 16.0,
+                      childAspectRatio: 1,
                       children: [
                         _buildCard(
-                          title: TextConstants.cashier,
-                          icon: 'assets/svg/cashier.svg',
+                          //title: TextConstants.cashier,
+                          icon: themeHelper.themeMode == ThemeMode.dark
+                              ? Image.asset(
+                            "assets/cashier_dark.png",
+                          )
+                              : Image.asset(
+                            "assets/cashier_lite.png",
+                          ),
                           cardIndex: 0,
                           onTap: () {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => ShiftHistoryDashboardScreen()  //Build #1.0.74
-                              //  settings: RouteSettings(arguments: TextConstants.navCashier),  // Build #1.0.70
+                                  builder: (context) =>
+                                      ShiftHistoryDashboardScreen() //Build #1.0.74
+                                //  settings: RouteSettings(arguments: TextConstants.navCashier),  // Build #1.0.70
                               ),
                             );
                           },
                         ),
                         _buildCard(
-                          title: TextConstants.safeDrop,
-                          icon: 'assets/svg/safe_drop.svg',
+                          // title: TextConstants.safeDrop,
+                          icon: themeHelper.themeMode == ThemeMode.dark
+                              ? Image.asset(
+                            "assets/safedrop_dark.png",
+                          )
+                              : Image.asset(
+                            "assets/safedrop_lite.png",
+                          ),
                           cardIndex: 1,
                           onTap: () {
                             Navigator.push(
@@ -148,6 +159,48 @@ class _AppsDashboardScreenState extends State<AppsDashboardScreen> with LayoutSe
                     ),
                   ),
                 ),
+                // Expanded(
+                //   child: Padding(
+                //     padding: const EdgeInsets.all(8.0),
+                //     child: GridView.count(
+                //       crossAxisCount: 4,
+                //       childAspectRatio: 1 ,
+                //       crossAxisSpacing: 16.0,
+                //       mainAxisSpacing: 16.0,
+                //       children: [
+                //         _buildCard(
+                //           title: TextConstants.cashier,
+                //           icon: 'assets/svg/cashier.svg',
+                //           cardIndex: 0,
+                //           onTap: () {
+                //             Navigator.push(
+                //               context,
+                //               MaterialPageRoute(
+                //                 builder: (context) => ShiftHistoryDashboardScreen()  //Build #1.0.74
+                //               //  settings: RouteSettings(arguments: TextConstants.navCashier),  // Build #1.0.70
+                //               ),
+                //             );
+                //           },
+                //         ),
+                //         _buildCard(
+                //           title: TextConstants.safeDrop,
+                //           icon: 'assets/svg/safe_drop.svg',
+                //           cardIndex: 1,
+                //           onTap: () {
+                //             Navigator.push(
+                //               context,
+                //               MaterialPageRoute(
+                //                 builder: (context) => SafeDropScreen(),
+                //               ),
+                //             );
+                //
+                //             // Handle Safe Drop tap
+                //           },
+                //         ),
+                //       ],
+                //     ),
+                //   ),
+                // ),
 
                 // Right Sidebar (Conditional)
                 if (sidebarPosition == SidebarPosition.right)
@@ -183,58 +236,74 @@ class _AppsDashboardScreenState extends State<AppsDashboardScreen> with LayoutSe
   }
 
   Widget _buildCard({
-    required String title,
-    required String icon,
+    required Widget icon,
     required VoidCallback onTap,
     required int cardIndex,
   }) {
-    final themeHelper = Provider.of<ThemeNotifier>(context);
-    return Material(
-      elevation: 2,
-      borderRadius: BorderRadius.circular(12),
-      color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground : null,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        //splashColor: Colors.blue.withValues(alpha: 0.3),
-        highlightColor: Colors.blue.withValues(alpha: 0.3),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground : null,
-          ),
-          child: Column(
-            children: [
-              Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Color(0xFFECF7FF),
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(18),
-                      topRight: Radius.circular(18),
-                    ),
-                  ),
-                  width: double.infinity,
-                  child: SvgPicture.asset(
-                    icon,
-                    fit: BoxFit.contain,
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(25.0),
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+    return GestureDetector(
+      onTap: onTap,
+      child:  SizedBox(
+        width: 330,
+        height: 330,
+        child: icon,
       ),
     );
   }
 }
+
+//   Widget _buildCard({
+//     required String title,
+//     required String icon,
+//     required VoidCallback onTap,
+//     required int cardIndex,
+//   }) {
+//     final themeHelper = Provider.of<ThemeNotifier>(context);
+//     return Material(
+//       elevation: 2,
+//       borderRadius: BorderRadius.circular(12),
+//       color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground : null,
+//       child: InkWell(
+//         onTap: onTap,
+//         borderRadius: BorderRadius.circular(12),
+//         //splashColor: Colors.blue.withValues(alpha: 0.3),
+//         highlightColor: Colors.blue.withValues(alpha: 0.3),
+//         child: Container(
+//           decoration: BoxDecoration(
+//             borderRadius: BorderRadius.circular(18),
+//             color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground : null,
+//           ),
+//           child: Column(
+//             children: [
+//               Expanded(
+//                 child: Container(
+//                   decoration: BoxDecoration(
+//                     color: Color(0xFFECF7FF),
+//                     borderRadius: BorderRadius.only(
+//                       topLeft: Radius.circular(18),
+//                       topRight: Radius.circular(18),
+//                     ),
+//                   ),
+//                   width: double.infinity,
+//                   child: SvgPicture.asset(
+//                     icon,
+//                     fit: BoxFit.contain,
+//                   ),
+//                 ),
+//               ),
+//               Padding(
+//                 padding: const EdgeInsets.all(25.0),
+//                 child: Text(
+//                   title,
+//                   style: const TextStyle(
+//                     fontSize: 20,
+//                     fontWeight: FontWeight.bold,
+//                   ),
+//                 ),
+//               ),
+//             ],
+//           ),
+//         ),
+//       ),
+//     );
+//   }
+// }

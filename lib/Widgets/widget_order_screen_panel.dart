@@ -18,20 +18,15 @@ import 'package:pinaka_pos/Widgets/widget_order_status.dart';
 import 'package:pinaka_pos/Widgets/widget_alert_popup_dialogs.dart';
 import 'package:provider/provider.dart';
 import '../Blocs/Orders/order_bloc.dart';
-import '../Blocs/Payment/payment_bloc.dart';
 import '../Blocs/Search/product_search_bloc.dart';
 import '../Constants/misc_features.dart';
 import '../Constants/text.dart';
-import '../Database/assets_db_helper.dart';
 import '../Database/db_helper.dart';
 import '../Database/order_panel_db_helper.dart';
 import '../Database/printer_db_helper.dart';
-import '../Database/store_db_helper.dart';
 import '../Database/user_db_helper.dart';
 import '../Helper/Extentions/theme_notifier.dart';
 import '../Helper/api_response.dart';
-import '../Models/Payment/payment_model.dart';
-import '../Repositories/Payment/payment_repository.dart';
 import '../Utilities/global_utility.dart';
 import '../Models/Orders/orders_model.dart';
 import '../Repositories/Auth/store_validation_repository.dart';
@@ -49,7 +44,7 @@ class OrderScreenPanel extends StatefulWidget {
   final List<int> quantities;
   final VoidCallback? refreshOrderList;
   final int? activeOrderId; // Build #1.0.118: Added activeOrderId
-  final bool fetchOrders; //Build #1.0.234:  Mark as final
+  bool fetchOrders;
 
   OrderScreenPanel({
     required this.formattedDate,
@@ -65,42 +60,30 @@ class OrderScreenPanel extends StatefulWidget {
   _OrderScreenPanelState createState() => _OrderScreenPanelState();
 }
 
-class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProviderStateMixin {
+class _OrderScreenPanelState extends State<OrderScreenPanel>
+    with TickerProviderStateMixin {
   List<Map<String, Object>> tabs = []; // List of order tabs
   TabController? _tabController; // Controller for tab switching
-  List<Map<String, dynamic>> orderItems = []; // List of items in the selected order
-  final OrderHelper orderHelper = OrderHelper(); // Helper instance to manage orders
+  List<Map<String, dynamic>> orderItems =
+  []; // List of items in the selected order
+  final OrderHelper orderHelper =
+  OrderHelper(); // Helper instance to manage orders
 
   bool _isLoading = false;
   bool _isPayBtnLoading = false;
-  bool _initialFetchDone = false; // Build #1.0.143: Track initial fetch of fetchOrdersData
- // late OrderBloc orderBloc;
+  bool _initialFetchDone =
+  false; // Build #1.0.143: Track initial fetch of fetchOrdersData
+  // late OrderBloc orderBloc;
   StreamSubscription? _updateOrderSubscription;
   StreamSubscription? _fetchOrdersSubscription;
-  final ProductBloc productBloc = ProductBloc(ProductRepository()); // Build #1.0.44 : Added for barcode scanning
-  StreamSubscription? _productBySkuSubscription; // Build #1.0.44 : Added for product stream
+  final ProductBloc productBloc = ProductBloc(
+      ProductRepository()); // Build #1.0.44 : Added for barcode scanning
+  StreamSubscription?
+  _productBySkuSubscription; // Build #1.0.44 : Added for product stream
 
   bool _showFullSummary = false;
   late ScaffoldMessengerState _scaffoldMessenger;
   var _printerReceipt;
-
-  // Build #1.0.221 : Added these variables
-  late PaymentBloc paymentBloc;
-  StreamSubscription? _paymentListSubscription;
-  double payByCash = 0.0;
-  double payByOther = 0.0;
-  double tenderAmount = 0.0;
-  double changeAmount = 0.0;
-  String orderStatus = TextConstants.processing;
-  int? orderServerId; // Server order ID for API calls
-  double total = 0.0;
-  double balanceAmount = 0.0;
-  double paidAmount = 0.0;
-  double discount = 0.0; // Add this to track discount
-  double merchantDiscount = 0.0; // Add this to track merchant discount
-  double tax = 0.0; // AddED tax variable
-  final _printerSettings =  PrinterSettings();
-  List<int> bytes = [];
 
   void _toggleSummary() {
     setState(() {
@@ -113,164 +96,74 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
     if (kDebugMode) {
       print("##### OrderPanel initState");
     }
-  //  orderBloc = OrderBloc(OrderRepository()); // Build #1.0.143: no need
+    //  orderBloc = OrderBloc(OrderRepository()); // Build #1.0.143: no need
     fetchOrdersData(); // Build #1.0.104
-    _initialFetchDone = true; // Build #1.0.143: Track initial fetch of fetchOrdersData, after return from order summary screen we are updating order screen panel in didUpdateWidget, added this flag for multiple re-calls of fetchOrdersData()
+    _initialFetchDone =
+    true; // Build #1.0.143: Track initial fetch of fetchOrdersData, after return from order summary screen we are updating order screen panel in didUpdateWidget, added this flag for multiple re-calls of fetchOrdersData()
     super.initState();
-   // _getOrderTabs(); //Build #1.0.40: Load existing orders into tabs
+    // _getOrderTabs(); //Build #1.0.40: Load existing orders into tabs
     //_fetchOrders(); //Build #1.0.40: Fetch orders on initialization
     loadPrinterData();
-    // Initialize payment bloc
-    paymentBloc = PaymentBloc(PaymentRepository());
-  }
-
-  // Build #1.0.221 : getPaymentsByOrderId API call for payment details
-  // we need to call payment by order id api in order screen panel and load the details payByCash, payByOther, tender amount, change amount
-  void _fetchPaymentsByOrderId() {
-    if (kDebugMode) {
-      print("###### _fetchPaymentsByOrderId - OrderScreenPanel");
-    }
-
-    if (orderServerId != null) {
-      paymentBloc.getPaymentsByOrderId(orderServerId!);
-
-      _paymentListSubscription?.cancel();
-      _paymentListSubscription = paymentBloc.paymentsListStream.listen((response) {
-        if (response.status == Status.COMPLETED) {
-          if (kDebugMode) {
-            print("###### _fetchPaymentsByOrderId Api call COMPLETED - OrderScreenPanel");
-            print("###### Response data: ${response.data}");
-          }
-
-          if (response.data!.isNotEmpty) {
-            orderStatus = response.data?.first.orderStatus ?? TextConstants.processing;
-            if (kDebugMode) {
-              print("###### Order status updated to: $orderStatus");
-            }
-          }
-
-          _processPaymentList(response.data!);
-        } else if (response.status == Status.ERROR) {
-          if (kDebugMode) {
-            print("Error fetching payments: ${response.message}");
-          }
-        }
-
-      });
-    } else {
-      if (kDebugMode) {
-        print("###### orderServerId is null - Cannot fetch payments");
-      }
-    }
-  }
-
-  // Build #1.0.221 Process payment list and update UI
-  void _processPaymentList(List<PaymentListModel> payments) {
-    double cashTotal = 0.0;
-    double otherTotal = 0.0;
-
-    for (var payment in payments) {
-      double amount = double.tryParse(payment.amount) ?? 0.0;
-      if (payment.paymentMethod == TextConstants.cash && payment.voidStatus == false) {
-        cashTotal += amount;
-      } else if (payment.paymentMethod != TextConstants.cash && payment.voidStatus == false) {
-        otherTotal += amount;
-      }
-    }
-
-    if (kDebugMode) {
-      print("###### _processPaymentList - OrderScreenPanel");
-      print("###### Cash Total: $cashTotal, Other Total: $otherTotal");
-    }
-
-    setState(() {
-      payByCash = cashTotal;
-      payByOther = otherTotal;
-      tenderAmount = payByCash + payByOther;
-
-      // Update balanceAmount based on order total and payments
-      double orderTotal = (_order[AppDBConst.orderTotal] as num?)?.toDouble() ?? 0.0;
-      balanceAmount = orderTotal - payByCash - payByOther;
-
-      // Calculate change amount
-      var isBalanceZero = balanceAmount <= 0;
-      changeAmount = isBalanceZero && (orderStatus != TextConstants.processing) ? balanceAmount.abs() : 0.0;
-      balanceAmount = isBalanceZero && (orderStatus != TextConstants.processing) ? 0 : balanceAmount;
-    });
-
-    if (kDebugMode) {
-      print("###### Updated values - PayByCash: $payByCash, PayByOther: $payByOther");
-      print("###### TenderAmount: $tenderAmount, ChangeAmount: $changeAmount, BalanceAmount: $balanceAmount");
-    }
   }
 
   Future<void> loadPrinterData() async {
     var printerDB = await PrinterDBHelper().getPrinterFromDB();
-    if(printerDB.isEmpty){
+    if (printerDB.isEmpty) {
       if (kDebugMode) {
         print(">>>>> OrderScreenPanel : printerDB is empty");
       }
       return;
     }
     _printerReceipt = printerDB.first;
-
   }
 
   // Build #1.0.118: Updated fetchOrdersData to use widget.activeOrderId
-  Future<void> fetchOrdersData() async { // Build #1.0.104: created this function for initial load and back button refresh
-    if (!mounted) return; // Build #1.0.240 : Added
+  Future<void> fetchOrdersData() async {
+    // Build #1.0.104: created this function for initial load and back button refresh
     setState(() => _isLoading = true); // show loader
     if (kDebugMode) {
-      print("##### fetchOrdersData called for activeOrderId: ${widget.activeOrderId}");
+      print(
+          "##### fetchOrdersData called for activeOrderId: ${widget.activeOrderId}");
     }
     await fetchOrder();
     await fetchOrderItems();
 
-    if (!mounted) return; // Added this check first
     setState(() => _isLoading = false); // Hide loader
   }
 
- // Updated didUpdateWidget to check activeOrderId
+  // Updated didUpdateWidget to check activeOrderId
   @override
   void didUpdateWidget(OrderScreenPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
-   // Build #1.0.143: Fixed Issue : After return from order summary screen , order screen panel not refreshing with updated response
+    // Build #1.0.143: Fixed Issue : After return from order summary screen , order screen panel not refreshing with updated response
     if (!_initialFetchDone && widget.fetchOrders) {
       if (kDebugMode) {
         print("##### widget.fetchOrders : ${widget.fetchOrders}");
       }
       fetchOrdersData();
     }
-    if (mounted && widget.activeOrderId != oldWidget.activeOrderId) {  // Build #1.0.118
+    if (mounted && widget.activeOrderId != oldWidget.activeOrderId) {
+      // Build #1.0.118
       if (kDebugMode) {
-        print("##### OrderPanel didUpdateWidget: activeOrderId changed from ${oldWidget.activeOrderId} to ${widget.activeOrderId}");
+        print(
+            "##### OrderPanel didUpdateWidget: activeOrderId changed from ${oldWidget.activeOrderId} to ${widget.activeOrderId}");
       }
       fetchOrdersData();
     }
   }
+
   var _order;
   // Build #1.0.118: Update fetchOrder to use widget.activeOrderId
   Future<void> fetchOrder() async {
     if (widget.activeOrderId != null) {
-      List<Map<String, dynamic>> ordersData = await orderHelper.getOrderById(widget.activeOrderId!);
+      List<Map<String, dynamic>> ordersData =
+      await orderHelper.getOrderById(widget.activeOrderId!);
       _order = ordersData.firstWhere(
             (o) => o[AppDBConst.orderServerId] == widget.activeOrderId,
         orElse: () => {AppDBConst.orderStatus: ''},
       );
-      // Extract server order ID for API calls
-      orderServerId = _order[AppDBConst.orderServerId] as int?;
-
-      if (kDebugMode) {
-        print("###### OrderScreenPanel - Fetched order server ID: $orderServerId");
-      }
-
-      // Build #1.0.221 : Fetch payment details after getting order server ID
-      if (orderServerId != null) {
-        _fetchPaymentsByOrderId();
-      }
     } else {
       _order = {AppDBConst.orderStatus: ''};
-      orderServerId = null;
     }
   }
 
@@ -303,11 +196,11 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
   //
   //   if (tabs.isNotEmpty) {
   //     int index = 0;
-  //     if (widget.activeOrderId != null) {
-  //       index = orderHelper.orderIds.indexOf(widget.activeOrderId!);
+  //     if (orderHelper.activeOrderId != null) {
+  //       index = orderHelper.orderIds.indexOf(orderHelper.activeOrderId!);
   //       if (index == -1) {
   //         if (kDebugMode) {
-  //           print("##### DEBUG: _getOrderTabs - Active order ID ${widget.activeOrderId} not found, defaulting to last tab");
+  //           print("##### DEBUG: _getOrderTabs - Active order ID ${orderHelper.activeOrderId} not found, defaulting to last tab");
   //         }
   //         index = tabs.length - 1;
   //         await orderHelper.setActiveOrder(tabs[index]["orderId"] as int);
@@ -322,7 +215,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
   //     if (mounted && _tabController != null) {
   //       _tabController?.index = index;
   //       if (kDebugMode) {
-  //         print("##### DEBUG: _getOrderTabs - Set tab index to $index, activeOrderId: ${widget.activeOrderId}");
+  //         print("##### DEBUG: _getOrderTabs - Set tab index to $index, activeOrderId: ${orderHelper.activeOrderId}");
   //       }
   //     }
   //     await fetchOrderItems(); // Load items for active order
@@ -364,18 +257,18 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
 
   // Build #1.0.10: Fetches order items for the active order
   Future<void> fetchOrderItems() async {
-    // Build #1.0.226: Updated -> using widget.activeOrderId rather than orderHelper.activeOrderId
-    // some times while building widgets orderHelper.activeOrderId  can be null
-    // widget.activeOrderId value comes from total orders screen with orderHelper.activeOrderId value only along with default value selectedOrder.
-    if (widget.activeOrderId != null) {
+    if (orderHelper.activeOrderId != null) {
       if (kDebugMode) {
-        print("##### DEBUG: Order screen panel  fetchOrderItems - Fetching items for activeOrderId: ${widget.activeOrderId}");
+        print(
+            "##### DEBUG: Order screen panel  fetchOrderItems - Fetching items for activeOrderId: ${orderHelper.activeOrderId}");
       }
       try {
-        List<Map<String, dynamic>> items = await orderHelper.getOrderItems(widget.activeOrderId!);
+        List<Map<String, dynamic>> items =
+        await orderHelper.getOrderItems(orderHelper.activeOrderId!);
 
         if (kDebugMode) {
-          print("##### DEBUG: fetchOrderItems - Retrieved ${items.length} items: $items");
+          print(
+              "##### DEBUG: fetchOrderItems - Retrieved ${items.length} items: $items");
         }
 
         // total = 0.0;
@@ -483,7 +376,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
   //     // Fetch items for new order
   //     await fetchOrderItems();
   //     if (kDebugMode) {
-  //       print("##### DEBUG: addNewTab - Added tab for orderId: ${widget.activeOrderId}");
+  //       print("##### DEBUG: addNewTab - Added tab for orderId: ${orderHelper.activeOrderId}");
   //     }
   //   }
   // }
@@ -505,7 +398,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
   // void removeTab(int index) async {
   //   if (tabs.isNotEmpty) {
   //     int orderId = tabs[index]["orderId"] as int;
-  //     bool isRemovedTabActive = orderId == widget.activeOrderId;
+  //     bool isRemovedTabActive = orderId == orderHelper.activeOrderId;
   //
   //     await orderHelper.deleteOrder(orderId); // Delete order from DB
   //
@@ -529,7 +422,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
   //         await orderHelper.setActiveOrder(newActiveOrderId);
   //       } else {
   //         // Keep the currently active tab
-  //         int currentActiveIndex = tabs.indexWhere((tab) => tab["orderId"] == widget.activeOrderId);
+  //         int currentActiveIndex = tabs.indexWhere((tab) => tab["orderId"] == orderHelper.activeOrderId);
   //         if (currentActiveIndex != -1) {
   //           _tabController!.index = currentActiveIndex;
   //         }
@@ -538,7 +431,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
   //       fetchOrderItems(); // Refresh order items list
   //     } else {
   //       // No orders left, reset active order and clear UI
-  //       widget.activeOrderId = null;
+  //       orderHelper.activeOrderId = null;
   //       setState(() {
   //         orderItems = []; // Clear order items
   //       });
@@ -548,7 +441,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
 
   // Build #1.0.10: Deletes an item from the active order
   // void deleteItemFromOrder(int itemId) async {
-  //   if (widget.activeOrderId != null) {
+  //   if (orderHelper.activeOrderId != null) {
   //     await orderHelper.deleteItem(itemId); // Delete item from DB
   //     fetchOrderItems(); // Refresh the order items list
   //   }
@@ -565,22 +458,23 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
   @override
   void dispose() {
     _updateOrderSubscription?.cancel(); // Cancel the subscription
-   // orderBloc.dispose(); // Dispose the bloc if needed // Build #1.0.143: No need
+    // orderBloc.dispose(); // Dispose the bloc if needed // Build #1.0.143: No need
     _fetchOrdersSubscription?.cancel();
-   // orderBloc.dispose();
+    // orderBloc.dispose();
     productBloc.dispose();
     _tabController?.dispose();
-    _productBySkuSubscription?.cancel(); // Build #1.0.44 : Added Cancel product subscription
+    _productBySkuSubscription
+        ?.cancel(); // Build #1.0.44 : Added Cancel product subscription
     productBloc.dispose(); // Added: Dispose ProductBloc
-    _paymentListSubscription?.cancel();  // Build #1.0.221
-    paymentBloc.dispose();
     super.dispose();
   }
 
-  Future<String> getDeviceId() async { // Build #1.0.44 : Get Device Id
+  Future<String> getDeviceId() async {
+    // Build #1.0.44 : Get Device Id
     final storeValidationRepository = StoreValidationRepository();
     try {
-      final deviceDetails = await GlobalUtility.getDeviceDetails(); //Build #1.0.126: updated to GlobalUtility
+      final deviceDetails = await GlobalUtility
+          .getDeviceDetails(); //Build #1.0.126: updated to GlobalUtility
       return deviceDetails['device_id'] ?? 'unknown';
     } catch (e) {
       if (kDebugMode) {
@@ -600,7 +494,8 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
         child: Card(
           elevation: 4,
           margin: const EdgeInsets.only(top: 10),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           child: Column(
             children: [
               // Header shimmer
@@ -627,7 +522,8 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                 child: ListView.builder(
                   itemCount: 5,
                   itemBuilder: (_, __) => Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     child: Row(
                       children: [
                         Container(
@@ -687,12 +583,13 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
 
   @override
   Widget build(BuildContext context) {
-
     final themeHelper = Provider.of<ThemeNotifier>(context);
-   // final RightOrderPanel orderScreenPanel = RightOrderPanel(formattedDate: '', formattedTime: '', quantities: []);
+    final RightOrderPanel orderScreenPanel =
+    RightOrderPanel(formattedDate: '', formattedTime: '', quantities: []);
 
     // If no order is active, display a blank panel.
-    return (!widget.fetchOrders) ? _buildShimmerEffect()
+    return (!widget.fetchOrders)
+        ? _buildShimmerEffect()
     //     ? Container(
     //   width: MediaQuery.of(context).size.width * 0.30,
     //   padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
@@ -711,26 +608,77 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
       child: Card(
         elevation: 4,
         margin: const EdgeInsets.only(top: 10),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(
+                8)), // the border of the pay items background
         child: Column(
           children: [
-            Container( // New design for history orders
-              color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground: null,
-              padding: const EdgeInsets.fromLTRB(10, 10,10,10),
+            Container(
+              // New design for history orders
+              // decoration: BoxDecoration(
+              //   color: themeHelper.themeMode == ThemeMode.dark
+              //       ? Color(0xFF221E2B) // dark mode background
+              //       : Colors.white, // light mode background
+              //   borderRadius: BorderRadius.circular(
+              //       10), // rounded corners like card
+              // ),
+              // color: themeHelper.themeMode == ThemeMode.dark
+              //     ? ThemeNotifier.primaryBackground
+              //     : null,
+              //padding: const EdgeInsets.fromLTRB(10, 10,10,10),
+              padding: const EdgeInsets.fromLTRB(6, 8, 8, 0), // compact padding
               alignment: Alignment.centerLeft,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text("#${widget.activeOrderId ?? 'N/A'}",style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),),
-                      StatusWidget(
-                        status: _order?[AppDBConst.orderStatus] ?? '',
-                      ),
-                    ],
+                  // const SizedBox(height: 10),
+                  // First Row
+                  Container(
+                    padding: const EdgeInsets.all(0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Container(
+                          height: 50, // fixed height
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10), // Add your desired padding
+                          decoration: BoxDecoration(
+                            color: themeHelper.themeMode == ThemeMode.dark
+                                ? const Color(0xFF353848) // Dark mode background
+                                : const Color(0xFFE0E5F7), // Light mode background
+                            borderRadius: BorderRadius.only(
+                              topLeft: Radius.circular(10),
+                              topRight: Radius.circular(10),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Text(
+                                "#${orderHelper.activeOrderId ?? 'N/A'}",
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        StatusWidget(
+                          status: _order?[AppDBConst.orderStatus] ?? '',
+                        ),
+                      ],
+                    ),
                   ),
+
+                  // Row(
+                  //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  //   children: [
+                  //     Text("#${orderHelper.activeOrderId ?? 'N/A'}",style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),),
+                  //     StatusWidget(
+                  //       status: _order?[AppDBConst.orderStatus] ?? '',
+                  //     ),
+                  //
+                  //   ],
+                  // ),
                 ],
               ),
             ),
@@ -755,7 +703,9 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
     if (response.status == Status.COMPLETED) {
       _scaffoldMessenger.showSnackBar(
         SnackBar(
-          content: Text("${isPayout ? TextConstants.payout : isCoupon ? TextConstants.coupon : isCustomItem ? TextConstants.customItem : 'Item'}" "${TextConstants.removedSuccessfully}"),
+          content: Text(
+              "${isPayout ? TextConstants.payout : isCoupon ? TextConstants.coupon : isCustomItem ? TextConstants.customItem : 'Item'}"
+                  "${TextConstants.removedSuccessfully}"),
           backgroundColor: Colors.green,
           duration: const Duration(seconds: 2),
         ),
@@ -766,7 +716,9 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
     } else if (response.status == Status.ERROR) {
       _scaffoldMessenger.showSnackBar(
         SnackBar(
-          content: Text(response.message ?? "${TextConstants.failedToRemove}" "${isPayout ? TextConstants.payout : isCoupon ? TextConstants.coupon : isCustomItem ? TextConstants.coupon : 'item'}"),
+          content: Text(response.message ??
+              "${TextConstants.failedToRemove}"
+                  "${isPayout ? TextConstants.payout : isCoupon ? TextConstants.coupon : isCustomItem ? TextConstants.coupon : 'item'}"),
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 2),
         ),
@@ -775,38 +727,40 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
         await CustomDialog.showDiscountNotApplied(
           context,
           errorMessageTitle: TextConstants.removePayoutFailed,
-          errorMessageDes: response.message ?? TextConstants.discountNotAppliedDescription,
+          errorMessageDes:
+          response.message ?? TextConstants.discountNotAppliedDescription,
           onRetry: retryCallback, // Pass retry callback
         );
       } else if (isCoupon) {
         await CustomDialog.showCouponNotApplied(
           context,
           errorMessageTitle: TextConstants.removeCouponFailed,
-          errorMessageDes: response.message ?? TextConstants.couponNotAppliedDescription,
+          errorMessageDes:
+          response.message ?? TextConstants.couponNotAppliedDescription,
           onRetry: retryCallback, // Pass retry callback
         );
       } else if (isCustomItem) {
         await CustomDialog.showCustomItemNotAdded(
           context,
           errorMessageTitle: TextConstants.removeCustomItemFailed,
-          errorMessageDes: response.message ?? TextConstants.customItemCouldNotBeAddedDescription,
+          errorMessageDes: response.message ??
+              TextConstants.customItemCouldNotBeAddedDescription,
           onRetry: retryCallback,
         );
       }
     }
   }
 
-
-
 // Current Order UI
   Widget buildCurrentOrder() {
-    final theme = Theme.of(context); // Build #1.0.6 - added theme for order panel
+    final theme =
+    Theme.of(context); // Build #1.0.6 - added theme for order panel
     final themeHelper = Provider.of<ThemeNotifier>(context);
     final ScrollController _scrollController = ScrollController();
     // Fetch the specific order if in history mode
-    final order = widget.activeOrderId != null
+    final order = orderHelper.activeOrderId != null
         ? orderHelper.orders.firstWhere(
-          (o) => o[AppDBConst.orderServerId] == widget.activeOrderId,
+          (o) => o[AppDBConst.orderServerId] == orderHelper.activeOrderId,
       orElse: () => {},
     )
         : {};
@@ -817,7 +771,8 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
 
     if (order.isNotEmpty && order[AppDBConst.orderDate] != null) {
       try {
-        final DateTime createdDateTime = DateTime.parse(order[AppDBConst.orderDate].toString());
+        final DateTime createdDateTime =
+        DateTime.parse(order[AppDBConst.orderDate].toString());
         displayDate = DateFormat("EEE, MMM d, yyyy").format(createdDateTime);
         displayTime = DateFormat('hh:mm:ss a').format(createdDateTime);
       } catch (e) {
@@ -835,36 +790,39 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
     double orderDiscount = 0.0;
     double merchantDiscount = 0.0;
     double orderTax = 0.0;
-    num grossTotal = GlobalUtility.getGrossTotal(orderItems);  // Build #1.0.137: GrossTotal calculation form global class for code re usability
+    num grossTotal = GlobalUtility.getGrossTotal(
+        orderItems); // Build #1.0.137: GrossTotal calculation form global class for code re usability
     num netTotal = 0.0;
-    num netPayable = 0.0;  //Build #1.0.67
+    num netPayable = 0.0; //Build #1.0.67
 
     // Update the calculation section in buildCurrentOrder:
-    // if (widget.activeOrderId != null) {
-      // final order = orderHelper.orders.firstWhere(
-      //       (order) => order[AppDBConst.orderServerId] == widget.activeOrderId,
-      //   orElse: () => {},
-      // );
+    // if (orderHelper.activeOrderId != null) {
+    // final order = orderHelper.orders.firstWhere(
+    //       (order) => order[AppDBConst.orderServerId] == orderHelper.activeOrderId,
+    //   orElse: () => {},
+    // );
 
-      // Get values from order or default to 0
-      orderDiscount = order[AppDBConst.orderDiscount] as double? ?? 0.0;
-      merchantDiscount = order[AppDBConst.merchantDiscount] as double? ?? 0.0;
-      orderTax = order[AppDBConst.orderTax] as double? ?? 0.0;
+    // Get values from order or default to 0
+    orderDiscount = order[AppDBConst.orderDiscount] as double? ?? 0.0;
+    merchantDiscount = order[AppDBConst.merchantDiscount] as double? ?? 0.0;
+    orderTax = order[AppDBConst.orderTax] as double? ?? 0.0;
 
     // Build #1.0.138: Calculate net total
-    netTotal = grossTotal - orderDiscount ;
+    netTotal = grossTotal - orderDiscount;
 
     //Build #1.0.146: Apply merchant discount (this is typically a separate discount)
     netTotal = netTotal - merchantDiscount;
+
     ///map total with netPayable
-    netPayable =  order[AppDBConst.orderTotal] as double? ?? 0.0;
+    netPayable = order[AppDBConst.orderTotal] as double? ?? 0.0;
 
     // Build #1.0.138: Ensure no negative values
     netTotal = netTotal < 0 ? 0.0 : netTotal;
     netPayable = netPayable < 0 ? 0.0 : netPayable;
 
-    if (kDebugMode) {  //Build #1.0.67
-      // print("#### ACTIVE ORDER ID: ${widget.activeOrderId}");
+    if (kDebugMode) {
+      //Build #1.0.67
+      // print("#### ACTIVE ORDER ID: ${orderHelper.activeOrderId}");
       // print("#### orderItems: $orderItems");
       // print("#### grossTotal: $grossTotal");
       // print("#### orderDiscount: $orderDiscount");
@@ -879,41 +837,86 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
         Column(
           children: [
             Container(
-              color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground: null,
-              padding: const EdgeInsets.fromLTRB(10, 5, 16, 5),
+              margin: const EdgeInsets.symmetric(
+                  horizontal: 6,
+                  vertical: 0), // leaves background visible on left & right
+              decoration: BoxDecoration(
+                color: themeHelper.themeMode == ThemeMode.dark
+                    ? const Color(0xFF353848) // dark mode background 3D4154
+                    : const Color(0xFFE0E5F7),
+                //color: const Color(0xFFE0E5F7), // ✅ background
+                borderRadius: BorderRadius.only(
+                  topRight: Radius.circular(16), // ✅ only top-right is curved
+                ),
+                //borderRadius: BorderRadius.circular(12),
+              ),
+              // color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground: null,
+              padding: const EdgeInsets.fromLTRB(10, 5, 16, 8),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  if(widget.activeOrderId != null)
-                  Row(
-                    spacing: 4,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SvgPicture.asset('assets/svg/calendar.svg',width: 22,height: 22,),
-                      Text(displayDate,  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: theme.secondaryHeaderColor)),
-                      const SizedBox(width: 8),
-                      SvgPicture.asset('assets/svg/clock.svg',width: 22,height: 22,),
-                      Text(displayTime ,style: TextStyle(fontSize: 14, color: theme.secondaryHeaderColor)),
-                    ],
-                  ),
+                  if (orderHelper.activeOrderId != null)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SvgPicture.asset(
+                          'assets/svg/calendar.svg',
+                          width: 20,
+                          height: 20,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.white
+                              : Color(0xFF656161), // or your light mode color
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          displayDate,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color:
+                            Theme.of(context).brightness == Brightness.dark
+                                ? Colors.white
+                                : Color(0xFF656161),
+                          ),
+                        ),
+                        const SizedBox(width: 100),
+                        SvgPicture.asset(
+                          'assets/svg/clock.svg',
+                          width: 20,
+                          height: 20,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.white
+                              : Color(0xFF656161),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          displayTime,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color:
+                            Theme.of(context).brightness == Brightness.dark
+                                ? Colors.white
+                                : Color(0xFF656161),
+                          ),
+                        ),
+                      ],
+                    ),
                 ],
-              ),
-            ),
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 10),
-              child: DottedLine(
-                dashLength: 4,
-                dashGapLength: 4,
-                lineThickness: 1,
-                dashColor: theme.secondaryHeaderColor,
               ),
             ),
             Expanded(
               child: Container(
-                color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground: null,
+                margin: const EdgeInsets.symmetric(horizontal: 6),
+                decoration: BoxDecoration(
+                  color: themeHelper.themeMode == ThemeMode.dark
+                      ? const Color(0xFF353848) // dark mode background
+                      : const Color(0xFFE0E5F7), // light mode background
+                  // borderRadius: BorderRadius.circular(12),
+                ),
+                //color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground: null,
                 child: Padding(
-                  padding:  EdgeInsets.only(left:3, right: 3),
+                  padding: const EdgeInsets.only(left: 0, right: 0),
                   child: Scrollbar(
                     controller: _scrollController,
                     scrollbarOrientation: ScrollbarOrientation.right,
@@ -922,7 +925,8 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                     interactive: false,
                     radius: const Radius.circular(8),
                     trackVisibility: true,
-                    child: ReorderableListView.builder( //Build #1.0.4: re-order for list
+                    child: ReorderableListView.builder(
+                      //Build #1.0.4: re-order for list
                       onReorder: (oldIndex, newIndex) {
                         if (kDebugMode) {
                           print("Reordering item from $oldIndex to $newIndex");
@@ -936,7 +940,8 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                       },
                       scrollController: _scrollController,
                       itemCount: orderItems.length,
-                      proxyDecorator: (Widget child, int index, Animation<double> animation) {
+                      proxyDecorator: (Widget child, int index,
+                          Animation<double> animation) {
                         return Material(
                           color: Colors.transparent, // Removes white background
                           child: child,
@@ -945,44 +950,85 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                       itemBuilder: (context, index) {
                         final orderItem = orderItems[index];
                         if (kDebugMode) {
-                          print("@@@@@@@@@@@@@@@@@ orderItem Data : $orderItem");
+                          print(
+                              "@@@@@@@@@@@@@@@@@ orderItem Data : $orderItem");
                         }
+
                         ///Build #1.0.64:  added conditions
                         /// Compare item type
                         /// if it is payout change icon, name is empty, show amount in red colour
                         /// if it is coupon change icon, name is coupon code (show last 4 digits, prefix with 'X' for each character before last 4), show amount in red colour
-                        final itemType = orderItem[AppDBConst.itemType]?.toString().toLowerCase() ?? '';
+                        final itemType = orderItem[AppDBConst.itemType]
+                            ?.toString()
+                            .toLowerCase() ??
+                            '';
+
                         /// Check if the item is a payout or a coupon
-                        final isPayout = itemType.contains(TextConstants.payoutText);
-                        final isCoupon = itemType.contains(TextConstants.couponText);
-                        final isCustomItem = itemType.contains(TextConstants.customItemText);
-                        final isPayoutOrCouponOrCustomItem = isPayout || isCoupon || isCustomItem;
+                        final isPayout =
+                        itemType.contains(TextConstants.payoutText);
+                        final isCoupon =
+                        itemType.contains(TextConstants.couponText);
+                        final isCustomItem =
+                        itemType.contains(TextConstants.customItemText);
+                        final isPayoutOrCouponOrCustomItem =
+                            isPayout || isCoupon || isCustomItem;
                         final isCouponOrPayout = isPayout || isCoupon;
+
                         /// Get the original name
-                        final originalName = orderItem[AppDBConst.itemName]?.toString() ?? '';
-                        final variationName = orderItem[AppDBConst.itemVariationCustomName]?.toString() ?? 'N/A';
-                        final variationCount = orderItem[AppDBConst.itemVariationCount] ?? 0;
+                        final originalName =
+                            orderItem[AppDBConst.itemName]?.toString() ?? '';
+                        final variationName =
+                            orderItem[AppDBConst.itemVariationCustomName]
+                                ?.toString() ??
+                                'N/A';
+                        final variationCount =
+                            orderItem[AppDBConst.itemVariationCount] ?? 0;
                         final combo = orderItem[AppDBConst.itemCombo] ?? '';
 
                         /// Build #1.0.134: Item Price will check sales price if it is null/empty, check regular price else unit price
-                        final salesPrice =
-                        (orderItem[AppDBConst.itemSalesPrice] == null || (orderItem[AppDBConst.itemSalesPrice]?.toDouble() ?? 0.0) == 0.0)
-                            ? (orderItem[AppDBConst.itemRegularPrice] == null || (orderItem[AppDBConst.itemRegularPrice]?.toDouble() ?? 0.0) == 0.0)
-                            ? orderItem[AppDBConst.itemUnitPrice]?.toDouble() ?? 0.0
-                            : orderItem[AppDBConst.itemRegularPrice]!.toDouble()
+                        final salesPrice = (orderItem[
+                        AppDBConst.itemSalesPrice] ==
+                            null ||
+                            (orderItem[AppDBConst.itemSalesPrice]
+                                ?.toDouble() ??
+                                0.0) ==
+                                0.0)
+                            ? (orderItem[AppDBConst.itemRegularPrice] == null ||
+                            (orderItem[AppDBConst.itemRegularPrice]
+                                ?.toDouble() ??
+                                0.0) ==
+                                0.0)
+                            ? orderItem[AppDBConst.itemUnitPrice]
+                            ?.toDouble() ??
+                            0.0
+                            : orderItem[AppDBConst.itemRegularPrice]!
+                            .toDouble()
                             : orderItem[AppDBConst.itemSalesPrice]!.toDouble();
 
-                        final regularPrice =  (orderItem[AppDBConst.itemRegularPrice] == null || (orderItem[AppDBConst.itemRegularPrice]?.toDouble() ?? 0.0) == 0.0)
-                            ? orderItem[AppDBConst.itemUnitPrice]?.toDouble() ?? 0.0
-                            : orderItem[AppDBConst.itemRegularPrice]!.toDouble();
+                        final regularPrice =
+                        (orderItem[AppDBConst.itemRegularPrice] == null ||
+                            (orderItem[AppDBConst.itemRegularPrice]
+                                ?.toDouble() ??
+                                0.0) ==
+                                0.0)
+                            ? orderItem[AppDBConst.itemUnitPrice]
+                            ?.toDouble() ??
+                            0.0
+                            : orderItem[AppDBConst.itemRegularPrice]!
+                            .toDouble();
 
-                        final itemTotalPrice = orderItem[AppDBConst.itemSumPrice] ?? '';
+                        final itemTotalPrice =
+                            orderItem[AppDBConst.itemSumPrice] ?? '';
 
                         if (kDebugMode) {
-                          print("#### originalName: $originalName, itemType: $itemType, isPayoutOrCouponOrCustomItem: $isPayoutOrCouponOrCustomItem");
-                          print("#### variationName: $variationName, variationCount: $variationCount, combo: $combo");
-                          print("#### salesPrice: $salesPrice, regularPrice: $regularPrice, itemTotalPrice: $itemTotalPrice");
+                          print(
+                              "#### originalName: $originalName, itemType: $itemType, isPayoutOrCouponOrCustomItem: $isPayoutOrCouponOrCustomItem");
+                          print(
+                              "#### variationName: $variationName, variationCount: $variationCount, combo: $combo");
+                          print(
+                              "#### salesPrice: $salesPrice, regularPrice: $regularPrice, itemTotalPrice: $itemTotalPrice");
                         }
+
                         /// Set display name based on item type
                         String displayName = originalName;
                         if (isPayout) {
@@ -993,16 +1039,20 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                           if (nameLength > visiblePartLength) {
                             final maskedLength = nameLength - visiblePartLength;
                             final maskedPart = 'X' * maskedLength;
-                            final visiblePart = originalName.substring(nameLength - visiblePartLength);
+                            final visiblePart = originalName
+                                .substring(nameLength - visiblePartLength);
                             displayName = '$maskedPart$visiblePart';
                           }
                         }
                         return ClipRRect(
                           key: ValueKey(index),
                           borderRadius: BorderRadius.circular(20),
-                          child: SizedBox( // Ensuring Slidable matches the item height
-                            height: MediaQuery.of(context).size.height * 0.12, // Adjust to match your item height
-                            child: Slidable( //Build #1.0.2 : added code for delete the items in list
+                          child: SizedBox(
+                            // Ensuring Slidable matches the item height
+                            height: 70, // reduce height
+                            //height: MediaQuery.of(context).size.height * 0.12, // Adjust to match your item height
+                            child: Slidable(
+                              //Build #1.0.2 : added code for delete the items in list
                               key: ValueKey(index),
                               enabled: false,
                               closeOnScroll: true,
@@ -1014,11 +1064,15 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                                     onPressed: (context) => {},
                                     backgroundColor: Colors.transparent,
                                     child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      mainAxisAlignment:
+                                      MainAxisAlignment.center,
                                       children: [
                                         Icon(Icons.delete, color: Colors.red),
                                         const SizedBox(height: 4),
-                                        const Text(TextConstants.deleteText, style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                                        const Text(TextConstants.deleteText,
+                                            style: TextStyle(
+                                                color: Colors.red,
+                                                fontWeight: FontWeight.bold)),
                                       ],
                                     ),
                                   ),
@@ -1034,13 +1088,13 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                                   //       orderItem: orderItem,
                                   //       onQuantityUpdated: (newQuantity) async {
                                   //
-                                  //         if (widget.activeOrderId != null) {
+                                  //         if (orderHelper.activeOrderId != null) {
                                   //           final order = orderHelper.orders.firstWhere(
-                                  //                 (order) => order[AppDBConst.orderId] == widget.activeOrderId,
+                                  //                 (order) => order[AppDBConst.orderId] == orderHelper.activeOrderId,
                                   //             orElse: () => {},
                                   //           );
                                   //           final serverOrderId = order[AppDBConst.orderServerId] as int?;
-                                  //           final dbOrderId = widget.activeOrderId;
+                                  //           final dbOrderId = orderHelper.activeOrderId;
                                   //           // final lineItemId = orderItem[AppDBConst.itemServerId] as int?;
                                   //           final productId = orderItem[AppDBConst.itemServerId] as int?;
                                   //
@@ -1089,71 +1143,134 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                                 },
                                 child: Container(
                                   margin: const EdgeInsets.symmetric(
-                                      vertical: 5, horizontal: 8),
+                                      vertical: 1, horizontal: 8),
                                   padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
-                                    color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : Colors.white,
+                                    color:
+                                    themeHelper.themeMode == ThemeMode.dark
+                                        ? Color(0xFF252837)
+                                        : Colors.white,
                                     borderRadius: BorderRadius.circular(8),
-                                    boxShadow: const [
-                                      BoxShadow(
-                                        color: Colors.black12,
-                                        blurRadius: 5,
-                                        spreadRadius: 1,
-                                      )
-                                    ],
+                                    // boxShadow: const [
+                                    //   BoxShadow(
+                                    //     color: Colors.black12,
+                                    //     blurRadius: 5,
+                                    //     spreadRadius: 1,
+                                    //   )
+                                    // ],
                                   ),
                                   child: Row(
                                     children: [
                                       // Replace the ClipRRect widget with this:
-                                      ClipRRect( // Build #1.0.13 : updated images from db not static default images
+                                      ClipRRect(
+                                        // Build #1.0.13 : updated images from db not static default images
                                         borderRadius: BorderRadius.circular(5),
-                                        child: orderItem[AppDBConst.itemImage].toString().startsWith('http')
+                                        child: orderItem[AppDBConst.itemImage]
+                                            .toString()
+                                            .startsWith('http')
                                             ? SizedBox(
-                                          height:MediaQuery.of(context).size.height * 0.08,
-                                          width: MediaQuery.of(context).size.height * 0.075,
-                                              child: Image.network(
-                                                orderItem[AppDBConst.itemImage],
-                                                height:MediaQuery.of(context).size.height * 0.08,
-                                                width: MediaQuery.of(context).size.height * 0.075,
-                                                fit: BoxFit.cover,
-                                                errorBuilder:
-                                                    (context, error, stackTrace) {
+                                          height: MediaQuery.of(context)
+                                              .size
+                                              .height *
+                                              0.08,
+                                          width: MediaQuery.of(context)
+                                              .size
+                                              .height *
+                                              0.075,
+                                          child: Image.network(
+                                            orderItem[
+                                            AppDBConst.itemImage],
+                                            height: MediaQuery.of(context)
+                                                .size
+                                                .height *
+                                                0.08,
+                                            width: MediaQuery.of(context)
+                                                .size
+                                                .height *
+                                                0.075,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (context, error,
+                                                stackTrace) {
                                               return SvgPicture.asset(
                                                 'assets/svg/password_placeholder.svg',
-                                                height:MediaQuery.of(context).size.height * 0.08,
-                                                width: MediaQuery.of(context).size.height * 0.075,
+                                                height:
+                                                MediaQuery.of(context)
+                                                    .size
+                                                    .height *
+                                                    0.08,
+                                                width:
+                                                MediaQuery.of(context)
+                                                    .size
+                                                    .height *
+                                                    0.075,
                                                 fit: BoxFit.cover,
                                               );
-                                                                                        },
-                                                                                      ),
-                                            )
+                                            },
+                                          ),
+                                        )
                                             : orderItem[AppDBConst.itemImage]
                                             .toString()
                                             .startsWith('assets/')
                                             ? SvgPicture.asset(
-                                          orderItem[AppDBConst.itemImage],
-                                          height:MediaQuery.of(context).size.height * 0.08,
-                                          width: MediaQuery.of(context).size.height * 0.075,
+                                          orderItem[
+                                          AppDBConst.itemImage],
+                                          height:
+                                          MediaQuery.of(context)
+                                              .size
+                                              .height *
+                                              0.08,
+                                          width:
+                                          MediaQuery.of(context)
+                                              .size
+                                              .height *
+                                              0.075,
                                           fit: BoxFit.cover,
                                         )
-                                            :  Platform.isWindows
+                                            : Platform.isWindows
                                             ? Image.asset(
                                           'assets/default.png',
-                                          height: MediaQuery.of(context).size.height * 0.08,
-                                          width: MediaQuery.of(context).size.height * 0.075,
+                                          height: MediaQuery.of(
+                                              context)
+                                              .size
+                                              .height *
+                                              0.08,
+                                          width: MediaQuery.of(
+                                              context)
+                                              .size
+                                              .height *
+                                              0.075,
                                           fit: BoxFit.cover,
                                         )
                                             : Image.file(
-                                          File(orderItem[AppDBConst.itemImage]),
-                                          height:MediaQuery.of(context).size.height * 0.08,
-                                          width: MediaQuery.of(context).size.height * 0.075,
+                                          File(orderItem[
+                                          AppDBConst
+                                              .itemImage]),
+                                          height: MediaQuery.of(
+                                              context)
+                                              .size
+                                              .height *
+                                              0.08,
+                                          width: MediaQuery.of(
+                                              context)
+                                              .size
+                                              .height *
+                                              0.075,
                                           fit: BoxFit.cover,
-                                          errorBuilder:
-                                              (context, error, stackTrace) {
-                                            return SvgPicture.asset(
+                                          errorBuilder: (context,
+                                              error, stackTrace) {
+                                            return SvgPicture
+                                                .asset(
                                               'assets/svg/password_placeholder.svg',
-                                              height:MediaQuery.of(context).size.height * 0.08,
-                                              width: MediaQuery.of(context).size.height * 0.075,
+                                              height: MediaQuery.of(
+                                                  context)
+                                                  .size
+                                                  .height *
+                                                  0.08,
+                                              width: MediaQuery.of(
+                                                  context)
+                                                  .size
+                                                  .height *
+                                                  0.075,
                                               fit: BoxFit.cover,
                                             );
                                           },
@@ -1162,12 +1279,16 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                                       const SizedBox(width: 10),
                                       Expanded(
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                          crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                          mainAxisAlignment:
+                                          MainAxisAlignment.spaceEvenly,
                                           children: [
                                             Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              mainAxisAlignment: MainAxisAlignment.start,
+                                              crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                              mainAxisAlignment:
+                                              MainAxisAlignment.start,
                                               children: [
                                                 RichText(
                                                   maxLines: 2,
@@ -1177,72 +1298,125 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                                                       TextSpan(
                                                         text: displayName,
                                                         style: TextStyle(
-                                                            fontSize: 10,
-                                                            fontWeight: FontWeight.bold,
-                                                            color: themeHelper.themeMode == ThemeMode.dark
-                                                                ? ThemeNotifier.textDark
-                                                                : ThemeNotifier.textLight
-                                                        ),
+                                                            fontFamily: 'inter',
+                                                            fontSize: 12,
+                                                            fontWeight:
+                                                            FontWeight.w700,
+                                                            color: themeHelper
+                                                                .themeMode ==
+                                                                ThemeMode
+                                                                    .dark
+                                                                ? ThemeNotifier
+                                                                .textDark
+                                                                : ThemeNotifier
+                                                                .textLight),
                                                       ),
                                                       TextSpan(
-                                                        text: combo == '' ? '' : " (Combo)",
-                                                        style: TextStyle(fontSize: 8, color: Colors.cyan),
+                                                        text: combo == ''
+                                                            ? ''
+                                                            : " (Combo)",
+                                                        style: TextStyle(
+                                                            fontSize: 8,
+                                                            color: Colors.cyan),
                                                       ),
                                                     ],
                                                   ),
                                                 ),
-                                                variationCount == 0 ? SizedBox(width: 0,) : Row(
+                                                variationCount == 0
+                                                    ? SizedBox(
+                                                  width: 0,
+                                                )
+                                                    : Row(
                                                   children: [
                                                     Text(
-                                                      variationName == '' ? "" : "(${variationName ?? ''})",
-                                                      overflow: TextOverflow.ellipsis,
-                                                      style: TextStyle(fontSize: 10, color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.grey),
+                                                      variationName == ''
+                                                          ? ""
+                                                          : "(${variationName ?? ''})",
+                                                      overflow:
+                                                      TextOverflow
+                                                          .ellipsis,
+                                                      style: TextStyle(
+                                                          fontSize: 10,
+                                                          color: themeHelper
+                                                              .themeMode ==
+                                                              ThemeMode
+                                                                  .dark
+                                                              ? ThemeNotifier
+                                                              .textDark
+                                                              : Colors
+                                                              .grey),
                                                     ),
                                                     SizedBox(
                                                       width: 4,
                                                     ),
-                                                    SvgPicture.asset("assets/svg/variation.svg",height: 10, width: 10,),
+                                                    SvgPicture.asset(
+                                                      "assets/svg/variation.svg",
+                                                      height: 10,
+                                                      width: 10,
+                                                    ),
                                                     SizedBox(
                                                       width: 4,
                                                     ),
                                                     Text(
                                                       "${variationCount ?? 0}",
-                                                      overflow: TextOverflow.ellipsis,
-                                                      style: TextStyle(fontSize: 10, color: Color(0xFFFE6464)),
+                                                      overflow:
+                                                      TextOverflow
+                                                          .ellipsis,
+                                                      style: TextStyle(
+                                                          fontSize: 10,
+                                                          color: Color(
+                                                              0xFFFE6464)),
                                                     ),
                                                   ],
                                                 ),
                                               ],
                                             ),
                                             // Modified: Show quantity * price only for non-Payout/Coupon items
-                                            // Build #1.0.187 :Fixed - Quantity for Custom Item Not Displayed After Switching Screens [JIRA #319]
-                                            // we have to show price * qty for custom item also / condition updated, only dont show for payout and coupons
-                                            if (!isCouponOrPayout)
+                                            if (!isPayoutOrCouponOrCustomItem)
                                               Text(
                                                 "${TextConstants.currencySymbol} ${regularPrice.toStringAsFixed(2)} * ${orderItem[AppDBConst.itemCount]}", //Build #1.0.134: itemPrice updated
-                                                style:
-                                                TextStyle(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.black54, fontSize: 10),
+                                                style: TextStyle(
+                                                    color: themeHelper
+                                                        .themeMode ==
+                                                        ThemeMode.dark
+                                                        ? ThemeNotifier.textDark
+                                                        : Colors.black54,
+                                                    fontSize: 10),
                                               ),
                                           ],
                                         ),
                                       ),
-                                      if(!isCouponOrPayout)
-                                        Text("${TextConstants.currencySymbol}${(regularPrice * orderItem[AppDBConst.itemCount]).toStringAsFixed(2)}", //Build #1.0.134: itemPrice updated
-                                          style:
-                                          TextStyle(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.blueGrey, fontSize: 14),
+                                      if (!isCouponOrPayout)
+                                        Text(
+                                          "${TextConstants.currencySymbol}${(regularPrice * orderItem[AppDBConst.itemCount]).toStringAsFixed(2)}", //Build #1.0.134: itemPrice updated
+                                          style: TextStyle(
+                                              color: themeHelper.themeMode ==
+                                                  ThemeMode.dark
+                                                  ? ThemeNotifier.textDark
+                                                  : Colors.blueGrey,
+                                              fontSize: 14),
                                         ),
                                       const SizedBox(width: 20),
                                       Column(
-                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        mainAxisAlignment:
+                                        MainAxisAlignment.center,
                                         children: [
                                           Text(
-                                            isCouponOrPayout ?
-                                            "${TextConstants.currencySymbol}${(orderItem[AppDBConst.itemCount] * orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}" :
-                                            "${TextConstants.currencySymbol}${(orderItem[AppDBConst.itemCount] * salesPrice).toStringAsFixed(2)}", //Build #1.0.134: itemTotalPrice updated
+                                            isCouponOrPayout
+                                                ? "${TextConstants.currencySymbol}${(orderItem[AppDBConst.itemCount] * orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}"
+                                                : "${TextConstants.currencySymbol}${(orderItem[AppDBConst.itemCount] * salesPrice).toStringAsFixed(2)}", //Build #1.0.134: itemTotalPrice updated
                                             style: TextStyle(
                                               fontSize: 14,
                                               fontWeight: FontWeight.bold,
-                                              color: isCouponOrPayout ? Colors.red : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight, // Build #1.0.187: Added: Red color for Payout/Coupon
+                                              color:
+                                              isPayoutOrCouponOrCustomItem
+                                                  ? Colors.red
+                                                  : themeHelper.themeMode ==
+                                                  ThemeMode.dark
+                                                  ? ThemeNotifier
+                                                  .textDark
+                                                  : ThemeNotifier
+                                                  .textLight, // Added: Red color for Payout/Coupon
                                             ),
                                           ),
                                         ],
@@ -1260,11 +1434,14 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                 ),
               ),
             ),
+
             ///Todo: update ui as per loading from screen
             ///Show print and email invoice buttons if coming from order history screen
             ///else show regular buttons
             Container(
-              color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground: null,
+              color: themeHelper.themeMode == ThemeMode.dark
+                  ? ThemeNotifier.primaryBackground
+                  : null,
               child: Column(
                 children: [
                   // Summary container
@@ -1273,54 +1450,117 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                     curve: Curves.easeInOut,
                     child: _showFullSummary
                         ? Container(
-                      margin: const EdgeInsets.only(top: 8, right: 8, left: 8),
+                      margin: const EdgeInsets.only(
+                          top: 8, right: 7, left: 7),
+                      // margin: const EdgeInsets.only(top: 8, right: 8, left: 8),
                       decoration: BoxDecoration(
-                          borderRadius: BorderRadius.only(
-                              topRight: Radius.circular(8),
-                              topLeft: Radius.circular(8)),
-                          color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.orderPanelSummary : Colors.white,
-                          boxShadow: [
-                            BoxShadow(
-                              color: ThemeNotifier.shadow_F7,
-                              blurRadius: 2,
-                              // spreadRadius: LayoutValues.radius_5,
-                              offset: Offset(0,0),
-                            ),
-                          ]
+                        borderRadius: BorderRadius.only(
+                            topRight: Radius.circular(8),
+                            topLeft: Radius.circular(8)),
+                        color: themeHelper.themeMode == ThemeMode.dark
+                            ? ThemeNotifier.orderPanelSummary
+                            : Colors.white,
+                        boxShadow: [
+                          // Shadow at the bottom
+                          BoxShadow(
+                            // color: Colors.black.withOpacity(0.25),
+                            color: themeHelper.themeMode == ThemeMode.dark
+                                ? Color(0xFFF0F0F0).withOpacity(
+                                0.15) // stronger shadow for dark mode
+                                : Colors.black.withOpacity(
+                                0.25), // lighter shadow for light mode
+                            offset: Offset(
+                                0, 4), // 0 horizontal, 4 vertical (down)
+                            blurRadius: 6,
+                            spreadRadius: -0.5,
+                          ),
+                          // Shadow at the top
+                          BoxShadow(
+                            color: themeHelper.themeMode == ThemeMode.dark
+                                ? Color(0xFFF0F0F0).withOpacity(
+                                0.15) // dark mode top shadow
+                                : Colors.black.withOpacity(
+                                0.15), // light mode top shadow
+                            // color: Colors.black.withOpacity(0.15),
+                            offset: Offset(
+                                0, -4), // 0 horizontal, -4 vertical (up)
+                            blurRadius: 6,
+                            spreadRadius: -0.5,
+                          ),
+                        ],
                       ),
                       padding: const EdgeInsets.all(8),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            mainAxisAlignment:
+                            MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(TextConstants.grossTotal, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12), ),
-                              Text("${TextConstants.currencySymbol}${grossTotal.toStringAsFixed(2)}", //Build #1.0.68
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight)),
+                              Text(
+                                TextConstants.grossTotal,
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18),
+                              ),
+                              Text(
+                                  "${TextConstants.currencySymbol}${grossTotal.toStringAsFixed(2)}", //Build #1.0.68
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                      color: themeHelper.themeMode ==
+                                          ThemeMode.dark
+                                          ? ThemeNotifier.textDark
+                                          : ThemeNotifier.textLight)),
                             ],
                           ),
-                          SizedBox(height: 2,),
+                          SizedBox(
+                            height: 2,
+                          ),
                           Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            mainAxisAlignment:
+                            MainAxisAlignment.spaceBetween,
                             children: [
-                              Row(spacing: 5,
+                              Row(
+                                spacing: 5,
                                 children: [
-                                  SvgPicture.asset("assets/svg/discount_star.svg",height: 12, width: 12,),
-                                  Text(TextConstants.discountText, style: TextStyle(color: Colors.green, fontSize: 10)),
+                                  SvgPicture.asset(
+                                    "assets/svg/discount_star.svg",
+                                    height: 12,
+                                    width: 12,
+                                  ),
+                                  Text(TextConstants.discountText,
+                                      style: TextStyle(
+                                          color: Colors.green,
+                                          fontSize: 14)),
                                 ],
                               ),
-                              Text("-${TextConstants.currencySymbol}${orderDiscount.toStringAsFixed(2)}", style: TextStyle(color: Colors.green,fontSize: 10 )),
+                              Text(
+                                  "-${TextConstants.currencySymbol}${orderDiscount.toStringAsFixed(2)}",
+                                  style: TextStyle(
+                                      color: Colors.green, fontSize: 12)),
                             ],
                           ),
-                          SizedBox(height: 2,),
+                          SizedBox(
+                            height: 2,
+                          ),
                           Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            mainAxisAlignment:
+                            MainAxisAlignment.spaceBetween,
                             children: [
-                              Row(spacing: 5,
+                              Row(
+                                spacing: 5,
                                 children: [
-                                  SvgPicture.asset("assets/svg/discount_star.svg",height: 12, width: 12,colorFilter: ColorFilter.mode(Colors.blueAccent, BlendMode.srcIn),),
-                                  Text(TextConstants.merchantDiscount, style: TextStyle(color: Colors.blue, fontSize: 10)),
+                                  SvgPicture.asset(
+                                    "assets/svg/discount_star.svg",
+                                    height: 12,
+                                    width: 12,
+                                    color: Colors.blue, // 👈 apply blue color
+                                  ),
+                                  Text(TextConstants.merchantDiscount,
+                                      style: TextStyle(
+                                          color: Colors.blue,
+                                          fontSize: 14)),
 
                                   // GestureDetector(
                                   //   onTap: () async {
@@ -1328,7 +1568,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                                   //       print("####################### Merchant Discount onTap");
                                   //     }
                                   //
-                                  //     if (widget.activeOrderId != null) {
+                                  //     if (orderHelper.activeOrderId != null) {
                                   //       // Step 1: Show confirmation dialog
                                   //       bool? confirmed = await CustomDialog.showRemoveDiscountConfirmation(context);
                                   //       if (confirmed != true) return;
@@ -1337,7 +1577,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                                   //       setState(() => _isLoading = true);
                                   //
                                   //       final order = orderHelper.orders.firstWhere(
-                                  //             (order) => order[AppDBConst.orderId] == widget.activeOrderId,
+                                  //             (order) => order[AppDBConst.orderId] == orderHelper.activeOrderId,
                                   //         orElse: () => {},
                                   //       );
                                   //       final serverOrderId = order[AppDBConst.orderServerId] as int?;
@@ -1347,7 +1587,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                                   //         final payoutItem = await db.query(
                                   //           AppDBConst.purchasedItemsTable,
                                   //           where: '${AppDBConst.orderIdForeignKey} = ? AND ${AppDBConst.itemType} = ?',
-                                  //           whereArgs: [widget.activeOrderId, ItemType.payout.value],
+                                  //           whereArgs: [orderHelper.activeOrderId, ItemType.payout.value],
                                   //         );
                                   //
                                   //         if (payoutItem.isNotEmpty) {
@@ -1363,7 +1603,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                                   //                     AppDBConst.orderTable,
                                   //                     {AppDBConst.merchantDiscount: 0.0},
                                   //                     where: '${AppDBConst.orderId} = ?',
-                                  //                     whereArgs: [widget.activeOrderId],
+                                  //                     whereArgs: [orderHelper.activeOrderId],
                                   //                   );
                                   //                   await orderHelper.deleteItem(payoutItem.first[AppDBConst.itemId] as int);
                                   //                   fetchOrderItems();
@@ -1402,7 +1642,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                                   //                   AppDBConst.orderTable,
                                   //                   {AppDBConst.merchantDiscount: 0.0},
                                   //                   where: '${AppDBConst.orderId} = ?',
-                                  //                   whereArgs: [widget.activeOrderId],
+                                  //                   whereArgs: [orderHelper.activeOrderId],
                                   //                 );
                                   //                 await orderHelper.deleteItem(payoutItem.first[AppDBConst.itemId] as int);
                                   //                 fetchOrderItems();
@@ -1467,79 +1707,156 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                                   // ),
                                 ],
                               ),
-                              Text("-${TextConstants.currencySymbol}${merchantDiscount.toStringAsFixed(2)}",
-                                  style: TextStyle(color: Colors.blue, fontSize: 10)),
+                              Text(
+                                  "-${TextConstants.currencySymbol}${merchantDiscount.toStringAsFixed(2)}",
+                                  style: TextStyle(
+                                      color: Colors.blue, fontSize: 12)),
                             ],
                           ),
-                          SizedBox(height: 2,),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Text(TextConstants.taxText, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10,color: Colors.grey),),
-                              Text("${TextConstants.currencySymbol}${orderTax.toStringAsFixed(2)}",
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10, color: themeHelper.themeMode == ThemeMode.dark ? Colors.white54 : Colors.grey)),
-                            ],
+                          SizedBox(
+                            height: 2,
                           ),
-                          const DottedLine(),
-                          // SizedBox(height: 2,),
-                          // Row(
-                          //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          //   crossAxisAlignment: CrossAxisAlignment.center,
-                          //   children: [
-                          //     Text(TextConstants.netTotalText,style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),),
-                          //     Text("${TextConstants.currencySymbol}${netTotal.toStringAsFixed(2)}",
-                          //         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight )),
-                          //   ],
-                          // ),
-                          SizedBox(height: 2,),
-
-                          // SizedBox(height: 2,),
                           // const DottedLine(),
-                          // SizedBox(height: 2,),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Text(TextConstants.netPayable, style: TextStyle(fontWeight: FontWeight.bold)),
-                              Text("${TextConstants.currencySymbol}${netPayable.toStringAsFixed(2)}",
-                                  style: TextStyle(fontWeight: FontWeight.bold, color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight)),
-                            ],
+                          ShaderMask(
+                            shaderCallback: (Rect bounds) {
+                              return LinearGradient(
+                                begin: Alignment.centerLeft,
+                                end: Alignment.centerRight,
+                                colors: themeHelper.themeMode ==
+                                    ThemeMode.dark
+                                    ? [
+                                  Colors.white.withOpacity(0.1),
+                                  Colors.white.withOpacity(0.7),
+                                  Colors.white.withOpacity(0.1),
+                                ]
+                                    : [
+                                  Colors.black.withOpacity(0.1),
+                                  Colors.black.withOpacity(0.7),
+                                  Colors.black.withOpacity(0.1),
+                                ],
+                                stops: const [0.0, 0.5, 1.0],
+                              ).createShader(bounds);
+                            },
+                            blendMode: BlendMode.srcIn,
+                            child: DottedLine(
+                              dashLength: 6,
+                              dashGapLength: 4,
+                              lineThickness: 1,
+                              direction: Axis.horizontal,
+                              dashColor: themeHelper.themeMode ==
+                                  ThemeMode.dark
+                                  ? Colors.white
+                                  : Colors
+                                  .black, // ✅ ensures gradient works correctly
+                            ),
+                          ),
+                          SizedBox(
+                            height: 2,
                           ),
                           Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            mainAxisAlignment:
+                            MainAxisAlignment.spaceBetween,
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              Text(TextConstants.payByCash,style: TextStyle(fontSize: 11),),
-                              Text("${TextConstants.currencySymbol}${payByCash.toStringAsFixed(2)}",
-                                  style: TextStyle(fontSize: 11, color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight)),
+                              Text(
+                                TextConstants.netTotalText,
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12),
+                              ),
+                              Text(
+                                  "${TextConstants.currencySymbol}${netTotal.toStringAsFixed(2)}",
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                      color: themeHelper.themeMode ==
+                                          ThemeMode.dark
+                                          ? ThemeNotifier.textDark
+                                          : ThemeNotifier.textLight)),
                             ],
                           ),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Text(TextConstants.payByOther, style: TextStyle(fontSize: 11)),
-                              Text("${TextConstants.currencySymbol}${payByOther.toStringAsFixed(2)}",
-                                  style: TextStyle(fontSize: 11,color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight)),
-                            ],
+                          SizedBox(
+                            height: 2,
                           ),
                           Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            mainAxisAlignment:
+                            MainAxisAlignment.spaceBetween,
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              Text(TextConstants.tenderAmount, style: TextStyle(fontSize: 11)),
-                              Text("${TextConstants.currencySymbol}${tenderAmount.toStringAsFixed(2)}",
-                                  style: TextStyle(fontSize: 11,color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight)),
+                              Text(
+                                TextConstants.taxText,
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 10,
+                                    color: Colors.grey),
+                              ),
+                              Text(
+                                  "${TextConstants.currencySymbol}${orderTax.toStringAsFixed(2)}",
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 10,
+                                      color: themeHelper.themeMode ==
+                                          ThemeMode.dark
+                                          ? Colors.white54
+                                          : Colors.grey)),
                             ],
                           ),
+                          SizedBox(
+                            height: 2,
+                          ),
+                          //const DottedLine(),
+                          ShaderMask(
+                            shaderCallback: (Rect bounds) {
+                              return LinearGradient(
+                                begin: Alignment.centerLeft,
+                                end: Alignment.centerRight,
+                                colors: themeHelper.themeMode ==
+                                    ThemeMode.dark
+                                    ? [
+                                  Colors.white.withOpacity(0.1),
+                                  Colors.white.withOpacity(0.7),
+                                  Colors.white.withOpacity(0.1),
+                                ]
+                                    : [
+                                  Colors.black.withOpacity(0.1),
+                                  Colors.black.withOpacity(0.7),
+                                  Colors.black.withOpacity(0.1),
+                                ],
+                                stops: const [0.0, 0.5, 1.0],
+                              ).createShader(bounds);
+                            },
+                            blendMode: BlendMode.srcIn,
+                            child: DottedLine(
+                              dashLength: 6,
+                              dashGapLength: 4,
+                              lineThickness: 1,
+                              direction: Axis.horizontal,
+                              dashColor: themeHelper.themeMode ==
+                                  ThemeMode.dark
+                                  ? Colors.white
+                                  : Colors
+                                  .black, // ✅ ensures gradient works correctly
+                            ),
+                          ),
+                          SizedBox(
+                            height: 2,
+                          ),
                           Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            mainAxisAlignment:
+                            MainAxisAlignment.spaceBetween,
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              Text(TextConstants.change, style: TextStyle(fontSize: 11)),
-                              Text("${TextConstants.currencySymbol}${changeAmount.toStringAsFixed(2)}",
-                                  style: TextStyle(fontSize: 11,color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight)),
+                              Text(TextConstants.netPayable,
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.bold)),
+                              Text(
+                                  "${TextConstants.currencySymbol}${netPayable.toStringAsFixed(2)}",
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: themeHelper.themeMode ==
+                                          ThemeMode.dark
+                                          ? ThemeNotifier.textDark
+                                          : ThemeNotifier.textLight)),
                             ],
                           ),
                         ],
@@ -1547,206 +1864,310 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                     )
                         : SizedBox.shrink(),
                   ),
-                  if(widget.activeOrderId != null)
-                  GestureDetector(
-                    onTap: _toggleSummary,
-                    child: Container(
-                      margin: const EdgeInsets.only(top:2, right: 8, left: 8),
-                      decoration: BoxDecoration(
-                          borderRadius: BorderRadius.only(
-                              bottomRight: Radius.circular(8),
-                              bottomLeft: Radius.circular(8)),
-                          color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.orderPanelSummary : Colors.grey.shade300
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 5),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text("${TextConstants.totalItemsText}: ${orderItems.length}", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),),
-                          Row(
-                            children: [
-                              Text(_showFullSummary ? 'Net Payable : ${TextConstants.currencySymbol}${netPayable.toStringAsFixed(2)}' : 'Net Payable : ${TextConstants.currencySymbol}${netPayable.toStringAsFixed(2)}',style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                              const SizedBox(width: 8),
-                              Icon(_showFullSummary ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_up,),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                  else
-                    SizedBox(),
-
-                  // Payment button - outside the container
-                  if (widget.activeOrderId != null)
-                    Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    width: double.infinity,
-                    height: MediaQuery.of(context).size.height * 0.0575,
-                    child:
-                    ((_order?[AppDBConst.orderStatus] ?? '') != TextConstants.pending)
-                        ?
-                    ElevatedButton( //Build 1.1.36: on pay tap calling updateOrderProducts api call
-                      onPressed: () async {
-                        if (widget.activeOrderId != null) {
-                          setState(() {
-                            _isPayBtnLoading = true;
-                          });
-
-                          if (kDebugMode) {
-                            print("OrderScreenPanel - call printer setup screen, $_printerReceipt");
-                          }
-                          if(!Misc.disablePrinter) {
-                            ///prepare receipt
-                            await _preparePrintTicket();
-                            ///print invoice
-                            await _printTicket();
-                          }
-                          setState(() => _isPayBtnLoading = false);
-                          // if(_printerReceipt == null || (_printerReceipt != null && _printerReceipt[AppDBConst.printerDeviceName] == '')){
-                          //   /// call printer setup screen
-                          //   if (kDebugMode) {
-                          //     print("OrderScreenPanel - call printer setup screen");
-                          //   }
-                          //   Navigator.push(
-                          //       context,
-                          //       MaterialPageRoute(
-                          //         builder: (context) => PrinterSetup(),
-                          //       )).then((result) async {
-                          //     if (result == 'refresh') {
-                          //       await _printerSettings.loadPrinter();
-                          //       await loadPrinterData();
-                          //       setState(() async {
-                          //         // Update state to refresh the UI
-                          //         if (kDebugMode) {
-                          //           print(
-                          //               "OrderScreenPanel - printer setup is done, connected printer is ${_printerSettings.selectedPrinter?.deviceName}");
-                          //         }
-                          //         ///print invoice
-                          //         await _printTicket();
-                          //         setState(() => _isPayBtnLoading = false);
-                          //       });
-                          //     }
-                          //   });
-                          // } else {
-                          //
-                          // }
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFFF6B6B), // Coral red color
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                  if (orderHelper.activeOrderId != null)
+                    GestureDetector(
+                      onTap: _toggleSummary,
+                      child: Container(
+                        margin: const EdgeInsets.only(top:0 , right: 6, left: 6),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.only(bottomRight: Radius.circular(8), bottomLeft: Radius.circular(8)),
+                          // color: themeHelper.themeMode == ThemeMode.dark ?const Color(0xFF393C48) : Colors.grey.shade300
+                          color: themeHelper.themeMode == ThemeMode.dark
+                              ? const Color(0xFF2A2C36) // ✅ dark mode background 393C48
+                              : Colors.grey.shade300,   // ✅ light mode background
+                          boxShadow: [
+                            // Shadow at the bottom
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.25),
+                              offset: const Offset(0, 4), // moves shadow down
+                              blurRadius: 6,
+                              spreadRadius: 1,
+                            ),
+                            // Shadow at the top
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.15),
+                              offset: const Offset(0, 4), // moves shadow up
+                              blurRadius: 6,
+                              spreadRadius: 1,
+                            ),
+                          ],
                         ),
-                      ),
-                      child: _isPayBtnLoading  //Build 1.1.36: added loader for pay button in order panel
-                          ? CircularProgressIndicator(color: Colors.white)
-                          : Text(
-                        TextConstants.printInvoice,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text("${TextConstants.totalItemsText}: ${orderItems.length}",
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                            Row(
+                              children: [
+                                Text(
+                                    _showFullSummary
+                                        ? 'Net Payable : ${TextConstants.currencySymbol}${netPayable.toStringAsFixed(2)}'
+                                        : 'Net Payable : ${TextConstants.currencySymbol}${netPayable.toStringAsFixed(2)}',
+                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                const SizedBox(width: 8),
+                                Icon(_showFullSummary ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_up),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
                     )
-                        :
-                    ElevatedButton( //Build 1.1.36: on pay tap calling updateOrderProducts api call
-                      onPressed: netPayable >= 0 && orderItems.isNotEmpty ? () async {
-                        if (widget.activeOrderId != null) {
-                          setState(() => _isPayBtnLoading = true);
-                          _initialFetchDone = false; // Build #1.0.143: Track initial fetch of fetchOrdersData
-                          // await Navigator.push(
-                          //   context,
-                          //   MaterialPageRoute(builder: (context) => OrderSummaryScreen()),
-                          // );
-                          // On the first screen (Screen 1)
-                          // Navigator.push(context, MaterialPageRoute(builder: (_) => OrderSummaryScreen())).then((result) {
-                          //   if (result == 'refresh') {
-                          //     setState(() {
-                          //       // Update state to refresh the UI
-                          //     });
-                          //   }
-                          // });
-                          // Build #1.0.104: refresh when back to this screen
-                          final result = await Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => OrderSummaryScreen(formattedTime: '',formattedDate: '',)),
-                          );
-                          if (kDebugMode) {
-                            print("###### OrderScreenPanel: Returned from OrderSummaryScreen with result: $result");
-                          }
-                          // Handle refresh if result is 'refresh'
-                          if (result == TextConstants.refresh) { // Build #1.0.175: added TextConstants
-                            if (kDebugMode) {
-                              print("###### OrderScreenPanel: Refresh signal received, reinitializing entire screen");
-                            }
+                  else
+                    SizedBox(),
+                  const SizedBox(height: 10),
 
-                            // Build #1.0.143: Fixed Issue : After return from order summary screen , total order screen not refreshing with updated response
-                            widget.refreshOrderList?.call();
+                  // Payment button - outside the container
+                  if (orderHelper.activeOrderId != null)
+                    Container(
+                      // margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                      // width: double.infinity,
+                      // height: MediaQuery.of(context).size.height * 0.0585,
+                      // // 👇 outer container adds shadow
+                      // decoration: BoxDecoration(
+                      //   borderRadius: BorderRadius.circular(8),
+                      //   boxShadow: [
+                      //     BoxShadow(
+                      //       color: Colors.black.withOpacity(0.5),
+                      //       offset: const Offset(0, 4),  // push shadow downward
+                      //       blurRadius: 4,               // soft, natural spread
+                      //       spreadRadius: 0,              // makes shadow fuller
+                      //     ),
+                      //   ],
+                      // ),
+                      margin: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 5),
+                      width: double.infinity,
+                      height: MediaQuery.of(context).size.height * 0.0575,
+                      child: ((_order?[AppDBConst.orderStatus] ?? '') !=
+                          TextConstants.pending)
+                          ? ElevatedButton(
+                        //Build 1.1.36: on pay tap calling updateOrderProducts api call
+                        onPressed: () async {
+                          if (orderHelper.activeOrderId != null) {
+                            setState(() {
+                              _isPayBtnLoading = true;
+                            });
+
+                            if (kDebugMode) {
+                              print(
+                                  "OrderScreenPanel - call printer setup screen, $_printerReceipt");
+                            }
+                            if (!Misc.disablePrinter) {
+                              ///prepare receipt
+                              await _preparePrintTicket();
+
+                              ///print invoice
+                              await _printTicket();
+                            }
+                            setState(() => _isPayBtnLoading = false);
+                            // if(_printerReceipt == null || (_printerReceipt != null && _printerReceipt[AppDBConst.printerDeviceName] == '')){
+                            //   /// call printer setup screen
+                            //   if (kDebugMode) {
+                            //     print("OrderScreenPanel - call printer setup screen");
+                            //   }
+                            //   Navigator.push(
+                            //       context,
+                            //       MaterialPageRoute(
+                            //         builder: (context) => PrinterSetup(),
+                            //       )).then((result) async {
+                            //     if (result == 'refresh') {
+                            //       await _printerSettings.loadPrinter();
+                            //       await loadPrinterData();
+                            //       setState(() async {
+                            //         // Update state to refresh the UI
+                            //         if (kDebugMode) {
+                            //           print(
+                            //               "OrderScreenPanel - printer setup is done, connected printer is ${_printerSettings.selectedPrinter?.deviceName}");
+                            //         }
+                            //         ///print invoice
+                            //         await _printTicket();
+                            //         setState(() => _isPayBtnLoading = false);
+                            //       });
+                            //     }
+                            //   });
+                            // } else {
+                            //
+                            // }
                           }
-                          setState(() => _isPayBtnLoading = false);
-                      ///No need to update here now, may cause empty items added to order
-                      //     // Assign the subscription to your class variable
-                      //     _updateOrderSubscription = orderBloc.updateOrderStream.listen((response) async {
-                      //       if (!mounted) return; // Safety check
-                      //       if (response.status == Status.LOADING) { // Build #1.0.80
-                      //         const Center(child: CircularProgressIndicator());
-                      //       }else if (response.status == Status.COMPLETED) {
-                      //         if (kDebugMode) {
-                      //           print("###### updateOrder COMPLETED");
-                      //         }
-                      //
-                      //         setState(() => _isPayBtnLoading = false); // dismiss the loader
-                      //
-                      //         Navigator.push(
-                      //           context,
-                      //           MaterialPageRoute(builder: (context) => OrderSummaryScreen()),
-                      //         );
-                      //       } else if (response.status == Status.ERROR) {
-                      //         ScaffoldMessenger.of(context).showSnackBar(
-                      //           SnackBar(content: Text(response.message ?? "Failed to update order")),
-                      //         );
-                      //       }
-                      //     });
-                      //
-                      //     // Prepare line items for API
-                      //     List<OrderLineItem> lineItems = orderItems.map((item) => OrderLineItem(
-                      //       productId: item[AppDBConst.itemId],
-                      //       quantity: item[AppDBConst.itemCount],
-                      //     )).toList();
-                      //
-                      //     // Call API
-                      //     await orderBloc.updateOrderProducts(
-                      //       dbOrderId: widget.activeOrderId!,
-                      //       orderId: serverOrderId,
-                      //       lineItems: lineItems,
-                      //     );
+                        },
+                        // style: ElevatedButton.styleFrom(
+                        //   backgroundColor: Colors.transparent, // 🔑 keep transparent
+                        //   shadowColor: Colors.transparent, // 🔑 remove shadow blending
+                        //   shape: RoundedRectangleBorder(
+                        //     borderRadius: BorderRadius.circular(16),
+                        //   ),
+                        //   padding: EdgeInsets.zero, // 🔑 so gradient fills entire button
+                        // ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                          const Color(0xFFFF6B6B), // Coral red color
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        // child: Ink(
+                        //   decoration: BoxDecoration(
+                        //     gradient: orderItems.isNotEmpty
+                        //         ? const LinearGradient(
+                        //       begin: Alignment(1.09, 0.57),
+                        //       end: Alignment(-0.08, 0.57),
+                        //       colors: [
+                        //         Color(0xFF43517E),
+                        //         Color(0xFF172145),
+                        //       ],
+                        //     )
+                        //         : null,
+                        //     color: orderItems.isEmpty ? const Color(0xFF172145) : null, // fallback
+                        //     borderRadius: BorderRadius.circular(10),
+                        //   ),
+                        //   child: Container(
+                        //     alignment: Alignment.center,
+                        //     height: 60, // same height as Pay button
+                        //     child: _isPayBtnLoading
+                        //         ? const CircularProgressIndicator(color: Colors.white)
+                        //         : Text(
+                        //       TextConstants.printInvoice,
+                        //       style: const TextStyle(
+                        //         fontSize: 16,
+                        //         fontWeight: FontWeight.w500,
+                        //         color: Colors.white, // ✅ keep white text like Pay button
+                        //       ),
+                        //     ),
+                        //   ),
+                        // ),
+
+
+                        child:
+                        _isPayBtnLoading //Build 1.1.36: added loader for pay button in order panel
+                            ? CircularProgressIndicator(
+                            color: Colors.white)
+                            : Text(
+                          TextConstants.printInvoice,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      )
+                          : ElevatedButton(
+                        //Build 1.1.36: on pay tap calling updateOrderProducts api call
+                        onPressed: netPayable >= 0 &&
+                            orderItems.isNotEmpty
+                            ? () async {
+                          if (orderHelper.activeOrderId != null) {
+                            setState(() => _isPayBtnLoading = true);
+                            _initialFetchDone =
+                            false; // Build #1.0.143: Track initial fetch of fetchOrdersData
+                            // await Navigator.push(
+                            //   context,
+                            //   MaterialPageRoute(builder: (context) => OrderSummaryScreen()),
+                            // );
+                            // On the first screen (Screen 1)
+                            // Navigator.push(context, MaterialPageRoute(builder: (_) => OrderSummaryScreen())).then((result) {
+                            //   if (result == 'refresh') {
+                            //     setState(() {
+                            //       // Update state to refresh the UI
+                            //     });
+                            //   }
+                            // });
+                            // Build #1.0.104: refresh when back to this screen
+                            final result = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) =>
+                                      OrderSummaryScreen(
+                                        formattedTime: '',
+                                        formattedDate: '',
+                                      )),
+                            );
+                            if (kDebugMode) {
+                              print(
+                                  "###### OrderScreenPanel: Returned from OrderSummaryScreen with result: $result");
+                            }
+                            // Handle refresh if result is 'refresh'
+                            if (result == TextConstants.refresh) {
+                              // Build #1.0.175: added TextConstants
+                              if (kDebugMode) {
+                                print(
+                                    "###### OrderScreenPanel: Refresh signal received, reinitializing entire screen");
+                              }
+
+                              // Build #1.0.143: Fixed Issue : After return from order summary screen , total order screen not refreshing with updated response
+                              widget.refreshOrderList?.call();
+                            }
+                            setState(
+                                    () => _isPayBtnLoading = false);
+
+                            ///No need to update here now, may cause empty items added to order
+                            //     // Assign the subscription to your class variable
+                            //     _updateOrderSubscription = orderBloc.updateOrderStream.listen((response) async {
+                            //       if (!mounted) return; // Safety check
+                            //       if (response.status == Status.LOADING) { // Build #1.0.80
+                            //         const Center(child: CircularProgressIndicator());
+                            //       }else if (response.status == Status.COMPLETED) {
+                            //         if (kDebugMode) {
+                            //           print("###### updateOrder COMPLETED");
+                            //         }
+                            //
+                            //         setState(() => _isPayBtnLoading = false); // dismiss the loader
+                            //
+                            //         Navigator.push(
+                            //           context,
+                            //           MaterialPageRoute(builder: (context) => OrderSummaryScreen()),
+                            //         );
+                            //       } else if (response.status == Status.ERROR) {
+                            //         ScaffoldMessenger.of(context).showSnackBar(
+                            //           SnackBar(content: Text(response.message ?? "Failed to update order")),
+                            //         );
+                            //       }
+                            //     });
+                            //
+                            //     // Prepare line items for API
+                            //     List<OrderLineItem> lineItems = orderItems.map((item) => OrderLineItem(
+                            //       productId: item[AppDBConst.itemId],
+                            //       quantity: item[AppDBConst.itemCount],
+                            //     )).toList();
+                            //
+                            //     // Call API
+                            //     await orderBloc.updateOrderProducts(
+                            //       dbOrderId: orderHelper.activeOrderId!,
+                            //       orderId: serverOrderId,
+                            //       lineItems: lineItems,
+                            //     );
+                          }
                         }
-                      }
-                      : null,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: netPayable >= 0 && orderItems.isNotEmpty ? const Color(0xFFFF6B6B) : Colors.grey, // Coral red color
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                            : null,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                          netPayable >= 0 && orderItems.isNotEmpty
+                              ? const Color(0xFFFF6B6B)
+                              : Colors.grey, // Coral red color
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child:
+                        _isPayBtnLoading //Build 1.1.36: added loader for pay button in order panel
+                            ? CircularProgressIndicator(
+                            color: Colors.white)
+                            : Text(
+                          // "${TextConstants.pay} ${TextConstants.currencySymbol}${netPayable.toStringAsFixed(2)}",
+                          TextConstants
+                              .pay, // Build #1.0.175: No need show amount on PAY button in order screen panel
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
-                      child: _isPayBtnLoading  //Build 1.1.36: added loader for pay button in order panel
-                          ? CircularProgressIndicator(color: Colors.white)
-                          : Text(
-                       // "${TextConstants.pay} ${TextConstants.currencySymbol}${netPayable.toStringAsFixed(2)}",
-                        TextConstants.pay, // Build #1.0.175: No need show amount on PAY button in order screen panel
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  )
-                  else SizedBox(),
+                    )
+                  else
+                    SizedBox(),
                 ],
               ),
             )
@@ -1766,36 +2187,59 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
     );
   }
 
-  Future _preparePrintTicket() async{
+  double total = 0.0;
+  double balanceAmount = 0.0;
+  double tenderAmount = 0.0; // Build #1.0.33 : added new variables
+  double paidAmount = 0.0;
+  double changeAmount = 0.0;
+  double discount = 0.0; // Add this to track discount
+  double merchantDiscount = 0.0; // Add this to track merchant discount
+  double tax = 0.0; // AddED tax variable
+  double payByCash = 0.0;
+  double payByOther = 0.0;
+  final _printerSettings = PrinterSettings();
+  List<int> bytes = [];
+
+  get orderBloc => false;
+  Future _preparePrintTicket() async {
     var header = _printerReceipt?[AppDBConst.receiptHeaderText] ?? "";
     var footer = _printerReceipt?[AppDBConst.receiptFooterText] ?? "";
 
     if (kDebugMode) {
-      print("OrderSummaryScreen _preparePrintTicket call print receipt ---- $header");
-      print("OrderSummaryScreen _preparePrintTicket call print receipt ---- $footer");
+      print(
+          "OrderSummaryScreen _preparePrintTicket call print receipt ---- $header");
+      print(
+          "OrderSummaryScreen _preparePrintTicket call print receipt ---- $footer");
     }
     if (_order != null) {
       setState(() {
         var orderId = _order[AppDBConst.orderServerId] as int? ?? 0;
-        var orderDateTime = "${_order[AppDBConst.orderDate]} ${_order[AppDBConst.orderTime]}" ;
-        balanceAmount = (_order[AppDBConst.orderTotal] as num?)?.toDouble() ?? 0.0; // Fetch total
-        discount = (_order[AppDBConst.orderDiscount] as num?)?.toDouble() ?? 0.0; // Fetch discount
-        merchantDiscount = (_order[AppDBConst.merchantDiscount] as num?)?.toDouble() ?? 0.0;
+        var orderDateTime =
+            "${_order[AppDBConst.orderDate]} ${_order[AppDBConst.orderTime]}";
+        balanceAmount = (_order[AppDBConst.orderTotal] as num?)?.toDouble() ??
+            0.0; // Fetch total
+        discount = (_order[AppDBConst.orderDiscount] as num?)?.toDouble() ??
+            0.0; // Fetch discount
+        merchantDiscount =
+            (_order[AppDBConst.merchantDiscount] as num?)?.toDouble() ?? 0.0;
         tax = (_order[AppDBConst.orderTax] as num?)?.toDouble() ?? 0.0;
         var balanceAmt = total - discount - merchantDiscount + tax;
         if (kDebugMode) {
-          print("Fetched orderServerId: $orderId, Discount: $discount for activeOrderId: ${widget.activeOrderId}, Time: $orderDateTime");
-          print("Balance amount calculated is $balanceAmt and balance from API is $balanceAmount");
+          print(
+              "Fetched orderServerId: $orderId, Discount: $discount for activeOrderId: ${orderHelper.activeOrderId}, Time: $orderDateTime");
+          print(
+              "Balance amount calculated is $balanceAmt and balance from API is $balanceAmount");
         }
       });
     } else {
       if (kDebugMode) {
-        print("No orderServerId found for activeOrderId: ${widget.activeOrderId}");
+        print(
+            "No orderServerId found for activeOrderId: ${orderHelper.activeOrderId}");
       }
     }
 
     bytes = [];
-    final ticket =  await _printerSettings.getTicket();
+    final ticket = await _printerSettings.getTicket();
 
     ///Header
     ///   Pinaka Logo
@@ -1816,7 +2260,8 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
       // Resize the image to a 130x? thumbnail (maintaining the aspect ratio).
       img.Image thumbnail = img.copyResize(decodedImage, height: 130);
       // creates a copy of the original image with set dimensions
-      img.Image originalImg = img.copyResize(decodedImage, width: 380, height: 130);
+      img.Image originalImg =
+      img.copyResize(decodedImage, width: 380, height: 130);
       // fills the original image with a white background
       img.fill(originalImg, color: img.ColorRgb8(255, 255, 255));
       var padding = (originalImg.width - thumbnail.width) / 2;
@@ -1833,194 +2278,75 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
       bytes += ticket.feed(1);
     }
 
-    //Header
-    ///New changes in Header on 2-Sep-2025
-    ///Date and Time
-    ///Store Id
-    ///Address
-    //         "Store name": "Kumar Swa D",
-    //         "address": "Q No: D 1847, Shirkey Colony",
-    //         "city": "Mancherial",
-    //         "state": "Telangana",
-    //         "country": "",
-    //         "zip_code": "504302",
-    //         "phone_number": false
-
-
-    var dateToPrint = "";
-    var timeToPrint = "";
-
-    if (_order.isNotEmpty && _order[AppDBConst.orderDate] != null) {
-      try {
-        final DateTime createdDateTime = DateTime.parse(_order[AppDBConst.orderDate].toString());
-        dateToPrint = DateFormat("EEE, MMM d, yyyy").format(createdDateTime);
-        timeToPrint = DateFormat('hh:mm:ss a').format(createdDateTime);
-      } catch (e) {
-        if (kDebugMode) {
-          print("Error parsing order creation date: $e");
-        }
-        // Fallback to raw data or default if parsing fails
-        // displayDate = order[AppDBConst.orderDate].toString().split(' ').first;
-      }
-    }
-
-    var merchantDetails = await StoreDbHelper.instance.getStoreValidationData();
-    var storeId = "Store ID ${merchantDetails?[AppDBConst.storeId]}";
-    var storePhone = "Phone ${merchantDetails?[AppDBConst.storePhone]}";
-
-    var storeDetails = await AssetDBHelper.instance.getStoreDetails();
-    var storeName = "${storeDetails?.name}";
-    var address = "${storeDetails?.address},${storeDetails?.city},${storeDetails?.state},${storeDetails?.country},${storeDetails?.zipCode}";
-    var orderIdToPrint = '${TextConstants.orderId} #${widget.activeOrderId}';
-
-    final userData = await UserDbHelper().getUserData();
-    var cashierName = "Cashier ${userData?[AppDBConst.userDisplayName] ?? "Unknown Name"}";
-    var cashierRole = "${userData?[AppDBConst.userRole] ?? "Unknown Role"}";
-
-    if (kDebugMode) {
-      print(" >>>>> PrintOrder  dateToPrint $dateToPrint ");
-      print(" >>>>> PrintOrder  timeToPrint $timeToPrint ");
-      print(" >>>>> PrintOrder  storeId $storeId ");
-      print(" >>>>> PrintOrder  storeName $storeName ");
-      print(" >>>>> PrintOrder  address $address ");
-      print(" >>>>> PrintOrder  storePhone $storePhone ");
-      print(" >>>>> PrintOrder  orderIdToPrint $orderIdToPrint ");
-      print(" >>>>> PrintOrder  cashierName $cashierName ");
-      print(" >>>>> PrintOrder  cashierRole $cashierRole ");
-    }
-
-    if(header != "") {
-      bytes += ticket.row([
-        PosColumn(
-            text: "$header",
-            width: 12,
-            styles: PosStyles(align: PosAlign.center)),
-      ]);
-      bytes += ticket.feed(1);
-    }
-
-    //Store Name
+    ///Header
     bytes += ticket.row([
-      PosColumn(text: "$storeName", width: 12, styles: PosStyles(align: PosAlign.center)),
-    ]);
-    //Address
-    bytes += ticket.row([
-      PosColumn(text: "$address", width: 12, styles: PosStyles(align: PosAlign.center)),
-    ]);
-    //Store Phone
-    bytes += ticket.row([
-      PosColumn(text: "$storePhone", width: 12, styles: PosStyles(align: PosAlign.center)),
+      PosColumn(text: "$header", width: 12),
     ]);
 
-    bytes += ticket.feed(1);
-    bytes += ticket.row([
-      PosColumn(text: "-----------------------------------------------", width: 12),
-    ]);
-    bytes += ticket.feed(1);
-
-    //store id and  Date
-    bytes += ticket.row([
-      PosColumn(text: "$storeId", width: 5),
-      PosColumn(text: "Date", width: 2, styles: PosStyles(align: PosAlign.right)),
-      PosColumn(text: "$dateToPrint", width: 5, styles: PosStyles(align: PosAlign.right)),
-    ]);
-
-    //order Id and  Time
-    bytes += ticket.row([
-      PosColumn(text: "$orderIdToPrint", width: 5),
-      PosColumn(text: "Time", width: 2, styles: PosStyles(align: PosAlign.right)),
-      PosColumn(text: "$timeToPrint", width: 5, styles: PosStyles(align: PosAlign.right)),
-    ]);
-
-    //cashier and role
-    bytes += ticket.row([
-      PosColumn(text: "$cashierName", width: 5),
-      PosColumn(text: "Role", width: 2, styles: PosStyles(align: PosAlign.right)),
-      PosColumn(text: "$cashierRole", width: 5, styles: PosStyles(align: PosAlign.right)),
-    ]);
-
-    bytes += ticket.feed(1);
-    bytes += ticket.row([
-      PosColumn(text: "-----------------------------------------------", width: 12),
-    ]);
     bytes += ticket.feed(1);
 
     //Item header
     bytes += ticket.row([
       PosColumn(text: "#", width: 1),
-      PosColumn(text: "Description", width:6),
-      PosColumn(text: "Qty", width: 1, styles: PosStyles(align: PosAlign.right)),
-      PosColumn(text: "Rate", width: 2, styles: PosStyles(align: PosAlign.right)),
-      // PosColumn(text: "Dis", width: 1, styles: PosStyles(align: PosAlign.right)), ///removed based on request on 3-Sep-25
-      PosColumn(text: "Amt", width: 2, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: "Description", width: 5),
+      PosColumn(text: "Qty", width: 1),
+      PosColumn(text: "Rate", width: 2),
+      PosColumn(text: "Dis", width: 1),
+      PosColumn(text: "Amt", width: 2),
     ]);
     bytes += ticket.feed(1);
 
     if (kDebugMode) {
       print(" >>>>> Order items count ${orderItems.length} ");
-
     }
 
     //Product Items
-    for(int i = 0; i< orderItems.length; i++) {
-
+    for (int i = 0; i < orderItems.length; i++) {
       var orderItem = orderItems[i];
 
-      final itemType = orderItem[AppDBConst.itemType]?.toString().toLowerCase() ?? '';
-      final isPayout = itemType.contains(TextConstants.payoutText);
-      final isCoupon = itemType.contains(TextConstants.couponText);
-      final isCustomItem = itemType.contains(TextConstants.customItemText);
-      final isPayoutOrCouponOrCustomItem = isPayout || isCoupon || isCustomItem;
-      final isCouponOrPayout = isPayout || isCoupon;
-
-      final salesPrice =
-      (orderItem[AppDBConst.itemSalesPrice] == null || (orderItem[AppDBConst.itemSalesPrice]?.toDouble() ?? 0.0) == 0.0)
-          ? (orderItem[AppDBConst.itemRegularPrice] == null || (orderItem[AppDBConst.itemRegularPrice]?.toDouble() ?? 0.0) == 0.0)
+      final salesPrice = (orderItem[AppDBConst.itemSalesPrice] == null ||
+          (orderItem[AppDBConst.itemSalesPrice]?.toDouble() ?? 0.0) == 0.0)
+          ? (orderItem[AppDBConst.itemRegularPrice] == null ||
+          (orderItem[AppDBConst.itemRegularPrice]?.toDouble() ?? 0.0) ==
+              0.0)
           ? orderItem[AppDBConst.itemUnitPrice]?.toDouble() ?? 0.0
           : orderItem[AppDBConst.itemRegularPrice]!.toDouble()
           : orderItem[AppDBConst.itemSalesPrice]!.toDouble();
 
-      final regularPrice =  (orderItem[AppDBConst.itemRegularPrice] == null || (orderItem[AppDBConst.itemRegularPrice]?.toDouble() ?? 0.0) == 0.0)
+      final regularPrice = (orderItem[AppDBConst.itemRegularPrice] == null ||
+          (orderItem[AppDBConst.itemRegularPrice]?.toDouble() ?? 0.0) ==
+              0.0)
           ? orderItem[AppDBConst.itemUnitPrice]?.toDouble() ?? 0.0
           : orderItem[AppDBConst.itemRegularPrice]!.toDouble();
 
       if (kDebugMode) {
-        if(isCouponOrPayout){
-          print(" >>>>> Adding item ${orderItem[AppDBConst.itemName]} to print with salesPrice ${(orderItem[AppDBConst.itemCount] * orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}");
-        }
-        else {
-          print(" >>>>> Adding item ${orderItem[AppDBConst.itemName]} to print with salesPrice ${(orderItem[AppDBConst.itemCount] * salesPrice).toStringAsFixed(2)}");
-        }
+        print(
+            " >>>>> Adding item ${orderItem[AppDBConst.itemName]} to print with salesPrice $salesPrice");
       }
 
       bytes += ticket.row([
-        PosColumn(text: "${i+1}", width: 1),
-        PosColumn(text: "${orderItem[AppDBConst.itemName]}", width:6),
-        PosColumn(text: "${orderItem[AppDBConst.itemCount]}", width: 1,styles: PosStyles(align: PosAlign.right)),
-        PosColumn(text: "${salesPrice.toStringAsFixed(2)}", width:2, styles: PosStyles(align: PosAlign.right)),
-        // PosColumn(text: "${(regularPrice - salesPrice).toStringAsFixed(2)}", width: 1, styles: PosStyles(align: PosAlign.right)),, ///removed based on request on 3-Sep-25
-        PosColumn(text: isCouponOrPayout
-            ? "${(orderItem[AppDBConst.itemCount] * orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}"
-            : "${(orderItem[AppDBConst.itemCount] * salesPrice).toStringAsFixed(2)}", width: 2, styles: PosStyles(align: PosAlign.right)),
+        PosColumn(text: "${i + 1}", width: 1),
+        PosColumn(text: "${orderItem[AppDBConst.itemName]}", width: 5),
+        PosColumn(text: "${orderItem[AppDBConst.itemCount]}", width: 1),
+        PosColumn(text: "$salesPrice", width: 2),
+        PosColumn(
+            text: "${(regularPrice - salesPrice).toStringAsFixed(2)}",
+            width: 1),
+        PosColumn(
+            text:
+            "${(orderItem[AppDBConst.itemCount] * salesPrice).toStringAsFixed(2)}",
+            width: 2),
       ]);
       // bytes += ticket.feed(1);
     }
 
     bytes += ticket.feed(1);
-    bytes += ticket.row([
-      PosColumn(text: "-----------------------------------------------", width: 12),
-    ]);
-    bytes += ticket.feed(1);
 
     if (kDebugMode) {
-      print(" >>>>> Printer Order merchantDiscount -${merchantDiscount.toStringAsFixed(2)} ");
-      print(" >>>>> Printer Order discount -${discount.toStringAsFixed(2)} ");
       print(" >>>>> Printer Order balanceAmount  $balanceAmount ");
-      // print(" >>>>> Printer Order orderTotal  $orderTotal ");
       print(" >>>>> Printer Order tenderAmount $tenderAmount ");
       print(" >>>>> Printer Order changeAmount $changeAmount ");
       print(" >>>>> Printer Order paidAmount $paidAmount ");
-
     }
     //Breakdown
     //         balanceAmount = total - discount - merchantDiscount + tax;
@@ -2030,76 +2356,73 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
 
     bytes += ticket.row([
       PosColumn(text: TextConstants.grossTotal, width: 10),
-      PosColumn(text: total.toStringAsFixed(2), width:2, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: total.toStringAsFixed(2), width: 2),
     ]);
     // bytes += ticket.feed(1);
     bytes += ticket.row([
-      PosColumn(text: TextConstants.discountText, width: 10), // Build #1.0.148: deleted duplicate discount string from constants , already we have discountText using !
-      PosColumn(text: "-${discount.toStringAsFixed(2)}", width:2, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: TextConstants.discountText, width: 10), // Build #1.0.148
+      PosColumn(text: discount.toStringAsFixed(2), width: 2),
     ]);
     // bytes += ticket.feed(1);
     bytes += ticket.row([
       PosColumn(text: TextConstants.merchantDiscount, width: 10),
-      PosColumn(text: "-${merchantDiscount.toStringAsFixed(2)}", width:2, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: merchantDiscount.toStringAsFixed(2), width: 2),
     ]);
     // bytes += ticket.feed(1);
     bytes += ticket.row([
       PosColumn(text: TextConstants.taxText, width: 10),
-      PosColumn(text: tax.toStringAsFixed(2), width:2, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: tax.toStringAsFixed(2), width: 2),
     ]);
     // bytes += ticket.feed(1);
     //line
     bytes += ticket.row([
-      PosColumn(text: "-----------------------------------------------", width: 12),
+      PosColumn(
+          text: "-----------------------------------------------", width: 12),
     ]);
 
     bytes += ticket.feed(1);
     //Net Payable
     bytes += ticket.row([
       PosColumn(text: TextConstants.netPayable, width: 10),
-      PosColumn(text: balanceAmount.toStringAsFixed(2), width:2, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: balanceAmount.toStringAsFixed(2), width: 2),
     ]);
-    ///Todo: get pay by cash amount
-    // bytes += ticket.feed(1);
-    bytes += ticket.row([
-      PosColumn(text: TextConstants.payByCash, width: 10),
-      PosColumn(text: payByCash.toStringAsFixed(2), width:2,styles: PosStyles(align: PosAlign.right)),
-    ]);
-    ///Todo: get pay by other amount
-    // bytes += ticket.feed(1);
-    bytes += ticket.row([
-      PosColumn(text: TextConstants.payByOther, width: 10),
-      PosColumn(text: payByOther.toStringAsFixed(2), width:2, styles: PosStyles(align: PosAlign.right)),
-    ]);
-    // bytes += ticket.feed(1);
-    bytes += ticket.row([
-      PosColumn(text: TextConstants.tenderAmount, width: 10),
-      PosColumn(text: tenderAmount.toStringAsFixed(2), width:2, styles: PosStyles(align: PosAlign.right)),
-    ]);
-    // bytes += ticket.feed(1);
-    bytes += ticket.row([
-      PosColumn(text: TextConstants.change, width: 10),
-      PosColumn(text: changeAmount.toStringAsFixed(2), width:2, styles: PosStyles(align: PosAlign.right)),
-    ]);
+    // ///Todo: get pay by cash amount
+    // // bytes += ticket.feed(1);
+    // bytes += ticket.row([
+    //   PosColumn(text: TextConstants.payByCash, width: 8),
+    //   PosColumn(text: payByCash.toStringAsFixed(2), width:4),
+    // ]);
+    // ///Todo: get pay by other amount
+    // // bytes += ticket.feed(1);
+    // bytes += ticket.row([
+    //   PosColumn(text: TextConstants.payByOther, width: 8),
+    //   PosColumn(text: payByOther.toStringAsFixed(2), width:4),
+    // ]);
+    // // bytes += ticket.feed(1);
+    // bytes += ticket.row([
+    //   PosColumn(text: TextConstants.tenderAmount, width: 8),
+    //   PosColumn(text: tenderAmount.toStringAsFixed(2), width:4),
+    // ]);
+    // // bytes += ticket.feed(1);
+    // bytes += ticket.row([
+    //   PosColumn(text: TextConstants.change, width: 8),
+    //   PosColumn(text: changeAmount.toStringAsFixed(2), width:4),
+    // ]);
     bytes += ticket.feed(1);
 
     //Footer
     // bytes += ticket.row([
     //   PosColumn(text: "Thank You, Visit Again", width: 12),
     // ]);
+    bytes += ticket.row([
+      PosColumn(text: "$footer", width: 12),
+    ]);
 
-    if(footer != "") {
-      bytes += ticket.row([
-        PosColumn(text: "$footer",
-            width: 12,
-            styles: PosStyles(align: PosAlign.center)),
-      ]);
-      bytes += ticket.feed(1);
-    }
+    bytes += ticket.feed(1);
   }
 
-  Future _printTicket() async{
-    final ticket =  await _printerSettings.getTicket();
+  Future _printTicket() async {
+    final ticket = await _printerSettings.getTicket();
     final result = await _printerSettings.printTicket(bytes, ticket);
 
     if (kDebugMode) {
@@ -2110,7 +2433,8 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
       // BluetoothPrinter printer = result.value;
         break;
       case Error<BluetoothPrinter>():
-        WidgetsBinding.instance.addPostFrameCallback((_) { // Build #1.0.16
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          // Build #1.0.16
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
@@ -2121,21 +2445,26 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
               duration: const Duration(seconds: 3),
             ),
           );
+
           /// call printer setup screen
           if (kDebugMode) {
             print("call printer setup screen");
           }
-          Navigator.push(context, MaterialPageRoute(
-            builder: (context) => PrinterSetup(),
-          )).then((result) {
-            if (result == TextConstants.refresh) { // Build #1.0.175: added TextConstants
+          Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => PrinterSetup(),
+              )).then((result) {
+            if (result == TextConstants.refresh) {
+              // Build #1.0.175: added TextConstants
               _printerSettings.loadPrinter();
               setState(() {
                 // Update state to refresh the UI
                 if (kDebugMode) {
-                  print("SettingScreen - printer setup is done, connected printer is ${_printerSettings.selectedPrinter?.deviceName}");
+                  print(
+                      "SettingScreen - printer setup is done, connected printer is ${_printerSettings.selectedPrinter?.deviceName}");
                 }
-                if(!Misc.disablePrinter) {
+                if (!Misc.disablePrinter) {
                   _printTicket();
                 }
               });
@@ -2146,7 +2475,10 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
     }
   }
 
-  void _handleError(String message, {bool isPayout = false, bool isCoupon = false, bool isCustomItem = false}) async {
+  void _handleError(String message,
+      {bool isPayout = false,
+        bool isCoupon = false,
+        bool isCustomItem = false}) async {
     if (!mounted) return; // Check if widget is still mounted
     setState(() => _isLoading = false);
     _scaffoldMessenger.showSnackBar(
@@ -2157,8 +2489,10 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
       ),
     );
   }
+
   //Build #1.0.67
-  Future<void> _handleLocalDelete(Map<String, dynamic> orderItem, BuildContext context) async {
+  Future<void> _handleLocalDelete(
+      Map<String, dynamic> orderItem, BuildContext context) async {
     if (!mounted) return; // Check if widget is still mounted
     setState(() => _isLoading = false);
     await orderHelper.deleteItem(orderItem[AppDBConst.itemId]);

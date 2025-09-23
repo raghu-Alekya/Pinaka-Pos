@@ -61,11 +61,6 @@ class MainActivity : FlutterActivity() {
                         "CustomerDisplay",
                         "➡ showWelcomeWithStore invoked → storeId=$storeId, storeName=$storeName, logoUrl=$storeLogoUrl"
                     )
-                    Toast.makeText(
-                        context,
-                        "Welcome → id=$storeId, name=$storeName, logo=$storeLogoUrl",
-                        Toast.LENGTH_LONG
-                    ).show()
 
                     currentStoreId = storeId
                     currentStoreName = storeName

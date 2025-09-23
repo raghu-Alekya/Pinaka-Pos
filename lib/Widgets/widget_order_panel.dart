@@ -49,15 +49,15 @@ import '../Screens/Home/edit_product_screen.dart';
 
 bool isOrderInForeground = true;  ///Add visibility code to check if order panel is visible or not
 class RightOrderPanel extends StatefulWidget {
-  final String formattedDate;
-  final String formattedTime;
+  final String? formattedDate;
+  final String? formattedTime;
   final List<int> quantities;
   final VoidCallback? refreshOrderList;
   final int refreshKey; //Build #1.0.170: Added: Key to trigger refresh only when explicitly needed
 
   const RightOrderPanel({
-    required this.formattedDate,
-    required this.formattedTime,
+    this.formattedDate,
+    this.formattedTime,
     required this.quantities,
     this.refreshOrderList,
     this.refreshKey = 0, //Build #1.0.170: Default to 0, increment externally to trigger refresh
@@ -477,6 +477,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
         _scrollToSelectedTab();
         await fetchOrderItems();
 
+        if (Misc.showDebugSnackBar) { // Build #1.0.254
         _scaffoldMessenger.showSnackBar(
           SnackBar(
             content: Text("Order created successfully"),
@@ -484,6 +485,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
             duration: const Duration(seconds: 2),
           ),
         );
+       }
       } else if (response.status == Status.ERROR) {
         if (response.message!.contains('Unauthorised')) {
           if (kDebugMode) {
@@ -604,6 +606,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
             }
 
             setState(() => _isLoading = false); // Hide loader
+            if (Misc.showDebugSnackBar) { // Build #1.0.254
             _scaffoldMessenger.showSnackBar(
               SnackBar(
                 content: Text(TextConstants.orderCancelled),
@@ -611,6 +614,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                 duration: const Duration(seconds: 2),
               ),
             );
+           }
           } else if (response.status == Status.ERROR) {
             if (response.message!.contains('Unauthorised')) {
               if (kDebugMode) {
@@ -1067,6 +1071,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                         setState(() {
                           _isLoading = false;
                         });
+                        if (Misc.showDebugSnackBar) { // Build #1.0.254
                         _scaffoldMessenger.showSnackBar(
                           SnackBar(
                             content: Text("Product added successfully"),
@@ -1074,6 +1079,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                             duration: const Duration(seconds: 2),
                           ),
                         );
+                       }
                       } else if (response.status == Status.ERROR) {
                         if (response.message!.contains('Unauthorised')) {
                           if (kDebugMode) {
@@ -1367,6 +1373,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
     if (response.status == Status.COMPLETED) {
       //Build #1.0.170: Updated - No need to make _isLoading is false here , we are doing after refresh!
      // setState(() => _isLoading = false); //Build #1.0.92
+      if (Misc.showDebugSnackBar) { // Build #1.0.254
       _scaffoldMessenger.showSnackBar(
         SnackBar(
           content: Text("${isPayout ? 'Payout' : isCoupon ? 'Coupon' : isCustomItem ? 'Custom Item' : 'Item'} removed successfully"),
@@ -1374,6 +1381,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
           duration: const Duration(seconds: 2),
         ),
       );
+     }
       await orderHelper.deleteItem(orderItem[AppDBConst.itemServerId]);
       await fetchOrderItems();
       widget.refreshOrderList?.call();
@@ -1499,8 +1507,11 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
     num netPayable = 0.0;  //Build #1.0.67
 
     // Initialize display date and time variables
-    String displayDate = widget.formattedDate;
-    String displayTime = widget.formattedTime;
+    DateTime now = DateTime.now();
+    String formattedDate = DateFormat(TextConstants.dateFormat).format(now);
+    String formattedTime = DateFormat(TextConstants.timeFormat).format(now);
+    String displayDate = formattedDate;
+    String displayTime = formattedTime;
 
     if (kDebugMode) {
       print("display date === $displayDate");
@@ -1542,8 +1553,8 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
       if (order.isNotEmpty && order[AppDBConst.orderDate] != null) {
         try {
           final DateTime createdDateTime = DateTime.parse(order[AppDBConst.orderDate].toString());
-          displayDate = DateFormat("EEE, MMM d, yyyy").format(createdDateTime);
-          displayTime = DateFormat('hh:mm:ss a').format(createdDateTime);
+          displayDate = DateFormat(TextConstants.dateFormat).format(createdDateTime);
+          displayTime = DateFormat(TextConstants.timeFormat).format(createdDateTime);
         } catch (e) {
           if (kDebugMode) {
             print("Error parsing order creation date: $e");
@@ -1641,7 +1652,9 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
               ),
             ),
             Expanded(
-              child: Container(
+              child: (orderItems.isEmpty)
+                  ? Container() ///Add your widget if needed to show empty tab contents
+                  : Container(
                 color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground: null,
                 child: Padding(
                   padding: const EdgeInsets.only(left:3, right: 3),
@@ -1833,6 +1846,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                                                     setState(() => _isLoading = false); //Build #1.0.92, Fixed Issue: Loader in order panel does not stop on edit item
 
                                                     await fetchOrderItems();
+                                                    if (Misc.showDebugSnackBar) { // Build #1.0.254
                                                     _scaffoldMessenger.showSnackBar(
                                                       SnackBar(
                                                         content: Text("Quantity updated successfully"),
@@ -1840,6 +1854,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                                                         duration: const Duration(seconds: 2),
                                                       ),
                                                     );
+                                                   }
                                                   } else if (response.status == Status.ERROR) {
                                                     await fetchOrderItems(); // Build 1.0.214: Fixed Issue [SCRUM - 364] -> Item reappears in cart after being deleted while edit screen is open
                                                     if (response.message!.contains('Unauthorised')) {
@@ -1983,6 +1998,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                                                       setState(() => _isLoading = false); //Build #1.0.92, Fixed Issue: Loader in order panel does not stop on edit item
 
                                                       await fetchOrderItems();
+                                                      if (Misc.showDebugSnackBar) { // Build #1.0.254
                                                       _scaffoldMessenger.showSnackBar(
                                                         SnackBar(
                                                           content: Text("Quantity updated successfully"),
@@ -1990,6 +2006,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                                                           duration: const Duration(seconds: 2),
                                                         ),
                                                       );
+                                                     }
                                                     } else if (response.status == Status.ERROR) {
                                                       await fetchOrderItems(); // Build 1.0.214: Fixed Issue [SCRUM - 364] -> Item reappears in cart after being deleted while edit screen is open
                                                       if (response.message!.contains('Unauthorised')) {
@@ -2364,12 +2381,14 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                                                             setState(() => _isLoading = false); //Build #1.0.92
                                                             await fetchOrderItems();
                                                             widget.refreshOrderList?.call();
+                                                            if (Misc.showDebugSnackBar) { // Build #1.0.254
                                                             _scaffoldMessenger.showSnackBar(
                                                               SnackBar(content: Text("Merchant Discount removed successfully"),
                                                                 backgroundColor: Colors.green,
                                                                 duration: const Duration(seconds: 2),
                                                               ),
                                                             );
+                                                           }
                                                           } else if (response.status == Status.ERROR) {
                                                                   if (response.message!.contains('Unauthorised')) {
                                                                     if (kDebugMode) {

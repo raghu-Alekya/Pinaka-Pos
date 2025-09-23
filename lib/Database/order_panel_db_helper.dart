@@ -29,6 +29,7 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
 
   int? activeOrderId; // Stores the currently active order ID
   int? activeUserId; // Stores the active user ID
+  int? selectedOrderId; // Build #1.0.248 : save & persists across rebuilds of theme selection change
   int? cancelledOrderId; // Build #1.0.189: Stores the cancelled order ID
   List<int> orderIds = []; // List of order IDs for the active user
   List<Map<String, dynamic>> orders = [];
@@ -63,7 +64,8 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
       whereArgs: [activeUserId ?? 1, 'processing'],
       /// Build #1.0.161
       /// If required "asc" orders list, un-comment this line (order id's order low to high)
-      orderBy: '${AppDBConst.orderDate} ASC', // Ensure orders are sorted by creation date
+      /// Build #1.0.251 : FIXED - We have to use orderServerId rather than orderDate, it is already latest based on backend
+      orderBy: '${AppDBConst.orderServerId} ASC', // Ensure orders are sorted by creation date
     );
 
     if (orders.isNotEmpty) {
@@ -111,7 +113,8 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
       whereArgs: [activeUserId ?? 1],
     /// Build #1.0.161
     /// If required "asc" orders list, un-comment this line (order id's order low to high)
-     orderBy: '${AppDBConst.orderDate} ASC', // Ensure orders are sorted by creation date
+    /// Build #1.0.251 : FIXED - latest created order coming middle of all orders, we can use orderServerId rather than orderDate, because latest order id crated by latest time/date only.
+     orderBy: '${AppDBConst.orderServerId} ASC', // Ensure orders are sorted by creation date
     );
 
     if (orders.isNotEmpty) {

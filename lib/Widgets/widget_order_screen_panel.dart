@@ -48,7 +48,7 @@ class OrderScreenPanel extends StatefulWidget {
   final String formattedTime;
   final List<int> quantities;
   final VoidCallback? refreshOrderList;
-  final int? activeOrderId; // Build #1.0.118: Added activeOrderId
+  int? activeOrderId; // Build #1.0.251 : updated
   final bool fetchOrders; //Build #1.0.234:  Mark as final
 
   OrderScreenPanel({
@@ -251,7 +251,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
   var _order;
   // Build #1.0.118: Update fetchOrder to use widget.activeOrderId
   Future<void> fetchOrder() async {
-    if (widget.activeOrderId != null) {
+    if (widget.activeOrderId != null && OrderHelper().selectedOrderId != null) { // Build #1.0.251 : FIXED ISSUE - No Orders Case, the order panel still displays the first order from the total orders list instead of showing an empty state.
       List<Map<String, dynamic>> ordersData = await orderHelper.getOrderById(widget.activeOrderId!);
       _order = ordersData.firstWhere(
             (o) => o[AppDBConst.orderServerId] == widget.activeOrderId,
@@ -271,6 +271,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
     } else {
       _order = {AppDBConst.orderStatus: ''};
       orderServerId = null;
+      widget.activeOrderId = null; // Build #1.0.251 : We have to clear active order if orders list is empty from api.
     }
   }
 
@@ -753,6 +754,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
     if (!mounted) return;
     setState(() => _isLoading = false);
     if (response.status == Status.COMPLETED) {
+      if (Misc.showDebugSnackBar) { // Build #1.0.254
       _scaffoldMessenger.showSnackBar(
         SnackBar(
           content: Text("${isPayout ? TextConstants.payout : isCoupon ? TextConstants.coupon : isCustomItem ? TextConstants.customItem : 'Item'}" "${TextConstants.removedSuccessfully}"),
@@ -760,6 +762,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
           duration: const Duration(seconds: 2),
         ),
       );
+      }
       await orderHelper.deleteItem(orderItem[AppDBConst.itemId]);
       await fetchOrderItems();
       widget.refreshOrderList?.call();
@@ -818,8 +821,8 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
     if (order.isNotEmpty && order[AppDBConst.orderDate] != null) {
       try {
         final DateTime createdDateTime = DateTime.parse(order[AppDBConst.orderDate].toString());
-        displayDate = DateFormat("EEE, MMM d, yyyy").format(createdDateTime);
-        displayTime = DateFormat('hh:mm:ss a').format(createdDateTime);
+        displayDate = DateFormat(TextConstants.dateFormat).format(createdDateTime);
+        displayTime = DateFormat(TextConstants.timeFormat).format(createdDateTime);
       } catch (e) {
         if (kDebugMode) {
           print("Error parsing order creation date: $e");
@@ -1853,8 +1856,8 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
     if (_order.isNotEmpty && _order[AppDBConst.orderDate] != null) {
       try {
         final DateTime createdDateTime = DateTime.parse(_order[AppDBConst.orderDate].toString());
-        dateToPrint = DateFormat("EEE, MMM d, yyyy").format(createdDateTime);
-        timeToPrint = DateFormat('hh:mm:ss a').format(createdDateTime);
+        dateToPrint = DateFormat(TextConstants.dateFormat).format(createdDateTime);
+        timeToPrint = DateFormat(TextConstants.timeFormat).format(createdDateTime);
       } catch (e) {
         if (kDebugMode) {
           print("Error parsing order creation date: $e");
@@ -1997,11 +2000,11 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
         PosColumn(text: "${i+1}", width: 1),
         PosColumn(text: "${orderItem[AppDBConst.itemName]}", width:6),
         PosColumn(text: "${orderItem[AppDBConst.itemCount]}", width: 1,styles: PosStyles(align: PosAlign.right)),
-        PosColumn(text: "${salesPrice.toStringAsFixed(2)}", width:2, styles: PosStyles(align: PosAlign.right)),
+        PosColumn(text: "${TextConstants.currencySymbol} ${salesPrice.toStringAsFixed(2)}", width:2, styles: PosStyles(align: PosAlign.right)),
         // PosColumn(text: "${(regularPrice - salesPrice).toStringAsFixed(2)}", width: 1, styles: PosStyles(align: PosAlign.right)),, ///removed based on request on 3-Sep-25
         PosColumn(text: isCouponOrPayout
-            ? "${(orderItem[AppDBConst.itemCount] * orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}"
-            : "${(orderItem[AppDBConst.itemCount] * salesPrice).toStringAsFixed(2)}", width: 2, styles: PosStyles(align: PosAlign.right)),
+            ? "${TextConstants.currencySymbol} ${(orderItem[AppDBConst.itemCount] * orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}"
+            : "${TextConstants.currencySymbol} ${(orderItem[AppDBConst.itemCount] * salesPrice).toStringAsFixed(2)}", width: 2, styles: PosStyles(align: PosAlign.right)),
       ]);
       // bytes += ticket.feed(1);
     }
@@ -2030,22 +2033,22 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
 
     bytes += ticket.row([
       PosColumn(text: TextConstants.grossTotal, width: 10),
-      PosColumn(text: total.toStringAsFixed(2), width:2, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: "${TextConstants.currencySymbol} ${total.toStringAsFixed(2)}", width:2, styles: PosStyles(align: PosAlign.right)),
     ]);
     // bytes += ticket.feed(1);
     bytes += ticket.row([
       PosColumn(text: TextConstants.discountText, width: 10), // Build #1.0.148: deleted duplicate discount string from constants , already we have discountText using !
-      PosColumn(text: "-${discount.toStringAsFixed(2)}", width:2, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: "-${TextConstants.currencySymbol} ${discount.toStringAsFixed(2)}", width:2, styles: PosStyles(align: PosAlign.right)),
     ]);
     // bytes += ticket.feed(1);
     bytes += ticket.row([
       PosColumn(text: TextConstants.merchantDiscount, width: 10),
-      PosColumn(text: "-${merchantDiscount.toStringAsFixed(2)}", width:2, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: "-${TextConstants.currencySymbol} ${merchantDiscount.toStringAsFixed(2)}", width:2, styles: PosStyles(align: PosAlign.right)),
     ]);
     // bytes += ticket.feed(1);
     bytes += ticket.row([
       PosColumn(text: TextConstants.taxText, width: 10),
-      PosColumn(text: tax.toStringAsFixed(2), width:2, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: "${TextConstants.currencySymbol} ${tax.toStringAsFixed(2)}", width:2, styles: PosStyles(align: PosAlign.right)),
     ]);
     // bytes += ticket.feed(1);
     //line
@@ -2057,29 +2060,29 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
     //Net Payable
     bytes += ticket.row([
       PosColumn(text: TextConstants.netPayable, width: 10),
-      PosColumn(text: balanceAmount.toStringAsFixed(2), width:2, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: "${TextConstants.currencySymbol} ${balanceAmount.toStringAsFixed(2)}", width:2, styles: PosStyles(align: PosAlign.right)),
     ]);
     ///Todo: get pay by cash amount
     // bytes += ticket.feed(1);
     bytes += ticket.row([
       PosColumn(text: TextConstants.payByCash, width: 10),
-      PosColumn(text: payByCash.toStringAsFixed(2), width:2,styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: "${TextConstants.currencySymbol} ${payByCash.toStringAsFixed(2)}", width:2,styles: PosStyles(align: PosAlign.right)),
     ]);
     ///Todo: get pay by other amount
     // bytes += ticket.feed(1);
     bytes += ticket.row([
       PosColumn(text: TextConstants.payByOther, width: 10),
-      PosColumn(text: payByOther.toStringAsFixed(2), width:2, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: "${TextConstants.currencySymbol} ${payByOther.toStringAsFixed(2)}", width:2, styles: PosStyles(align: PosAlign.right)),
     ]);
     // bytes += ticket.feed(1);
     bytes += ticket.row([
       PosColumn(text: TextConstants.tenderAmount, width: 10),
-      PosColumn(text: tenderAmount.toStringAsFixed(2), width:2, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: "${TextConstants.currencySymbol} ${tenderAmount.toStringAsFixed(2)}", width:2, styles: PosStyles(align: PosAlign.right)),
     ]);
     // bytes += ticket.feed(1);
     bytes += ticket.row([
       PosColumn(text: TextConstants.change, width: 10),
-      PosColumn(text: changeAmount.toStringAsFixed(2), width:2, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: "${TextConstants.currencySymbol} ${changeAmount.toStringAsFixed(2)}", width:2, styles: PosStyles(align: PosAlign.right)),
     ]);
     bytes += ticket.feed(1);
 

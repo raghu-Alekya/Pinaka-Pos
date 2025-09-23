@@ -66,8 +66,9 @@ class _OrdersScreenState extends State<TotalOrdersScreen> with LayoutSelectionMi
   final List<OrderType> _filterOrderType = [OrderType(slug: "",name: "All")];
 
   Map<String, dynamic>? _selectedOrder;
-  int? _selectedOrderId;
-  final OrderHelper orderHelper = OrderHelper(); // Helper instance to manage orders
+ // int? _selectedOrderId; // Build #1.0.248: right now saving in order helper class , because state level saving resetting after re build
+ /// OrderHelper already singleton class , no need to create instance here again
+  // final OrderHelper orderHelper = OrderHelper(); // Helper instance to manage orders
  // final PinakaPreferences _preferences = PinakaPreferences(); //Build #1.0.234: No need
   // Date range filter variables
   DateTime? _startDate;
@@ -131,14 +132,20 @@ class _OrdersScreenState extends State<TotalOrdersScreen> with LayoutSelectionMi
           isLoading = false;
 
           if (_orders.isEmpty) {
-            _selectedOrderId = null; // Reset only if no orders
+            debugPrint("_orders empty:");
+            OrderHelper().selectedOrderId = null; // Reset only if no orders
             return;
           }
 
-          // Only set _selectedOrderId if it's null or not in the new _orders list
-          if (_selectedOrderId == null || !_orders.any((order) => order.id == _selectedOrderId)) {
-            _selectedOrderId = _orders.first.id;
-            _onOrderRowSelected(_selectedOrderId!);
+          // Only set OrderHelper().selectedOrderId if it's null or not in the new _orders list
+          if (OrderHelper().selectedOrderId == null || !_orders.any((order) => order.id == OrderHelper().selectedOrderId)) {
+            debugPrint("TotalOrdersScreen: OrderHelper().selectedOrderId 1 -> ${OrderHelper().selectedOrderId}");
+            OrderHelper().selectedOrderId = _orders.first.id;
+            _onOrderRowSelected(OrderHelper().selectedOrderId!);
+          }else{
+            debugPrint("TotalOrdersScreen: OrderHelper().selectedOrderId 2 -> ${OrderHelper().selectedOrderId}");
+            // Build #1.0.248: If preserved selection exists in new orders, use it
+            _onOrderRowSelected(OrderHelper().selectedOrderId!);
           }
         });
       } else if (response.status == Status.ERROR) {
@@ -386,6 +393,7 @@ class _OrdersScreenState extends State<TotalOrdersScreen> with LayoutSelectionMi
   @override
   void dispose() {
     _fetchOrdersSubscription?.cancel();
+    OrderHelper().selectedOrderId = null; // Build #1.0.248: remove selected order when leave the screen !
     _orderBloc.dispose();
     debugPrint("OrdersScreen: Disposed");
     super.dispose();
@@ -397,7 +405,10 @@ class _OrdersScreenState extends State<TotalOrdersScreen> with LayoutSelectionMi
     debugPrint("????? OrdersScreen: didChangeDependencies");
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _fetchOrders();
-      _onOrderRowSelected(-1);
+      // Build #1.0.248: Only call _onOrderRowSelected if we don't have a preserved selection
+      if (OrderHelper().selectedOrderId == null) {
+        _onOrderRowSelected(-1);
+      }
       ///initialise order panel
     });
   }
@@ -485,11 +496,11 @@ class _OrdersScreenState extends State<TotalOrdersScreen> with LayoutSelectionMi
                 // Replace your OrderScreenPanel instances with:
                   OrderScreenPanel(
                     fetchOrders: !isLoading, // Sync with parent's loading state
-                    key: ValueKey('order_screen_panel_${_selectedOrderId}_${sidebarPosition}_$orderPanelPosition'), //Build #1.0.234: Fixed Issue -> Processing Orders showing in order screen bottom mode
+                    key: ValueKey('order_screen_panel_${OrderHelper().selectedOrderId}_${sidebarPosition}_$orderPanelPosition'), //Build #1.0.234: Fixed Issue -> Processing Orders showing in order screen bottom mode
                     formattedDate: panelDate ?? '', // Build #1.0.226: updated values
                     formattedTime: panelTime ?? '',
                     quantities: quantities,
-                    activeOrderId: orderHelper.activeOrderId ?? _selectedOrderId,  /// <- ADDED NULL CHECK // BUILD 1.0.213: FIXED RE-OPENED ISSUE [SCRUM-356]: Order items not displaying in Bottom Mode
+                    activeOrderId: OrderHelper().activeOrderId ?? OrderHelper().selectedOrderId,  /// <- ADDED NULL CHECK // BUILD 1.0.213: FIXED RE-OPENED ISSUE [SCRUM-356]: Order items not displaying in Bottom Mode
                     refreshOrderList: _refreshOrderList, // Build #1.0.143: Fixed Issue : After return from order summary screen , total order screen not refreshing with updated response
                   ),
 
@@ -708,12 +719,12 @@ class _OrdersScreenState extends State<TotalOrdersScreen> with LayoutSelectionMi
                                 ...paginatedData.map((order){
                                   final date = DateTime.tryParse(order.dateCreated)?.toLocal();
                                   final formattedDate = date != null
-                                      ? DateFormat("EEE, MMM d' '${now.year}'").format(date)
+                                      ? DateFormat(TextConstants.dateFormat).format(date)
                                       : '';
                                   final formattedTime = date != null
                                       ? DateFormat('HH:mm:ss').format(date)
                                       : '';
-                                  final isSelected = orderHelper.activeOrderId == order.id; // Check if the row is selected
+                                  final isSelected = OrderHelper().selectedOrderId == order.id; // Build #1.0.248: Updated; Check if the row is selected
 
                                   return Padding(
                                     padding: EdgeInsets.only(bottom: 8),
@@ -841,11 +852,11 @@ class _OrdersScreenState extends State<TotalOrdersScreen> with LayoutSelectionMi
                 // Replace your OrderScreenPanel instances with:
                   OrderScreenPanel(
                     fetchOrders: !isLoading, // Sync with parent's loading state
-                    key: ValueKey('order_screen_panel_${_selectedOrderId}_${sidebarPosition}_$orderPanelPosition'), //Build #1.0.234: Fixed Issue -> Processing Orders showing in order screen bottom mode
+                    key: ValueKey('order_screen_panel_${OrderHelper().selectedOrderId}_${sidebarPosition}_$orderPanelPosition'), //Build #1.0.234: Fixed Issue -> Processing Orders showing in order screen bottom mode
                     formattedDate: panelDate ?? '', // Build #1.0.226: updated values
                     formattedTime: panelTime ?? '',
                     quantities: quantities,
-                    activeOrderId: orderHelper.activeOrderId ?? _selectedOrderId,  /// <- ADDED NULL CHECK // BUILD 1.0.213: FIXED RE-OPENED ISSUE [SCRUM-356]: Order items not displaying in Bottom Mode
+                    activeOrderId: OrderHelper().activeOrderId ?? OrderHelper().selectedOrderId,  /// <- ADDED NULL CHECK // BUILD 1.0.213: FIXED RE-OPENED ISSUE [SCRUM-356]: Order items not displaying in Bottom Mode
                     refreshOrderList: _refreshOrderList, // Build #1.0.143: Fixed Issue : After return from order summary screen , total order screen not refreshing with updated response
                   ),
 
@@ -886,17 +897,21 @@ class _OrdersScreenState extends State<TotalOrdersScreen> with LayoutSelectionMi
   // method to handle row selection
   void _onOrderRowSelected(int orderId) async {
     debugPrint("OrdersScreen: _onOrderRowSelected id $orderId");
+
+    // Build #1.0.248: Preserve the selection
+    OrderHelper().selectedOrderId = orderId;
     // Explicitly declare selectedOrder as a nullable OrderModel
     model.OrderModel? selectedOrder;
 
     if(orderId == -1){
       orderId = _orders.first.id; //Build #1.0.165: to fix issue in windows, not able to save lastActiveOrderID
+      OrderHelper().selectedOrderId = orderId;
     }
 
-    if (_selectedOrderId != null) {
+    if (OrderHelper().selectedOrderId != null) {
       // Use indexWhere to safely find the index of the selected order.
       // It returns -1 if no element is found, preventing errors.
-      final index = _orders.indexWhere((order) => order.id == _selectedOrderId);
+      final index = _orders.indexWhere((order) => order.id == OrderHelper().selectedOrderId);
 
       if (index != -1) {
         // If the index is valid, get the order from the list.
@@ -908,7 +923,7 @@ class _OrdersScreenState extends State<TotalOrdersScreen> with LayoutSelectionMi
       // If an order is selected, parse and format its date and time
       final date = DateTime.tryParse(selectedOrder.dateCreated)?.toLocal();
       if (date != null) {
-        panelDate = DateFormat("EEE, MMM d, yyyy").format(date);
+        panelDate = DateFormat(TextConstants.dateFormat).format(date);
         panelTime = DateFormat('hh:mm a').format(date);
       } else {
         // Fallback if the date string is invalid
@@ -918,27 +933,30 @@ class _OrdersScreenState extends State<TotalOrdersScreen> with LayoutSelectionMi
     } else {
       // If no order is selected, default to the current date and time
       final now = DateTime.now();
-      panelDate = DateFormat("EEE, MMM d, yyyy").format(now);
+      panelDate = DateFormat(TextConstants.dateFormat).format(now);
       panelTime = DateFormat('hh:mm a').format(now);
     }
 
-    if (orderHelper.activeOrderId != orderId) {
+    if (OrderHelper().activeOrderId != orderId) {
       // Create or switch to order tab in RightOrderPanel
-      await orderHelper.setActiveOrder(orderId);
+      await OrderHelper().setActiveOrder(orderId);
       // Notify RightOrderPanel to refresh
       // Set the state with the selected order's ID
       setState(() {
-        // If the user taps the same row, you might want to deselect it
-        if (_selectedOrderId == orderId) {
-          _selectedOrderId = null;
-          // Consider clearing the helper as well if needed
-          // orderHelper.clearActiveOrder();
-        } else {
-          _selectedOrderId = orderId;
-        }
+        /// we don't have to use de-select order
+        /// when ever changing theme on topBar , selected order preserve correctly , otherwise it will remove
+        // // If the user taps the same row, you might want to deselect it
+        // if (OrderHelper().selectedOrderId == orderId) {
+        //   OrderHelper().selectedOrderId = null;
+        //   // Consider clearing the helper as well if needed
+        //   // OrderHelper().clearActiveOrder();
+        // } else {
+        //   OrderHelper().selectedOrderId = orderId;
+        // }
       });
-      debugPrint("OrdersScreen: Selected order ID $_selectedOrderId");
+      debugPrint("OrdersScreen: Selected order ID $OrderHelper().selectedOrderId");
     }
+    setState(() {}); // Build #1.0.248: Force UI to update with the new selection
     // _orderScreenPanel = OrderScreenPanel( //Build #1.0.234: No need , we already setting values in widget build method
     //   key: ValueKey(orderId), // Use orderId as key
     //   formattedDate: panelDate ?? '', // Build #1.0.226: updated values

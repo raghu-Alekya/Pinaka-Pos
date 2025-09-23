@@ -94,6 +94,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_barcode_listener/flutter_barcode_listener.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:focus_detector/focus_detector.dart';
+import 'package:pinaka_pos/Constants/misc_features.dart';
 import 'package:pinaka_pos/Utilities/printer_settings.dart';
 import 'package:pinaka_pos/Widgets/widget_variants_dialog.dart';
 import 'package:provider/provider.dart';
@@ -478,6 +479,7 @@ class _TopBarState extends State<TopBar> {
                                                           if (kDebugMode)
                                                             print(
                                                                 "Variant added to order $dbOrderId via API");
+                                                        if (Misc.showDebugSnackBar) { // Build #1.0.254
                                                           ScaffoldMessenger.of(
                                                                   _context)
                                                               .showSnackBar(
@@ -492,6 +494,7 @@ class _TopBarState extends State<TopBar> {
                                                                           2),
                                                             ),
                                                           );
+                                                          }
                                                           Navigator.pop(
                                                               context);
                                                           _clearSearch();
@@ -636,6 +639,7 @@ class _TopBarState extends State<TopBar> {
                                                     } else if (response.status == Status.COMPLETED) {
                                                       if (kDebugMode)
                                                         print("Product added to order $dbOrderId via API");
+                                                    if (Misc.showDebugSnackBar) { // Build #1.0.254
                                                       ScaffoldMessenger.of(_context).showSnackBar(
                                                         SnackBar(
                                                           content: Text("Product '${product.name}' added to order"),
@@ -643,6 +647,7 @@ class _TopBarState extends State<TopBar> {
                                                           duration: const Duration(seconds: 2),
                                                         ),
                                                       );
+                                                      }
                                                       Navigator.pop(context);
                                                       _clearSearch();
                                                       widget.onProductSelected
@@ -838,6 +843,7 @@ class _TopBarState extends State<TopBar> {
                                                   if (kDebugMode)
                                                     print("Product added to order $dbOrderId via API");
                                                   WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
+                                                 if (Misc.showDebugSnackBar) { // Build #1.0.254
                                                     ScaffoldMessenger.of(_context).showSnackBar(
                                                       SnackBar(
                                                         content: Text("Product '${product.name}' added to order"),
@@ -847,6 +853,7 @@ class _TopBarState extends State<TopBar> {
                                                         const Duration(seconds: 2),
                                                       ),
                                                     );
+                                                    }
                                                   });
                                                   // Navigator.pop(context);
                                                   _clearSearch();

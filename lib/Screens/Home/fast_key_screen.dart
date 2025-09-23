@@ -204,6 +204,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 import '../../Blocs/Orders/order_bloc.dart';
 import '../../Blocs/Search/product_search_bloc.dart';
+import '../../Constants/misc_features.dart';
 import '../../Database/order_panel_db_helper.dart';
 import '../../Helper/Extentions/nav_layout_manager.dart';
 import '../../Helper/Extentions/theme_notifier.dart';
@@ -249,7 +250,6 @@ class FastKeyScreen extends StatefulWidget {
 class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserver, LayoutSelectionMixin {
   final List<String> items = List.generate(18, (index) => 'Bud Light');
   int _selectedSidebarIndex = 0;
-  DateTime now = DateTime.now();
   List<int> quantities = [1, 1, 1, 1];
   // SidebarPosition sidebarPosition = SidebarPosition.left;
   // OrderPanelPosition orderPanelPosition = OrderPanelPosition.right;
@@ -882,7 +882,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
           print("### FastKeyScreen: Product deleted successfully from FastKey: ${response.data!.fastkeyId}");
         }
         await _refreshFastKeyTabItems(); // refresh UI
-
+        if (Misc.showDebugSnackBar) { // Build #1.0.254
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(response.data?.message ?? "Product deleted from Fast Key"),
@@ -890,6 +890,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
             duration: const Duration(seconds: 2),
           ),
         );
+       }
         subscription?.cancel();
       } else if (response.status == Status.ERROR) {
         if (response.message!.contains('Unauthorised')) {
@@ -1008,6 +1009,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
             }
          //   setState(() => isAddingItemLoading = false);
             if (kDebugMode) print("Item added to order $dbOrderId via API");
+            if (Misc.showDebugSnackBar) { // Build #1.0.254
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text("Item '${selectedProduct[AppDBConst.fastKeyItemName]}' added to order"),
@@ -1015,6 +1017,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                 duration: Duration(seconds: 2),
               ),
             );
+           }
             _refreshOrderList();
             subscription?.cancel();
           } else if (response.status == Status.ERROR) {
@@ -1152,6 +1155,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
         }
         if (response.status == Status.COMPLETED) {
           if (kDebugMode) print("Order created successfully with server ID: ${response.data!.id}");
+          if (Misc.showDebugSnackBar) { // Build #1.0.254
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(TextConstants.orderCreatedSuccessfully), // Build #1.0.144
@@ -1159,6 +1163,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
               duration: const Duration(seconds: 2),
             ),
           );
+          }
           _refreshOrderList();
           subscription?.cancel();
         } else if (response.status == Status.ERROR) {
@@ -1753,7 +1758,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                                     _editingCategoryIndex = null;
                                     _loadFastKeysTabs();
                                   });
-
+                                if (Misc.showDebugSnackBar) { // Build #1.0.254
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                       content: Text(response.data?.message ?? "Fast Key updated successfully"),
@@ -1761,6 +1766,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                                       duration: const Duration(seconds: 2),
                                     ),
                                   );
+                                  }
                                 }
                                 else if(response.status == Status.ERROR){
                                   setStateDialog(() =>isLoading = false);
@@ -2144,10 +2150,6 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    String formattedDate = DateFormat("EEE, MMM d' ${now.year}'").format(now);
-    String formattedTime = DateFormat('hh:mm a').format(now);
-
     final categories = fastKeyTabs.map((tab) {
       return {
         'title': tab.fastkeyTitle,
@@ -2270,8 +2272,6 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                 if (sidebarPosition == SidebarPosition.right ||
                     (sidebarPosition == SidebarPosition.bottom && orderPanelPosition == OrderPanelPosition.left))
                   RightOrderPanel(
-                    formattedDate: formattedDate,
-                    formattedTime: formattedTime,
                     quantities: quantities,
                     refreshOrderList: _refreshOrderList,
                     refreshKey: _refreshCounter, //Build #1.0.170: Pass counter as refreshKey
@@ -2288,6 +2288,13 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                         editingIndex: _editingCategoryIndex,
                         onAddButtonPressed: () => _showCategoryDialog(context: context),
                         onCategoryTapped: (index) async {
+                          // Prevent tapping the same category again
+                          if (_selectedCategoryIndex == index) { // Build #1.0.254: Fixed - Disable double click on category tabs & fast key tabs
+                            if (kDebugMode) {
+                              print("### FastKeyScreen: Same category tapped, ignoring: $index");
+                            }
+                            return;
+                          }
                           if (kDebugMode) {
                             print("### FastKeyScreen: onCategoryTapped called for index: $index, ID: ${fastKeyTabs[index].fastkeyServerId}");
                           }
@@ -2425,8 +2432,6 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                 if (sidebarPosition != SidebarPosition.right &&
                     !(sidebarPosition == SidebarPosition.bottom && orderPanelPosition == OrderPanelPosition.left))
                   RightOrderPanel(
-                    formattedDate: formattedDate,
-                    formattedTime: formattedTime,
                     quantities: quantities,
                     refreshOrderList: _refreshOrderList,
                     refreshKey: _refreshCounter, //Build #1.0.170: Pass counter as refreshKey

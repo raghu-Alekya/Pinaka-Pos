@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../Blocs/Auth/logout_bloc.dart';
 import '../../Blocs/Auth/shift_bloc.dart';
+import '../../Constants/misc_features.dart';
 import '../../Constants/text.dart';
 import '../../Database/assets_db_helper.dart';
 import '../../Database/db_helper.dart';
@@ -487,6 +488,7 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMix
                                                             if (kDebugMode) {
                                                               print("Logout successful, navigating to LoginScreen");
                                                             }
+                                                          if (Misc.showDebugSnackBar) { // Build #1.0.254
                                                             ScaffoldMessenger.of(context).showSnackBar(
                                                               SnackBar(
                                                                 content: Text(logoutResponse.message ?? TextConstants.successfullyLogout),
@@ -494,6 +496,7 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMix
                                                                 duration: const Duration(seconds: 2),
                                                               ),
                                                             );
+                                                            }
                                                             Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()));
                                                           } else if (logoutResponse.status == Status.ERROR) {
                                                             if (logoutResponse.message!.contains('Unauthorised')) {
@@ -529,7 +532,8 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMix
                                                       } else if (closeResponse.status == Status.ERROR) {
                                                         // Close the verification dialog on error
                                                         Navigator.of(context).pop();
-
+                                                        // Build #1.0.248: ADDED THIS: Stop loading on any error
+                                                        setState(() => _isSubmitting = false);
                                                         if (closeResponse.message!.contains(TextConstants.unAuth)) {
                                                           if (kDebugMode) {
                                                             print(" safe open screen -- Unauthorised in close shift: response.message ${closeResponse.message!}");
@@ -551,9 +555,9 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMix
                                                           }
                                                           ScaffoldMessenger.of(context).showSnackBar(
                                                             SnackBar(
-                                                              content: Text(closeResponse.message ?? "Failed to close shift"),
+                                                              content: Text(TextConstants.failedCloseShift), // Build #1.0.248: added into constants
                                                               backgroundColor: Colors.red,
-                                                              duration: const Duration(seconds: 2),
+                                                              duration: const Duration(seconds: 3),
                                                             ),
                                                           );
                                                         }
@@ -576,11 +580,14 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMix
                                                 }
                                               } else{
                                                 if (response.status == Status.ERROR){
+                                                  // Build #1.0.248: ADDED THIS: Stop loading on any error
+                                                  setState(() => _isSubmitting = false); // Build #1.0.248: Hide loader for all errors
                                                   if (response.message!.contains(TextConstants.unAuth)) {
                                                     if (kDebugMode) {
                                                       print(" safe open screen 2 -- Unauthorised : response.message ${response.message!}");
                                                     }
-                                                    setState(() => _isSubmitting = false); // Build #1.0. 140: hide loader
+                                                    //we have to add out side below line for all error cases
+                                                    // setState(() => _isSubmitting = false); // Build #1.0. 140: hide loader
                                                     WidgetsBinding.instance.addPostFrameCallback((_) {
                                                       if (mounted) {
                                                         Navigator.pushReplacement(context, MaterialPageRoute(
@@ -597,6 +604,19 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMix
                                                         );
                                                       }
                                                     });
+                                                  } else {
+                                                    // Build #1.0.248: added based on shift error
+                                                    String errorMessage = status == TextConstants.open
+                                                        ? TextConstants.failedToStartShift
+                                                        : TextConstants.failedToUpdateShift;
+
+                                                    ScaffoldMessenger.of(context).showSnackBar(
+                                                      SnackBar(
+                                                        content: Text(errorMessage),
+                                                        backgroundColor: Colors.red,
+                                                        duration: const Duration(seconds: 3),
+                                                      ),
+                                                    );
                                                   }
                                                 }
                                               }

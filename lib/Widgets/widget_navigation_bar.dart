@@ -11,6 +11,7 @@ import 'package:quickalert/models/quickalert_type.dart';
 import 'package:quickalert/widgets/quickalert_dialog.dart';
 import 'package:flutter_swipe_button/flutter_swipe_button.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../Constants/misc_features.dart';
 import '../Database/order_panel_db_helper.dart';
 import '../Database/user_db_helper.dart';
 import '../Helper/Extentions/theme_notifier.dart';
@@ -116,11 +117,21 @@ class NavigationBar extends StatelessWidget {
               onSidebarItemSelected(0);
 
               /// FastKeyScreen
-              // Build #1.0.247 : Updated pushReplacement TO pushAndRemoveUntil
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (context) => FastKeyScreen(lastSelectedIndex: lastSelectedIndex)),
+              Navigator.of(context).pushAndRemoveUntil( 
+                PageRouteBuilder(
+                  pageBuilder: (context, animation, secondaryAnimation) => FastKeyScreen(lastSelectedIndex: lastSelectedIndex),
+                  transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                    return child; // No transition animation
+                  },
+                  transitionDuration: Duration.zero, // Instant transition
+                ),
                     (route) => false,
               );
+              // Build #1.0.247 : Updated pushReplacement TO pushAndRemoveUntil
+              // Navigator.of(context).pushAndRemoveUntil(
+              //   MaterialPageRoute(builder: (context) => FastKeyScreen(lastSelectedIndex: lastSelectedIndex)),
+              //       (route) => false,
+              // );
               // Navigator.pushReplacement(
               //   context,
               //   MaterialPageRoute(builder: (context) => FastKeyScreen(lastSelectedIndex: lastSelectedIndex)),
@@ -145,9 +156,19 @@ class NavigationBar extends StatelessWidget {
 
               /// CategoriesScreen
               Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (context) => CategoriesScreen(lastSelectedIndex: lastSelectedIndex)),
+                PageRouteBuilder(
+                  pageBuilder: (context, animation, secondaryAnimation) => CategoriesScreen(lastSelectedIndex: lastSelectedIndex),
+                  transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                    return child; // No transition animation
+                  },
+                  transitionDuration: Duration.zero, // Instant transition
+                ),
                     (route) => false,
               );
+              // Navigator.of(context).pushAndRemoveUntil(
+              //   MaterialPageRoute(builder: (context) => CategoriesScreen(lastSelectedIndex: lastSelectedIndex)),
+              //       (route) => false,
+              // );
               // Navigator.pushReplacement(
               //   context,
               //   MaterialPageRoute(builder: (context) => CategoriesScreen( lastSelectedIndex: lastSelectedIndex)),
@@ -169,10 +190,21 @@ class NavigationBar extends StatelessWidget {
               }
               lastSelectedIndex = 2;
               onSidebarItemSelected(2);
+              /// AddScreen
               Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (context) => AddScreen(lastSelectedIndex: lastSelectedIndex)),
+                PageRouteBuilder(
+                  pageBuilder: (context, animation, secondaryAnimation) => AddScreen(lastSelectedIndex: lastSelectedIndex),
+                  transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                    return child; // No transition animation
+                  },
+                  transitionDuration: Duration.zero, // Instant transition
+                ),
                     (route) => false,
               );
+              // Navigator.of(context).pushAndRemoveUntil(
+              //   MaterialPageRoute(builder: (context) => AddScreen(lastSelectedIndex: lastSelectedIndex)),
+              //       (route) => false,
+              // );
               //  Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => AddScreen(lastSelectedIndex: lastSelectedIndex)),
             //  );
             },
@@ -194,13 +226,23 @@ class NavigationBar extends StatelessWidget {
               onSidebarItemSelected(3);
 
               /// OrdersScreen
+              Navigator.of(context).pushAndRemoveUntil(
+                PageRouteBuilder(
+                  pageBuilder: (context, animation, secondaryAnimation) => TotalOrdersScreen(lastSelectedIndex: lastSelectedIndex),
+                  transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                    return child; // No transition animation
+                  },
+                  transitionDuration: Duration.zero, // Instant transition
+                ),
+                    (route) => false,
+              );
               // Build #1.0.245: Fixed Re-Opened [SCRUM - 356] Issue -> Order items not displaying in Bottom Mode
               // -> the processing order is showing when we switch to bottom mode
               // -> Empty Cart/ Items shown for pending orders when move navigation bar to bottom mode.
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (context) => TotalOrdersScreen(lastSelectedIndex: lastSelectedIndex)),
-                    (route) => false,
-              );
+              // Navigator.of(context).pushAndRemoveUntil(
+              //   MaterialPageRoute(builder: (context) => TotalOrdersScreen(lastSelectedIndex: lastSelectedIndex)),
+              //       (route) => false,
+              // );
               // Navigator.pushAndRemoveUntil(
               //   context,
               //   MaterialPageRoute(builder: (context) => TotalOrdersScreen(lastSelectedIndex: lastSelectedIndex)), // Build #1.0.226: Updated class name
@@ -222,10 +264,21 @@ class NavigationBar extends StatelessWidget {
               }
               lastSelectedIndex = 4;
               onSidebarItemSelected(4);
+              /// AppsDashboardScreen
               Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (context) => AppsDashboardScreen(lastSelectedIndex: lastSelectedIndex)),
+                PageRouteBuilder(
+                  pageBuilder: (context, animation, secondaryAnimation) => AppsDashboardScreen(lastSelectedIndex: lastSelectedIndex),
+                  transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                    return child; // No transition animation
+                  },
+                  transitionDuration: Duration.zero, // Instant transition
+                ),
                     (route) => false,
               );
+              // Navigator.of(context).pushAndRemoveUntil(
+              //   MaterialPageRoute(builder: (context) => AppsDashboardScreen(lastSelectedIndex: lastSelectedIndex)),
+              //       (route) => false,
+              // );
               // Navigator.pushReplacement(
               //   context,
               //   MaterialPageRoute(
@@ -258,13 +311,26 @@ class NavigationBar extends StatelessWidget {
 
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (context) => SettingsScreen(),
+                  PageRouteBuilder(
+                    pageBuilder: (context, animation, secondaryAnimation) => SettingsScreen(),
+                    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                      return child; // No transition animation
+                    },
+                    transitionDuration: Duration.zero, // Instant transition
                   ),
                 ).then((_) {
                   // Restore the sidebar selection when coming back
                   onSidebarItemSelected(lastSelectedIndex);
                 });
+                // Navigator.push(
+                //   context,
+                //   MaterialPageRoute(
+                //     builder: (context) => SettingsScreen(),
+                //   ),
+                // ).then((_) {
+                //   // Restore the sidebar selection when coming back
+                //   onSidebarItemSelected(lastSelectedIndex);
+                // });
               },
               isVertical: isVertical,
               isDisabled: isShiftInvalid || isShiftScreen,
@@ -338,10 +404,20 @@ class NavigationBar extends StatelessWidget {
               onSidebarItemSelected(0);
 
               /// FastKeyScreen
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (context) => FastKeyScreen(lastSelectedIndex: lastSelectedIndex)),
+              Navigator.of(context).pushAndRemoveUntil( 
+                PageRouteBuilder(
+                  pageBuilder: (context, animation, secondaryAnimation) => FastKeyScreen(lastSelectedIndex: lastSelectedIndex),
+                  transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                    return child; // No transition animation
+                  },
+                  transitionDuration: Duration.zero, // Instant transition
+                ),
                     (route) => false,
               );
+              // Navigator.of(context).pushAndRemoveUntil(
+              //   MaterialPageRoute(builder: (context) => FastKeyScreen(lastSelectedIndex: lastSelectedIndex)),
+              //       (route) => false,
+              // );
               // Navigator.pushReplacement(
               //   context,
               //   MaterialPageRoute(builder: (context) => FastKeyScreen(lastSelectedIndex: lastSelectedIndex)),
@@ -363,10 +439,21 @@ class NavigationBar extends StatelessWidget {
               }
               lastSelectedIndex = 1; // Store last selection
               onSidebarItemSelected(1);
+             /// CategoriesScreen
               Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (context) => CategoriesScreen(lastSelectedIndex: lastSelectedIndex)),
+                PageRouteBuilder(
+                  pageBuilder: (context, animation, secondaryAnimation) => CategoriesScreen(lastSelectedIndex: lastSelectedIndex),
+                  transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                    return child; // No transition animation
+                  },
+                  transitionDuration: Duration.zero, // Instant transition
+                ),
                     (route) => false,
               );
+              // Navigator.of(context).pushAndRemoveUntil(
+              //   MaterialPageRoute(builder: (context) => CategoriesScreen(lastSelectedIndex: lastSelectedIndex)),
+              //       (route) => false,
+              // );
               // Navigator.pushReplacement(
               //   context,
               //   MaterialPageRoute(
@@ -390,14 +477,25 @@ class NavigationBar extends StatelessWidget {
               }
               lastSelectedIndex = 2;
               onSidebarItemSelected(2);
+              /// AddScreen
+              Navigator.of(context).pushAndRemoveUntil(
+                PageRouteBuilder(
+                  pageBuilder: (context, animation, secondaryAnimation) => AddScreen(lastSelectedIndex: lastSelectedIndex),
+                  transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                    return child; // No transition animation
+                  },
+                  transitionDuration: Duration.zero, // Instant transition
+                ),
+                    (route) => false,
+              );
               // Navigator.pushReplacement(
               //   context,
               //   MaterialPageRoute(builder: (context) => AddScreen()),
               // );
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (context) => AddScreen(lastSelectedIndex: lastSelectedIndex)),
-                    (route) => false,
-              );
+              // Navigator.of(context).pushAndRemoveUntil(
+              //   MaterialPageRoute(builder: (context) => AddScreen(lastSelectedIndex: lastSelectedIndex)),
+              //       (route) => false,
+              // );
             },
             isVertical: false,
             isDisabled: isShiftInvalid || isShiftScreen,
@@ -418,9 +516,19 @@ class NavigationBar extends StatelessWidget {
 
               /// OrdersScreen
               Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (context) => TotalOrdersScreen(lastSelectedIndex: lastSelectedIndex)),
+                PageRouteBuilder(
+                  pageBuilder: (context, animation, secondaryAnimation) => TotalOrdersScreen(lastSelectedIndex: lastSelectedIndex),
+                  transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                    return child; // No transition animation
+                  },
+                  transitionDuration: Duration.zero, // Instant transition
+                ),
                     (route) => false,
               );
+              // Navigator.of(context).pushAndRemoveUntil(
+              //   MaterialPageRoute(builder: (context) => TotalOrdersScreen(lastSelectedIndex: lastSelectedIndex)),
+              //       (route) => false,
+              // );
               // Navigator.pushReplacement(
               //   context,
               //   MaterialPageRoute(builder: (context) => TotalOrdersScreen(lastSelectedIndex: lastSelectedIndex)), // Build #1.0.226: Updated class name
@@ -442,10 +550,21 @@ class NavigationBar extends StatelessWidget {
               }
               lastSelectedIndex = 4;
               onSidebarItemSelected(4);
+              ///
               Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (context) => AppsDashboardScreen(lastSelectedIndex: lastSelectedIndex)),
+                PageRouteBuilder(
+                  pageBuilder: (context, animation, secondaryAnimation) => AppsDashboardScreen(lastSelectedIndex: lastSelectedIndex),
+                  transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                    return child; // No transition animation
+                  },
+                  transitionDuration: Duration.zero, // Instant transition
+                ),
                     (route) => false,
               );
+              // Navigator.of(context).pushAndRemoveUntil(
+              //   MaterialPageRoute(builder: (context) => AppsDashboardScreen(lastSelectedIndex: lastSelectedIndex)),
+              //       (route) => false,
+              // );
               // Navigator.pushReplacement(
               //   context,
               //   MaterialPageRoute(builder: (context) => AppsDashboardScreen()),
@@ -475,11 +594,24 @@ class NavigationBar extends StatelessWidget {
 
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => SettingsScreen()),
+                PageRouteBuilder(
+                  pageBuilder: (context, animation, secondaryAnimation) => SettingsScreen(),
+                  transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                    return child; // No transition animation
+                  },
+                  transitionDuration: Duration.zero, // Instant transition
+                ),
               ).then((_) {
                 // Restore the sidebar selection when coming back
                 onSidebarItemSelected(lastSelectedIndex);
               });
+              // Navigator.push(
+              //   context,
+              //   MaterialPageRoute(builder: (context) => SettingsScreen()),
+              // ).then((_) {
+              //   // Restore the sidebar selection when coming back
+              //   onSidebarItemSelected(lastSelectedIndex);
+              // });
             },
             isVertical: false,
             isDisabled: isShiftInvalid || isShiftScreen,
@@ -650,6 +782,7 @@ class NavigationBar extends StatelessWidget {
                                   print(
                                       "Logout successful, navigating to LoginScreen");
                                 }
+                               if (Misc.showDebugSnackBar) { // Build #1.0.254
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text(response.message ??
@@ -658,6 +791,7 @@ class NavigationBar extends StatelessWidget {
                                     duration: const Duration(seconds: 2),
                                   ),
                                 );
+                               }
                                 // Update loading state and navigate
                                 isLoading = false;
                                 Navigator.of(context).pop(); // Close loader dialog
@@ -755,6 +889,7 @@ class NavigationBar extends StatelessWidget {
                   print(
                       "Logout successful, navigating to LoginScreen");
                 }
+              if (Misc.showDebugSnackBar) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(response.message ??
@@ -763,6 +898,7 @@ class NavigationBar extends StatelessWidget {
                     duration: const Duration(seconds: 2),
                   ),
                 );
+                }
                 // Update loading state and navigate
                 isLoading = false;
                 Navigator.of(context).pop(); // Close loader dialog

@@ -8,6 +8,7 @@ import 'package:pinaka_pos/Screens/Home/shift_history_dashboard_screen.dart';
 import 'package:provider/provider.dart';
 import '../../Blocs/Auth/shift_bloc.dart';
 import '../../Blocs/Auth/vendor_payment_bloc.dart';
+import '../../Constants/misc_features.dart';
 import '../../Constants/text.dart';
 import '../../Database/assets_db_helper.dart';
 import '../../Database/db_helper.dart';
@@ -1024,6 +1025,7 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
            // Navigator.of(context).pop(); // Dismiss confirmation dialog
 
             shiftBloc.getShiftById(widget.shiftId!);
+            if (Misc.showDebugSnackBar) { // Build #1.0.254
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
@@ -1034,6 +1036,7 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
                 duration: Duration(seconds: 2),
               ),
             );
+            }
           }
           else if (response.status == Status.ERROR) {
             if (response.message!.contains('Unauthorised')) {
@@ -1098,7 +1101,7 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
                 if (response.status == Status.COMPLETED) {
 
                   shiftBloc.getShiftById(widget.shiftId!); // Refresh shift data
-
+                  if (Misc.showDebugSnackBar) { // Build #1.0.254
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
@@ -1109,6 +1112,7 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
                       duration: Duration(seconds: 2),
                     ),
                   );
+                  }
                 }
                 else if (response.status == Status.ERROR) {
                   if (response.message!.contains('Unauthorised')) {
@@ -1156,6 +1160,7 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
               await for (var response in vendorPaymentBloc.createVendorPaymentStream) {
                 if (response.status == Status.COMPLETED) {
                   shiftBloc.getShiftById(widget.shiftId!); // Refresh shift data
+                  if (Misc.showDebugSnackBar) { // Build #1.0.254
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
@@ -1166,6 +1171,7 @@ class _ShiftSummaryDashboardScreenState extends State<ShiftSummaryDashboardScree
                       duration: Duration(seconds: 2),
                     ),
                   );
+                  }
                 } else if (response.status == Status.ERROR) {
                   if (response.message!.contains('Unauthorised')) {
                     if (kDebugMode) {

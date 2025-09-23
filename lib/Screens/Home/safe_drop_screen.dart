@@ -13,6 +13,7 @@ import '../../Constants/text.dart';
 import '../../Database/assets_db_helper.dart';
 import '../../Database/db_helper.dart';
 import '../../Database/printer_db_helper.dart';
+import '../../Database/store_db_helper.dart';
 import '../../Database/user_db_helper.dart';
 import '../../Helper/Extentions/nav_layout_manager.dart';
 import '../../Helper/Extentions/theme_notifier.dart';
@@ -87,12 +88,14 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
           _isApiLoading = false;
         });
         if (kDebugMode) print("#### SafeDropScreen: Safe drop created successfully: ${response.data!.message}");
+        if (Misc.showDebugSnackBar) { // Build #1.0.254
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(response.data!.message),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 2),
           ),
         );
+        }
         // Clear all fields after successful save
         _denomControllers.forEach((key, controller) {
           controller.text = "0";
@@ -387,10 +390,102 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
     }
 
     //Header
+    ///New changes in Header on 2-Sep-2025
+    ///Date and Time
+    ///Store Id
+    ///Address
+    //         "Store name": "Kumar Swa D",
+    //         "address": "Q No: D 1847, Shirkey Colony",
+    //         "city": "Mancherial",
+    //         "state": "Telangana",
+    //         "country": "",
+    //         "zip_code": "504302",
+    //         "phone_number": false
+
+
+    final DateTime createdDateTime = DateTime.now();
+    var dateToPrint = DateFormat(TextConstants.dateFormat).format(createdDateTime);
+    var timeToPrint = DateFormat(TextConstants.timeFormat).format(createdDateTime);
+
+    var merchantDetails = await StoreDbHelper.instance.getStoreValidationData();
+    var storeId = "Store ID ${merchantDetails?[AppDBConst.storeId]}";
+    var storePhone = "Phone ${merchantDetails?[AppDBConst.storePhone]}";
+
+    var storeDetails = await AssetDBHelper.instance.getStoreDetails();
+    var storeName = "${storeDetails?.name}";
+    var address = "${storeDetails?.address},${storeDetails?.city},${storeDetails?.state},${storeDetails?.country},${storeDetails?.zipCode}";
+    var orderIdToPrint = "";//'${TextConstants.orderId} #$orderId';
+
+    final userData = await UserDbHelper().getUserData();
+    var cashierName = "Cashier ${userData?[AppDBConst.userDisplayName] ?? "Unknown Name"}";
+    var cashierRole = "${userData?[AppDBConst.userRole] ?? "Unknown Role"}";
+
+    if (kDebugMode) {
+      print(" >>>>> PrintOrder  dateToPrint $dateToPrint ");
+      print(" >>>>> PrintOrder  timeToPrint $timeToPrint ");
+      print(" >>>>> PrintOrder  storeId $storeId ");
+      print(" >>>>> PrintOrder  storeName $storeName ");
+      print(" >>>>> PrintOrder  address $address ");
+      print(" >>>>> PrintOrder  storePhone $storePhone ");
+      print(" >>>>> PrintOrder  orderIdToPrint $orderIdToPrint ");
+      print(" >>>>> PrintOrder  cashierName $cashierName ");
+      print(" >>>>> PrintOrder  cashierRole $cashierRole ");
+    }
+
+    if(header != "") {
+      bytes += ticket.row([
+        PosColumn(
+            text: "$header",
+            width: 12,
+            styles: PosStyles(align: PosAlign.center)),
+      ]);
+      bytes += ticket.feed(1);
+    }
+
+    //Store Name
     bytes += ticket.row([
-      PosColumn(text: "$header", width: 12),
+      PosColumn(text: "$storeName", width: 12, styles: PosStyles(align: PosAlign.center)),
+    ]);
+    //Address
+    bytes += ticket.row([
+      PosColumn(text: "$address", width: 12, styles: PosStyles(align: PosAlign.center)),
+    ]);
+    //Store Phone
+    bytes += ticket.row([
+      PosColumn(text: "$storePhone", width: 12, styles: PosStyles(align: PosAlign.center)),
     ]);
 
+    bytes += ticket.feed(1);
+    bytes += ticket.row([
+      PosColumn(text: "-----------------------------------------------", width: 12),
+    ]);
+    bytes += ticket.feed(1);
+
+    //store id and  Date
+    bytes += ticket.row([
+      PosColumn(text: "$storeId", width: 5),
+      PosColumn(text: "Date", width: 2, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: "$dateToPrint", width: 5, styles: PosStyles(align: PosAlign.right)),
+    ]);
+
+    //order Id and  Time
+    bytes += ticket.row([
+      PosColumn(text: "$orderIdToPrint", width: 5),
+      PosColumn(text: "Time", width: 2, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: "$timeToPrint", width: 5, styles: PosStyles(align: PosAlign.right)),
+    ]);
+
+    //cashier and role
+    bytes += ticket.row([
+      PosColumn(text: "$cashierName", width: 5),
+      PosColumn(text: "Role", width: 2, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: "$cashierRole", width: 5, styles: PosStyles(align: PosAlign.right)),
+    ]);
+
+    bytes += ticket.feed(1);
+    bytes += ticket.row([
+      PosColumn(text: "-----------------------------------------------", width: 12),
+    ]);
     bytes += ticket.feed(1);
 
     //Item header
@@ -398,7 +493,7 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
       PosColumn(text: "#", width: 2),
       PosColumn(text: "Denomination", width:5),
       PosColumn(text: "Qty", width: 2),
-      PosColumn(text: "Amt", width: 3),
+      PosColumn(text: "Amt", width: 3, styles: PosStyles(align: PosAlign.right)),
     ]);
     bytes += ticket.feed(1);
 
@@ -413,9 +508,9 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
 
       bytes += ticket.row([
         PosColumn(text: "$denomIndex", width: 2),
-        PosColumn(text: "$denomValue", width:5),
+        PosColumn(text: "${TextConstants.currencySymbol} ${denomValue.toStringAsFixed(2)}", width:5),
         PosColumn(text: "$notes", width:2),
-        PosColumn(text: "$cash", width: 3),
+        PosColumn(text: "${TextConstants.currencySymbol} ${cash.toStringAsFixed(2)}", width: 3, styles: PosStyles(align: PosAlign.right)),
       ]);
     });
 
@@ -436,7 +531,7 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
     bytes += ticket.row([
       PosColumn(text: TextConstants.total, width: 7),
       PosColumn(text: totalNotes.toString(), width:2),
-      PosColumn(text: totalCash.toStringAsFixed(2), width:3),
+      PosColumn(text: "${TextConstants.currencySymbol} ${totalCash.toStringAsFixed(2)}", width:3, styles: PosStyles(align: PosAlign.right)),
     ]);
 
     // bytes += ticket.row([
@@ -447,7 +542,7 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
     bytes += ticket.feed(1);
     //Footer
     bytes += ticket.row([
-      PosColumn(text: "---End---", width: 12),
+      PosColumn(text: "----------------------End----------------------", width: 12),
     ]);
     bytes += ticket.feed(1);
   }

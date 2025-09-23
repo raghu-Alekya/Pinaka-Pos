@@ -538,304 +538,374 @@ class NavigationBar extends StatelessWidget {
 
   void _showLogoutDialog(BuildContext context,LogoutBloc logoutBloc, ThemeNotifier themeHelper){
 
-    QuickAlert.show(
-      backgroundColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : Colors.white ,
+    showDialog(
       context: context,
-      width: 450,
-      type: QuickAlertType.custom,
-      title: TextConstants.logoutText,
-      headerBackgroundColor: const Color(0xFF2CD9C5),
-      titleColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight,
-      text: TextConstants.doYouWantTo,
-      textColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight,
-      customAsset: null,
-      animType: QuickAlertAnimType.scale,
       barrierDismissible: false,
-      showCancelBtn: false, /// added custom button instead in widget below, change color on will
-      showConfirmBtn: false, /// added custom button instead in widget below, change color on will
-      // confirmBtnText: TextConstants.logoutText,
-      // cancelBtnText: TextConstants.cancelText,
-      // confirmBtnColor: Colors.blue,
-      // confirmBtnTextStyle: const TextStyle(color: Colors.white, fontSize: 16),
-      // cancelBtnTextStyle: TextStyle(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.grey, fontSize: 16),
+      builder: (context) {
+        bool isDarkMode = themeHelper.themeMode == ThemeMode.dark;
 
-      // Widget for the Close Shift button
-      widget: Container(
-        // color: Colors.red,
-        height: 130,
-        padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
-        child:
-        Column(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            SwipeButton(
-              thumb: const Icon(
-                Icons.double_arrow_rounded,
-                color: Colors.white,
-              ),
-              borderRadius: BorderRadius.circular(25),
-              activeThumbColor: Colors.orangeAccent,  /// swipe button color change it on will
-              activeTrackColor: Colors.orange, /// swipe track color change it on will
-              onSwipe: () async {
-                // Get instance of OrderHelper
-                final orderHelper = OrderHelper();
-                // Load processing orders for the active user
-                await orderHelper.loadProcessingData();
-                // Check if there are any processing orders
-                if (orderHelper.orders.isNotEmpty) { // Build #1.0.175: Added
-                  if (kDebugMode) {
-                    print("Processing Orders > 0 -> orders length: ${orderHelper.orders.length}");
-                  }
-                  Navigator.of(context).pop(); // dismiss logout alert
-                  // Show popup warning before closing shift
-                  CustomDialog.showCloseShiftWarning(context);
-                } else {
-                  // Close shift functionality
-                  if (kDebugMode) {
-                    print("Shift closed");
-                  }
-                  ///Todo: call shift-open-close-balance screen and set the title to "Shift close balanse"
-                  ///
-                  Navigator.of(context).pop();
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => ShiftOpenCloseBalanceScreen(),
-                      settings: RouteSettings(arguments: TextConstants.navLogout),  // Build #1.0.70
+        return Dialog(
+          backgroundColor: Colors.transparent, // transparent to show tilted container
+          insetPadding: const EdgeInsets.all(16),
+          child: Stack(
+            alignment: Alignment.center, // centers both horizontally & vertically
+            children: [
+              // 🔹 Tilted outer container
+              Transform.rotate(
+                angle: 0.04,
+                child: Container(
+                  width: 380,
+                  height: 400,
+                  decoration: BoxDecoration(
+                    color: Colors.transparent,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isDarkMode
+                          ? const Color(0xFF434242) // dark mode border
+                          : Colors.white,           // light mode border
+                      width: 3,
                     ),
-                  );
-                }
-              },
-              child: Text(
-                TextConstants.swipeToCloseShift,
-                style: TextStyle(color: Colors.white, fontSize: 16),
-              ),
-            ),
-
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Expanded(
-                  flex: 5,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: themeHelper.themeMode == ThemeMode.dark ? Colors.grey : Colors.white, padding: EdgeInsets.only(right: 5), fixedSize: Size(10, 45)),
-                    onPressed: (){
-                      Navigator.of(context).pop();
-                    },
-                    child: Text(TextConstants.cancelText, style: TextStyle(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.grey, fontSize: 16)),
                   ),
                 ),
-                Spacer(flex: 1,),
-                Expanded(
-                  flex: 5,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, padding: EdgeInsets.only(right: 5), fixedSize: Size(10, 45)),
-                    onPressed: (){
-                      // You must capture the context BEFORE the dialog is even shown
-                      // Trigger logout through BLoC
-                      if (kDebugMode) {
-                        print("Logout confirmed, initiating logout process");
-                      }
+              ),
 
-                      // Build #1.0.163: call Logout API
-                      // Use StatefulBuilder to manage loading state
-                      showDialog(
-                        context: context,
-                        barrierDismissible: false,
-                        builder: (BuildContext context) {
-                          bool isLoading = true; // Initial loading state
-                          logoutBloc.logoutStream.listen((response) {
-                            if (response.status == Status.COMPLETED) {
+              // Inner dialog
+              SizedBox(
+                width: 370,
+                height: 400,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: isDarkMode
+                        ? const Color(0xFF434242)
+                        : Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.25),
+                        blurRadius: 12,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center, // vertical center
+                    crossAxisAlignment: CrossAxisAlignment.center, // horizontal center
+                    children: [
+                      Image.asset(
+                        "assets/logout.png",
+                        height: 80,
+                        width: 80,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        "Are you sure?",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: isDarkMode ? Colors.white : Colors.black,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        "Choose what would you like to do before leaving",
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: isDarkMode ? Colors.white : Colors.black,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 24),
+
+                      // 🔹 Swipe Button
+                      SizedBox(
+                        width: 300,
+                        child: SwipeButton(
+                          thumb: Container(
+                            width: 70,
+                            height: 35,
+                            decoration: const BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [Color(0xFF033495), Color(0xFF3CCBFF)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.double_arrow_rounded,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                          ),
+                          borderRadius: BorderRadius.circular(18),
+                          activeTrackColor: Colors.transparent,
+                          inactiveTrackColor: Colors.transparent,
+                          height: 42,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF033495), Color(0xFF3CCBFF)],
+                                begin: Alignment.centerLeft,
+                                end: Alignment.centerRight,
+                              ),
+                              borderRadius: BorderRadius.circular(18),
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              TextConstants.swipeToCloseShift,
+                              style: const TextStyle(color: Colors.white, fontSize: 13),
+                            ),
+                          ),
+                          onSwipe: () async {
+                            final orderHelper = OrderHelper();
+                            await orderHelper.loadProcessingData();
+
+                            if (orderHelper.orders.isNotEmpty) {
                               if (kDebugMode) {
-                                print(
-                                    "Logout successful, navigating to LoginScreen");
+                                print("Processing Orders > 0 -> orders length: ${orderHelper.orders.length}");
                               }
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(response.message ??
-                                      TextConstants.successfullyLogout),
-                                  backgroundColor: Colors.green,
-                                  duration: const Duration(seconds: 2),
-                                ),
-                              );
-                              // Update loading state and navigate
-                              isLoading = false;
-                              Navigator.of(context).pop(); // Close loader dialog
-                              Navigator.of(context).pop(); // Close QuickAlert dialog
-                              Navigator.of(context).pushAndRemoveUntil(
-                                MaterialPageRoute(builder: (context) => LoginScreen()),
-                                    (route) => false,
-                              );
-                              //   Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()),);
-                            } else if (response.status == Status.ERROR) {
-                              if (response.message!.contains('Unauthorised')) {
-                                if (kDebugMode) {
-                                  print("Nav bar -- Unauthorised : response.message ${response.message!}");
-                                }
-                                isLoading = false;
-                                Navigator.of(context).pop();
-                                WidgetsBinding.instance.addPostFrameCallback((_) {
-                                  Navigator.of(context).pushAndRemoveUntil(
-                                    MaterialPageRoute(builder: (context) => LoginScreen()),
-                                        (route) => false,
-                                  );
-                                  //  Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()));
+                              Navigator.of(context).pop(); // close current dialog
 
-                                  if (kDebugMode) {
-                                    print("message --- ${response.message}");
-                                  }
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text("Unauthorised. Session is expired on this device."),
-                                      backgroundColor: Colors.red,
-                                      duration: Duration(seconds: 2),
+                              // 🔹 Show Close Shift Warning popup
+                              showDialog(
+                                context: context,
+                                barrierDismissible: false,
+                                builder: (BuildContext dialogContext) {
+                                  return Dialog(
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(15),
+                                    ),
+                                    backgroundColor: isDarkMode ? Colors.grey[900] : Colors.white,
+                                    insetPadding: const EdgeInsets.symmetric(horizontal: 60), // controls width
+                                    child: SizedBox(
+                                      width: 500, // fixed width for the popup
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(20),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            // 🔴 Warning Icon
+                                            const Icon(
+                                              Icons.error_outline,
+                                              color: Colors.red,
+                                              size: 40,
+                                            ),
+                                            const SizedBox(height: 12),
+
+                                            // Title
+                                            Text(
+                                              "Close Shift Warning",
+                                              style: TextStyle(
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.bold,
+                                                color: isDarkMode ? Colors.white : Colors.black87,
+                                              ),
+                                              textAlign: TextAlign.center,
+                                            ),
+                                            const SizedBox(height: 8),
+
+                                            // Subtitle
+                                            Text(
+                                              "Please close all open orders before closing shift",
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                color: isDarkMode ? Colors.white : Colors.black87,
+                                              ),
+                                              textAlign: TextAlign.center,
+                                            ),
+                                            const SizedBox(height: 20),
+
+                                            // 🔴 OK Button
+                                            SizedBox(
+                                              width: double.infinity,
+                                              height: 45,
+                                              child: ElevatedButton(
+                                                style: ElevatedButton.styleFrom(
+                                                  backgroundColor: Colors.red,
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius: BorderRadius.circular(8),
+                                                  ),
+                                                ),
+                                                onPressed: () {
+                                                  Navigator.of(dialogContext).pop(); // ✅ closes only this popup
+                                                },
+                                                child: const Text(
+                                                  "OK",
+                                                  style: TextStyle(
+                                                    fontSize: 16,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
                                     ),
                                   );
-                                });
-                              }
-                              else {
-                                if (kDebugMode) {
-                                  print("Logout failed: ${response.message}");
-                                }
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(response.message ??
-                                        TextConstants.failedToLogout),
-                                    backgroundColor: Colors.red,
-                                    duration: const Duration(seconds: 2),
-                                  ),
-                                );
-                              }
-                              // Update loading state
-                              isLoading = false;
-                              Navigator.of(context)
-                                  .pop(); // Close loader dialog
-                            }
-                          });
-
-                          // Trigger logout API call
-                          logoutBloc.performLogout();
-
-                          // Show circular loader
-                          return StatefulBuilder(
-                            builder: (context, setState) {
-                              return Center(
-                                child: CircularProgressIndicator(),
+                                },
                               );
-                            },
-                          );
-                        },
-                      );
-                    },
-                    child: Text(TextConstants.logoutText, style: TextStyle(color: Colors.white, fontSize: 16)),
-                  ),
-                )
-              ],
-            ),
-          ],
-        ),
-      ),
-      onConfirmBtnTap: () async {
-        // You must capture the context BEFORE the dialog is even shown
-        // Trigger logout through BLoC
-        if (kDebugMode) {
-          print("Logout confirmed, initiating logout process");
-        }
 
-        // Build #1.0.163: call Logout API
-        // Use StatefulBuilder to manage loading state
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (BuildContext context) {
-            bool isLoading = true; // Initial loading state
-            logoutBloc.logoutStream.listen((response) {
-              if (response.status == Status.COMPLETED) {
-                if (kDebugMode) {
-                  print(
-                      "Logout successful, navigating to LoginScreen");
-                }
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(response.message ??
-                        TextConstants.successfullyLogout),
-                    backgroundColor: Colors.green,
-                    duration: const Duration(seconds: 2),
-                  ),
-                );
-                // Update loading state and navigate
-                isLoading = false;
-                Navigator.of(context).pop(); // Close loader dialog
-                Navigator.of(context).pop(); // Close QuickAlert dialog
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (context) => LoginScreen()),
-                      (route) => false,
-                );
-                // Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()),);
-              } else if (response.status == Status.ERROR) {
-                if (response.message!.contains('Unauthorised')) {
-                  if (kDebugMode) {
-                    print("Nav bar -- Unauthorised : response.message ${response.message!}");
-                  }
-                  isLoading = false;
-                  Navigator.of(context).pop();
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    //  Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()));
-                    Navigator.of(context).pushAndRemoveUntil(
-                      MaterialPageRoute(builder: (context) => LoginScreen()),
-                          (route) => false,
-                    );
-                    if (kDebugMode) {
-                      print("message --- ${response.message}");
-                    }
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text("Unauthorised. Session is expired on this device."),
-                        backgroundColor: Colors.red,
-                        duration: Duration(seconds: 2),
+
+                            } else {
+                              if (kDebugMode) {
+                                print("Shift closed");
+                              }
+                              Navigator.of(context).pop();
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => ShiftOpenCloseBalanceScreen(),
+                                  settings: const RouteSettings(arguments: TextConstants.navLogout),
+                                ),
+                              );
+                            }
+                          },
+                        ),
                       ),
-                    );
-                  });
-                }
-                else {
-                  if (kDebugMode) {
-                    print("Logout failed: ${response.message}");
-                  }
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(response.message ??
-                          TextConstants.failedToLogout),
-                      backgroundColor: Colors.red,
-                      duration: const Duration(seconds: 2),
-                    ),
-                  );
-                }
-                // Update loading state
-                isLoading = false;
-                Navigator.of(context)
-                    .pop(); // Close loader dialog
-              }
-            });
 
-            // Trigger logout API call
-            logoutBloc.performLogout();
+                      const SizedBox(height: 35),
 
-            // Show circular loader
-            return StatefulBuilder(
-              builder: (context, setState) {
-                return Center(
-                  child: CircularProgressIndicator(),
-                );
-              },
-            );
-          },
+                      // 🔹 Cancel & Logout buttons
+                      Row(
+                        children: [
+                          SizedBox(
+                            width: 160, // 🔹 set your desired width here
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: isDarkMode
+                                    ? const Color(0xFF4C5F7D)
+                                    : const Color(0xFFF6F6F6),
+                                fixedSize: const Size(double.infinity, 45),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(6), // ✅ reduced border radius
+                                ),
+                              ),
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                              },
+                              child: Text(
+                                TextConstants.cancelText,
+                                style: TextStyle(
+                                  color: isDarkMode
+                                      ? ThemeNotifier.textDark
+                                      : const Color(0xFF4C5F7D),
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(width: 10),
+                          SizedBox(
+                            width: 150, // 🔹 Set desired width here
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFFE6464),
+                                fixedSize: const Size(double.infinity, 45), // keeps fixed height = 45
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(6), // ✅ reduced border radius
+                                ),
+                              ),
+                              onPressed: () {
+                                if (kDebugMode) {
+                                  print("Logout confirmed, initiating logout process");
+                                }
+
+                                showDialog(
+                                  context: context,
+                                  barrierDismissible: false,
+                                  builder: (BuildContext context) {
+                                    bool isLoading = true;
+                                    logoutBloc.logoutStream.listen((response) {
+                                      if (response.status == Status.COMPLETED) {
+                                        if (kDebugMode) {
+                                          print("Logout successful, navigating to LoginScreen");
+                                        }
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              response.message ?? TextConstants.successfullyLogout,
+                                            ),
+                                            backgroundColor: Colors.green,
+                                            duration: const Duration(seconds: 2),
+                                          ),
+                                        );
+                                        isLoading = false;
+                                        Navigator.of(context).pop(); // Close loader
+                                        Navigator.of(context).pop(); // Close alert
+                                        Navigator.pushReplacement(
+                                          context,
+                                          MaterialPageRoute(builder: (context) => LoginScreen()),
+                                        );
+                                      } else if (response.status == Status.ERROR) {
+                                        if (response.message!.contains('Unauthorised')) {
+                                          if (kDebugMode) {
+                                            print("Nav bar -- Unauthorised : ${response.message!}");
+                                          }
+                                          isLoading = false;
+                                          Navigator.of(context).pop();
+                                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                                            Navigator.pushReplacement(
+                                              context,
+                                              MaterialPageRoute(builder: (context) => LoginScreen()),
+                                            );
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(
+                                                content: Text("Unauthorised. Session expired."),
+                                                backgroundColor: Colors.red,
+                                                duration: Duration(seconds: 2),
+                                              ),
+                                            );
+                                          });
+                                        } else {
+                                          if (kDebugMode) {
+                                            print("Logout failed: ${response.message}");
+                                          }
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                response.message ?? TextConstants.failedToLogout,
+                                              ),
+                                              backgroundColor: Colors.red,
+                                              duration: const Duration(seconds: 2),
+                                            ),
+                                          );
+                                        }
+                                        isLoading = false;
+                                        Navigator.of(context).pop();
+                                      }
+                                    });
+
+                                    logoutBloc.performLogout();
+
+                                    return const Center(
+                                      child: CircularProgressIndicator(),
+                                    );
+                                  },
+                                );
+                              },
+                              child: Text(
+                                TextConstants.logoutText,
+                                style: const TextStyle(color: Colors.white, fontSize: 16),
+                              ),
+                            ),
+                          )
+
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         );
-      },
-      onCancelBtnTap: () {
-        /// cancel
-        Navigator.of(context).pop();
       },
     );
   }

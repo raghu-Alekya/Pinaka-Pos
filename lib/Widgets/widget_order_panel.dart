@@ -35,6 +35,7 @@ import '../Constants/misc_features.dart';
 import '../Constants/text.dart';
 import '../Database/db_helper.dart';
 import '../Database/order_panel_db_helper.dart';
+import '../Helper/CustomerDisplayHelper.dart';
 import '../Helper/Extentions/theme_notifier.dart';
 import '../Helper/api_response.dart';
 import '../Screens/Auth/login_screen.dart';
@@ -46,6 +47,7 @@ import '../Repositories/Orders/order_repository.dart';
 import '../Repositories/Search/product_search_repository.dart';
 import '../Screens/Home/add_screen.dart';
 import '../Screens/Home/edit_product_screen.dart';
+import '../services/CustomerDisplayService.dart';
 
 bool isOrderInForeground = true;  ///Add visibility code to check if order panel is visible or not
 class RightOrderPanel extends StatefulWidget {
@@ -392,35 +394,56 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
   }
 
   // Build #1.0.10: Initializes the tab controller and handles tab switching
-  void _initializeTabController() {
+  Future<void> _initializeTabController() async {
     if (kDebugMode) {
       print("##### _initializeTabController");
     }
     if (!mounted) return; // Prevent initialization if unmounted
-    _tabController?.dispose(); // Dispose existing controller
+
+    _tabController?.dispose();
+
+    if (tabs.isEmpty) {
+      if (kDebugMode) print("##### No tabs available → showing Welcome screen");
+      await CustomerDisplayService.showWelcome(); // Use await here
+      return;
+    }
+
     _tabController = TabController(length: tabs.length, vsync: this);
 
     _tabController!.addListener(() async {
       if (!_tabController!.indexIsChanging && mounted) {
-        int selectedIndex = _tabController!.index; // Get selected tab index
+        int selectedIndex = _tabController!.index;
         int selectedOrderId = tabs[selectedIndex]["orderId"] as int;
 
         if (kDebugMode) {
           print("##### DEBUG: Tab changed to index: $selectedIndex, orderId: $selectedOrderId");
         }
 
-        await orderHelper.setActiveOrder(selectedOrderId); // Set new active order
-        if (kDebugMode) {
-          print("saveLastActiveOrderId _initializeTabController, selectedOrderId: $selectedOrderId, Tab selectedIndex: $selectedIndex");
-        }
-        await orderHelper.saveLastActiveOrderId(selectedOrderId); // Build #1.0.161
-        await fetchOrderItems(); // Load items for the selected order
-        if (mounted) {
-          setState(() {}); // Refresh UI
-        }
+        await orderHelper.setActiveOrder(selectedOrderId);
+        await orderHelper.saveLastActiveOrderId(selectedOrderId);
+        await fetchOrderItems();
+        await CustomerDisplayHelper.updateCustomerDisplay(selectedOrderId);
+
+        if (mounted) setState(() {}); // Refresh UI
       }
     });
+
+    // Set default tab index
+    int defaultIndex = 0;
+    if (orderHelper.activeOrderId != null) {
+      int idx = orderHelper.orderIds.indexOf(orderHelper.activeOrderId!);
+      if (idx != -1) defaultIndex = idx;
+    } else {
+      defaultIndex = tabs.length - 1;
+      await orderHelper.setActiveOrder(tabs[defaultIndex]["orderId"] as int);
+    }
+
+    if (mounted) {
+      _tabController!.index = defaultIndex;
+      await CustomerDisplayHelper.updateCustomerDisplay(tabs[defaultIndex]["orderId"] as int);
+    }
   }
+
 
   // Build #1.0.10: Creates a new order and adds it as a new tab
   //Build #1.0.78: Explanation!
@@ -1187,213 +1210,280 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
             });
           }
         },
-        child: Container(
-          width: MediaQuery.of(context).size.width * 0.31,
-          padding: const EdgeInsets.fromLTRB(2, 0, 10, 10),
-          child: Card(
-            // elevation: 2,
-            margin: const EdgeInsets.only(top: 10),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            child: Column(
-              children: [
-                Container(
-                  color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground: null,
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          controller: _scrollController,
-                          child: Row(
-                            children: List.generate(tabs.length, (index) {
-                              final bool isSelected = _tabController!.index == index;
-                              return Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
-                                child: GestureDetector(
-                                  onTap: () {
-                                    setState(() {
-                                      _tabController!.index = index;
-                                    });
-                                  },
-                                  child: Container(
-                                    // height: isSelected
-                                    //     ? 50
-                                    //     : 50, // selected tab taller
-                                    // padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: isSelected
-                                          ? 12
-                                          : 12, // adjust internal padding only
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: isSelected
-                                          ? (themeHelper.themeMode ==
-                                          ThemeMode.dark
-                                          ? Color(
-                                          0xFFFCDFDC) // selected top bar in dark
-                                          : const Color(0xFFFCDFDC))
-                                          : (themeHelper.themeMode ==
-                                          ThemeMode.dark
-                                          ? Color(
-                                          0xFF31354A) // order panel tob bar and unselected tab color in dark
-                                          : const Color(
-                                          0xFFEFEEEE)), // unselected tab in light
-                                      // color: isSelected ?  ThemeNotifier.orderPanelTabSelection : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.orderPanelTabBackground : Colors.grey.shade400,
-                                      //borderRadius: BorderRadius.circular(10),
-                                      borderRadius: BorderRadius.only(
-                                        topLeft: Radius.circular(10),
-                                        topRight: Radius.circular(10),
-                                        //bottomLeft: isSelected ? Radius.circular(0) : Radius.circular(10),
-                                        // bottomRight: isSelected ? Radius.circular(0) : Radius.circular(10),
-                                        bottomLeft: isSelected
-                                            ? const Radius.circular(10)
-                                            : const Radius.circular(10),
-                                        bottomRight: isSelected
-                                            ? const Radius.circular(10)
-                                            : const Radius.circular(10),
+          child: Container(
+            width: MediaQuery.of(context).size.width * 0.31,
+            padding: const EdgeInsets.fromLTRB(2, 0, 10, 10),
+            child: Card(
+              //elevation: 4,
+              margin: const EdgeInsets.only(top: 10),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12), // Card corners
+              ),
+              color: themeHelper.themeMode == ThemeMode.dark
+                  ? ThemeNotifier.primaryBackground
+                  : Colors.white,
+              child: tabs.isNotEmpty
+                  ? Column(
+                children: [
+                  // Top tabs container
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: themeHelper.themeMode == ThemeMode.dark
+                          ? ThemeNotifier.primaryBackground
+                          : Colors.transparent,
+                      // borderRadius: const BorderRadius.only(
+                      //   topLeft: Radius.circular(20),
+                      //   topRight: Radius.circular(20),
+                      // ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // Tabs scroll
+                        Expanded(
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            controller: _scrollController,
+                            child: Row(
+                              children: List.generate(tabs.length, (index) {
+                                final bool isSelected = _tabController!.index == index;
+                                return Padding(
+                                  // padding: const EdgeInsets.fromLTRB(4, 5, 4, 0), // same for all tabs padding between tab and calender all
+                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        _tabController!.index = index;
+                                      });
+                                    },
+                                    child: Container(
+                                      height: isSelected
+                                          ? 50
+                                          : 50, // selected tab taller
+                                      // padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: isSelected
+                                            ? 12
+                                            : 12, // adjust internal padding only
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: isSelected
+                                            ? (themeHelper.themeMode ==
+                                            ThemeMode.dark
+                                            ? Color(
+                                            0xFFFCDFDC) // selected top bar in dark
+                                            : const Color(0xFFFCDFDC))
+                                            : (themeHelper.themeMode ==
+                                            ThemeMode.dark
+                                            ? Color(
+                                            0xFF31354A) // order panel tob bar and unselected tab color in dark
+                                            : const Color(
+                                            0xFFEFEEEE)), // unselected tab in light
+                                        // color: isSelected ?  ThemeNotifier.orderPanelTabSelection : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.orderPanelTabBackground : Colors.grey.shade400,
+
+                                        // color: isSelected ?  ThemeNotifier.orderPanelTabSelection : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.orderPanelTabBackground : Colors.grey.shade400,
+                                        //borderRadius: BorderRadius.circular(10),
+                                        borderRadius: BorderRadius.only(
+                                          topLeft: Radius.circular(10),
+                                          topRight: Radius.circular(10),
+                                          //bottomLeft: isSelected ? Radius.circular(0) : Radius.circular(10),
+                                          // bottomRight: isSelected ? Radius.circular(0) : Radius.circular(10),
+                                          bottomLeft: isSelected
+                                              ? const Radius.circular(10)
+                                              : const Radius.circular(10),
+                                          bottomRight: isSelected
+                                              ? const Radius.circular(10)
+                                              : const Radius.circular(10),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Column(
+                                            mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                            crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                tabs[index]["title"] as String,
+                                                style: TextStyle(
+                                                  color: isSelected
+                                                      ? const Color(0xFFFE6464)
+                                                      : const Color(0xFF999393),
+                                                  fontWeight: isSelected
+                                                      ? FontWeight.bold
+                                                      : FontWeight.w500,
+                                                  fontSize: isSelected ? 15 : 14,
+                                                ),
+                                                // style: TextStyle(color: isSelected ? Colors.black : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight, fontWeight: FontWeight.bold),
+                                              ),
+                                              // Text(
+                                              //tabs[index]["subtitle"] as String,
+                                              // style: TextStyle(color: isSelected ? Colors.black54 : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.black54, fontSize: 12),
+                                              // ),
+                                            ],
+                                          ),
+                                          const SizedBox(width: 8),
+                                          // Always show the close button
+                                          GestureDetector(
+                                            ///ToDo: Change the status of order to 'cancelled' here
+                                            onTap: () {
+                                              if (kDebugMode) {
+                                                print(
+                                                    "Tab $index, close button tapped");
+                                              }
+
+                                              ///call alert  box before delete
+                                              CustomDialog.showAreYouSure(context,
+                                                  confirm: () {
+                                                    removeTab(index);
+                                                  });
+                                            },
+                                            child: isSelected
+                                                ? Image.asset(
+                                              "assets/deletecircle.png",
+                                              width: 20,
+                                              height: 20,
+                                            )
+                                                : SizedBox
+                                                .shrink(), // hides the widget when not selected
+
+                                            // child: const Icon(Icons.close, size: 18, color: Colors.red),
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                    child: Row(
-                                      children: [
-                                        Column(
-                                          mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                          crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              tabs[index]["title"] as String,
-                                              style: TextStyle(
-                                                color: isSelected
-                                                    ? const Color(0xFFFE6464)
-                                                    : const Color(0xFF999393),
-                                                fontWeight: isSelected
-                                                    ? FontWeight.bold
-                                                    : FontWeight.w500,
-                                                fontSize: isSelected ? 15 : 14,
-                                              ),
-                                              // style: TextStyle(color: isSelected ? Colors.black : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight, fontWeight: FontWeight.bold),
-                                            ),
-                                            // Text(
-                                            //tabs[index]["subtitle"] as String,
-                                            // style: TextStyle(color: isSelected ? Colors.black54 : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.black54, fontSize: 12),
-                                            // ),
-                                          ],
-                                        ),
-                                        const SizedBox(width: 8),
-                                        // Always show the close button
-                                        GestureDetector(
-                                          ///ToDo: Change the status of order to 'cancelled' here
-                                          onTap: () {
-                                            if (kDebugMode) {
-                                              print(
-                                                  "Tab $index, close button tapped");
-                                            }
-
-                                            ///call alert  box before delete
-                                            CustomDialog.showAreYouSure(context,
-                                                confirm: () {
-                                                  removeTab(index);
-                                                });
-                                          },
-                                          child: isSelected
-                                              ? Image.asset(
-                                            "assets/deletecircle.png",
-                                            width: 20,
-                                            height: 20,
-                                          )
-                                              : SizedBox
-                                              .shrink(), // hides the widget when not selected
-
-                                          // child: const Icon(Icons.close, size: 18, color: Colors.red),
-                                        ),
-                                      ],
-                                    ),
                                   ),
-                                ),
-                              );
-                            }),
+                                );
+                              }),
+                            ),
                           ),
                         ),
-                      ),
-                        ElevatedButton(
-                          onPressed: addNewTab,
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.only(right: 4),
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            backgroundColor: Colors.transparent, // so container decoration shows
-                            shadowColor: Colors.transparent, // to remove default shadow if any
-                          ),
-                          child: Container(
-                            width: 85,
-                            height: 45,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              color: themeHelper.themeMode == ThemeMode.dark
-                                  ? const Color(0xFF221E2B)
-                                  : const Color(0xFFFFFFFF),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: const Color(0xFFFE6464),
-                                width: 1.0,
+                        if (tabs.isNotEmpty)
+                          ElevatedButton(
+                            onPressed: addNewTab,
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.only(right: 4),
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
                               ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: themeHelper.themeMode == ThemeMode.dark
-                                      ? const Color(0xFF525252)
-                                      : const Color(0xFFB2AFAF),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 4),
-                                  spreadRadius: 0,
-                                ),
-                              ],
+                              backgroundColor: Colors.transparent, // so container decoration shows
+                              shadowColor: Colors.transparent, // to remove default shadow if any
                             ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Container(
-                                  width: 22,
-                                  height: 22,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
+                            child: Container(
+                              width: 85,
+                              height: 50,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: themeHelper.themeMode == ThemeMode.dark
+                                    ? const Color(0xFF000000)
+                                    : const Color(0xFFFFFFFF),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: const Color(0xFFFE6464),
+                                  width: 1.0,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: themeHelper.themeMode == ThemeMode.dark
+                                        ? const Color(0xFF525252)
+                                        : const Color(0xFFB2AFAF),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 4),
+                                    spreadRadius: 0,
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    width: 22,
+                                    height: 22,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: const Color(0xFFFE6464),
+                                        width: 2,
+                                      ),
+                                    ),
+                                    child: const Icon(
+                                      Icons.add,
+                                      size: 16,
                                       color: const Color(0xFFFE6464),
-                                      width: 2,
                                     ),
                                   ),
-                                  child: const Icon(
-                                    Icons.add,
-                                    size: 16,
-                                    color: const Color(0xFFFE6464),
+                                  const SizedBox(width: 8),
+                                  const Text(
+                                    "New",
+                                    style: TextStyle(
+                                      color: const Color(0xFFFE6464),
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(width: 8),
-                                const Text(
-                                  "New",
-                                  style: TextStyle(
-                                    color: const Color(0xFFFE6464),
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
+                                ],
+                              ),
+                            ),
+                          )
+
+                      ],
+                    ),
+                  ),
+                  // Current order section
+                  Expanded(child: buildCurrentOrder()),
+                ],
+              )
+                  : Container(
+                padding: const EdgeInsets.all(16), // same inner padding as the card
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Image.asset(
+                            'assets/scannerandsearch.png',
+                            width: 100,
+                            height: 100,
+                            fit: BoxFit.contain,
+                          ),
+                          const SizedBox(height: 20),
+                          Text(
+                            'No items in the Order panel',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: themeHelper.themeMode == ThemeMode.dark
+                                  ? Colors.white
+                                  : const Color(0xFF373535),
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
-                        )
-                    ],
-                  ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Order panel is empty. Add items by scanning,\nsearching, or selecting from the list.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: themeHelper.themeMode == ThemeMode.dark
+                                  ? Colors.grey[400]
+                                  : Colors.grey.shade500,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              height: 1.4,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                Expanded(child: buildCurrentOrder()),
-              ],
+              ),
             ),
-          ),
-        ),
+          )
       ),
     );
   }

@@ -219,6 +219,7 @@ import '../../Repositories/Auth/store_validation_repository.dart';
 import '../../Repositories/Orders/order_repository.dart';
 import '../../Repositories/Search/product_search_repository.dart';
 import '../../Utilities/textfield_search.dart';
+import '../../Widgets/widget_logs_toast.dart';
 import '../../Widgets/widget_alert_popup_dialogs.dart';
 import '../../Widgets/widget_category_list.dart';
 import '../../Widgets/widget_nested_grid_layout.dart';
@@ -947,16 +948,18 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
       });
     }
   }
-
+  Stopwatch? refreshUIStopwatch; // Build #1.0.256
   void _onItemSelected(int index, bool showAddButton, bool variantAdded) async {
 
     //Build #1.0.78: fix for parent product also adding along with variant product , we have to restrict that like categories screen
     if(variantAdded == true){
       // Build #1.0.148: we have to show loader until product adds into order panel, then hide
       // Navigator.pop(context); // Hide Loader / VariationPopup dialog
+      if (!Misc.enableUILogMessages) { // Build #1.0.256
       if (Navigator.canPop(context)) { // Build #1.0.197: Fixed [SCRUM - 345] -> Screen blackout when adding item to cart
         Navigator.pop(context);
       }
+     }
       _refreshOrderList(); // refresh UI
       return;
     }
@@ -989,27 +992,35 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
 
     try {
       // For API orders
-    //  if (serverOrderId != null) { // Build #1.0.128: No need
-        _updateOrderSubscription?.cancel();
-        StreamSubscription? subscription;
-      //  setState(() => isAddingItemLoading = true);
-        subscription = orderBloc.updateOrderStream.listen((response) async {
-          if (!mounted) {
-            subscription?.cancel();
-            return;
+      //  if (serverOrderId != null) { // Build #1.0.128: No need
+      _updateOrderSubscription?.cancel();
+      StreamSubscription? subscription;
+      // setState(() => isAddingItemLoading = true);
+      // Measure time for Add Product to Order (for non-variant or empty variations)
+      // Initialize stopwatch only if Misc.enableUILogMessages is true
+      Stopwatch? addProductStopwatch;
+      if (Misc.enableUILogMessages) {
+        addProductStopwatch = Stopwatch()..start();
+      }
+      subscription = orderBloc.updateOrderStream.listen((response) async {
+        if (!mounted) {
+          subscription?.cancel();
+          return;
+        }
+        if (response.status == Status.LOADING) { // Build #1.0.80
+          if (kDebugMode) print("Loading stated in fastkey under _onItemSelected ...");
+          const Center(child: CircularProgressIndicator());
+        } else if (response.status == Status.COMPLETED) {
+          // Build #1.0.148: we have to show loader until product adds into order panel, then hide
+          // Navigator.pop(context); // Hide Loader / VariationPopup dialog
+          if (!Misc.enableUILogMessages){
+          if (Navigator.canPop(context)) { // Build #1.0.197: Fixed [SCRUM - 345] -> Screen blackout when adding item to cart
+            Navigator.pop(context);
           }
-          if (response.status == Status.LOADING) { // Build #1.0.80
-            if (kDebugMode) print("Loading stated in fastkey under _onItemSelected ...");
-            const Center(child: CircularProgressIndicator());
-          }else if (response.status == Status.COMPLETED) {
-            // Build #1.0.148: we have to show loader until product adds into order panel, then hide
-          //  Navigator.pop(context); // Hide Loader / VariationPopup dialog
-            if (Navigator.canPop(context)) { // Build #1.0.197: Fixed [SCRUM - 345] -> Screen blackout when adding item to cart
-              Navigator.pop(context);
-            }
-         //   setState(() => isAddingItemLoading = false);
-            if (kDebugMode) print("Item added to order $dbOrderId via API");
-            if (Misc.showDebugSnackBar) { // Build #1.0.254
+         }
+          // setState(() => isAddingItemLoading = false);
+          if (kDebugMode) print("Item added to order $dbOrderId via API");
+          if (Misc.showDebugSnackBar) { // Build #1.0.254
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text("Item '${selectedProduct[AppDBConst.fastKeyItemName]}' added to order"),
@@ -1017,50 +1028,80 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                 duration: Duration(seconds: 2),
               ),
             );
-           }
-            _refreshOrderList();
-            subscription?.cancel();
-          } else if (response.status == Status.ERROR) {
-            if (Navigator.canPop(context)) { // Build #1.0.197: Fixed [SCRUM - 345] -> Screen blackout when adding item to cart
-              Navigator.pop(context);
-            }
-            if (response.message!.contains('Unauthorised')) {
-              if (kDebugMode) {
-                print("Fast key 6---- Unauthorised : ${response.message!}");
-              }
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) {
-                  Navigator.pushReplacement(context,
-                      MaterialPageRoute(builder: (context) => LoginScreen()));
-
-                  if (kDebugMode) {
-                    print("message --- ${response.message}");
-                  }
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                          "Unauthorised. Session is expired on this device."),
-                      backgroundColor: Colors.red,
-                      duration: Duration(seconds: 2),
-                    ),
-                  );
-                }
-              });
-            }
-            else {
-              if (kDebugMode) print("Failed to add item to order: ${response.message}");
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(response.message ?? TextConstants.failedToAddItemToOrder),
-                  // Build #1.0.144
-                  backgroundColor: Colors.red,
-                  duration: const Duration(seconds: 2),
-                ),
-              );
-            }
-            subscription?.cancel();
           }
-        });
+          // Build #1.0.256: Stop stopwatch and add to steps only if enabled
+          if (Misc.enableUILogMessages && addProductStopwatch != null) {
+            addProductStopwatch.stop();
+            globalProcessSteps.add(
+              ProcessStep(
+                name: TextConstants.addProductToOrder,
+                timeTaken: addProductStopwatch.elapsedMilliseconds / 1000.0,
+              ),
+            );
+            if (kDebugMode) {
+              print("Add Product to Order completed in ${globalProcessSteps.last.timeTaken}s");
+            }
+          }
+
+          if (Misc.enableUILogMessages) {
+            refreshUIStopwatch = Stopwatch()..start();
+          }
+          _refreshOrderList();
+          subscription?.cancel();
+        } else if (response.status == Status.ERROR) {
+          if (Navigator.canPop(context)) { // Build #1.0.197: Fixed [SCRUM - 345] -> Screen blackout when adding item to cart
+            Navigator.pop(context);
+          }
+          if (response.message!.contains('Unauthorised')) {
+            if (kDebugMode) {
+              print("Fast key 6---- Unauthorised : ${response.message!}");
+            }
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                Navigator.pushReplacement(context,
+                    MaterialPageRoute(builder: (context) => LoginScreen()));
+
+                if (kDebugMode) {
+                  print("message --- ${response.message}");
+                }
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text("Unauthorised. Session is expired on this device."),
+                    backgroundColor: Colors.red,
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              }
+            });
+          } else {
+            if (kDebugMode) print("Failed to add item to order: ${response.message}");
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(response.message ?? TextConstants.failedToAddItemToOrder),
+                // Build #1.0.144
+                backgroundColor: Colors.red,
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          }
+          // Stop stopwatch and add to steps only if enabled
+          if (Misc.enableUILogMessages && addProductStopwatch != null) {
+            addProductStopwatch.stop();
+            // Clear global steps when toast is closed
+            globalProcessSteps.clear();
+            // globalProcessSteps.add(
+            //   ProcessStep(
+            //     name: TextConstants.addProductToOrder,
+            //     timeTaken: addProductStopwatch.elapsedMilliseconds / 1000.0,
+            //   ),
+            // );
+            if (kDebugMode) {
+              print("Add Product to Order (error) completed in ${globalProcessSteps.last.timeTaken}s");
+            }
+          }
+          subscription?.cancel();
+        }
+      });
 
         /// API CALL
         await orderBloc.updateOrderProducts(
@@ -1224,6 +1265,46 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
       }
       _refreshCounter++; //Build #1.0.170: Increment to signal refresh, causing didUpdateWidget to load with loader
     });
+
+    // Build #1.0.256: Stop stopwatch and add to steps only if enabled
+    if (Misc.enableUILogMessages && refreshUIStopwatch != null) {
+      refreshUIStopwatch?.stop();
+      globalProcessSteps.add(
+        ProcessStep(
+          name: TextConstants.refreshDBUITime,
+          timeTaken: refreshUIStopwatch!.elapsedMilliseconds / 1000.0,
+        ),
+      );
+      if (kDebugMode) {
+        print("Add Product to Order completed in ${globalProcessSteps.last.timeTaken}s");
+      }
+    }
+    /// Show Toast
+    if (Misc.enableUILogMessages && globalProcessSteps.isNotEmpty) {
+      if (Navigator.canPop(context)) { // Build #1.0.197: Fixed [SCRUM - 345] -> Screen blackout when adding item to cart
+        Navigator.pop(context);
+      }
+      if (kDebugMode) {
+        print("VariationPopup - Showing toast with process timings: ${globalProcessSteps.map((s) => '${s.name}: ${s.timeTaken}s').toList()}");
+      }
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) {
+          return LogsToast(
+            steps: globalProcessSteps,
+            onClose: () {
+              if (kDebugMode) {
+                print("VariationPopup - Toast closed by user");
+              }
+              // Clear global steps when toast is closed
+              globalProcessSteps.clear();
+              Navigator.of(dialogContext).pop();
+            },
+          );
+        },
+      );
+    }
   }
 
   Future<void> _showAddItemDialog() async {

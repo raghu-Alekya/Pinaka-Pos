@@ -53,7 +53,7 @@ class ProductBloc { // Build #1.0.13: Added Product Search Bloc
       List<ProductResponse> products = await _productRepository.fetchProducts(searchQuery: searchQuery);
       if (kDebugMode) {
         print("ProductBloc - Fetched ${products.length} products");
-        print("First product: ${products.first.toJson()}");
+        print("products: $products"); // Build #1.0.256: no need to print first product from response, if we get empty at that time getting issue!
       }
       productSink.add(APIResponse.completed(products));
 
@@ -85,7 +85,7 @@ class ProductBloc { // Build #1.0.13: Added Product Search Bloc
 
       if (kDebugMode) {
         print("ProductBloc - Fetched ${variations.length} variations for product $productId");
-        print("First variation: ${variations.first.toJson()}");
+        print("variations: $variations"); // Build #1.0.256
       }
       variationSink.add(APIResponse.completed(variations));
 
@@ -113,7 +113,7 @@ class ProductBloc { // Build #1.0.13: Added Product Search Bloc
       if (products.isNotEmpty) {
         if (kDebugMode) {
           print("ProductBloc - Fetched ${products.length} products by SKU: $sku");
-          print("First product: ${products.first.toJson()}");
+          print("products: $products"); // Build #1.0.256
         }
         productBySkuSink.add(APIResponse.completed(products));
       } else {

@@ -117,7 +117,7 @@ class NavigationBar extends StatelessWidget {
               onSidebarItemSelected(0);
 
               /// FastKeyScreen
-              Navigator.of(context).pushAndRemoveUntil( 
+              Navigator.of(context).pushAndRemoveUntil( // Build #1.0.254 : Fixed - Push and replace is showing jump animation for nav bar
                 PageRouteBuilder(
                   pageBuilder: (context, animation, secondaryAnimation) => FastKeyScreen(lastSelectedIndex: lastSelectedIndex),
                   transitionsBuilder: (context, animation, secondaryAnimation, child) {
@@ -404,7 +404,7 @@ class NavigationBar extends StatelessWidget {
               onSidebarItemSelected(0);
 
               /// FastKeyScreen
-              Navigator.of(context).pushAndRemoveUntil( 
+              Navigator.of(context).pushAndRemoveUntil( // Build #1.0.254 : Fixed - Push and replace is showing jump animation for nav bar
                 PageRouteBuilder(
                   pageBuilder: (context, animation, secondaryAnimation) => FastKeyScreen(lastSelectedIndex: lastSelectedIndex),
                   transitionsBuilder: (context, animation, secondaryAnimation, child) {

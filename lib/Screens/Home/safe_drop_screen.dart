@@ -394,13 +394,13 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
     ///Date and Time
     ///Store Id
     ///Address
-    //         "Store name": "Kumar Swa D",
-    //         "address": "Q No: D 1847, Shirkey Colony",
-    //         "city": "Mancherial",
+    //         "Store name": "Kumar Swa D", => < increase font to 5 and bold >
+    //         "address": "Q No: D 1847, Shirkey Colony",=>  first line will be <address>
+    //         "city": "Mancherial", => second line will be <city>,<state>-<zip_code>
     //         "state": "Telangana",
-    //         "country": "",
+    //         "country": "", => no need to show
     //         "zip_code": "504302",
-    //         "phone_number": false
+    //         "phone_number": false => third line will be <phone_number>
 
 
     final DateTime createdDateTime = DateTime.now();
@@ -408,16 +408,17 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
     var timeToPrint = DateFormat(TextConstants.timeFormat).format(createdDateTime);
 
     var merchantDetails = await StoreDbHelper.instance.getStoreValidationData();
-    var storeId = "Store ID ${merchantDetails?[AppDBConst.storeId]}";
-    var storePhone = "Phone ${merchantDetails?[AppDBConst.storePhone]}";
+    var storeId = "StoreID: ${merchantDetails?[AppDBConst.storeId]}";
+    var storePhone = "Phone: ${merchantDetails?[AppDBConst.storePhone]}";
 
     var storeDetails = await AssetDBHelper.instance.getStoreDetails();
     var storeName = "${storeDetails?.name}";
-    var address = "${storeDetails?.address},${storeDetails?.city},${storeDetails?.state},${storeDetails?.country},${storeDetails?.zipCode}";
-    var orderIdToPrint = "";//'${TextConstants.orderId} #$orderId';
+    var address = "${storeDetails?.address},";
+    var cityStateZip = "${storeDetails?.city},${storeDetails?.state}-${storeDetails?.zipCode}";
+    var orderIdToPrint = "";//'${TextConstants.orderID} $orderId';
 
     final userData = await UserDbHelper().getUserData();
-    var cashierName = "Cashier ${userData?[AppDBConst.userDisplayName] ?? "Unknown Name"}";
+    var cashierName = "Cashier: ${userData?[AppDBConst.userDisplayName] ?? "Unknown Name"}";
     var cashierRole = "${userData?[AppDBConst.userRole] ?? "Unknown Role"}";
 
     if (kDebugMode) {
@@ -426,6 +427,7 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
       print(" >>>>> PrintOrder  storeId $storeId ");
       print(" >>>>> PrintOrder  storeName $storeName ");
       print(" >>>>> PrintOrder  address $address ");
+      print(" >>>>> PrintOrder  cityStateZip $cityStateZip ");
       print(" >>>>> PrintOrder  storePhone $storePhone ");
       print(" >>>>> PrintOrder  orderIdToPrint $orderIdToPrint ");
       print(" >>>>> PrintOrder  cashierName $cashierName ");
@@ -444,11 +446,15 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
 
     //Store Name
     bytes += ticket.row([
-      PosColumn(text: "$storeName", width: 12, styles: PosStyles(align: PosAlign.center)),
+      PosColumn(text: "$storeName", width: 12, styles: PosStyles(align: PosAlign.center,bold: true, height: PosTextSize.size5, width: PosTextSize.size5)), //Build #1.0.257: increase font to 5 and bold
     ]);
     //Address
     bytes += ticket.row([
       PosColumn(text: "$address", width: 12, styles: PosStyles(align: PosAlign.center)),
+    ]);
+    //cityStateZip
+    bytes += ticket.row([
+      PosColumn(text: "$cityStateZip", width: 12, styles: PosStyles(align: PosAlign.center)),
     ]);
     //Store Phone
     bytes += ticket.row([
@@ -463,23 +469,23 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
 
     //store id and  Date
     bytes += ticket.row([
-      PosColumn(text: "$storeId", width: 5),
-      PosColumn(text: "Date", width: 2, styles: PosStyles(align: PosAlign.right)),
-      PosColumn(text: "$dateToPrint", width: 5, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: "$storeId", width: 7),
+      PosColumn(text: "Date:", width: 2, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: "$dateToPrint", width: 3, styles: PosStyles(align: PosAlign.right)),
     ]);
 
     //order Id and  Time
     bytes += ticket.row([
-      PosColumn(text: "$orderIdToPrint", width: 5),
-      PosColumn(text: "Time", width: 2, styles: PosStyles(align: PosAlign.right)),
-      PosColumn(text: "$timeToPrint", width: 5, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: "$orderIdToPrint", width: 7),
+      PosColumn(text: "Time:", width: 2, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: "$timeToPrint", width: 3, styles: PosStyles(align: PosAlign.right)),
     ]);
 
     //cashier and role
     bytes += ticket.row([
-      PosColumn(text: "$cashierName", width: 5),
-      PosColumn(text: "Role", width: 2, styles: PosStyles(align: PosAlign.right)),
-      PosColumn(text: "$cashierRole", width: 5, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: "$cashierName", width: 7),
+      PosColumn(text: "Role:", width: 2, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: "$cashierRole", width: 3, styles: PosStyles(align: PosAlign.right)),
     ]);
 
     bytes += ticket.feed(1);
@@ -492,7 +498,7 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
     bytes += ticket.row([
       PosColumn(text: "#", width: 2),
       PosColumn(text: "Denomination", width:5),
-      PosColumn(text: "Qty", width: 2),
+      PosColumn(text: "Qty", width: 2,styles: PosStyles(align: PosAlign.center)),
       PosColumn(text: "Amt", width: 3, styles: PosStyles(align: PosAlign.right)),
     ]);
     bytes += ticket.feed(1);
@@ -508,9 +514,9 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
 
       bytes += ticket.row([
         PosColumn(text: "$denomIndex", width: 2),
-        PosColumn(text: "${TextConstants.currencySymbol} ${denomValue.toStringAsFixed(2)}", width:5),
-        PosColumn(text: "$notes", width:2),
-        PosColumn(text: "${TextConstants.currencySymbol} ${cash.toStringAsFixed(2)}", width: 3, styles: PosStyles(align: PosAlign.right)),
+        PosColumn(text: "${TextConstants.currencySymbol}${denomValue.toStringAsFixed(2)}", width:5),
+        PosColumn(text: "$notes", width:2, styles: PosStyles(align: PosAlign.center)),
+        PosColumn(text: "${TextConstants.currencySymbol}${cash.toStringAsFixed(2)}", width: 3, styles: PosStyles(align: PosAlign.right)),
       ]);
     });
 
@@ -531,7 +537,7 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
     bytes += ticket.row([
       PosColumn(text: TextConstants.total, width: 7),
       PosColumn(text: totalNotes.toString(), width:2),
-      PosColumn(text: "${TextConstants.currencySymbol} ${totalCash.toStringAsFixed(2)}", width:3, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: "${TextConstants.currencySymbol}${totalCash.toStringAsFixed(2)}", width:3, styles: PosStyles(align: PosAlign.right)),
     ]);
 
     // bytes += ticket.row([
@@ -541,10 +547,10 @@ class _SafeDropScreenState extends State<SafeDropScreen> with LayoutSelectionMix
 
     bytes += ticket.feed(1);
     //Footer
-    bytes += ticket.row([
-      PosColumn(text: "----------------------End----------------------", width: 12),
-    ]);
-    bytes += ticket.feed(1);
+    // bytes += ticket.row([
+    //   PosColumn(text: "----------------------End----------------------", width: 12),
+    // ]);
+    // bytes += ticket.feed(1);
   }
 
   Future _printTicket() async{

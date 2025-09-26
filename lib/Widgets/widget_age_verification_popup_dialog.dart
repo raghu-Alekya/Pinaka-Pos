@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_barcode_listener/flutter_barcode_listener.dart';
 import 'package:pinaka_pos/Widgets/widget_custom_num_pad.dart';
+import 'package:pinaka_pos/Widgets/widget_logs_toast.dart';
 import 'package:provider/provider.dart';
 import 'package:syncfusion_flutter_datepicker/datepicker.dart';
 import 'package:intl/intl.dart';
 
+import '../Constants/misc_features.dart';
 import '../Helper/Extentions/theme_notifier.dart';
 
 class AgeVerificationPopup extends StatefulWidget {
@@ -463,6 +465,10 @@ class _AgeVerificationPopupState extends State<AgeVerificationPopup> {
                         //widget.onCancel?.call();
                         if (kDebugMode) {
                           print("AgeVerification Close()");
+                        }
+                        if (Misc.enableUILogMessages) { // Build #1.0.256: we have to clear if enableUILogMessages is true
+                          // Clear global steps when toast is closed
+                          globalProcessSteps.clear();
                         }
                         Navigator.of(context).pop();
                       },

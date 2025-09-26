@@ -762,6 +762,7 @@ import '../Providers/Auth/product_variation_provider.dart';
 import '../Utilities/shimmer_effect.dart';
 import 'package:reorderable_grid_view/reorderable_grid_view.dart';
 import '../Utilities/svg_images_utility.dart';
+import 'widget_logs_toast.dart';
 
 class NestedGridWidget extends StatelessWidget {
   final bool isHorizontal;
@@ -962,14 +963,32 @@ class NestedGridWidget extends StatelessWidget {
                           final String ageRestrictedValue = order?[AppDBConst.orderAgeRestricted]?.toString() ?? 'false';
                           final bool isAgeRestricted = ageRestrictedValue.toLowerCase() == 'true' || ageRestrictedValue == "1";
 
-                          if (!isAgeRestricted) {
-                          /// Verify Age and proceed else return
-                          final ageVerificationProvider = AgeVerificationProvider();
-                          var isVerified = await ageVerificationProvider.verifyAge(context, minAge: item[AppDBConst.fastKeyItemMinAge] ?? 0);
-                          if(!isVerified){
-                            return;
+                          if (!isAgeRestricted) { // Fixed: only if !isAgeRestricted
+                            if (kDebugMode) {
+                              print("NestedGridWidget - Starting Age Verification for product ID: $productId");
+                            }
+
+                            Stopwatch? ageCheckStopwatch;
+                            if (Misc.enableUILogMessages) { // Build #1.0.256
+                              ageCheckStopwatch = Stopwatch()..start(); // Start timer before verifyAge
+                            }
+                            final ageVerificationProvider = AgeVerificationProvider();
+                            final isVerified = await ageVerificationProvider.verifyAge(context, minAge: item[AppDBConst.fastKeyItemMinAge] ?? 0);
+
+                           if (Misc.enableUILogMessages && ageCheckStopwatch != null) {
+                            ageCheckStopwatch.stop(); // Stop after verifyAge
+                            globalProcessSteps.add(ProcessStep(
+                              name: TextConstants.ageVerificationProcess,
+                              timeTaken: ageCheckStopwatch.elapsedMilliseconds / 1000.0,
+                            ));
                           }
-                         }
+                            if (!isVerified) {
+                              if (kDebugMode) {
+                                print("NestedGridWidget - Age Verification failed for product ID: $productId");
+                              }
+                              return;
+                            }
+                          }
                           /// Build #1.0.157: Added to check before calling variation API for saving loading time issue
                          //  if (item['type'] == 'variable' || item['fast_key_item_has_variant'] == 1) {
                          //    if (kDebugMode) {

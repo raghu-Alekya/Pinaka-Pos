@@ -46,6 +46,7 @@ import '../Repositories/Orders/order_repository.dart';
 import '../Repositories/Search/product_search_repository.dart';
 import '../Screens/Home/add_screen.dart';
 import '../Screens/Home/edit_product_screen.dart';
+import 'widget_logs_toast.dart';
 
 bool isOrderInForeground = true;  ///Add visibility code to check if order panel is visible or not
 class RightOrderPanel extends StatefulWidget {
@@ -962,6 +963,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
           if(!isOrderInForeground){ // to restrict order panel in background to scanner events
             return;
           }
+          if (_isLoading) return; // Build #1.0.256: Prevent multiple simultaneous scans
       
           if (barcode.isNotEmpty) {
             var dobScanned = "";
@@ -989,9 +991,9 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
       
             // Create new order if none exists
             if (tabs.isEmpty) {
-              addNewTab();
+             // addNewTab(); // Build #1.0.256: No need to create order here - updateOrderProducts will handle it if orderId is null time.
               if (kDebugMode) {
-                print("##### DEBUG: onBarcodeScanned - No tabs, creating new order");
+                print("##### DEBUG: onBarcodeScanned - No tabs are available");
               }
             }
             setState(() => _isLoading = true); // Show loader

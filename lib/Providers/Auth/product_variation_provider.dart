@@ -6,10 +6,13 @@ import 'package:pinaka_pos/Blocs/Search/product_search_bloc.dart';
 import 'package:pinaka_pos/Database/order_panel_db_helper.dart';
 import 'package:pinaka_pos/Repositories/Orders/order_repository.dart';
 import 'package:pinaka_pos/Repositories/Search/product_search_repository.dart';
+import '../../Constants/misc_features.dart';
+import '../../Constants/text.dart';
 import '../../Database/db_helper.dart';
 import '../../Helper/api_response.dart';
 import '../../Models/Orders/orders_model.dart';
 import '../../Models/Search/product_variation_model.dart';
+import '../../Widgets/widget_logs_toast.dart';
 import '../../Widgets/widget_variants_dialog.dart';
 
 class VariationPopup {
@@ -32,6 +35,12 @@ class VariationPopup {
   }
 
   Future<void> showVariantDialog({required BuildContext context}) async {
+    // Build #1.0.256: Start variation check timer immediately when dialog opens
+    Stopwatch? variationStopwatch;
+    bool? variationDone = false;
+    if (Misc.enableUILogMessages) {
+      variationStopwatch = Stopwatch()..start();
+    }
     return showDialog(
       context: context,
       barrierDismissible: false, // Build #1.0.200: Prevent dismissing by tapping outside
@@ -46,8 +55,19 @@ class VariationPopup {
                 return const Center(child: CircularProgressIndicator());
               }
               if (snapshot.data!.status == Status.COMPLETED) {
-                print("#### TEST variations");
+                if (kDebugMode) {
+                  print("#### TEST variations");
+                }
                 final variations = snapshot.data!.data!;
+
+                if (Misc.enableUILogMessages && variationStopwatch != null) { // Build #1.0.256: It will work only misc bool value is true for testing
+                variationStopwatch.stop();
+                variationDone = true;
+                globalProcessSteps.add(ProcessStep(
+                  name: TextConstants.variationCheck,
+                  timeTaken: variationStopwatch.elapsedMilliseconds / 1000.0, // Approximate time for fetch
+                ));
+               }
                 if (variations.isNotEmpty) {
                   return VariantsDialog(
                     title: productName,
@@ -88,6 +108,11 @@ class VariationPopup {
                        // if (serverOrderId != null) { //Build #1.0.128: No need to check this condition
                           _updateOrderSubscription?.cancel();
 
+                          // Build #1.0.256: Measure time for adding product
+                          Stopwatch? addVariationProdStopwatch;
+                          if (Misc.enableUILogMessages) {
+                            addVariationProdStopwatch = Stopwatch()..start(); // Start timer before verifyAge
+                          }
                           _updateOrderSubscription = _orderBloc.updateOrderStream.listen(
                                 (response) async {
                               _isAddingItemLoading = false;
@@ -104,14 +129,25 @@ class VariationPopup {
                                 if (kDebugMode) {
                                   print("Variant added to order $dbOrderId via API");
                                 }
-                                ScaffoldMessenger.of(context).showSnackBar(
+                                if (Misc.showDebugSnackBar) { // Build #1.0.256: Fix: No need to show toast on success
+                                  ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text("Variant '${variant['name']}' added to order"),
                                     backgroundColor: Colors.green,
                                     duration: const Duration(seconds: 2),
                                   ),
                                 );
+                              }
                              //   Navigator.pop(context);
+                                if (Misc.enableUILogMessages && addVariationProdStopwatch != null) { // Build #1.0.256
+                                addVariationProdStopwatch.stop();
+                                globalProcessSteps.add(
+                                  ProcessStep(
+                                    name: TextConstants.addProductToOrder,
+                                    timeTaken: addVariationProdStopwatch.elapsedMilliseconds / 1000.0,
+                                  ),
+                                );
+                               }
                                 onProductSelected?.call(isVariant: true);
                                 _updateOrderSubscription?.cancel();
                               } else if (response.status == Status.ERROR) {
@@ -125,6 +161,18 @@ class VariationPopup {
                                     duration: const Duration(seconds: 2),
                                   ),
                                 );
+                                if (Misc.enableUILogMessages && addVariationProdStopwatch != null) { // Build #1.0.256
+                                addVariationProdStopwatch.stop();
+                                // Clear global steps when toast is closed
+                                globalProcessSteps.clear();
+                                // Added to steps even on error
+                                // globalProcessSteps.add(
+                                //   ProcessStep(
+                                //     name: TextConstants.addProductToOrder,
+                                //     timeTaken: addVariationProdStopwatch.elapsedMilliseconds / 1000.0,
+                                //   ),
+                                // );
+                               }
                                 onProductSelected?.call(isVariant: true);
                                 _updateOrderSubscription?.cancel();
                               }
@@ -196,6 +244,13 @@ class VariationPopup {
               }
               if (kDebugMode) {
                 print("#### TEST 222 variations");
+              }
+              if (Misc.enableUILogMessages && variationStopwatch != null && variationDone == false) { // Build #1.0.256
+                variationStopwatch.stop();
+                globalProcessSteps.add(ProcessStep(
+                  name: TextConstants.variationCheck,
+                  timeTaken: variationStopwatch.elapsedMilliseconds / 1000.0, // Approximate time for fetch
+                ));
               }
               onProductSelected?.call(isVariant: false);
             //  Navigator.pop(context);

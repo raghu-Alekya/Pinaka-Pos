@@ -58,7 +58,7 @@ class _ShiftOpenCloseBalanceScreenState extends State<ShiftOpenCloseBalanceScree
 
     // Simulate a loading delay
     Future.delayed(const Duration(seconds: 3), () {
-      if(mounted) { /// add to fix memory leaks
+     if(mounted) { /// add to fix memory leaks
         setState(() {
           isLoading = false; // Set loading to false after 3 seconds
         });
@@ -327,20 +327,20 @@ class _ShiftOpenCloseBalanceScreenState extends State<ShiftOpenCloseBalanceScree
               screen: Screen.SHIFT,
               onModeChanged: () async{ /// Build #1.0.192: Fixed -> Exception -> setState() callback argument returned a Future. (onModeChanged in all screens)
                 String newLayout;
-                if (sidebarPosition == SidebarPosition.left) {
-                  newLayout = SharedPreferenceTextConstants.navRightOrderLeft;
-                } else if (sidebarPosition == SidebarPosition.right) {
-                  newLayout = SharedPreferenceTextConstants.navBottomOrderLeft;
-                } else {
-                  newLayout = SharedPreferenceTextConstants.navLeftOrderRight;
-                }
+                  if (sidebarPosition == SidebarPosition.left) {
+                    newLayout = SharedPreferenceTextConstants.navRightOrderLeft;
+                  } else if (sidebarPosition == SidebarPosition.right) {
+                    newLayout = SharedPreferenceTextConstants.navBottomOrderLeft;
+                  } else {
+                    newLayout = SharedPreferenceTextConstants.navLeftOrderRight;
+                  }
 
-                // Update the notifier which will trigger _onLayoutChanged
-                PinakaPreferences.layoutSelectionNotifier.value = newLayout;
-                // No need to call saveLayoutSelection here as it's handled in the notifier
+                  // Update the notifier which will trigger _onLayoutChanged
+                  PinakaPreferences.layoutSelectionNotifier.value = newLayout;
+                  // No need to call saveLayoutSelection here as it's handled in the notifier
                 //  _preferences.saveLayoutSelection(newLayout);
-                //Build #1.0.122: update layout mode change selection to DB
-                await UserDbHelper().saveUserSettings({AppDBConst.layoutSelection: newLayout}, modeChange: true);
+                  //Build #1.0.122: update layout mode change selection to DB
+                  await UserDbHelper().saveUserSettings({AppDBConst.layoutSelection: newLayout}, modeChange: true);
                 // update UI
                 setState(() {});
               },
@@ -388,7 +388,7 @@ class _ShiftOpenCloseBalanceScreenState extends State<ShiftOpenCloseBalanceScree
                                           crossAxisAlignment: CrossAxisAlignment.start,
                                           mainAxisAlignment: MainAxisAlignment.center,
                                           children: [
-                                            Text(
+                                             Text(
                                               screenTitle,
                                               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                                             ),
@@ -543,7 +543,7 @@ class _ShiftOpenCloseBalanceScreenState extends State<ShiftOpenCloseBalanceScree
                                                     style: TextStyle(
                                                       fontWeight: FontWeight.w500,
                                                       color: themeHelper.themeMode == ThemeMode.dark
-                                                          ? ThemeNotifier.textDark : Colors.grey[700],
+                                                    ? ThemeNotifier.textDark : Colors.grey[700],
                                                     ),
                                                   ),
                                                 ),
@@ -582,12 +582,12 @@ class _ShiftOpenCloseBalanceScreenState extends State<ShiftOpenCloseBalanceScree
                                                 // physics: AlwaysScrollableScrollPhysics(),
                                                 // children: _notesDenominations.map((denom) {
                                                 //   String denomination = denom.denom.toString();
-                                                itemCount: _notesDenominations.length,
-                                                physics: const AlwaysScrollableScrollPhysics(),
-                                                padding: EdgeInsets.zero, // Remove default padding
-                                                itemBuilder: (context, index) {
-                                                  final denom = _notesDenominations[index];
-                                                  String denomination = denom.denom.toString();
+                                                  itemCount: _notesDenominations.length,
+                                                  physics: const AlwaysScrollableScrollPhysics(),
+                                                  padding: EdgeInsets.zero, // Remove default padding
+                                                  itemBuilder: (context, index) {
+                                                    final denom = _notesDenominations[index];
+                                                    String denomination = denom.denom.toString();
                                                   return Padding(
                                                     padding: const EdgeInsets.symmetric(vertical: 7.0, horizontal: 7.0),
                                                     child: Row(
@@ -626,13 +626,13 @@ class _ShiftOpenCloseBalanceScreenState extends State<ShiftOpenCloseBalanceScree
                                                             decoration: InputDecoration(
                                                               hintText: '0',
                                                               hintStyle: TextStyle(color: themeHelper.themeMode == ThemeMode.dark
-                                                                  ? ThemeNotifier.textDark : Colors.grey),
+                                                                ? ThemeNotifier.textDark : Colors.grey),
                                                               border: InputBorder.none,
                                                               contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9.0),
                                                             ),
                                                           ),
                                                         ),
-                                                        Padding(
+                                                       Padding(
                                                           padding: EdgeInsets.symmetric(horizontal: 12.0),
                                                           child: Text(
                                                             '=',
@@ -752,17 +752,17 @@ class _ShiftOpenCloseBalanceScreenState extends State<ShiftOpenCloseBalanceScree
                                                 // Coin rows - Use fetched denominations
                                                 Expanded(
                                                   child: ListView.builder(
-                                                    itemCount: _coinsDenominations.length,
-                                                    physics: const AlwaysScrollableScrollPhysics(),
-                                                    padding: EdgeInsets.zero, // Remove default padding
-                                                    itemBuilder: (context, index) {
-                                                      final denom = _coinsDenominations[index];
-                                                      String denomination = denom.denom.toString();
+    itemCount: _coinsDenominations.length,
+    physics: const AlwaysScrollableScrollPhysics(),
+    padding: EdgeInsets.zero, // Remove default padding
+    itemBuilder: (context, index) {
+    final denom = _coinsDenominations[index];
+    String denomination = denom.denom.toString();
 
-                                                      // scrollDirection: Axis.vertical,
-                                                      // physics: AlwaysScrollableScrollPhysics(),
-                                                      // children: _coinsDenominations.map((denom) {
-                                                      //   String denomination = denom.denom.toString();
+                                                    // scrollDirection: Axis.vertical,
+                                                    // physics: AlwaysScrollableScrollPhysics(),
+                                                    // children: _coinsDenominations.map((denom) {
+                                                    //   String denomination = denom.denom.toString();
                                                       return Padding(
                                                         padding: const EdgeInsets.symmetric(vertical: 7.0, horizontal: 7.0),
                                                         child: Row(

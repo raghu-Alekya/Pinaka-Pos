@@ -35,9 +35,9 @@ import '../Constants/misc_features.dart';
 import '../Constants/text.dart';
 import '../Database/db_helper.dart';
 import '../Database/order_panel_db_helper.dart';
-import '../Helper/CustomerDisplayHelper.dart';
 import '../Helper/Extentions/theme_notifier.dart';
 import '../Helper/api_response.dart';
+import '../Helper/customerdisplayhelper.dart';
 import '../Screens/Auth/login_screen.dart';
 import '../Utilities/global_utility.dart';
 import '../Models/Orders/orders_model.dart';
@@ -51,15 +51,15 @@ import '../services/CustomerDisplayService.dart';
 
 bool isOrderInForeground = true;  ///Add visibility code to check if order panel is visible or not
 class RightOrderPanel extends StatefulWidget {
-  final String formattedDate;
-  final String formattedTime;
+  final String? formattedDate;
+  final String? formattedTime;
   final List<int> quantities;
   final VoidCallback? refreshOrderList;
   final int refreshKey; //Build #1.0.170: Added: Key to trigger refresh only when explicitly needed
 
   const RightOrderPanel({
-    required this.formattedDate,
-    required this.formattedTime,
+    this.formattedDate,
+    this.formattedTime,
     required this.quantities,
     this.refreshOrderList,
     this.refreshKey = 0, //Build #1.0.170: Default to 0, increment externally to trigger refresh
@@ -130,18 +130,18 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
       _isLoading = true;
     });
     /// No need _getOrderTabs here calling inside _fetchOrders (because of this before api call db order tabs showing)
-    // _getOrderTabs(); //Build #1.0.40: Load existing orders into tabs
+   // _getOrderTabs(); //Build #1.0.40: Load existing orders into tabs
     _fetchOrders(); //Build #1.0.40: Fetch orders on initialization
   }
 
   @override
   void didUpdateWidget(RightOrderPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // if (mounted) {
+   // if (mounted) {
     //  if(tabs.isNotEmpty){ // Build #1.0.104: Adding this conditions for old orderId's are showing before sync api call
     //    _getOrderTabs(); // Build #1.0.10 : Reload tabs when the widget updates (e.g., after item selection)
     //  }
-    // }
+   // }
     ///Build #1.0.170: Fixed -  Order Cart Flickering When Clicking on Fast Keys
     // Only trigger loading if refreshKey changed (indicating an external update like item add/delete)
     // This prevents unnecessary loading/flickering on unrelated parent rebuilds (e.g., time changes or screen switches)
@@ -347,7 +347,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
             orderItems = []; // Clear items if no order exists
             orderHelper.activeOrderId = null; // Reset activeOrderId
           });
-          //   await orderHelper.saveLastActiveOrderId(null); // Clear saved activeOrderId
+       //   await orderHelper.saveLastActiveOrderId(null); // Clear saved activeOrderId
           await _getOrderTabs(); // Refresh tabs to reflect no active order
           return;
         }
@@ -444,7 +444,6 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
     }
   }
 
-
   // Build #1.0.10: Creates a new order and adds it as a new tab
   //Build #1.0.78: Explanation!
   // Removed orderHelper.createOrder and setActiveOrder as they’re now handled in OrderBloc.
@@ -500,6 +499,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
         _scrollToSelectedTab();
         await fetchOrderItems();
 
+        if (Misc.showDebugSnackBar) { // Build #1.0.254
         _scaffoldMessenger.showSnackBar(
           SnackBar(
             content: Text("Order created successfully"),
@@ -507,6 +507,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
             duration: const Duration(seconds: 2),
           ),
         );
+       }
       } else if (response.status == Status.ERROR) {
         if (response.message!.contains('Unauthorised')) {
           if (kDebugMode) {
@@ -627,6 +628,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
             }
 
             setState(() => _isLoading = false); // Hide loader
+            if (Misc.showDebugSnackBar) { // Build #1.0.254
             _scaffoldMessenger.showSnackBar(
               SnackBar(
                 content: Text(TextConstants.orderCancelled),
@@ -634,6 +636,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                 duration: const Duration(seconds: 2),
               ),
             );
+           }
           } else if (response.status == Status.ERROR) {
             if (response.message!.contains('Unauthorised')) {
               if (kDebugMode) {
@@ -747,7 +750,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
       //   orElse: () => {},
       // );
       final serverOrderId = orderHelper.activeOrderId;//order[AppDBConst.orderServerId] as int?;
-      // final dbOrderId = orderHelper.activeOrderId!;
+     // final dbOrderId = orderHelper.activeOrderId!;
       final item = orderItems.firstWhere(
             (item) => item[AppDBConst.itemServerId] == itemId,
         orElse: () => {},
@@ -915,7 +918,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
     _tabController?.dispose();
     _scrollController.dispose(); // Dispose ScrollController
     _productBySkuSubscription?.cancel(); // Build #1.0.44 : Added Cancel product subscription
-    // productBloc.dispose(); // Added: Dispose ProductBloc
+   // productBloc.dispose(); // Added: Dispose ProductBloc
     super.dispose();
   }
 
@@ -981,7 +984,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
           if(!isOrderInForeground){ // to restrict order panel in background to scanner events
             return;
           }
-
+      
           if (barcode.isNotEmpty) {
             var dobScanned = "";
             /// Testing code: not working, Scanner will generate multiple tap events and call when scanned driving licence with PDF417 format irrespective of this code here
@@ -1005,7 +1008,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
             if (kDebugMode) {
               print("##### DEBUG: onBarcodeScanned - Scanned barcode: $barcode, $dobScanned");
             }
-
+      
             // Create new order if none exists
             if (tabs.isEmpty) {
               addNewTab();
@@ -1017,7 +1020,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
             productBloc.fetchProductBySku(barcode);
             _productBySkuSubscription?.cancel();
             _productBySkuSubscription = productBloc.productBySkuStream.listen((response) async {
-
+      
               if (response.status == Status.COMPLETED && response.data!.isNotEmpty) {
                 setState(() => _isLoading = false); //Build #1.0.92
                 final product = response.data!.first;
@@ -1040,15 +1043,15 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                 final bool isAgeRestricted = ageRestrictedValue.toLowerCase() == 'true' || ageRestrictedValue == "1";
 
                 if (!isAgeRestricted) {
-                  ///Age Verification code
-                  final ageVerificationProvider = AgeVerificationProvider();
-                  var isVerified = await ageVerificationProvider.ageRestrictedProduct(context, product);
-
-                  /// Verify Age and proceed else return
-                  if(!isVerified){
-                    return;
-                  }
+                ///Age Verification code
+                final ageVerificationProvider = AgeVerificationProvider();
+                var isVerified = await ageVerificationProvider.ageRestrictedProduct(context, product);
+      
+                /// Verify Age and proceed else return
+                if(!isVerified){
+                  return;
                 }
+              }
                 ///Todo: Need to call variation service before adding product to the order
                 if (product.variations.isNotEmpty) {
                   ///1. Call _productBloc.fetchProductVariations(product.id!);
@@ -1062,13 +1065,13 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                     fetchOrderItems(); //onItemTapped(index, variantAdded: isVariant); //Build #1.0.78: Pass isVariant to onItemTapped
                   },
                   ).showVariantDialog(context: context);
-
+      
                   // Show variants dialog for products with variations
                   if (kDebugMode) {
                     print("##### DEBUG: onBarcodeScanned - Showing variants dialog");
                   }
                 } else {
-
+      
                   ///Comment below code not we are using only server order id as to check orders, skip checking db order id
                   // final order = orderHelper.orders.firstWhere(
                   //       (order) => order[AppDBConst.orderId] == orderHelper.activeOrderId,
@@ -1090,6 +1093,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                         setState(() {
                           _isLoading = false;
                         });
+                        if (Misc.showDebugSnackBar) { // Build #1.0.254
                         _scaffoldMessenger.showSnackBar(
                           SnackBar(
                             content: Text("Product added successfully"),
@@ -1097,6 +1101,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                             duration: const Duration(seconds: 2),
                           ),
                         );
+                       }
                       } else if (response.status == Status.ERROR) {
                         if (response.message!.contains('Unauthorised')) {
                           if (kDebugMode) {
@@ -1106,7 +1111,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                             if (mounted) {
                               Navigator.pushReplacement(context,
                                   MaterialPageRoute(builder: (context) => LoginScreen()));
-
+      
                               if (kDebugMode) {
                                 print("message 4 --- ${response.message}");
                               }
@@ -1210,235 +1215,236 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
             });
           }
         },
-          child: Container(
-            width: MediaQuery.of(context).size.width * 0.31,
-            padding: const EdgeInsets.fromLTRB(2, 0, 10, 10),
-            child: Card(
-              //elevation: 4,
-              margin: const EdgeInsets.only(top: 10),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12), // Card corners
-              ),
-              color: themeHelper.themeMode == ThemeMode.dark
-                  ? ThemeNotifier.primaryBackground
-                  : Colors.white,
-              child: tabs.isNotEmpty
-                  ? Column(
-                children: [
-                  // Top tabs container
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: themeHelper.themeMode == ThemeMode.dark
-                          ? ThemeNotifier.primaryBackground
-                          : Colors.transparent,
-                      // borderRadius: const BorderRadius.only(
-                      //   topLeft: Radius.circular(20),
-                      //   topRight: Radius.circular(20),
-                      // ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        // Tabs scroll
-                        Expanded(
-                          child: SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            controller: _scrollController,
-                            child: Row(
-                              children: List.generate(tabs.length, (index) {
-                                final bool isSelected = _tabController!.index == index;
-                                return Padding(
-                                  // padding: const EdgeInsets.fromLTRB(4, 5, 4, 0), // same for all tabs padding between tab and calender all
-                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
-                                  child: GestureDetector(
-                                    onTap: () {
-                                      setState(() {
-                                        _tabController!.index = index;
-                                      });
-                                    },
-                                    child: Container(
-                                      height: isSelected
-                                          ? 50
-                                          : 50, // selected tab taller
-                                      // padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
-                                      padding: EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: isSelected
-                                            ? 12
-                                            : 12, // adjust internal padding only
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: isSelected
-                                            ? (themeHelper.themeMode ==
-                                            ThemeMode.dark
-                                            ? Color(
-                                            0xFFFCDFDC) // selected top bar in dark
-                                            : const Color(0xFFFCDFDC))
-                                            : (themeHelper.themeMode ==
-                                            ThemeMode.dark
-                                            ? Color(
-                                            0xFF31354A) // order panel tob bar and unselected tab color in dark
-                                            : const Color(
-                                            0xFFEFEEEE)), // unselected tab in light
-                                        // color: isSelected ?  ThemeNotifier.orderPanelTabSelection : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.orderPanelTabBackground : Colors.grey.shade400,
+        child: Container(
+          width: MediaQuery.of(context).size.width * 0.31,
+          padding: const EdgeInsets.fromLTRB(2, 0, 10, 10),
+          child: Card(
+            //elevation: 4,
+            margin: const EdgeInsets.only(top: 10),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12), // Card corners
+            ),
+            color: themeHelper.themeMode == ThemeMode.dark
+                ? ThemeNotifier.primaryBackground
+                : Colors.white,
+            child: tabs.isNotEmpty
+                ? Column(
+              children: [
+                // Top tabs container
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: themeHelper.themeMode == ThemeMode.dark
+                        ? ThemeNotifier.primaryBackground
+                        : Colors.transparent,
+                    // borderRadius: const BorderRadius.only(
+                    //   topLeft: Radius.circular(20),
+                    //   topRight: Radius.circular(20),
+                    // ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Tabs scroll
+                      Expanded(
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          controller: _scrollController,
+                          child: Row(
+                            children: List.generate(tabs.length, (index) {
+                              final bool isSelected = _tabController!.index == index;
+                              return Padding(
+                                // padding: const EdgeInsets.fromLTRB(4, 5, 4, 0), // same for all tabs padding between tab and calender all
+                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+                                child: GestureDetector(
+                                  onTap: () {
+                                    setState(() {
+                                      _tabController!.index = index;
+                                    });
+                                  },
+                                  child: Container(
+                                    height: isSelected
+                                        ? 50
+                                        : 50, // selected tab taller
+                                    // padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: isSelected
+                                          ? 12
+                                          : 12, // adjust internal padding only
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: isSelected
+                                          ? (themeHelper.themeMode ==
+                                          ThemeMode.dark
+                                          ? Color(
+                                          0xFFFCDFDC) // selected top bar in dark
+                                          : const Color(0xFFFCDFDC))
+                                          : (themeHelper.themeMode ==
+                                          ThemeMode.dark
+                                          ? Color(
+                                          0xFF31354A) // order panel tob bar and unselected tab color in dark
+                                          : const Color(
+                                          0xFFEFEEEE)), // unselected tab in light
+                                      // color: isSelected ?  ThemeNotifier.orderPanelTabSelection : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.orderPanelTabBackground : Colors.grey.shade400,
 
-                                        // color: isSelected ?  ThemeNotifier.orderPanelTabSelection : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.orderPanelTabBackground : Colors.grey.shade400,
-                                        //borderRadius: BorderRadius.circular(10),
-                                        borderRadius: BorderRadius.only(
-                                          topLeft: Radius.circular(10),
-                                          topRight: Radius.circular(10),
-                                          //bottomLeft: isSelected ? Radius.circular(0) : Radius.circular(10),
-                                          // bottomRight: isSelected ? Radius.circular(0) : Radius.circular(10),
-                                          bottomLeft: isSelected
-                                              ? const Radius.circular(10)
-                                              : const Radius.circular(10),
-                                          bottomRight: isSelected
-                                              ? const Radius.circular(10)
-                                              : const Radius.circular(10),
-                                        ),
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          Column(
-                                            mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                            crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                tabs[index]["title"] as String,
-                                                style: TextStyle(
-                                                  color: isSelected
-                                                      ? const Color(0xFFFE6464)
-                                                      : const Color(0xFF999393),
-                                                  fontWeight: isSelected
-                                                      ? FontWeight.bold
-                                                      : FontWeight.w500,
-                                                  fontSize: isSelected ? 15 : 14,
-                                                ),
-                                                // style: TextStyle(color: isSelected ? Colors.black : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight, fontWeight: FontWeight.bold),
-                                              ),
-                                              // Text(
-                                              //tabs[index]["subtitle"] as String,
-                                              // style: TextStyle(color: isSelected ? Colors.black54 : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.black54, fontSize: 12),
-                                              // ),
-                                            ],
-                                          ),
-                                          const SizedBox(width: 8),
-                                          // Always show the close button
-                                          GestureDetector(
-                                            ///ToDo: Change the status of order to 'cancelled' here
-                                            onTap: () {
-                                              if (kDebugMode) {
-                                                print(
-                                                    "Tab $index, close button tapped");
-                                              }
-
-                                              ///call alert  box before delete
-                                              CustomDialog.showAreYouSure(context,
-                                                  confirm: () {
-                                                    removeTab(index);
-                                                  });
-                                            },
-                                            child: isSelected
-                                                ? Image.asset(
-                                              "assets/deletecircle.png",
-                                              width: 20,
-                                              height: 20,
-                                            )
-                                                : SizedBox
-                                                .shrink(), // hides the widget when not selected
-
-                                            // child: const Icon(Icons.close, size: 18, color: Colors.red),
-                                          ),
-                                        ],
+                                      // color: isSelected ?  ThemeNotifier.orderPanelTabSelection : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.orderPanelTabBackground : Colors.grey.shade400,
+                                      //borderRadius: BorderRadius.circular(10),
+                                      borderRadius: BorderRadius.only(
+                                        topLeft: Radius.circular(10),
+                                        topRight: Radius.circular(10),
+                                        //bottomLeft: isSelected ? Radius.circular(0) : Radius.circular(10),
+                                        // bottomRight: isSelected ? Radius.circular(0) : Radius.circular(10),
+                                        bottomLeft: isSelected
+                                            ? const Radius.circular(10)
+                                            : const Radius.circular(10),
+                                        bottomRight: isSelected
+                                            ? const Radius.circular(10)
+                                            : const Radius.circular(10),
                                       ),
                                     ),
+                                    child: Row(
+                                      children: [
+                                        Column(
+                                          mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                          crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              tabs[index]["title"] as String,
+                                              style: TextStyle(
+                                                color: isSelected
+                                                    ? const Color(0xFFFE6464)
+                                                    : const Color(0xFF999393),
+                                                fontWeight: isSelected
+                                                    ? FontWeight.bold
+                                                    : FontWeight.w500,
+                                                fontSize: isSelected ? 15 : 14,
+                                              ),
+                                              // style: TextStyle(color: isSelected ? Colors.black : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight, fontWeight: FontWeight.bold),
+                                            ),
+                                            // Text(
+                                            //tabs[index]["subtitle"] as String,
+                                            // style: TextStyle(color: isSelected ? Colors.black54 : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.black54, fontSize: 12),
+                                            // ),
+                                          ],
+                                        ),
+                                        const SizedBox(width: 8),
+                                        // Always show the close button
+                                        GestureDetector(
+                                          ///ToDo: Change the status of order to 'cancelled' here
+                                          onTap: () {
+                                            if (kDebugMode) {
+                                              print(
+                                                  "Tab $index, close button tapped");
+                                            }
+
+                                            ///call alert  box before delete
+                                            CustomDialog.showAreYouSure(context,
+                                                confirm: () {
+                                                  removeTab(index);
+                                                });
+                                          },
+                                          child: isSelected
+                                              ? Image.asset(
+                                            "assets/deletecircle.png",
+                                            width: 20,
+                                            height: 20,
+                                          )
+                                              : SizedBox
+                                              .shrink(), // hides the widget when not selected
+
+                                          // child: const Icon(Icons.close, size: 18, color: Colors.red),
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                );
-                              }),
-                            ),
+                                ),
+                              );
+                            }),
                           ),
                         ),
-                        if (tabs.isNotEmpty)
-                          ElevatedButton(
-                            onPressed: addNewTab,
-                            style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.only(right: 4),
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              backgroundColor: Colors.transparent, // so container decoration shows
-                              shadowColor: Colors.transparent, // to remove default shadow if any
+                      ),
+                      if (tabs.isNotEmpty)
+                        ElevatedButton(
+                          onPressed: addNewTab,
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.only(right: 4),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
                             ),
-                            child: Container(
-                              width: 85,
-                              height: 50,
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                color: themeHelper.themeMode == ThemeMode.dark
-                                    ? const Color(0xFF000000)
-                                    : const Color(0xFFFFFFFF),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: const Color(0xFFFE6464),
-                                  width: 1.0,
+                            backgroundColor: Colors.transparent, // so container decoration shows
+                            shadowColor: Colors.transparent, // to remove default shadow if any
+                          ),
+                          child: Container(
+                            width: 85,
+                            height: 50,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: themeHelper.themeMode == ThemeMode.dark
+                                  ? const Color(0xFF000000)
+                                  : const Color(0xFFFFFFFF),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: const Color(0xFFFE6464),
+                                width: 1.0,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: themeHelper.themeMode == ThemeMode.dark
+                                      ? const Color(0xFF525252)
+                                      : const Color(0xFFB2AFAF),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 4),
+                                  spreadRadius: 0,
                                 ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: themeHelper.themeMode == ThemeMode.dark
-                                        ? const Color(0xFF525252)
-                                        : const Color(0xFFB2AFAF),
-                                    blurRadius: 4,
-                                    offset: const Offset(0, 4),
-                                    spreadRadius: 0,
-                                  ),
-                                ],
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Container(
-                                    width: 22,
-                                    height: 22,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: const Color(0xFFFE6464),
-                                        width: 2,
-                                      ),
-                                    ),
-                                    child: const Icon(
-                                      Icons.add,
-                                      size: 16,
-                                      color: const Color(0xFFFE6464),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  const Text(
-                                    "New",
-                                    style: TextStyle(
-                                      color: const Color(0xFFFE6464),
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                              ],
                             ),
-                          )
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Container(
+                                  width: 22,
+                                  height: 22,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: const Color(0xFFFE6464),
+                                      width: 2,
+                                    ),
+                                  ),
+                                  child: const Icon(
+                                    Icons.add,
+                                    size: 16,
+                                    color: const Color(0xFFFE6464),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  "New",
+                                  style: TextStyle(
+                                    color: const Color(0xFFFE6464),
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
 
-                      ],
-                    ),
+                    ],
                   ),
+                ),
                   // Current order section
                   Expanded(child: buildCurrentOrder()),
                 ],
               )
                   : Container(
-                padding: const EdgeInsets.all(16), // same inner padding as the card
+                padding: const EdgeInsets.all(
+                    16), // same inner padding as the card
                 child: Column(
                   children: [
                     Expanded(
@@ -1483,7 +1489,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                 ),
               ),
             ),
-          )
+          ),
       ),
     );
   }
@@ -1550,7 +1556,8 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
     if (!mounted) return;
     if (response.status == Status.COMPLETED) {
       //Build #1.0.170: Updated - No need to make _isLoading is false here , we are doing after refresh!
-      // setState(() => _isLoading = false); //Build #1.0.92
+     // setState(() => _isLoading = false); //Build #1.0.92
+      if (Misc.showDebugSnackBar) { // Build #1.0.254
       _scaffoldMessenger.showSnackBar(
         SnackBar(
           content: Text("${isPayout ? 'Payout' : isCoupon ? 'Coupon' : isCustomItem ? 'Custom Item' : 'Item'} removed successfully"),
@@ -1558,6 +1565,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
           duration: const Duration(seconds: 2),
         ),
       );
+     }
       await orderHelper.deleteItem(orderItem[AppDBConst.itemServerId]);
       await fetchOrderItems();
       widget.refreshOrderList?.call();
@@ -1683,8 +1691,11 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
     num netPayable = 0.0;  //Build #1.0.67
 
     // Initialize display date and time variables
-    String displayDate = widget.formattedDate;
-    String displayTime = widget.formattedTime;
+    DateTime now = DateTime.now();
+    String formattedDate = DateFormat(TextConstants.dateFormat).format(now);
+    String formattedTime = DateFormat(TextConstants.timeFormat).format(now);
+    String displayDate = formattedDate;
+    String displayTime = formattedTime;
 
     if (kDebugMode) {
       print("display date === $displayDate");
@@ -1703,39 +1714,39 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
         orElse: () => {},
       );
       if (orderItems.isNotEmpty && order.isNotEmpty) {
-        // Get values from order or default to 0
-        orderDiscount = order[AppDBConst.orderDiscount] as double? ?? 0.0;
-        merchantDiscount = order[AppDBConst.merchantDiscount] as double? ?? 0.0;
-        orderTax = order[AppDBConst.orderTax] as double? ?? 0.0;
+      // Get values from order or default to 0
+      orderDiscount = order[AppDBConst.orderDiscount] as double? ?? 0.0;
+      merchantDiscount = order[AppDBConst.merchantDiscount] as double? ?? 0.0;
+      orderTax = order[AppDBConst.orderTax] as double? ?? 0.0;
 
-        // Build #1.0.138: Calculate net total
-        netTotal = grossTotal - orderDiscount; // Build #1.0.137
+      // Build #1.0.138: Calculate net total
+      netTotal = grossTotal - orderDiscount; // Build #1.0.137
 
-        //Build #1.0.146: Apply merchant discount (this is typically a separate discount)
-        netTotal = netTotal - merchantDiscount;
+      //Build #1.0.146: Apply merchant discount (this is typically a separate discount)
+      netTotal = netTotal - merchantDiscount;
 
-        ///map total with netPayable
-        netPayable =  order[AppDBConst.orderTotal] as double? ?? 0.0;
+      ///map total with netPayable
+      netPayable =  order[AppDBConst.orderTotal] as double? ?? 0.0;
 
-        // Ensure netPayable is not negative
-        // Build #1.0.138: Ensure no negative values
-        netTotal = netTotal; //< 0 ? 0.0 : netTotal;
-        netPayable = netPayable; // < 0 ? 0.0 : netPayable;
+      // Ensure netPayable is not negative
+      // Build #1.0.138: Ensure no negative values
+      netTotal = netTotal; //< 0 ? 0.0 : netTotal;
+      netPayable = netPayable; // < 0 ? 0.0 : netPayable;
 
-        // Determine the date and time to display from order data
-        if (order.isNotEmpty && order[AppDBConst.orderDate] != null) {
-          try {
-            final DateTime createdDateTime = DateTime.parse(order[AppDBConst.orderDate].toString());
-            displayDate = DateFormat("EEE, MMM d, yyyy").format(createdDateTime);
-            displayTime = DateFormat('hh:mm:ss a').format(createdDateTime);
-          } catch (e) {
-            if (kDebugMode) {
-              print("Error parsing order creation date: $e");
-            }
-            // Fallback to raw data or default if parsing fails
-            displayDate = order[AppDBConst.orderDate].toString().split(' ').first;
+      // Determine the date and time to display from order data
+      if (order.isNotEmpty && order[AppDBConst.orderDate] != null) {
+        try {
+          final DateTime createdDateTime = DateTime.parse(order[AppDBConst.orderDate].toString());
+          displayDate = DateFormat(TextConstants.dateFormat).format(createdDateTime);
+          displayTime = DateFormat(TextConstants.timeFormat).format(createdDateTime);
+        } catch (e) {
+          if (kDebugMode) {
+            print("Error parsing order creation date: $e");
           }
+          // Fallback to raw data or default if parsing fails
+          displayDate = order[AppDBConst.orderDate].toString().split(' ').first;
         }
+      }
       } else {
         if (kDebugMode) {
           print("#### Reset values when orderItems is empty");

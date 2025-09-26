@@ -33,7 +33,6 @@ class EditProductScreen extends StatefulWidget { // Build #1.0.6 - Updated Horiz
 class _EditProductScreenState extends State<EditProductScreen> with SingleTickerProviderStateMixin, LayoutSelectionMixin {
   final List<String> items = List.generate(18, (index) => 'Bud Light');
   int _selectedSidebarIndex = 2; //Build #1.0.2 : By default fast key should be selected after login
-  DateTime now = DateTime.now();
   List<int> quantities = [1, 1, 1, 1];
   bool isLoading = true; // Add a loading state
   final ValueNotifier<int?> fastKeyTabIdNotifier = ValueNotifier<int?>(null);// Add this
@@ -85,10 +84,6 @@ class _EditProductScreenState extends State<EditProductScreen> with SingleTicker
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    String formattedDate = DateFormat("EEE, MMM d' ${now.year}'").format(now);
-    String formattedTime = DateFormat('hh:mm a').format(now);
-
     return Scaffold(
       body: Column(
         children: [
@@ -141,8 +136,6 @@ class _EditProductScreenState extends State<EditProductScreen> with SingleTicker
                 if (sidebarPosition == SidebarPosition.right ||
                     (sidebarPosition == SidebarPosition.bottom && orderPanelPosition == OrderPanelPosition.left))
                   RightOrderPanel(
-                    formattedDate: formattedDate,
-                    formattedTime: formattedTime,
                     quantities: quantities,
                     refreshOrderList: _refreshOrderList, // Pass the callback
                     refreshKey: _refreshCounter, //Build #1.0.170: Pass counter as refreshKey
@@ -163,8 +156,6 @@ class _EditProductScreenState extends State<EditProductScreen> with SingleTicker
                 if (sidebarPosition != SidebarPosition.right &&
                     !(sidebarPosition == SidebarPosition.bottom && orderPanelPosition == OrderPanelPosition.left))
                   RightOrderPanel(
-                    formattedDate: formattedDate,
-                    formattedTime: formattedTime,
                     quantities: quantities,
                     refreshOrderList: _refreshOrderList, // Pass the callback
                     refreshKey: _refreshCounter, //Build #1.0.170: Pass counter as refreshKey

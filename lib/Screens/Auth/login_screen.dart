@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../Blocs/Assets/asset_bloc.dart';
 import '../../Blocs/Auth/login_bloc.dart';
 import '../../Blocs/Auth/logout_bloc.dart';
+import '../../Constants/misc_features.dart';
 import '../../Constants/text.dart';
 import '../../Database/assets_db_helper.dart';
 import '../../Database/db_helper.dart';
@@ -422,6 +423,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                                             if (kDebugMode) {
                                                               print("#### COMPLETED performLogoutByEmpPin : Logout successful using pin");
                                                             }
+                                                          if (Misc.showDebugSnackBar) { // Build #1.0.254
                                                             ScaffoldMessenger.of(context).showSnackBar(
                                                               SnackBar(
                                                                 content: Text(response.message ?? TextConstants.successfullyLogout),
@@ -429,6 +431,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                                                 duration: const Duration(seconds: 2),
                                                               ),
                                                             );
+                                                            }
                                                             // Update loading state and navigate
                                                             isLoading = false;
                                                             Navigator.of(context).pop(); // Close loader dialog

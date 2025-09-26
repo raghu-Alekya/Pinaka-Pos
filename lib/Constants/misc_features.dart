@@ -9,6 +9,8 @@ class Misc{
   //Build #1.0.189: If we want to disable the back button we should set it to false
   static bool enableHardwareBackButton = kDebugMode ? true : true;
   static bool enableReordering = false; // Build #1.0.204: Added this to control reordering in nested grid items
+  static bool showDebugSnackBar = kDebugMode ? false : false; // Build #1.0.254: Disable Toast messages for api success call on every screen
+
   printFeatures(){
     if (kDebugMode) {
       print("enableCategoryProductWithSubCategoryList : $enableCategoryProductWithSubCategoryList");

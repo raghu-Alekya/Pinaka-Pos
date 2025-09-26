@@ -216,7 +216,6 @@ class CategoriesScreen extends StatefulWidget {
 class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBindingObserver, LayoutSelectionMixin{
   final List<String> items = List.generate(18, (index) => 'Bud Light');
   int _selectedSidebarIndex = 1;
-  DateTime now = DateTime.now();
   List<int> quantities = [1, 1, 1, 1];
   // SidebarPosition sidebarPosition = SidebarPosition.left;
   // OrderPanelPosition orderPanelPosition = OrderPanelPosition.right;
@@ -432,6 +431,13 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
   }
 
   void _onCategoryTapped(int index) {
+    // Prevent tapping the same category again
+    if (_selectedCategoryIndex == index) { // Build #1.0.254: Fixed - Disable double click on category tabs & fast key tabs
+      if (kDebugMode) {
+        print("### CategoriesScreen: Same category tapped, ignoring: $index");
+      }
+      return;
+    }
     if (index < 0 || index >= categories.length) return; // Prevent RangeError
     setState(() {
       _selectedCategoryIndex = index;
@@ -570,13 +576,15 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
             Navigator.pop(context);
           }
           if (kDebugMode) print("Item added to order $dbOrderId via API");
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text("Item '${selectedProduct[AppDBConst.fastKeyItemName]}' added to order"),
-              backgroundColor: Colors.green,
-              duration: Duration(seconds: 2),
-            ),
-          );
+          if (Misc.showDebugSnackBar) { // Build #1.0.254
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text("Item '${selectedProduct[AppDBConst.fastKeyItemName]}' added to order"),
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
           _refreshOrderList();
           subscription?.cancel();
         } else if (response.status == Status.ERROR) {
@@ -695,10 +703,6 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    String formattedDate = DateFormat("EEE, MMM d' ${now.year}'").format(now);
-    String formattedTime = DateFormat('hh:mm a').format(now);
-
     final categoryListItems = categories.map((category) {
       return {
         'title': category.name,
@@ -834,8 +838,6 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
                 if (sidebarPosition == SidebarPosition.right ||
                     (sidebarPosition == SidebarPosition.bottom && orderPanelPosition == OrderPanelPosition.left))
                   RightOrderPanel(
-                    formattedDate: formattedDate,
-                    formattedTime: formattedTime,
                     quantities: quantities,
                     refreshOrderList: _refreshOrderList,
                     refreshKey: _refreshCounter, //Build #1.0.170: Pass counter as refreshKey
@@ -922,7 +924,6 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
                       //     ],
                       //   ),
                       // ),
-
                         Expanded(
                           child: Padding(
                             padding: const EdgeInsets.all(
@@ -953,7 +954,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
                                   if (navigationPath.isNotEmpty)
                                     Padding(
                                       padding: const EdgeInsets.fromLTRB(
-                                          16, 8, 10, 1),
+                                          16, 12, 10, 8),
                                       child: SingleChildScrollView(
                                         scrollDirection: Axis.horizontal,
                                         child: Row(
@@ -1011,7 +1012,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
                                   Padding(
                                     padding: const EdgeInsets.symmetric(horizontal: 10.0),
                                     child: Divider(
-                                      thickness: 4,
+                                      thickness: 3,
                                       color: Theme.of(context).brightness == Brightness.dark
                                           ? const Color(0xFF2C2C2E)
                                           : const Color(0xFFF1F1F3),
@@ -1200,8 +1201,6 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
                 if (sidebarPosition != SidebarPosition.right &&
                     !(sidebarPosition == SidebarPosition.bottom && orderPanelPosition == OrderPanelPosition.left))
                   RightOrderPanel(
-                    formattedDate: formattedDate,
-                    formattedTime: formattedTime,
                     quantities: quantities,
                     refreshOrderList: _refreshOrderList,
                     refreshKey: _refreshCounter, //Build #1.0.170: Pass counter as refreshKey

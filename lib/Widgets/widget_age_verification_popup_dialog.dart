@@ -379,16 +379,10 @@ class _AgeVerificationPopupState extends State<AgeVerificationPopup> {
       children: [
         Dialog(
           backgroundColor: themeHelper.themeMode == ThemeMode.dark
-              ? const Color(0xFF201E2B) // Dark mode color
-              : const Color(0xFFFBFDFE), // Light mode color
+              ? ThemeNotifier.popUpsBackground : null,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
-          // backgroundColor: themeHelper.themeMode == ThemeMode.dark
-          //     ? ThemeNotifier.popUpsBackground : null,
-          // shape: RoundedRectangleBorder(
-          //   borderRadius: BorderRadius.circular(16),
-          // ),
           child:
           BarcodeKeyboardListener( // Added - Wrap with BarcodeKeyboardListener for barcode scanning
             bufferDuration: Duration(milliseconds: 400),
@@ -444,114 +438,83 @@ class _AgeVerificationPopupState extends State<AgeVerificationPopup> {
             _isScanningInProgress
                 ? SizedBox(height: MediaQuery.of(context).size.height * 0.3, child: CircularProgressIndicator(),)
                 : Container(
-              // width: MediaQuery.of(context).size.width * 0.325,
-              height: MediaQuery.of(context).size.height * 0.870,
-              width: MediaQuery.of(context).size.width * 0.380,
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                children: [
-                  // Header with close button
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const SizedBox(width: 40),
-                      Text(
-                        'Age Verification Required',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600,
-                          color: themeHelper.themeMode == ThemeMode.dark
-                              ? ThemeNotifier.textDark : Colors.black87,
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () {
-                          Future.delayed(Duration(milliseconds: 2000));
-                          if (_isScanningInProgress) return;
-                          //widget.onCancel?.call();
-                          if (kDebugMode) {
-                            print("AgeVerification Close()");
-                          }
-                          Navigator.of(context).pop();
-                        },
-                        icon: Container(
-                          width: 32,
-                          height: 32,
-                          decoration: const BoxDecoration(
-                            color: Colors.red,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.close,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4), // ✅ Inside spacing
-                    child: Text(
-                      'This product is age-restricted. Enter the customer\'s age to verify eligibility, or confirm visually',
-                      textAlign: TextAlign.center,
-                      softWrap: true,
+            width: MediaQuery.of(context).size.width * 0.325,
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              children: [
+                // Header with close button
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const SizedBox(width: 40),
+                    Text(
+                      'Age Verification Required',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
                         color: themeHelper.themeMode == ThemeMode.dark
-                            ? Colors.white70
-                            : Colors.grey[600],
-                        height: 1.4,
+                            ? ThemeNotifier.textDark : Colors.black87,
                       ),
                     ),
-                  ),
-
-                  // Description
-                  // Text(
-                  //   'This product is age-restricted. Enter the customer\'s age to verify eligibility, or confirm visually',
-                  //   textAlign: TextAlign.center,
-                  //   softWrap: true,
-                  //   style: TextStyle(
-                  //     fontSize: 16,
-                  //     color: themeHelper.themeMode == ThemeMode.dark
-                  //         ? Colors.white70 : Colors.grey[600],
-                  //     height: 1.4,
-                  //   ),
-                  // ),
-
-                  const SizedBox(height: 4),
-                  Container(
-                    margin: const EdgeInsets.only(bottom: 0, left: 28),
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        'Enter Customer Age',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                          color: themeHelper.themeMode == ThemeMode.dark
-                              ? ThemeNotifier.textDark
-                              : Colors.black87,
+                    IconButton(
+                      onPressed: () {
+                        Future.delayed(Duration(milliseconds: 2000));
+                        if (_isScanningInProgress) return;
+                        //widget.onCancel?.call();
+                        if (kDebugMode) {
+                          print("AgeVerification Close()");
+                        }
+                        Navigator.of(context).pop();
+                      },
+                      icon: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.close,
+                          color: Colors.white,
+                          size: 20,
                         ),
                       ),
                     ),
-                  ),
+                  ],
+                ),
 
-                  // Date input section
-                  // Align(
-                  //   alignment: Alignment.centerLeft,
-                  //   child: Text(
-                  //     'Enter Customer Age',
-                  //     style: TextStyle(
-                  //       fontSize: 16,
-                  //       fontWeight: FontWeight.w500,
-                  //       color: themeHelper.themeMode == ThemeMode.dark
-                  //           ? ThemeNotifier.textDark : Colors.black87,
-                  //     ),
-                  //   ),
-                  // ),
+                const SizedBox(height: 12),
+
+                // Description
+                Text(
+                  'This product is age-restricted. Enter the customer\'s age to verify eligibility, or confirm visually',
+                  textAlign: TextAlign.center,
+                  softWrap: true,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: themeHelper.themeMode == ThemeMode.dark
+                        ? Colors.white70 : Colors.grey[600],
+                    height: 1.4,
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                // Date input section
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Enter Customer Age',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: themeHelper.themeMode == ThemeMode.dark
+                          ? ThemeNotifier.textDark : Colors.black87,
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 4),
 
 // Date input field testing code for barcode scanner
 //                 BarcodeKeyboardListener( // Added - Wrap with BarcodeKeyboardListener for barcode scanning
@@ -616,79 +579,77 @@ class _AgeVerificationPopupState extends State<AgeVerificationPopup> {
 //                     ),
 //                   ),
 //                 ),
-                  // Date input field with date picker
-                  Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 32, vertical: 0), // ✅ Outside spacing
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6), // ✅ Inside spacing
-                    decoration: BoxDecoration(
-                      color: themeHelper.themeMode == ThemeMode.dark
-                          ? ThemeNotifier.paymentEntryContainerColor : Colors.white,
-                      border: Border.all(color: themeHelper.themeMode == ThemeMode.dark
-                          ? ThemeNotifier.borderColor : Color(0xFF4B525E)),
-                      borderRadius: BorderRadius.circular(8),
-                      boxShadow: [
-                        BoxShadow(
-                          color: themeHelper.themeMode == ThemeMode.dark
-                              ? ThemeNotifier.shadow_F7
-                              : Colors.grey.withValues(alpha: 0.1),
-                          blurRadius: 0.5,
-                          offset: const Offset(0, 0),
-                        ),
-                      ],
-                    ),
-                    child: GestureDetector(
-                      onTap: _showDatePickerDialog,
-                      child: AbsorbPointer(
-                        child:
-                        // BarcodeKeyboardListener( // Added - Wrap with BarcodeKeyboardListener for barcode scanning
-                        //   bufferDuration: Duration(milliseconds: 400),
-                        //   useKeyDownEvent: true,
-                        //   onBarcodeScanned:(barcode) async {
-                        //     _isScanningInProgress = true;
-                        //     if (kDebugMode) {
-                        //       print("AgeVerification onBarcodeScanned _isScanningInProgress: $_isScanningInProgress");
-                        //     }
-                        //     barcode = barcode.trim().replaceAll(' ', '');
-                        //
-                        //     if (kDebugMode) {
-                        //       print(
-                        //           "##### DEBUG:Age Verification onBarcodeScanned - Scanned barcode: $barcode, _isScanningInProgress: $_isScanningInProgress");
-                        //     }
-                        //
-                        //     if (barcode.isNotEmpty) {
-                        //       String? dobScanned = "";
-                        //       /// Testing code: not working, Scanner will generate multiple tap events and call when scanned driving licence with PDF417 format irrespective of this code here
-                        //       if (barcode.contains('DBB')) {
-                        //         // if (barcode.startsWith('@') || barcode.contains('\n')) {
-                        //         // PDF417 often includes structured data with newlines or starts with '@' (AAMVA standard)
-                        //         if (kDebugMode) {
-                        //           print('PDF417 Detected: $barcode');
-                        //         }
-                        //         // var date = parseDOBFromBarcode(barcode);
-                        //         dobScanned = parseDOBFromBarcode(barcode); //"${date?.month}/${date?.day}/${date?.year}";
-                        //         _dobController.text = dobScanned ?? "";
-                        //         if (kDebugMode) {
-                        //           print("##### DEBUG: onBarcodeScanned - Scanned barcode: $barcode, $dobScanned");
-                        //         }
-                        //         _isScanningInProgress = false;
-                        //         setState(() {
-                        //         });
-                        //         return;
-                        //       } else {
-                        //         if (kDebugMode) {
-                        //           print('Non-PDF417 Barcode: $barcode');
-                        //         }
-                        //       }
-                        //       if (kDebugMode) {
-                        //         print(
-                        //             "##### DEBUG:Age Verification onBarcodeScanned - Scanned barcode: $barcode");
-                        //       }
-                        //     }
-                        //     _isScanningInProgress = false;
-                        //     setState(() {
-                        //     });
-                        //   },
-                        //   child:
+                // Date input field with date picker
+                Container(
+                  decoration: BoxDecoration(
+                    color: themeHelper.themeMode == ThemeMode.dark
+                        ? ThemeNotifier.paymentEntryContainerColor : Colors.white,
+                    border: Border.all(color: themeHelper.themeMode == ThemeMode.dark
+                        ? ThemeNotifier.borderColor : Colors.blue),
+                    borderRadius: BorderRadius.circular(8),
+                    boxShadow: [
+                      BoxShadow(
+                        color: themeHelper.themeMode == ThemeMode.dark
+                            ? ThemeNotifier.shadow_F7
+                            : Colors.grey.withValues(alpha: 0.1),
+                        blurRadius: 2,
+                        offset: const Offset(0, 0),
+                      ),
+                    ],
+                  ),
+                  child: GestureDetector(
+                    onTap: _showDatePickerDialog,
+                    child: AbsorbPointer(
+                      child:
+                      // BarcodeKeyboardListener( // Added - Wrap with BarcodeKeyboardListener for barcode scanning
+                      //   bufferDuration: Duration(milliseconds: 400),
+                      //   useKeyDownEvent: true,
+                      //   onBarcodeScanned:(barcode) async {
+                      //     _isScanningInProgress = true;
+                      //     if (kDebugMode) {
+                      //       print("AgeVerification onBarcodeScanned _isScanningInProgress: $_isScanningInProgress");
+                      //     }
+                      //     barcode = barcode.trim().replaceAll(' ', '');
+                      //
+                      //     if (kDebugMode) {
+                      //       print(
+                      //           "##### DEBUG:Age Verification onBarcodeScanned - Scanned barcode: $barcode, _isScanningInProgress: $_isScanningInProgress");
+                      //     }
+                      //
+                      //     if (barcode.isNotEmpty) {
+                      //       String? dobScanned = "";
+                      //       /// Testing code: not working, Scanner will generate multiple tap events and call when scanned driving licence with PDF417 format irrespective of this code here
+                      //       if (barcode.contains('DBB')) {
+                      //         // if (barcode.startsWith('@') || barcode.contains('\n')) {
+                      //         // PDF417 often includes structured data with newlines or starts with '@' (AAMVA standard)
+                      //         if (kDebugMode) {
+                      //           print('PDF417 Detected: $barcode');
+                      //         }
+                      //         // var date = parseDOBFromBarcode(barcode);
+                      //         dobScanned = parseDOBFromBarcode(barcode); //"${date?.month}/${date?.day}/${date?.year}";
+                      //         _dobController.text = dobScanned ?? "";
+                      //         if (kDebugMode) {
+                      //           print("##### DEBUG: onBarcodeScanned - Scanned barcode: $barcode, $dobScanned");
+                      //         }
+                      //         _isScanningInProgress = false;
+                      //         setState(() {
+                      //         });
+                      //         return;
+                      //       } else {
+                      //         if (kDebugMode) {
+                      //           print('Non-PDF417 Barcode: $barcode');
+                      //         }
+                      //       }
+                      //       if (kDebugMode) {
+                      //         print(
+                      //             "##### DEBUG:Age Verification onBarcodeScanned - Scanned barcode: $barcode");
+                      //       }
+                      //     }
+                      //     _isScanningInProgress = false;
+                      //     setState(() {
+                      //     });
+                      //   },
+                      //   child:
                         TextField(
                           controller: _dobController,
                           readOnly: true,
@@ -721,102 +682,96 @@ class _AgeVerificationPopupState extends State<AgeVerificationPopup> {
                                 ? ThemeNotifier.textDark : Colors.black87,
                           ),
                         ),
-                        // ),
+                      // ),
+                    ),
+                  ),
+                ),
+
+                // Error message
+                if (_errorMessage != null) ...[
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        _errorMessage!,
+                        style: const TextStyle(
+                          color: Colors.red,
+                          fontSize: 14,
+                        ),
                       ),
                     ),
                   ),
+                ],
 
-                  // Error message
-                  if (_errorMessage != null) ...[
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          _errorMessage!,
-                          style: const TextStyle(
-                            color: Colors.red,
-                            fontSize: 14,
+                SizedBox(
+                  height: MediaQuery.of(context).size.height * 0.45,
+                  child: CustomNumPad(
+                    numPadType: NumPadType.age, // Choose: login, payment, age
+                    onDigitPressed: updateDob,
+                    onClearPressed: clearDob,
+                    isDarkTheme: themeHelper.themeMode == ThemeMode.dark,
+                  ),
+                ),
+
+                // Action buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: _isScanningInProgress ? null : () {
+                          // _isScanningInProgress = true;
+                          // Future.delayed(Duration(milliseconds: 2200)).whenComplete((){
+                            if (kDebugMode) {
+                              print("AgeVerification _onManualVerify() 1 _isScanningInProgress: $_isScanningInProgress");
+                            }
+                            if(!_isScanningInProgress) _onManualVerify();
+                          // });
+
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.grey[700],
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: const Text(
+                          'Manually Verified',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: _isVerifyEnabled ? _onVerifyAge : null,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _isVerifyEnabled ? Colors.red : Colors.grey[400],
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: const Text(
+                          'Verify Age',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ),
                     ),
                   ],
-
-                  SizedBox(
-                    height: MediaQuery.of(context).size.height * 0.475,
-                    child: CustomNumPad(
-                      numPadType: NumPadType.age, // Choose: login, payment, age
-                      onDigitPressed: updateDob,
-                      onClearPressed: clearDob,
-                      isDarkTheme: themeHelper.themeMode == ThemeMode.dark,
-                    ),
-                  ),
-
-                  // Action buttons
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.only(left: 30, right: 10), // left & right only
-                          child: ElevatedButton(
-                            onPressed: _isScanningInProgress ? null : () {
-                              // _isScanningInProgress = true;
-                              // Future.delayed(Duration(milliseconds: 2200)).whenComplete((){
-                              if (kDebugMode) {
-                                print("AgeVerification _onManualVerify() 1 _isScanningInProgress: $_isScanningInProgress");
-                              }
-                              if(!_isScanningInProgress) _onManualVerify();
-                              // });
-
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Color(0xFF4C5F7D),
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 15),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            child: const Text(
-                              'Manually Verified',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 0),
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.only(left: 10, right: 30), // left & right only
-                          child: ElevatedButton(
-                            onPressed: _isVerifyEnabled ? _onVerifyAge : null,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: _isVerifyEnabled ? Colors.red : Colors.grey[400],
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 15),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            child: const Text(
-                              'Verify Age',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
+          ),
           ),
         ),
 
@@ -975,7 +930,7 @@ class AgeVerificationHelper {
       context: context,
       barrierDismissible: false,
       builder: (context) => AgeVerificationPopup(
-        // productName: productName,
+       // productName: productName,
         minimumAge: minimumAge,
         onManualVerify: onManualVerify,
         onAgeVerified: onAgeVerified,

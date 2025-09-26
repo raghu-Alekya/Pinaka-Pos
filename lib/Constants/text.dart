@@ -6,6 +6,8 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
 
   static const String age_restricted              = 'Age Restricted';
   static String currencySymbol              =  '\u{20AC}';//"\u{20B9}"; //  \\u{20AC})
+  static String dateFormat                  =  "EEE, MMM d, yyyy";
+  static String timeFormat                  =  "hh:mm:ss a";
   static const String loginBtnText          = "Login";
   static const String settingsHeaderText    = "Settings";
   static const String saveChangesBtnText    = "Save Changes";
@@ -382,6 +384,10 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String tranFailed = "Transaction Failed !"; // Build #1.0.240
   static const String wantRetry = "Do you want to retry?";
   static const String dismiss = "Dismiss";
+  // Build #1.0.248
+  static const String failedToStartShift  = 'Failed to start shift. Please try again.';
+  static const String failedToUpdateShift = 'Failed to update shift. Please try again.';
+  static const String failedCloseShift    = 'Failed to close shift. Please try again.';
 }
 
 class TextFontSize {

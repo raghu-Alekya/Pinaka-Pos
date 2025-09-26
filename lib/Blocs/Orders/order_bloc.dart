@@ -5,8 +5,8 @@ import 'package:flutter/foundation.dart';
 import '../../Constants/text.dart';
 import '../../Database/db_helper.dart';
 import '../../Database/order_panel_db_helper.dart';
-import '../../Helper/CustomerDisplayHelper.dart';
 import '../../Helper/api_response.dart';
+import '../../Helper/customerdisplayhelper.dart';
 import '../../Models/Orders/apply_discount_model.dart';
 import '../../Models/Orders/get_orders_model.dart' as model;
 import '../../Models/Orders/orders_model.dart';
@@ -91,11 +91,11 @@ class OrderBloc { // Build #1.0.25 - added by naveen
   Stream<APIResponse<TotalOrdersResponseModel>> get fetchTotalOrdersStream => _fetchTotalOrdersController.stream;
 
   // 1. Create Order
-  Future<void> createOrder() async { //Build #1.0.128: Updated - metadata using from _orderRepository
+  Future<void> createOrder({bool isUpdateOrder = false}) async {
     final serverOrderId = OrderHelper().activeOrderId;
     if (serverOrderId != null) {
       await CustomerDisplayHelper.updateCustomerDisplay(serverOrderId);
-    }
+    }//Build #1.0.128: Updated - metadata using from _orderRepository
     if (_createOrderController.isClosed) return;
 
     createOrderSink.add(APIResponse.loading(TextConstants.loading));
@@ -119,6 +119,8 @@ class OrderBloc { // Build #1.0.25 - added by naveen
     } catch (e) {
       if (e.toString().contains('Unauthorised')) {
         createOrderSink.add(APIResponse.error("Unauthorised. Session is expired."));
+      } else if (isUpdateOrder == true){ //Build #1.0.249 : FIXED continues loader on product selection
+        rethrow;
       }
       else {
         createOrderSink.add(APIResponse.error(_extractErrorMessage(e))); //Build #1.0.84
@@ -185,7 +187,7 @@ class OrderBloc { // Build #1.0.25 - added by naveen
           print("#### updateOrderProducts orderId is $orderId");
         }
         // Call create new order if orderId is null
-        await createOrder();
+        await createOrder(isUpdateOrder: true); //Build #1.0.249 : FIXED continues loader on product selection
       }
 
       final serverOrderId = OrderHelper().activeOrderId;

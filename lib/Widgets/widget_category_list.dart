@@ -944,7 +944,7 @@ class CategoryList extends StatelessWidget {
         width: 40,
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) =>
-            const Icon(Icons.image, size: 40),
+        const Icon(Icons.image, size: 40),
       );
     } else if (imagePath.startsWith("http")) {
       return SizedBox(
@@ -964,15 +964,15 @@ class CategoryList extends StatelessWidget {
               // :Colors.white,
               child: themeHelper.themeMode == ThemeMode.dark
                   ? Image.asset(
-                      "assets/dark_mode_image.png",
-                      fit: BoxFit.contain,
-                      color: Colors.white,
-                    )
+                "assets/dark_mode_image.png",
+                fit: BoxFit.contain,
+                color: Colors.white,
+              )
                   : Image.asset(
-                      "assets/lite_mode_image.png",
-                      fit: BoxFit.contain,
-                      color: Colors.black,
-                    ),
+                "assets/lite_mode_image.png",
+                fit: BoxFit.contain,
+                color: Colors.black,
+              ),
               //Icon(Icons.broken_image, color: Colors.grey),
             );
           },
@@ -981,29 +981,29 @@ class CategoryList extends StatelessWidget {
     } else {
       return Platform.isWindows
           ? Image.asset(
-              // Use Image.asset for PNG
-              'assets/default.png',
-              width: 40,
-              height: 40,
-            )
+        // Use Image.asset for PNG
+        'assets/default.png',
+        width: 40,
+        height: 40,
+      )
           : Image.file(
-              File(imagePath),
-              height: 40,
-              width: 40,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) =>
-                  themeHelper.themeMode == ThemeMode.dark
-                      ? Image.asset(
-                          "assets/dark_mode_image.png",
-                          fit: BoxFit.contain,
-                          color: Colors.white,
-                        )
-                      : Image.asset(
-                          "assets/lite_mode_image.png",
-                          fit: BoxFit.contain,
-                          color: Colors.black,
-                        ),
-            );
+        File(imagePath),
+        height: 40,
+        width: 40,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) =>
+        themeHelper.themeMode == ThemeMode.dark
+            ? Image.asset(
+          "assets/dark_mode_image.png",
+          fit: BoxFit.contain,
+          color: Colors.white,
+        )
+            : Image.asset(
+          "assets/lite_mode_image.png",
+          fit: BoxFit.contain,
+          color: Colors.black,
+        ),
+      );
     }
   }
 
@@ -1087,13 +1087,13 @@ class CategoryList extends StatelessWidget {
                 // Only show left padding if arrows are visible
                 SizedBox(
                     width:
-                        contentOverflows ? ResponsiveLayout.getWidth(35) : 0),
+                    contentOverflows ? ResponsiveLayout.getWidth(35) : 0),
                 Expanded(
                   child: SizedBox(
                     height: ResponsiveLayout.getHeight(100),
                     child: ReorderableListView(
                       buildDefaultDragHandles:
-                          Platform.isWindows ? false : true,
+                      Platform.isWindows ? false : true,
 
                       /// to remove drag icons in windows
                       scrollController: scrollController,
@@ -1129,14 +1129,14 @@ class CategoryList extends StatelessWidget {
 
                         return Platform.isWindows
                             ? ReorderableDelayedDragStartListener(
-                                /// to remove drag icons in windows
-                                key: ValueKey('${category['title']}_$index'),
-                                index: index,
-                                child: _fastKeyTabGesture(
-                                    context, index, isSelected, showEditButton),
-                              )
+                          /// to remove drag icons in windows
+                          key: ValueKey('${category['title']}_$index'),
+                          index: index,
+                          child: _fastKeyTabGesture(
+                              context, index, isSelected, showEditButton),
+                        )
                             : _fastKeyTabGesture(
-                                context, index, isSelected, showEditButton);
+                            context, index, isSelected, showEditButton);
                       }),
                     ),
                   ),
@@ -1144,7 +1144,7 @@ class CategoryList extends StatelessWidget {
                 // Only show right padding if arrows are visible, otherwise just space for add button
                 SizedBox(
                     width:
-                        contentOverflows ? 30 : (isAddButtonEnabled ? 0 : 10)),
+                    contentOverflows ? 30 : (isAddButtonEnabled ? 0 : 10)),
                 if (isAddButtonEnabled)
                   _buildAddButton(context, onAddButtonPressed ?? () {}),
               ],
@@ -1154,7 +1154,7 @@ class CategoryList extends StatelessWidget {
               Positioned(
                 left: 0,
                 child:
-                    _buildCircularNavButton(context, Icons.arrow_back_ios, () {
+                _buildCircularNavButton(context, Icons.arrow_back_ios, () {
                   if (kDebugMode) {
                     print("### CategoryList: Left navigation button pressed");
                   }
@@ -1170,16 +1170,16 @@ class CategoryList extends StatelessWidget {
               Positioned(
                 right: isAddButtonEnabled ? 75 : 5,
                 child: _buildCircularNavButton(context, Icons.arrow_forward_ios,
-                    () {
-                  if (kDebugMode) {
-                    print("### CategoryList: Right navigation button pressed");
-                  }
-                  scrollController.animateTo(
-                    scrollController.offset + size.width * 0.5,
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
-                  );
-                }),
+                        () {
+                      if (kDebugMode) {
+                        print("### CategoryList: Right navigation button pressed");
+                      }
+                      scrollController.animateTo(
+                        scrollController.offset + size.width * 0.5,
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                      );
+                    }),
               ),
           ],
         ),
@@ -1217,15 +1217,15 @@ class CategoryList extends StatelessWidget {
             color: isSelected
                 ? ThemeNotifier.tabSelection
                 : themeHelper.themeMode == ThemeMode.dark
-                    ? ThemeNotifier.secondaryBackground
-                    : Colors.white,
+                ? ThemeNotifier.secondaryBackground
+                : Colors.white,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: showEditButton
                   ? Colors.blueAccent
                   : isSelected
-                      ? Colors.red
-                      : Colors.black12,
+                  ? Colors.red
+                  : Colors.black12,
               width: showEditButton ? 2 : 1.2,
             ),
             boxShadow: [
@@ -1283,8 +1283,8 @@ class CategoryList extends StatelessWidget {
                       color: isSelected
                           ? Colors.black87
                           : themeHelper.themeMode == ThemeMode.dark
-                              ? ThemeNotifier.textDark
-                              : Colors.black87,
+                          ? ThemeNotifier.textDark
+                          : Colors.black87,
                     ),
                   ),
                 ],
@@ -1426,9 +1426,9 @@ class CategoryList extends StatelessWidget {
                                       color: isSelected
                                           ? Colors.black87
                                           : themeHelper.themeMode ==
-                                                  ThemeMode.dark
-                                              ? ThemeNotifier.textDark
-                                              : Colors.black87,
+                                          ThemeMode.dark
+                                          ? ThemeNotifier.textDark
+                                          : Colors.black87,
                                     ),
                                   ),
                                   Text(
@@ -1437,9 +1437,9 @@ class CategoryList extends StatelessWidget {
                                       color: isSelected
                                           ? Colors.grey
                                           : themeHelper.themeMode ==
-                                                  ThemeMode.dark
-                                              ? ThemeNotifier.textDark
-                                              : Colors.grey,
+                                          ThemeMode.dark
+                                          ? ThemeNotifier.textDark
+                                          : Colors.grey,
                                     ),
                                   ),
                                 ],
@@ -1588,11 +1588,11 @@ class CategoryList extends StatelessWidget {
         padding: const EdgeInsets.all(8.0),
         child: isLoading
             ? ShimmerEffect.rectangular(
-                height: isHorizontal ? 100 : 800,
-              )
+          height: isHorizontal ? 100 : 800,
+        )
             : isHorizontal
-                ? _buildHorizontalList(context, scrollController)
-                : _buildVerticalList(context),
+            ? _buildHorizontalList(context, scrollController)
+            : _buildVerticalList(context),
       ),
     );
   }

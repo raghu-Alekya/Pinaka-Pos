@@ -9,6 +9,7 @@ import '../../Helper/Extentions/nav_layout_manager.dart';
 import '../Blocs/Assets/asset_bloc.dart';
 import '../Blocs/Orders/order_bloc.dart';
 import '../Blocs/Search/product_search_bloc.dart';
+import '../Constants/misc_features.dart';
 import '../Constants/text.dart';
 import '../Database/assets_db_helper.dart';
 import '../Database/db_helper.dart';
@@ -1429,6 +1430,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
           setState(() {
             _discountValue = _isPercentageSelected ? "0.00%" : "0.00";
           });
+          if (Misc.showDebugSnackBar) { // Build #1.0.254
           ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
             SnackBar(
               content: Text("Discount of ${TextConstants.currencySymbol}${discountAmount.toStringAsFixed(2)} applied"),
@@ -1436,6 +1438,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
               duration: const Duration(seconds: 2),
             ),
           );
+          }
           setState(() => _isDiscountLoading = false); //Build #1.0.92: fixed loader issue
           await _orderHelper.loadData();
           await _loadOrderData();
@@ -1582,12 +1585,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
               });
             }
           }
-
-          setState(() {
-            _couponCode = "";
-            _isCouponLoading = false;
-          });
-
+          if (Misc.showDebugSnackBar) {
           ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
             SnackBar(
               content: Text("Coupon '${_couponCode}' applied successfully"),
@@ -1595,6 +1593,12 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
               duration: const Duration(seconds: 2),
             ),
           );
+          }
+
+          setState(() { // Build #1.0.248: Fixed [SCRUM-400] -> Inappropriate Toast Message Displaying After Custom Item & Coupon Addition
+            _couponCode = "";
+            _isCouponLoading = false;
+          });
 
           // Refresh UI
           await _orderHelper.loadData();
@@ -1855,6 +1859,16 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
             }else if (updateResponse.status == Status.COMPLETED) {
               setState(() => _isCustomItemLoading = false);
               if (kDebugMode) print("Order updated successfully for order $orderId");
+              // Build #1.0.248: Fixed [SCRUM-400] -> Inappropriate Toast Message Displaying After Custom Item & Coupon Addition
+              if (Misc.showDebugSnackBar) { // Build #1.0.254
+              ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
+                SnackBar(
+                  content: Text("Custom item '$_customItemName' added at ${TextConstants.currencySymbol}$_customItemPrice"),
+                  backgroundColor: Colors.green,
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+              }
               setState(() {
                 _customItemName = "";
                 _customItemPrice = "";
@@ -1864,13 +1878,6 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
                 _customItemPriceController.clear();
                 _skuController.clear();
               });
-              ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
-                SnackBar(
-                  content: Text("Custom item '$_customItemName' added at ${TextConstants.currencySymbol}$_customItemPrice"),
-                  backgroundColor: Colors.green,
-                  duration: const Duration(seconds: 2),
-                ),
-              );
               await _orderHelper.loadData();
               await _loadOrderData();
               widget.refreshOrderList?.call();
@@ -1878,6 +1885,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
               createSubscription?.cancel();
               completer.complete();
             } else if (updateResponse.status == Status.ERROR) {
+              setState(() => _isCustomItemLoading = false); //Build #1.0.249 : FIXED continues loader on custom item ADD button.
               if (kDebugMode) print("Failed to update order: ${updateResponse.message}");
               ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
                 SnackBar(
@@ -2074,10 +2082,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
         }
         if (response.status == Status.COMPLETED) {
           if (kDebugMode) print("Payout added via API for order $orderId");
-          setState(() {
-            _payoutAmount = "";
-            _isPayoutLoading = false; //Build #1.0.92: loader issue fixed
-          });
+          if (Misc.showDebugSnackBar) { // Build #1.0.254
           ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
             SnackBar(
               content: Text("Payout of ${TextConstants.currencySymbol}$payoutAmount added successfully"),
@@ -2085,6 +2090,11 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
               duration: const Duration(seconds: 2),
             ),
           );
+          }
+          setState(() { // Build #1.0.248: Fixed [SCRUM-400] -> Inappropriate Toast Message Displaying After Custom Item & Coupon Addition
+            _payoutAmount = "";
+            _isPayoutLoading = false; //Build #1.0.92: loader issue fixed
+          });
           await _orderHelper.loadData();
           await _loadOrderData();
           widget.refreshOrderList?.call();

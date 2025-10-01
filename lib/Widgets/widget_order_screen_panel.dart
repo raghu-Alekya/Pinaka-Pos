@@ -74,7 +74,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
   bool _isLoading = false;
   bool _isPayBtnLoading = false;
   bool _initialFetchDone = false; // Build #1.0.143: Track initial fetch of fetchOrdersData
- // late OrderBloc orderBloc;
+  // late OrderBloc orderBloc;
   StreamSubscription? _updateOrderSubscription;
   StreamSubscription? _fetchOrdersSubscription;
   final ProductBloc productBloc = ProductBloc(ProductRepository()); // Build #1.0.44 : Added for barcode scanning
@@ -113,11 +113,11 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
     if (kDebugMode) {
       print("##### OrderPanel initState");
     }
-  //  orderBloc = OrderBloc(OrderRepository()); // Build #1.0.143: no need
+    //  orderBloc = OrderBloc(OrderRepository()); // Build #1.0.143: no need
     fetchOrdersData(); // Build #1.0.104
     _initialFetchDone = true; // Build #1.0.143: Track initial fetch of fetchOrdersData, after return from order summary screen we are updating order screen panel in didUpdateWidget, added this flag for multiple re-calls of fetchOrdersData()
     super.initState();
-   // _getOrderTabs(); //Build #1.0.40: Load existing orders into tabs
+    // _getOrderTabs(); //Build #1.0.40: Load existing orders into tabs
     //_fetchOrders(); //Build #1.0.40: Fetch orders on initialization
     loadPrinterData();
     // Initialize payment bloc
@@ -230,11 +230,11 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
     setState(() => _isLoading = false); // Hide loader
   }
 
- // Updated didUpdateWidget to check activeOrderId
+  // Updated didUpdateWidget to check activeOrderId
   @override
   void didUpdateWidget(OrderScreenPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
-   // Build #1.0.143: Fixed Issue : After return from order summary screen , order screen panel not refreshing with updated response
+    // Build #1.0.143: Fixed Issue : After return from order summary screen , order screen panel not refreshing with updated response
     if (!_initialFetchDone && widget.fetchOrders) {
       if (kDebugMode) {
         print("##### widget.fetchOrders : ${widget.fetchOrders}");
@@ -566,9 +566,9 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
   @override
   void dispose() {
     _updateOrderSubscription?.cancel(); // Cancel the subscription
-   // orderBloc.dispose(); // Dispose the bloc if needed // Build #1.0.143: No need
+    // orderBloc.dispose(); // Dispose the bloc if needed // Build #1.0.143: No need
     _fetchOrdersSubscription?.cancel();
-   // orderBloc.dispose();
+    // orderBloc.dispose();
     productBloc.dispose();
     _tabController?.dispose();
     _productBySkuSubscription?.cancel(); // Build #1.0.44 : Added Cancel product subscription
@@ -690,7 +690,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
   Widget build(BuildContext context) {
 
     final themeHelper = Provider.of<ThemeNotifier>(context);
-   // final RightOrderPanel orderScreenPanel = RightOrderPanel(formattedDate: '', formattedTime: '', quantities: []);
+    // final RightOrderPanel orderScreenPanel = RightOrderPanel(formattedDate: '', formattedTime: '', quantities: []);
 
     // If no order is active, display a blank panel.
     return (!widget.fetchOrders) ? _buildShimmerEffect()
@@ -755,13 +755,13 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
     setState(() => _isLoading = false);
     if (response.status == Status.COMPLETED) {
       if (Misc.showDebugSnackBar) { // Build #1.0.254
-      _scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Text("${isPayout ? TextConstants.payout : isCoupon ? TextConstants.coupon : isCustomItem ? TextConstants.customItem : 'Item'}" "${TextConstants.removedSuccessfully}"),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 2),
-        ),
-      );
+        _scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Text("${isPayout ? TextConstants.payout : isCoupon ? TextConstants.coupon : isCustomItem ? TextConstants.customItem : 'Item'}" "${TextConstants.removedSuccessfully}"),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
       }
       await orderHelper.deleteItem(orderItem[AppDBConst.itemId]);
       await fetchOrderItems();
@@ -844,15 +844,15 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
 
     // Update the calculation section in buildCurrentOrder:
     // if (widget.activeOrderId != null) {
-      // final order = orderHelper.orders.firstWhere(
-      //       (order) => order[AppDBConst.orderServerId] == widget.activeOrderId,
-      //   orElse: () => {},
-      // );
+    // final order = orderHelper.orders.firstWhere(
+    //       (order) => order[AppDBConst.orderServerId] == widget.activeOrderId,
+    //   orElse: () => {},
+    // );
 
-      // Get values from order or default to 0
-      orderDiscount = order[AppDBConst.orderDiscount] as double? ?? 0.0;
-      merchantDiscount = order[AppDBConst.merchantDiscount] as double? ?? 0.0;
-      orderTax = order[AppDBConst.orderTax] as double? ?? 0.0;
+    // Get values from order or default to 0
+    orderDiscount = order[AppDBConst.orderDiscount] as double? ?? 0.0;
+    merchantDiscount = order[AppDBConst.merchantDiscount] as double? ?? 0.0;
+    orderTax = order[AppDBConst.orderTax] as double? ?? 0.0;
 
     // Build #1.0.138: Calculate net total
     netTotal = grossTotal - orderDiscount ;
@@ -888,18 +888,18 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   if(widget.activeOrderId != null)
-                  Row(
-                    spacing: 4,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SvgPicture.asset('assets/svg/calendar.svg',width: 22,height: 22,),
-                      Text(displayDate,  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: theme.secondaryHeaderColor)),
-                      const SizedBox(width: 8),
-                      SvgPicture.asset('assets/svg/clock.svg',width: 22,height: 22,),
-                      Text(displayTime ,style: TextStyle(fontSize: 14, color: theme.secondaryHeaderColor)),
-                    ],
-                  ),
+                    Row(
+                      spacing: 4,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SvgPicture.asset('assets/svg/calendar.svg',width: 22,height: 22,),
+                        Text(displayDate,  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: theme.secondaryHeaderColor)),
+                        const SizedBox(width: 60),
+                        SvgPicture.asset('assets/svg/clock.svg',width: 22,height: 22,),
+                        Text(displayTime ,style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: theme.secondaryHeaderColor)),
+                      ],
+                    ),
                 ],
               ),
             ),
@@ -912,6 +912,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                 dashColor: theme.secondaryHeaderColor,
               ),
             ),
+            const SizedBox(height: 4),
             Expanded(
               child: Container(
                 margin: const EdgeInsets.symmetric(horizontal: 6),
@@ -1154,12 +1155,11 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                                       vertical: 1, horizontal: 8),
                                   padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
-                                    color:
-                                    themeHelper.themeMode == ThemeMode.dark
-                                        ? Color(0xFF252837)
-                                        : Colors.white,
-                                    borderRadius: BorderRadius.circular(8),
-                                    // boxShadow: const [
+                                      color: themeHelper.themeMode ==
+                                          ThemeMode.dark
+                                          ? Color(0xFF252837)
+                                          : Color(0xFFE8E8E8), // ThemeNotifier.secondaryBackground color of items in order panel
+                                      borderRadius: BorderRadius.circular(8),
                                     //   BoxShadow(
                                     //     color: Colors.black12,
                                     //     blurRadius: 5,
@@ -1382,28 +1382,27 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                                             // Modified: Show quantity * price only for non-Payout/Coupon items
                                             if (!isPayoutOrCouponOrCustomItem)
                                               Text(
-                                                "${TextConstants.currencySymbol} ${regularPrice.toStringAsFixed(2)} * ${orderItem[AppDBConst.itemCount]}", //Build #1.0.134: itemPrice updated
+                                                "${TextConstants.currencySymbol} ${regularPrice.toStringAsFixed(2)} × ${orderItem[AppDBConst.itemCount]}",
                                                 style: TextStyle(
-                                                    color: themeHelper
-                                                        .themeMode ==
-                                                        ThemeMode.dark
-                                                        ? ThemeNotifier.textDark
-                                                        : Colors.black54,
-                                                    fontSize: 10),
+                                                  color: themeHelper.themeMode == ThemeMode.dark
+                                                      ? ThemeNotifier.textDark
+                                                      : Colors.black54,
+                                                  fontSize: 10,
+                                                ),
                                               ),
                                           ],
                                         ),
                                       ),
-                                      if (!isCouponOrPayout)
-                                        Text(
-                                          "${TextConstants.currencySymbol}${(regularPrice * orderItem[AppDBConst.itemCount]).toStringAsFixed(2)}", //Build #1.0.134: itemPrice updated
-                                          style: TextStyle(
-                                              color: themeHelper.themeMode ==
-                                                  ThemeMode.dark
-                                                  ? ThemeNotifier.textDark
-                                                  : Colors.blueGrey,
-                                              fontSize: 14),
-                                        ),
+                                      // if (!isCouponOrPayout)
+                                      //   Text(
+                                      //     "${TextConstants.currencySymbol}${(regularPrice * orderItem[AppDBConst.itemCount]).toStringAsFixed(2)}", //Build #1.0.134: itemPrice updated
+                                      //     style: TextStyle(
+                                      //         color: themeHelper.themeMode ==
+                                      //             ThemeMode.dark
+                                      //             ? ThemeNotifier.textDark
+                                      //             : Colors.blueGrey,
+                                      //         fontSize: 14),
+                                      //   ),
                                       const SizedBox(width: 20),
                                       Column(
                                         mainAxisAlignment:
@@ -1543,7 +1542,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                               Text(
                                   "-${TextConstants.currencySymbol}${orderDiscount.toStringAsFixed(2)}",
                                   style: TextStyle(
-                                      color: Colors.green, fontSize: 12)),
+                                      color: Colors.green, fontSize: 14)),
                             ],
                           ),
                           SizedBox(
@@ -1715,7 +1714,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                               Text(
                                   "-${TextConstants.currencySymbol}${merchantDiscount.toStringAsFixed(2)}",
                                   style: TextStyle(
-                                      color: Colors.blue, fontSize: 12)),
+                                      color: Colors.blue, fontSize: 14)),
                             ],
                           ),
                           SizedBox(
@@ -1920,7 +1919,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                     )
                   else
                     SizedBox(),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 4),
 
                   // Payment button - outside the container
                   if (widget.activeOrderId != null)
@@ -1941,7 +1940,7 @@ class _OrderScreenPanelState extends State<OrderScreenPanel> with TickerProvider
                       //   ],
                       // ),
                       margin: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 5),
+                          horizontal: 7, vertical: 5),
                       width: double.infinity,
                       height: MediaQuery.of(context).size.height * 0.0575,
                       child: ((_order?[AppDBConst.orderStatus] ?? '') !=

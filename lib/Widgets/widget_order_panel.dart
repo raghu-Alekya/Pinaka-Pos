@@ -130,18 +130,18 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
       _isLoading = true;
     });
     /// No need _getOrderTabs here calling inside _fetchOrders (because of this before api call db order tabs showing)
-   // _getOrderTabs(); //Build #1.0.40: Load existing orders into tabs
+    // _getOrderTabs(); //Build #1.0.40: Load existing orders into tabs
     _fetchOrders(); //Build #1.0.40: Fetch orders on initialization
   }
 
   @override
   void didUpdateWidget(RightOrderPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
-   // if (mounted) {
+    // if (mounted) {
     //  if(tabs.isNotEmpty){ // Build #1.0.104: Adding this conditions for old orderId's are showing before sync api call
     //    _getOrderTabs(); // Build #1.0.10 : Reload tabs when the widget updates (e.g., after item selection)
     //  }
-   // }
+    // }
     ///Build #1.0.170: Fixed -  Order Cart Flickering When Clicking on Fast Keys
     // Only trigger loading if refreshKey changed (indicating an external update like item add/delete)
     // This prevents unnecessary loading/flickering on unrelated parent rebuilds (e.g., time changes or screen switches)
@@ -347,7 +347,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
             orderItems = []; // Clear items if no order exists
             orderHelper.activeOrderId = null; // Reset activeOrderId
           });
-       //   await orderHelper.saveLastActiveOrderId(null); // Clear saved activeOrderId
+          //   await orderHelper.saveLastActiveOrderId(null); // Clear saved activeOrderId
           await _getOrderTabs(); // Refresh tabs to reflect no active order
           return;
         }
@@ -500,14 +500,14 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
         await fetchOrderItems();
 
         if (Misc.showDebugSnackBar) { // Build #1.0.254
-        _scaffoldMessenger.showSnackBar(
-          SnackBar(
-            content: Text("Order created successfully"),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
-          ),
-        );
-       }
+          _scaffoldMessenger.showSnackBar(
+            SnackBar(
+              content: Text("Order created successfully"),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
       } else if (response.status == Status.ERROR) {
         if (response.message!.contains('Unauthorised')) {
           if (kDebugMode) {
@@ -629,14 +629,14 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
 
             setState(() => _isLoading = false); // Hide loader
             if (Misc.showDebugSnackBar) { // Build #1.0.254
-            _scaffoldMessenger.showSnackBar(
-              SnackBar(
-                content: Text(TextConstants.orderCancelled),
-                backgroundColor: Colors.red, // Build #1.0.175: Added as red for cancel
-                duration: const Duration(seconds: 2),
-              ),
-            );
-           }
+              _scaffoldMessenger.showSnackBar(
+                SnackBar(
+                  content: Text(TextConstants.orderCancelled),
+                  backgroundColor: Colors.red, // Build #1.0.175: Added as red for cancel
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            }
           } else if (response.status == Status.ERROR) {
             if (response.message!.contains('Unauthorised')) {
               if (kDebugMode) {
@@ -750,7 +750,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
       //   orElse: () => {},
       // );
       final serverOrderId = orderHelper.activeOrderId;//order[AppDBConst.orderServerId] as int?;
-     // final dbOrderId = orderHelper.activeOrderId!;
+      // final dbOrderId = orderHelper.activeOrderId!;
       final item = orderItems.firstWhere(
             (item) => item[AppDBConst.itemServerId] == itemId,
         orElse: () => {},
@@ -918,7 +918,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
     _tabController?.dispose();
     _scrollController.dispose(); // Dispose ScrollController
     _productBySkuSubscription?.cancel(); // Build #1.0.44 : Added Cancel product subscription
-   // productBloc.dispose(); // Added: Dispose ProductBloc
+    // productBloc.dispose(); // Added: Dispose ProductBloc
     super.dispose();
   }
 
@@ -984,7 +984,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
           if(!isOrderInForeground){ // to restrict order panel in background to scanner events
             return;
           }
-      
+
           if (barcode.isNotEmpty) {
             var dobScanned = "";
             /// Testing code: not working, Scanner will generate multiple tap events and call when scanned driving licence with PDF417 format irrespective of this code here
@@ -1008,7 +1008,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
             if (kDebugMode) {
               print("##### DEBUG: onBarcodeScanned - Scanned barcode: $barcode, $dobScanned");
             }
-      
+
             // Create new order if none exists
             if (tabs.isEmpty) {
               addNewTab();
@@ -1020,7 +1020,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
             productBloc.fetchProductBySku(barcode);
             _productBySkuSubscription?.cancel();
             _productBySkuSubscription = productBloc.productBySkuStream.listen((response) async {
-      
+
               if (response.status == Status.COMPLETED && response.data!.isNotEmpty) {
                 setState(() => _isLoading = false); //Build #1.0.92
                 final product = response.data!.first;
@@ -1043,15 +1043,15 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                 final bool isAgeRestricted = ageRestrictedValue.toLowerCase() == 'true' || ageRestrictedValue == "1";
 
                 if (!isAgeRestricted) {
-                ///Age Verification code
-                final ageVerificationProvider = AgeVerificationProvider();
-                var isVerified = await ageVerificationProvider.ageRestrictedProduct(context, product);
-      
-                /// Verify Age and proceed else return
-                if(!isVerified){
-                  return;
+                  ///Age Verification code
+                  final ageVerificationProvider = AgeVerificationProvider();
+                  var isVerified = await ageVerificationProvider.ageRestrictedProduct(context, product);
+
+                  /// Verify Age and proceed else return
+                  if(!isVerified){
+                    return;
+                  }
                 }
-              }
                 ///Todo: Need to call variation service before adding product to the order
                 if (product.variations.isNotEmpty) {
                   ///1. Call _productBloc.fetchProductVariations(product.id!);
@@ -1065,13 +1065,13 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                     fetchOrderItems(); //onItemTapped(index, variantAdded: isVariant); //Build #1.0.78: Pass isVariant to onItemTapped
                   },
                   ).showVariantDialog(context: context);
-      
+
                   // Show variants dialog for products with variations
                   if (kDebugMode) {
                     print("##### DEBUG: onBarcodeScanned - Showing variants dialog");
                   }
                 } else {
-      
+
                   ///Comment below code not we are using only server order id as to check orders, skip checking db order id
                   // final order = orderHelper.orders.firstWhere(
                   //       (order) => order[AppDBConst.orderId] == orderHelper.activeOrderId,
@@ -1094,14 +1094,14 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                           _isLoading = false;
                         });
                         if (Misc.showDebugSnackBar) { // Build #1.0.254
-                        _scaffoldMessenger.showSnackBar(
-                          SnackBar(
-                            content: Text("Product added successfully"),
-                            backgroundColor: Colors.green,
-                            duration: const Duration(seconds: 2),
-                          ),
-                        );
-                       }
+                          _scaffoldMessenger.showSnackBar(
+                            SnackBar(
+                              content: Text("Product added successfully"),
+                              backgroundColor: Colors.green,
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        }
                       } else if (response.status == Status.ERROR) {
                         if (response.message!.contains('Unauthorised')) {
                           if (kDebugMode) {
@@ -1111,7 +1111,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                             if (mounted) {
                               Navigator.pushReplacement(context,
                                   MaterialPageRoute(builder: (context) => LoginScreen()));
-      
+
                               if (kDebugMode) {
                                 print("message 4 --- ${response.message}");
                               }
@@ -1438,58 +1438,58 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                     ],
                   ),
                 ),
-                  // Current order section
-                  Expanded(child: buildCurrentOrder()),
-                ],
-              )
-                  : Container(
-                padding: const EdgeInsets.all(
-                    16), // same inner padding as the card
-                child: Column(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Image.asset(
-                            'assets/scannerandsearch.png',
-                            width: 100,
-                            height: 100,
-                            fit: BoxFit.contain,
+                // Current order section
+                Expanded(child: buildCurrentOrder()),
+              ],
+            )
+                : Container(
+              padding: const EdgeInsets.all(
+                  16), // same inner padding as the card
+              child: Column(
+                children: [
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Image.asset(
+                          'assets/scannerandsearch.png',
+                          width: 100,
+                          height: 100,
+                          fit: BoxFit.contain,
+                        ),
+                        const SizedBox(height: 20),
+                        Text(
+                          'No items in the Order panel',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: themeHelper.themeMode == ThemeMode.dark
+                                ? Colors.white
+                                : const Color(0xFF373535),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
                           ),
-                          const SizedBox(height: 20),
-                          Text(
-                            'No items in the Order panel',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: themeHelper.themeMode == ThemeMode.dark
-                                  ? Colors.white
-                                  : const Color(0xFF373535),
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                            ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Order panel is empty. Add items by scanning,\nsearching, or selecting from the list.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: themeHelper.themeMode == ThemeMode.dark
+                                ? Colors.grey[400]
+                                : Colors.grey.shade500,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            height: 1.4,
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Order panel is empty. Add items by scanning,\nsearching, or selecting from the list.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: themeHelper.themeMode == ThemeMode.dark
-                                  ? Colors.grey[400]
-                                  : Colors.grey.shade500,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                              height: 1.4,
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
+        ),
       ),
     );
   }
@@ -1556,16 +1556,16 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
     if (!mounted) return;
     if (response.status == Status.COMPLETED) {
       //Build #1.0.170: Updated - No need to make _isLoading is false here , we are doing after refresh!
-     // setState(() => _isLoading = false); //Build #1.0.92
+      // setState(() => _isLoading = false); //Build #1.0.92
       if (Misc.showDebugSnackBar) { // Build #1.0.254
-      _scaffoldMessenger.showSnackBar(
-        SnackBar(
-          content: Text("${isPayout ? 'Payout' : isCoupon ? 'Coupon' : isCustomItem ? 'Custom Item' : 'Item'} removed successfully"),
-          backgroundColor: Colors.green,
-          duration: const Duration(seconds: 2),
-        ),
-      );
-     }
+        _scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Text("${isPayout ? 'Payout' : isCoupon ? 'Coupon' : isCustomItem ? 'Custom Item' : 'Item'} removed successfully"),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
       await orderHelper.deleteItem(orderItem[AppDBConst.itemServerId]);
       await fetchOrderItems();
       widget.refreshOrderList?.call();
@@ -1714,39 +1714,39 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
         orElse: () => {},
       );
       if (orderItems.isNotEmpty && order.isNotEmpty) {
-      // Get values from order or default to 0
-      orderDiscount = order[AppDBConst.orderDiscount] as double? ?? 0.0;
-      merchantDiscount = order[AppDBConst.merchantDiscount] as double? ?? 0.0;
-      orderTax = order[AppDBConst.orderTax] as double? ?? 0.0;
+        // Get values from order or default to 0
+        orderDiscount = order[AppDBConst.orderDiscount] as double? ?? 0.0;
+        merchantDiscount = order[AppDBConst.merchantDiscount] as double? ?? 0.0;
+        orderTax = order[AppDBConst.orderTax] as double? ?? 0.0;
 
-      // Build #1.0.138: Calculate net total
-      netTotal = grossTotal - orderDiscount; // Build #1.0.137
+        // Build #1.0.138: Calculate net total
+        netTotal = grossTotal - orderDiscount; // Build #1.0.137
 
-      //Build #1.0.146: Apply merchant discount (this is typically a separate discount)
-      netTotal = netTotal - merchantDiscount;
+        //Build #1.0.146: Apply merchant discount (this is typically a separate discount)
+        netTotal = netTotal - merchantDiscount;
 
-      ///map total with netPayable
-      netPayable =  order[AppDBConst.orderTotal] as double? ?? 0.0;
+        ///map total with netPayable
+        netPayable =  order[AppDBConst.orderTotal] as double? ?? 0.0;
 
-      // Ensure netPayable is not negative
-      // Build #1.0.138: Ensure no negative values
-      netTotal = netTotal; //< 0 ? 0.0 : netTotal;
-      netPayable = netPayable; // < 0 ? 0.0 : netPayable;
+        // Ensure netPayable is not negative
+        // Build #1.0.138: Ensure no negative values
+        netTotal = netTotal; //< 0 ? 0.0 : netTotal;
+        netPayable = netPayable; // < 0 ? 0.0 : netPayable;
 
-      // Determine the date and time to display from order data
-      if (order.isNotEmpty && order[AppDBConst.orderDate] != null) {
-        try {
-          final DateTime createdDateTime = DateTime.parse(order[AppDBConst.orderDate].toString());
-          displayDate = DateFormat(TextConstants.dateFormat).format(createdDateTime);
-          displayTime = DateFormat(TextConstants.timeFormat).format(createdDateTime);
-        } catch (e) {
-          if (kDebugMode) {
-            print("Error parsing order creation date: $e");
+        // Determine the date and time to display from order data
+        if (order.isNotEmpty && order[AppDBConst.orderDate] != null) {
+          try {
+            final DateTime createdDateTime = DateTime.parse(order[AppDBConst.orderDate].toString());
+            displayDate = DateFormat(TextConstants.dateFormat).format(createdDateTime);
+            displayTime = DateFormat(TextConstants.timeFormat).format(createdDateTime);
+          } catch (e) {
+            if (kDebugMode) {
+              print("Error parsing order creation date: $e");
+            }
+            // Fallback to raw data or default if parsing fails
+            displayDate = order[AppDBConst.orderDate].toString().split(' ').first;
           }
-          // Fallback to raw data or default if parsing fails
-          displayDate = order[AppDBConst.orderDate].toString().split(' ').first;
         }
-      }
       } else {
         if (kDebugMode) {
           print("#### Reset values when orderItems is empty");
@@ -1805,50 +1805,16 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                 children: [
                   if (orderHelper.activeOrderId != null)
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SvgPicture.asset(
-                          'assets/svg/calendar.svg',
-                          width: 20,
-                          height: 20,
-                          color: Theme.of(context).brightness == Brightness.dark
-                              ? Colors.white
-                              : Color(0xFF656161), // or your light mode color
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          displayDate,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color:
-                            Theme.of(context).brightness == Brightness.dark
-                                ? Colors.white
-                                : Color(0xFF656161),
-                          ),
-                        ),
-                        const SizedBox(width: 20),
-                        SvgPicture.asset(
-                          'assets/svg/clock.svg',
-                          width: 20,
-                          height: 20,
-                          color: Theme.of(context).brightness == Brightness.dark
-                              ? Colors.white
-                              : Color(0xFF656161),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          displayTime,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color:
-                            Theme.of(context).brightness == Brightness.dark
-                                ? Colors.white
-                                : Color(0xFF656161),
-                          ),
-                        ),
-                      ],
+                        spacing: 4,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SvgPicture.asset('assets/svg/calendar.svg',width: 22,height: 22,),
+                          Text(displayDate,  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: theme.secondaryHeaderColor)),
+                          const SizedBox(width: 80),
+                          SvgPicture.asset('assets/svg/clock.svg',width: 22,height: 22,),
+                          Text(displayTime ,style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: theme.secondaryHeaderColor)),
+                        ],
                     ),
                 ],
               ),
@@ -1862,6 +1828,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                 dashColor: theme.secondaryHeaderColor,
               ),
             ),
+            const SizedBox(height: 4),
             Expanded(
               child: Container(
                 color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground: null,
@@ -1923,9 +1890,10 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                         }
                         /// Set display name based on item type
                         String displayName = originalName;
-                        if (isPayout) {
-                          displayName = '';
-                        } else if (isCoupon) {
+                        // if (isPayout) {
+                        //   displayName = '';
+                        // } else
+                        if (isCoupon) {
                           final visiblePartLength = 4;
                           final nameLength = originalName.length;
                           if (nameLength > visiblePartLength) {
@@ -2540,31 +2508,28 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                                             // we have to show price * qty for custom item also / condition updated, only dont show for payout and coupons
                                             if (!isCouponOrPayout)
                                               Text(
-                                                "${TextConstants.currencySymbol} ${regularPrice.toStringAsFixed(2)} * ${orderItem[AppDBConst.itemCount]} ", //Build #1.0.134: updated price * count
-                                                style: TextStyle(
-                                                    color: themeHelper
-                                                        .themeMode ==
-                                                        ThemeMode.dark
-                                                        ? ThemeNotifier.textDark
-                                                        : Colors.black87,
-                                                    fontSize: 11,
-                                                    fontWeight:
-                                                    FontWeight.w500),
-                                              ),
+                                                  "${TextConstants.currencySymbol} ${regularPrice.toStringAsFixed(2)} x ${orderItem[AppDBConst.itemCount]}", // changed * to ×
+                                                  style: TextStyle(
+                                                      color: themeHelper.themeMode == ThemeMode.dark
+                                                          ? ThemeNotifier.textDark
+                                                          : Colors.black54,
+                                                      fontSize:10,
+                                                      ),
+                                                  ),
                                           ],
                                         ),
                                       ),
-                                      SizedBox(width: 8),
-                                      if (!isCouponOrPayout)
-                                        Text(
-                                          "${TextConstants.currencySymbol} ${(regularPrice * orderItem[AppDBConst.itemCount]).toStringAsFixed(2)}",
-                                          style: TextStyle(
-                                              color: themeHelper.themeMode ==
-                                                  ThemeMode.dark
-                                                  ? ThemeNotifier.textDark
-                                                  : Colors.blueGrey,
-                                              fontSize: 14),
-                                        ),
+                                      // SizedBox(width: 8),
+                                      // if (!isCouponOrPayout)
+                                      //   Text(
+                                      //     "${TextConstants.currencySymbol} ${(regularPrice * orderItem[AppDBConst.itemCount]).toStringAsFixed(2)}",
+                                      //     style: TextStyle(
+                                      //         color: themeHelper.themeMode ==
+                                      //             ThemeMode.dark
+                                      //             ? ThemeNotifier.textDark
+                                      //             : Colors.blueGrey,
+                                      //         fontSize: 14),
+                                      //   ),
                                       SizedBox(width: 20),
                                       Text(
                                         isCouponOrPayout
@@ -2703,7 +2668,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                                     style: TextStyle(
                                         color: Color(0xFF05B10C),
                                         fontSize:
-                                        12)), // the font size increased based on new figma design10-14
+                                        14)), // the font size increased based on new figma design10-14
                               ],
                             ),
                             SizedBox(height: 2),
@@ -2961,7 +2926,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                                     "-${TextConstants.currencySymbol}${merchantDiscount.toStringAsFixed(2)}",
                                     style: TextStyle(
                                         color: Colors.blue,
-                                        fontSize: 12)),
+                                        fontSize: 14)),
                               ],
                             ),
                             SizedBox(height: 2),
@@ -3171,7 +3136,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                                     style: TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.bold)),
-                                const SizedBox(width: 8),
+                                const SizedBox(width: 4),
                                 Icon(_showFullSummary
                                     ? Icons.keyboard_arrow_down
                                     : Icons.keyboard_arrow_up),
@@ -3181,7 +3146,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                         ),
                       ),
                     ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 4),
 
                   // Payment button - outside the container
                   if (tabs.isNotEmpty)

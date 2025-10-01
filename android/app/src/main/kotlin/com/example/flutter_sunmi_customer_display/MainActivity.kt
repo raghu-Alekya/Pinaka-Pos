@@ -409,7 +409,7 @@ class MainActivity : FlutterActivity() {
             val rightPanel = findViewById<LinearLayout>(R.id.right_panel)
             val headerContainer = findViewById<LinearLayout>(R.id.header_container)
 
-            if (items.isEmpty() || grossTotal == 0.0) {
+            if (items.isEmpty() || grossTotal == 0.0) { 
                 orderIdView.text = ""
                 rightPanel.visibility = View.GONE
                 headerContainer.visibility = View.GONE

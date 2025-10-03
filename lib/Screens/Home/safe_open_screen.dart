@@ -1150,15 +1150,18 @@ class MoneyColumn extends StatelessWidget {
               Container(
                 width: 70,
                 height: 35,
-                padding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                padding: EdgeInsets.symmetric(vertical: 5, horizontal: 2),
                 decoration: BoxDecoration(
                   border: Border.all(color: Colors.grey.shade300),
                   borderRadius: BorderRadius.circular(5),
                 ),
-                child: Text(
-                  '${amount.toStringAsFixed(2)}', // Display amount with symbol from denomination
-                  style: TextStyle(fontWeight: FontWeight.w500),
-                  textAlign: TextAlign.center,
+                child: FittedBox(
+                  fit: BoxFit.contain,
+                  child: Text(
+                    amount.toStringAsFixed(0), // Display amount with symbol from denomination
+                    style: TextStyle(fontWeight: FontWeight.w500),
+                    textAlign: TextAlign.center,
+                  ),
                 ),
               ),
             ],

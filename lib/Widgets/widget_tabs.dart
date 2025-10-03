@@ -1917,7 +1917,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
           setState(() => _isCustomItemLoading = false);
           ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
             SnackBar(
-              content: Text("Failed to add custom item"), //Build #1.0.92
+              content: Text(response.message ?? "Failed to add custom item"), //Build #1.0.92
               backgroundColor: Colors.red,
               duration: const Duration(seconds: 2),
             ),

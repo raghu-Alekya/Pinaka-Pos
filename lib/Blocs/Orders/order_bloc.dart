@@ -90,8 +90,9 @@ class OrderBloc { // Build #1.0.25 - added by naveen
   Stream<APIResponse<TotalOrdersResponseModel>> get fetchTotalOrdersStream => _fetchTotalOrdersController.stream;
 
   // 1. Create Order
-  Future<void> createOrder({bool isUpdateOrder = false}) async { //Build #1.0.128: Updated - metadata using from _orderRepository
-    if (_createOrderController.isClosed) return;
+  Future<String> createOrder({bool isUpdateOrder = false}) async { //Build #1.0.128: Updated - metadata using from _orderRepository
+    String logString = " -- OrderBloc.createOrder() -- isUpdateOrder: $isUpdateOrder \n ";
+    if (_createOrderController.isClosed) return logString;
 
     createOrderSink.add(APIResponse.loading(TextConstants.loading));
     try {
@@ -104,14 +105,16 @@ class OrderBloc { // Build #1.0.25 - added by naveen
         print("OrderBloc - Order Status: ${response.status}");
       }
 
+      logString += "OrderBloc - Order created with ID: ${response.id} \n ";
       //Build #1.0.78: Save to DB after successful API response
       OrderHelper orderHelper = OrderHelper();
       //Build #1.0.78: Removed updateServerOrderIDInDB as it’s redundant with createOrder(serverOrderId: response.id)
       int orderId = await orderHelper.createOrder(serverOrderId: response.id);
       await orderHelper.setActiveOrder(orderId);
-
+      logString += "OrderBloc - setActiveOrder: ${response.id} -- end of order creation -- \n ";
       createOrderSink.add(APIResponse.completed(response));
-    } catch (e) {
+      return logString;
+    } catch (e,s) {
       if (e.toString().contains('Unauthorised')) {
         createOrderSink.add(APIResponse.error("Unauthorised. Session is expired."));
       } else if (isUpdateOrder == true){ //Build #1.0.249 : FIXED continues loader on product selection
@@ -120,7 +123,9 @@ class OrderBloc { // Build #1.0.25 - added by naveen
       else {
         createOrderSink.add(APIResponse.error(_extractErrorMessage(e))); //Build #1.0.84
       }
-      if (kDebugMode) print("Exception in createOrder: $e");
+      if (kDebugMode) print("Exception in createOrder: $e, *** Stack: $s ***");
+      logString += "OrderBloc - Exception in createOrder: $e, *** Stack: $s *** \n";
+      return logString;
     }
   }
 
@@ -148,8 +153,9 @@ class OrderBloc { // Build #1.0.25 - added by naveen
   ///5. Save response in db for line_items
   ///6. stop loading
   ///7. Return
-  Future<void> updateOrderProducts({required int? orderId, required int? dbOrderId, required List<OrderLineItem> lineItems, bool isEditQuantity = false}) async {
-    if (_updateOrderController.isClosed) return;
+  Future<String> updateOrderProducts({required int? orderId, required int? dbOrderId, required List<OrderLineItem> lineItems, bool isEditQuantity = false}) async {
+    String logString = " OrderBloc - updateOrderProducts \n";
+    if (_updateOrderController.isClosed) return logString;
 
     updateOrderSink.add(APIResponse.loading(TextConstants.loading));
     try {
@@ -181,8 +187,10 @@ class OrderBloc { // Build #1.0.25 - added by naveen
         if (kDebugMode) {
           print("#### updateOrderProducts orderId is $orderId");
         }
+        logString += " -- createOrder -- \n";
         // Call create new order if orderId is null
-        await createOrder(isUpdateOrder: true); //Build #1.0.249 : FIXED continues loader on product selection
+        logString += await createOrder(isUpdateOrder: true); //Build #1.0.249 : FIXED continues loader on product selection
+        logString += " -- OrderBloc.updateOrderProducts - order created -- \n";
       }
 
       final serverOrderId = OrderHelper().activeOrderId;
@@ -191,7 +199,8 @@ class OrderBloc { // Build #1.0.25 - added by naveen
       }
 
       if(serverOrderId == null){
-        return;
+        updateOrderSink.add(APIResponse.error(TextConstants.orderNotFoundError));
+        return logString;
       }
 
       // var itemsInDB = await OrderHelper().getOrderItems(orderId);
@@ -259,7 +268,7 @@ class OrderBloc { // Build #1.0.25 - added by naveen
               print("OrderBloc - Existing item not found in order, isEditQuantity is $isEditQuantity, skipping update for item");
             }
             updateOrderSink.add(APIResponse.error("Cannot update quantity: Item not found in order."));
-            return;
+            return logString;
           }
           itemsToAdd.add(OrderLineItem(
             productId: item.productId,
@@ -279,7 +288,7 @@ class OrderBloc { // Build #1.0.25 - added by naveen
 
       if(response == null){
         updateOrderSink.add(APIResponse.error("Response is empty after updating product to order $serverOrderId"));
-        return;
+        return logString;
       }
 
       if (kDebugMode) {
@@ -458,6 +467,7 @@ class OrderBloc { // Build #1.0.25 - added by naveen
       }
 
       updateOrderSink.add(APIResponse.completed(response));
+      return logString;
     } catch (e, s) {
       if (e.toString().contains('Unauthorised')) {
         updateOrderSink.add(APIResponse.error("Unauthorised. Session is expired."));
@@ -465,7 +475,9 @@ class OrderBloc { // Build #1.0.25 - added by naveen
       else {
         updateOrderSink.add(APIResponse.error(_extractErrorMessage(e)));
         if (kDebugMode) print("Exception in updateOrderProducts: $e, DEBUG $s");
+        logString = "Exception in OrderBloc.updateOrderProducts: $e, *** DEBUG $s ***\n";
       }
+      return logString;
     }
   }
 

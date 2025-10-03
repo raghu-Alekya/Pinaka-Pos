@@ -1156,107 +1156,107 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
   // Added alert dialog with retry option for API failures.
   // Added success toast for order creation.
   // Preserved debug prints and device ID placeholder logic.
-  Future<void> _createOrder() async {
-    try {
-      var orders = await orderHelper.getOrderById(orderHelper.activeOrderId ?? 0);
-      if (kDebugMode) {
-        print("Fast Key screen createOrder - Orders in DB $orders");
-      }
-      int? shiftId = await UserDbHelper().getUserShiftId();
-
-      //Build #1.0.78: Validation required : if shift id is empty show toast or alert user to start the shift first
-      if (shiftId == null) {
-        if (kDebugMode) print("####### _createOrder() : shiftId -> $shiftId");
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(TextConstants.pleaseStartShiftBeforeCreatingOrder), // Build #1.0.144
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
-      if (orders.isNotEmpty && orders.first[AppDBConst.orderServerId] != null) {
-        _refreshOrderList();
-        return;
-      }
-
-      final deviceDetails = await GlobalUtility.getDeviceDetails(); //Build #1.0.126: using from GlobalUtility
-      String deviceId = deviceDetails['device_id'] ?? 'unknown';
-      OrderMetaData device = OrderMetaData(key: OrderMetaData.posDeviceId, value: deviceId); // TODO: Implement dynamic device ID
-      OrderMetaData placedBy = OrderMetaData(key: OrderMetaData.posPlacedBy, value: '${userId ?? 1}');
-      OrderMetaData shiftIdValue = OrderMetaData(key: OrderMetaData.shiftId, value: shiftId.toString()); // Build #1.0.149
-      List<OrderMetaData> metaData = [device, placedBy, shiftIdValue];
-
-      StreamSubscription? subscription;
-
-      subscription = orderBloc.createOrderStream.listen((response) async {
-        if (!mounted) {
-          subscription?.cancel();
-          return;
-        }
-        if (response.status == Status.COMPLETED) {
-          if (kDebugMode) print("Order created successfully with server ID: ${response.data!.id}");
-          if (Misc.showDebugSnackBar) { // Build #1.0.254
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(TextConstants.orderCreatedSuccessfully), // Build #1.0.144
-              backgroundColor: Colors.green,
-              duration: const Duration(seconds: 2),
-            ),
-          );
-          }
-          _refreshOrderList();
-          subscription?.cancel();
-        } else if (response.status == Status.ERROR) {
-          if (response.message!.contains('Unauthorised')) {
-            if (kDebugMode) {
-              print("Fast key 7 ---- Unauthorised : ${response.message!}");
-            }
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) {
-                Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()));
-
-                if (kDebugMode) {
-                  print("message --- ${response.message}");
-                }
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                        "Unauthorised. Session is expired on this device."),
-                    backgroundColor: Colors.red,
-                    duration: Duration(seconds: 2),
-                  ),
-                );
-              }
-            });
-          }
-          else {
-            if (kDebugMode) print("Failed to create order: ${response.message}");
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(TextConstants.failedToCreateOrder),
-                // Build #1.0.144
-                backgroundColor: Colors.red,
-                duration: const Duration(seconds: 2),
-              ),
-            );
-          }
-          subscription?.cancel();
-        }
-      });
-
-      await orderBloc.createOrder(); // Build #1.0.128
-    } catch (e) {
-      if (kDebugMode) print("Exception in _createOrder: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(TextConstants.errorCreatingOrder), // Build #1.0.144
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    }
-  }
+  // Future<void> _createOrder() async {
+  //   try {
+  //     var orders = await orderHelper.getOrderById(orderHelper.activeOrderId ?? 0);
+  //     if (kDebugMode) {
+  //       print("Fast Key screen createOrder - Orders in DB $orders");
+  //     }
+  //     int? shiftId = await UserDbHelper().getUserShiftId();
+  //
+  //     //Build #1.0.78: Validation required : if shift id is empty show toast or alert user to start the shift first
+  //     if (shiftId == null) {
+  //       if (kDebugMode) print("####### _createOrder() : shiftId -> $shiftId");
+  //       ScaffoldMessenger.of(context).showSnackBar(
+  //         SnackBar(
+  //           content: Text(TextConstants.pleaseStartShiftBeforeCreatingOrder), // Build #1.0.144
+  //           backgroundColor: Colors.green,
+  //           duration: const Duration(seconds: 2),
+  //         ),
+  //       );
+  //     }
+  //     if (orders.isNotEmpty && orders.first[AppDBConst.orderServerId] != null) {
+  //       _refreshOrderList();
+  //       return;
+  //     }
+  //
+  //     final deviceDetails = await GlobalUtility.getDeviceDetails(); //Build #1.0.126: using from GlobalUtility
+  //     String deviceId = deviceDetails['device_id'] ?? 'unknown';
+  //     OrderMetaData device = OrderMetaData(key: OrderMetaData.posDeviceId, value: deviceId); // TODO: Implement dynamic device ID
+  //     OrderMetaData placedBy = OrderMetaData(key: OrderMetaData.posPlacedBy, value: '${userId ?? 1}');
+  //     OrderMetaData shiftIdValue = OrderMetaData(key: OrderMetaData.shiftId, value: shiftId.toString()); // Build #1.0.149
+  //     List<OrderMetaData> metaData = [device, placedBy, shiftIdValue];
+  //
+  //     StreamSubscription? subscription;
+  //
+  //     subscription = orderBloc.createOrderStream.listen((response) async {
+  //       if (!mounted) {
+  //         subscription?.cancel();
+  //         return;
+  //       }
+  //       if (response.status == Status.COMPLETED) {
+  //         if (kDebugMode) print("Order created successfully with server ID: ${response.data!.id}");
+  //         if (Misc.showDebugSnackBar) { // Build #1.0.254
+  //         ScaffoldMessenger.of(context).showSnackBar(
+  //           SnackBar(
+  //             content: Text(TextConstants.orderCreatedSuccessfully), // Build #1.0.144
+  //             backgroundColor: Colors.green,
+  //             duration: const Duration(seconds: 2),
+  //           ),
+  //         );
+  //         }
+  //         _refreshOrderList();
+  //         subscription?.cancel();
+  //       } else if (response.status == Status.ERROR) {
+  //         if (response.message!.contains('Unauthorised')) {
+  //           if (kDebugMode) {
+  //             print("Fast key 7 ---- Unauthorised : ${response.message!}");
+  //           }
+  //           WidgetsBinding.instance.addPostFrameCallback((_) {
+  //             if (mounted) {
+  //               Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()));
+  //
+  //               if (kDebugMode) {
+  //                 print("message --- ${response.message}");
+  //               }
+  //               ScaffoldMessenger.of(context).showSnackBar(
+  //                 const SnackBar(
+  //                   content: Text(
+  //                       "Unauthorised. Session is expired on this device."),
+  //                   backgroundColor: Colors.red,
+  //                   duration: Duration(seconds: 2),
+  //                 ),
+  //               );
+  //             }
+  //           });
+  //         }
+  //         else {
+  //           if (kDebugMode) print("Failed to create order: ${response.message}");
+  //           ScaffoldMessenger.of(context).showSnackBar(
+  //             SnackBar(
+  //               content: Text(TextConstants.failedToCreateOrder),
+  //               // Build #1.0.144
+  //               backgroundColor: Colors.red,
+  //               duration: const Duration(seconds: 2),
+  //             ),
+  //           );
+  //         }
+  //         subscription?.cancel();
+  //       }
+  //     });
+  //
+  //     await orderBloc.createOrder(); // Build #1.0.128
+  //   } catch (e) {
+  //     if (kDebugMode) print("Exception in _createOrder: $e");
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       SnackBar(
+  //         content: Text(TextConstants.errorCreatingOrder), // Build #1.0.144
+  //         backgroundColor: Colors.red,
+  //         duration: const Duration(seconds: 2),
+  //       ),
+  //     );
+  //   }
+  // }
 
   void _refreshOrderList() {
     setState(() { // Build #1.0.128

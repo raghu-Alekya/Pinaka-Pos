@@ -1027,17 +1027,19 @@ class _TopBarState extends State<TopBar> {
               ),
               height: 50,
               key: _searchFieldKey,
-              child: BarcodeKeyboardListener( // Build #1.0.44 : Added - Wrap with BarcodeKeyboardListener for barcode scanning
-                bufferDuration: Duration(milliseconds: 5000),
-                //Build #1.0.78: Removed orderHelper.addItemToOrder from the API success block, as it’s now in OrderBloc.updateOrderProducts.
-                // Kept local addItemToOrder for non-API orders.
-                // Ensured loader is shown during API calls and hidden afterward.
-                useKeyDownEvent: true,
-                onBarcodeScanned: (barcode) async {
-                  _searchController.text = "";
-                  return;
-                },
-                child: TextField(
+              child:
+              // BarcodeKeyboardListener( // Build #1.0.44 : Added - Wrap with BarcodeKeyboardListener for barcode scanning
+              //   bufferDuration: Duration(milliseconds: 5000),
+              //   //Build #1.0.78: Removed orderHelper.addItemToOrder from the API success block, as it’s now in OrderBloc.updateOrderProducts.
+              //   // Kept local addItemToOrder for non-API orders.
+              //   // Ensured loader is shown during API calls and hidden afterward.
+              //   useKeyDownEvent: true,
+              //   onBarcodeScanned: (barcode) async {
+              //     _searchController.text = "";
+              //     return;
+              //   },
+              //   child:
+              TextField(
                   enabled: _isSearchEnabled,
                   controller: _searchController,
                   onSubmitted: (value) {
@@ -1096,7 +1098,7 @@ class _TopBarState extends State<TopBar> {
                 ),
               ),
             ),
-          ),
+          // ),
           const SizedBox(width: 140),
           // Column(
           //   mainAxisAlignment: MainAxisAlignment.center,

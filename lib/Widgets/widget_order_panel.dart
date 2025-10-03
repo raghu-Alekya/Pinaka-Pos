@@ -48,6 +48,7 @@ import '../Screens/Home/add_screen.dart';
 import '../Screens/Home/edit_product_screen.dart';
 import 'widget_logs_toast.dart';
 
+String logString = "";
 bool isOrderInForeground = true;  ///Add visibility code to check if order panel is visible or not
 class RightOrderPanel extends StatefulWidget {
   final String? formattedDate;
@@ -434,6 +435,8 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
     if (kDebugMode) {
       print("##### DEBUG: addNewTab - Creating new order");
     }
+    showLogs = true;
+    logString += "##### DEBUG: addNewTab - Creating new order \n ";
     /// Build #1.0.128: No need here , now we are handling from Order repository class
     // final prefs = await SharedPreferences.getInstance();
     // final shiftId = prefs.getString(TextConstants.shiftId);
@@ -528,7 +531,8 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
       }
     });
 
-    await orderBloc.createOrder(); // Build #1.0.128
+    logString += await orderBloc.createOrder(); // Build #1.0.128
+    setState(() {});
   }
 
   // Scrolls to the last tab to ensure visibility
@@ -937,6 +941,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
     return null;
   }
 
+  // final GlobalKey<BarcodeKeyboardListenerState> _scannerKey = GlobalKey();//Build #1.0.268
   @override
   Widget build(BuildContext context) {
 
@@ -949,22 +954,30 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
         });
       },
       child: BarcodeKeyboardListener( // Build #1.0.44 : Added - Wrap with BarcodeKeyboardListener for barcode scanning
-        bufferDuration: Duration(milliseconds: 5000),
+        // key:  _scannerKey,//Build #1.0.268
+        bufferDuration: Duration(milliseconds: 700),
         //Build #1.0.78: Removed orderHelper.addItemToOrder from the API success block, as it’s now in OrderBloc.updateOrderProducts.
         // Kept local addItemToOrder for non-API orders.
         // Ensured loader is shown during API calls and hidden afterward.
-        useKeyDownEvent: false,
+        useKeyDownEvent: Platform.isWindows,
         caseSensitive: true,
         onBarcodeScanned: (barcode) async {
+          ///Added logs to show while executing scanning operation
+        try{
           //barcode = barcode.trim().replaceAll(' ', '');
           if (kDebugMode) {
-            print("##### DEBUG: onBarcodeScanned - Scanned barcode: -$barcode, isOrderInForeground = $isOrderInForeground");
+            print("##### DEBUG: onBarcodeScanned - Scanned barcode: -$barcode, isOrderInForeground = $isOrderInForeground, _isLoading: $_isLoading");
           }
+          showLogs = true;
+          logString += "##### DEBUG: onBarcodeScanned - Scanned barcode: -$barcode, isOrderInForeground = $isOrderInForeground, _isLoading: $_isLoading \n ";
           if(!isOrderInForeground){ // to restrict order panel in background to scanner events
             return;
           }
           if (_isLoading) return; // Build #1.0.256: Prevent multiple simultaneous scans
-      
+          if(_productBySkuSubscription != null) {
+            // _productBySkuSubscription?.cancel();
+            logString += "##### DEBUG: onBarcodeScanned - Cancelled _productBySkuSubscription \n ";
+          }
           if (barcode.isNotEmpty) {
             var dobScanned = "";
             /// Testing code: not working, Scanner will generate multiple tap events and call when scanned driving licence with PDF417 format irrespective of this code here
@@ -988,25 +1001,32 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
             if (kDebugMode) {
               print("##### DEBUG: onBarcodeScanned - Scanned barcode: $barcode, $dobScanned");
             }
-      
+            logString += "##### DEBUG: onBarcodeScanned - Scanned barcode: $barcode \n ";
             // Create new order if none exists
             if (tabs.isEmpty) {
              // addNewTab(); // Build #1.0.256: No need to create order here - updateOrderProducts will handle it if orderId is null time.
               if (kDebugMode) {
                 print("##### DEBUG: onBarcodeScanned - No tabs are available");
               }
+              logString += "##### DEBUG: onBarcodeScanned - No tabs are available \n ";
             }
-            setState(() => _isLoading = true); // Show loader
-            productBloc.fetchProductBySku(barcode);
+            _isLoading = true;// Show loader
+            setState(() {});
             _productBySkuSubscription?.cancel();
             _productBySkuSubscription = productBloc.productBySkuStream.listen((response) async {
-      
-              if (response.status == Status.COMPLETED && response.data!.isNotEmpty) {
-                setState(() => _isLoading = false); //Build #1.0.92
+              logString += "##### DEBUG: onBarcodeScanned - response.status : ${response.status} \n ";
+              if(response.status == Status.LOADING){
+                logString += "##### DEBUG: onBarcodeScanned - fetchProductBySku LOADING started";
+              } else if (response.status == Status.COMPLETED && response.data!.isNotEmpty) {
+                _isLoading = false;
+                _productBySkuSubscription?.cancel();
+                _productBySkuSubscription = null; // Fixed Scanner issue creating two order in order panel
+                setState(() {}); //Build #1.0.92
                 final product = response.data!.first;
                 if (kDebugMode) {
                   print("##### DEBUG: onBarcodeScanned - Product found: ${product.name}, variations: ${product.variations.length}");
                 }
+                logString += "##### DEBUG: onBarcodeScanned - Product found: ${product.name}, variations: ${product.variations.length} \n ";
                 // Build #1.0.80: MISSED CODE ADDED
                 /// use product id:22, sku:woo-fashion-socks
                 // var isVerified = await _ageRestrictedProduct(product);
@@ -1023,26 +1043,33 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                 final bool isAgeRestricted = ageRestrictedValue.toLowerCase() == 'true' || ageRestrictedValue == "1";
 
                 if (!isAgeRestricted) {
-                ///Age Verification code
-                final ageVerificationProvider = AgeVerificationProvider();
-                var isVerified = await ageVerificationProvider.ageRestrictedProduct(context, product);
-      
-                /// Verify Age and proceed else return
-                if(!isVerified){
-                  return;
+                  ///Age Verification code
+                  final ageVerificationProvider = AgeVerificationProvider();
+                  var isVerified = await ageVerificationProvider.ageRestrictedProduct(context, product);
+
+                  /// Verify Age and proceed else return
+                  if(!isVerified){
+                    return;
+                  }
                 }
-              }
                 ///Todo: Need to call variation service before adding product to the order
                 if (product.variations.isNotEmpty) {
                   ///1. Call _productBloc.fetchProductVariations(product.id!);
                   ///2. load Variation popup
                   ///3. On add button from variation popup -> add to order list
-                  VariationPopup(product.id, product.name, orderHelper, onProductSelected: ({required bool isVariant}) {
+                  VariationPopup(product.id, product.name, orderHelper, onProductSelected: ({required bool isVariant}) async {
                     if (kDebugMode) {
                       print("VariationPopup returned with isVariant $isVariant");
                     }
+                    logString += " VariationPopup returned with isVariant $isVariant \n ";
                     Navigator.pop(context);
-                    fetchOrderItems(); //onItemTapped(index, variantAdded: isVariant); //Build #1.0.78: Pass isVariant to onItemTapped
+                    // fetchOrderItems(); //onItemTapped(index, variantAdded: isVariant); //Build #1.0.78: Pass isVariant to onItemTapped
+                    final serverOrderId = orderHelper.activeOrderId;
+                    if (serverOrderId != null) {
+                      await fetchOrderItems();
+                    } else {
+                      await _getOrderTabs(); //Build #1.0.258: fix loading order tab when product is getting scanned with no order available
+                    }
                   },
                   ).showVariantDialog(context: context);
       
@@ -1050,6 +1077,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                   if (kDebugMode) {
                     print("##### DEBUG: onBarcodeScanned - Showing variants dialog");
                   }
+                  logString += " ##### DEBUG: onBarcodeScanned - Showing variants dialog \n ";
                 } else {
       
                   ///Comment below code not we are using only server order id as to check orders, skip checking db order id
@@ -1069,9 +1097,15 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                         if (kDebugMode) {
                           print("##### DEBUG: onBarcodeScanned - Product added successfully");
                         }
-                        await fetchOrderItems();
+                        logString += "##### DEBUG: onBarcodeScanned - Product added successfully \n ";
+                        if (serverOrderId != null) {
+                          await fetchOrderItems();
+                        } else {
+                          await _getOrderTabs(); //Build #1.0.258: fix loading order tab when product is getting scanned with no order available
+                        }
                         setState(() {
                           _isLoading = false;
+                          // barcode = "";
                         });
                         if (Misc.showDebugSnackBar) { // Build #1.0.254
                         _scaffoldMessenger.showSnackBar(
@@ -1083,6 +1117,10 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                         );
                        }
                       } else if (response.status == Status.ERROR) {
+                        setState(() {
+                          _isLoading = false;
+                          // barcode = "";
+                        }); //Build #1.0.99 : Hide loader
                         if (response.message!.contains('Unauthorised')) {
                           if (kDebugMode) {
                             print("categories 4 ---- Unauthorised : ${response.message!}");
@@ -1107,13 +1145,11 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                           });
                         }
                         else {
-                          setState(() =>
-                          _isLoading = false); //Build #1.0.99 : Hide loader
+
                           if (kDebugMode) {
-                            print(
-                                "##### ERROR: onBarcodeScanned - Failed to add product: ${response
-                                    .message}");
+                            print("##### ERROR: onBarcodeScanned - Failed to add product: ${response.message}");
                           }
+                          logString += "##### ERROR: onBarcodeScanned - Failed to add product: ${response.message} \n ";
                           _scaffoldMessenger.showSnackBar(
                             SnackBar(
                               content: Text(
@@ -1125,7 +1161,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                         }
                       }
                     });
-                    await orderBloc.updateOrderProducts(
+                    logString += await orderBloc.updateOrderProducts(
                       orderId: serverOrderId,
                       dbOrderId: dbOrderId,
                       lineItems: [
@@ -1136,11 +1172,13 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                         ),
                       ],
                     );
+                    setState(() {});
                   } else {
                     // Add product directly to order
                     if (kDebugMode) {
                       print("##### DEBUG: onBarcodeScanned - Not Adding product to DB directly: ${product.name}");
                     }
+                    logString += "##### DEBUG: onBarcodeScanned - Not Adding product to DB directly: ${product.name} \n ";
                     // await orderHelper.addItemToOrder(
                     //   product.id,
                     //   product.name,
@@ -1167,7 +1205,10 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                         duration: const Duration(seconds: 2),
                       ),
                     );
-                    setState(() => _isLoading = false);
+                    setState(() {
+                      _isLoading = false;
+                      // barcode = "";
+                    });
                   }
                 }
               } else {
@@ -1175,6 +1216,11 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                 if (kDebugMode) {
                   print("##### DEBUG: onBarcodeScanned - Product not found for SKU: $barcode");
                 }
+                logString += "##### DEBUG: onBarcodeScanned - Product not found for SKU: $barcode \n ";
+                _isLoading = false;
+                setState(() {
+                  // barcode = "";
+                });
                 if (!mounted) return;
                 await CustomDialog.showCustomItemNotAdded(context,onRetry: (){
                   // Navigate to AddScreen when "Let's Try Again" is pressed
@@ -1190,125 +1236,195 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                 }).then((_) { //Build #1.0.54: added
 
                 });
-                setState(() => _isLoading = false);
               }
             });
+            _productBySkuSubscription?.onError((handleError){
+              if (kDebugMode) {
+                print("Error while scanning custom item handleError : $handleError");
+              }
+              logString += "Error while scanning custom item handleError : $handleError \n";
+            });
+            logString += await productBloc.fetchProductBySku(barcode);
+            logString += "##### DEBUG: onBarcodeScanned - fetchProductBySku completed";
+            setState(() {});
           }
+        } catch(e,s) {
+          if (kDebugMode) {
+            print("Exception in Barcode scanning : $e,\n Stack: $s");
+          }
+          logString += "Exception in Barcode scanning : $e,\n *** Stack: $s ***\n ";
+          //1. Stop loading
+          setState(() {
+            _isLoading = false;
+          });
+
+          //2. Show toast with error message
+          _scaffoldMessenger.showSnackBar(
+            SnackBar(
+              content: Text("Failed to add product, Exception: $e, Stack: $s"), ///remove this exception from toast message
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+
+        }
         },
-        child: Container(
-          width: MediaQuery.of(context).size.width * 0.30,
-          padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
-          child: Card(
-            elevation: 4,
-            margin: const EdgeInsets.only(top: 10),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            child: Column(
-              children: [
-                Container(
-                  color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground: null,
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          controller: _scrollController,
-                          child: Row(
-                            children: List.generate(tabs.length, (index) {
-                              final bool isSelected = _tabController!.index == index;
-                              return Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
-                                child: GestureDetector(
-                                  onTap: () {
-                                    setState(() {
-                                      _tabController!.index = index;
-                                    });
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                                    decoration: BoxDecoration(
-                                      color: isSelected ?  ThemeNotifier.orderPanelTabSelection : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.orderPanelTabBackground : Colors.grey.shade400,
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Column(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              tabs[index]["title"] as String,
-                                              style: TextStyle(color: isSelected ? Colors.black : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight, fontWeight: FontWeight.bold),
-                                            ),
-                                            Text(
-                                              tabs[index]["subtitle"] as String,
-                                              style: TextStyle(color: isSelected ? Colors.black54 : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.black54, fontSize: 12),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(width: 40),
-                                        // Always show the close button
-                                        GestureDetector(
-                                          ///ToDo: Change the status of order to 'cancelled' here
-                                          onTap: () {
-                                            if (kDebugMode) {
-                                              print("Tab $index, close button tapped");
-                                            }
-                                            ///call alert  box before delete
-                                            CustomDialog.showAreYouSure(context,
-                                                confirm: () {
-                                                  removeTab(index);
-                                                });
-                                          },
-                                          child: const Icon(Icons.close, size: 18, color: Colors.red),
-                                        ),
-                                      ],
+        child: Stack(
+          children:[
+            Container(
+            width: MediaQuery.of(context).size.width * 0.30,
+            padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+            child: Card(
+              elevation: 4,
+              margin: const EdgeInsets.only(top: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              child: Column(
+                children: [
+                  Container(
+                    color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground: null,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            controller: _scrollController,
+                            child: Row(
+                              children: List.generate(tabs.length, (index) {
+                                final bool isSelected = _tabController!.index == index;
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        _tabController!.index = index;
+                                      });
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                                      decoration: BoxDecoration(
+                                        color: isSelected ?  ThemeNotifier.orderPanelTabSelection : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.orderPanelTabBackground : Colors.grey.shade400,
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Column(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                tabs[index]["title"] as String,
+                                                style: TextStyle(color: isSelected ? Colors.black : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight, fontWeight: FontWeight.bold),
+                                              ),
+                                              Text(
+                                                tabs[index]["subtitle"] as String,
+                                                style: TextStyle(color: isSelected ? Colors.black54 : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.black54, fontSize: 12),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(width: 40),
+                                          // Always show the close button
+                                          GestureDetector(
+                                            ///ToDo: Change the status of order to 'cancelled' here
+                                            onTap: () {
+                                              if (kDebugMode) {
+                                                print("Tab $index, close button tapped");
+                                              }
+                                              ///call alert  box before delete
+                                              CustomDialog.showAreYouSure(context,
+                                                  confirm: () {
+                                                    removeTab(index);
+                                                  });
+                                            },
+                                            child: const Icon(Icons.close, size: 18, color: Colors.red),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
-                                ),
-                              );
-                            }),
+                                );
+                              }),
+                            ),
                           ),
                         ),
-                      ),
-                      ElevatedButton(
-                        onPressed: addNewTab,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.orderPanelAddButton : Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                          elevation: 2, // Controls the size and blur of the shadow
-                          shadowColor: ThemeNotifier.shadow_F7,
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                          minimumSize: const Size(50, 60),
+                        ElevatedButton(
+                          onPressed: addNewTab,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.orderPanelAddButton : Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                            elevation: 2, // Controls the size and blur of the shadow
+                            shadowColor: ThemeNotifier.shadow_F7,
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                            minimumSize: const Size(50, 60),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.end, // Aligns to text baseline
+                            children: [
+                              Container(
+                                  width: 18,
+                                  height: 18,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: Colors.redAccent)
+                                  ),
+                                  child: Icon(Icons.add,size: 16,color: Colors.redAccent,)),
+                              SizedBox(
+                                width: 5
+                              ),
+                              Text(TextConstants.newText,style: TextStyle(color: Colors.redAccent, fontSize: 14)),
+                            ],
+                          ),
                         ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.end, // Aligns to text baseline
-                          children: [
-                            Container(
-                                width: 18,
-                                height: 18,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: Colors.redAccent)
-                                ),
-                                child: Icon(Icons.add,size: 16,color: Colors.redAccent,)),
-                            SizedBox(
-                              width: 5
-                            ),
-                            Text(TextConstants.newText,style: TextStyle(color: Colors.redAccent, fontSize: 14)),
-                          ],
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-                Expanded(child: buildCurrentOrder()),
-              ],
+                  Expanded(child: buildCurrentOrder()),
+                ],
+              ),
             ),
           ),
+            //Build #1.0.268
+            // showLogs ? _showLogString() : SizedBox(),
+            //Test code to invoke manual scan without scanner on button click
+            // !kDebugMode ? SizedBox() : Positioned(
+            //     top: 100,
+            //     right: 2,
+            //     child: ElevatedButton(onPressed: (){
+            //       showLogs = true;
+            //       logString += "Scanned SKU: 8902519011572";
+            //       setState(() {
+            //
+            //       });
+            //       _scannerKey.currentState?.callback("8902519011572"); //onKeyEvent("9780143465065\n");
+            //     }, child: Text("Scan"),))
+          ]
         ),
       ),
+    );
+  }
+
+  //Build #1.0.268
+  bool showLogs = false;
+  Widget _showLogString(){
+    return Container(
+      width: MediaQuery.of(context).size.width * 0.30,
+      color: const Color(0x7A000000),
+      child:
+      Stack(children: [
+        Text(logString,style: TextStyle(color: Colors.white70),),
+        Positioned(
+            top: 2,
+            right: 2,
+            child: CloseButton(onPressed: (){
+          showLogs = false;
+          logString = "";
+          setState(() {
+
+          });
+        },))
+        ,
+      ]),
     );
   }
 

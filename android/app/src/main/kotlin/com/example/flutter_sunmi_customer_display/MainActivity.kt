@@ -146,7 +146,6 @@ class MainActivity : FlutterActivity() {
             }
             true
         } else {
-            showToast("No secondary display found")
             Log.e("CustomerDisplay", "❌ No secondary display available")
             false
         }
@@ -205,17 +204,9 @@ class MainActivity : FlutterActivity() {
 
             true
         } else {
-            showToast("No secondary display found")
             Log.e("CustomerDisplay", "❌ No secondary display available for Thank You")
             false
         }
-    }
-
-    private fun showToast(message: String) {
-        runOnUiThread {
-            Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
-        }
-        Log.d("CustomerDisplay", "🍿 Toast: $message")
     }
 
     override fun onDestroy() {
@@ -418,7 +409,7 @@ class MainActivity : FlutterActivity() {
             val rightPanel = findViewById<LinearLayout>(R.id.right_panel)
             val headerContainer = findViewById<LinearLayout>(R.id.header_container)
 
-            if (items.isEmpty() || grossTotal == 0.0) {
+            if (items.isEmpty() || grossTotal == 0.0) { 
                 orderIdView.text = ""
                 rightPanel.visibility = View.GONE
                 headerContainer.visibility = View.GONE

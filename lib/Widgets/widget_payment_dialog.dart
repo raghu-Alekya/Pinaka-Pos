@@ -5,7 +5,8 @@ import 'package:pinaka_pos/Constants/text.dart';
 import 'package:pinaka_pos/Helper/Extentions/text_extensions.dart';
 import 'package:provider/provider.dart';
 
-import '../Helper/Extentions/theme_notifier.dart'; // Contains text constants for UI
+import '../Helper/Extentions/theme_notifier.dart';
+import '../Utilities/printer_settings.dart'; // Contains text constants for UI
 
 // Enum for different payment completion states
 enum PaymentStatus { successful, partial, receipt, exitConfirmation, voidConfirmation }
@@ -515,23 +516,28 @@ class _PaymentDialogState extends State<PaymentDialog> {
                   Expanded(
                     child: _buildButton(
                       TextConstants.noReceipt,
-                          () {
+                          () async {
                         if (kDebugMode) {
                           print("DEBUG: No receipt button pressed");
                         }
                         setState(() {
-                          _isNoReceiptLoading = true; // Show loader on button
+                          _isNoReceiptLoading = true;
                         });
+                        await PrinterSettings.openDrawer(context: context);
+
                         widget.onNoReceipt?.call();
+
                         Future.delayed(const Duration(milliseconds: 500), () {
-                          setState(() {
-                            _isNoReceiptLoading = false; // Hide loader after action
-                          });
+                          if (mounted) {
+                            setState(() {
+                              _isNoReceiptLoading = false;
+                            });
+                          }
                         });
                       },
                       backgroundColor: Colors.grey[200]!,
                       textColor: Colors.blueGrey[700]!,
-                      isLoading: _isNoReceiptLoading, // Pass loading state
+                      isLoading: _isNoReceiptLoading, // Loader state
                     ),
                   ),
                   const SizedBox(width: 16), // Horizontal spacing

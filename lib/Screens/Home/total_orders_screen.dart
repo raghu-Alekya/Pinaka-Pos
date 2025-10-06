@@ -570,7 +570,7 @@ class _OrdersScreenState extends State<TotalOrdersScreen>
                 Expanded(
                     child: Container(
                       margin: sidebarPosition == SidebarPosition.bottom
-                          ? EdgeInsets.zero
+                          ? const EdgeInsets.fromLTRB(2, 8, 2, 8)
                           : const EdgeInsets.fromLTRB(2, 12, 0, 12),
                       decoration: BoxDecoration(
                         color: themeHelper.themeMode == ThemeMode.dark

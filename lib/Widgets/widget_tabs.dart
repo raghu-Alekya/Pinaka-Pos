@@ -213,7 +213,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
               // Content based on selected tab
               Expanded(
                   child: ClipPath(
-                    clipper: ContentSideClipper(selectedIndex: _selectedTabIndex),
+                      clipper: ContentSideClipper(selectedIndex: _selectedTabIndex),
                       child: _buildTabContent()
                   )
               ),
@@ -230,31 +230,31 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
       clipper: TabSideClipper(selectedIndex: _selectedTabIndex),
       child: Container(
           width: MediaQuery.of(context).size.width * 0.12,
-        decoration: BoxDecoration(
-          color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.tabsBackground : ThemeNotifier.tabsLightBackground,
-          borderRadius: BorderRadius.circular(16.0),
-        ),
+          decoration: BoxDecoration(
+            color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.tabsBackground : ThemeNotifier.tabsLightBackground,
+            borderRadius: BorderRadius.circular(16.0),
+          ),
           child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _buildTab(0,SvgUtils.addDiscountIcon, TextConstants.discounts), // Build #1.0.168: Updated - Changed the icons to figma svg icons
-            const SizedBox(width: 10),
-            // Hide divider if current tab (0) or next tab (1) is selected
-            if (_selectedTabIndex != 0 && _selectedTabIndex != 1)
-            Divider(height: 1, thickness: 0.1, indent: 10, endIndent: 10),
-            _buildTab(1, SvgUtils.addCouponIcon, TextConstants.coupons),
-            const SizedBox(width: 10),
-            // Hide divider if current tab (1) or next tab (2) is selected
-            if (_selectedTabIndex != 1 && _selectedTabIndex != 2)
-           Divider(height: 1, thickness: 0.1, indent: 10, endIndent: 10),
-            _buildTab(2, SvgUtils.addCustomItemIcon, TextConstants.customItem),
-            const SizedBox(width: 10),
-            // Hide divider if current tab (2) or next tab (3) is selected
-            if (_selectedTabIndex != 2 && _selectedTabIndex != 3)
-            Divider(height: 1, thickness: 0.1, indent: 10, endIndent: 10),
-            _buildTab(3, SvgUtils.addPayoutIcon, TextConstants.payoutsText),
-          ],
-        )
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildTab(0,SvgUtils.addDiscountIcon, TextConstants.discounts), // Build #1.0.168: Updated - Changed the icons to figma svg icons
+              const SizedBox(width: 10),
+              // Hide divider if current tab (0) or next tab (1) is selected
+              if (_selectedTabIndex != 0 && _selectedTabIndex != 1)
+                Divider(height: 1, thickness: 0.1, indent: 10, endIndent: 10),
+              _buildTab(1, SvgUtils.addCouponIcon, TextConstants.coupons),
+              const SizedBox(width: 10),
+              // Hide divider if current tab (1) or next tab (2) is selected
+              if (_selectedTabIndex != 1 && _selectedTabIndex != 2)
+                Divider(height: 1, thickness: 0.1, indent: 10, endIndent: 10),
+              _buildTab(2, SvgUtils.addCustomItemIcon, TextConstants.customItem),
+              const SizedBox(width: 10),
+              // Hide divider if current tab (2) or next tab (3) is selected
+              if (_selectedTabIndex != 2 && _selectedTabIndex != 3)
+                Divider(height: 1, thickness: 0.1, indent: 10, endIndent: 10),
+              _buildTab(3, SvgUtils.addPayoutIcon, TextConstants.payoutsText),
+            ],
+          )
       ),
     );
   }
@@ -357,7 +357,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
       child: Column(
         children: [
           // Title
-           Text(
+          Text(
             TextConstants.applyDiscountToSale,
             style: TextStyle(
               fontSize: 20,
@@ -878,7 +878,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
         : (themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.borderColor : Colors.grey.shade300);
     final borderWidth = isHighlighted ? 2.0 : 1.0;
     return Column(
-     crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
       // mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [
         SizedBox(height: 5,),
@@ -1000,9 +1000,9 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
           width: MediaQuery.of(context).size.width * 0.2,
           padding: const EdgeInsets.symmetric(horizontal: 10,vertical: 0),
           decoration: BoxDecoration(
-            border: Border.all(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.borderColor : Colors.grey.shade300),
-            borderRadius: BorderRadius.circular(10),
-            color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.paymentEntryContainerColor : null
+              border: Border.all(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.borderColor : Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(10),
+              color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.paymentEntryContainerColor : null
           ),
           child: DropdownButtonFormField<String>(
             value: _selectedTaxSlab.isEmpty ? null : _selectedTaxSlab,
@@ -1036,13 +1036,13 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
               });
             },
             decoration: InputDecoration(
-             contentPadding: const EdgeInsets.only(top: 0, bottom: 5), // left + vertical center
+              contentPadding: const EdgeInsets.only(top: 0, bottom: 5), // left + vertical center
               border: InputBorder.none, // No border at all
               enabledBorder: InputBorder.none,
               focusedBorder: InputBorder.none,
             ),
             hint: Container(
-                //color: Colors.blue,
+              //color: Colors.blue,
                 padding: EdgeInsets.only(bottom: 0),
                 child: Text(TextConstants.chooseTaxSlab,
                   style: TextStyle(
@@ -1431,13 +1431,13 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
             _discountValue = _isPercentageSelected ? "0.00%" : "0.00";
           });
           if (Misc.showDebugSnackBar) { // Build #1.0.254
-          ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
-            SnackBar(
-              content: Text("Discount of ${TextConstants.currencySymbol}${discountAmount.toStringAsFixed(2)} applied"),
-              backgroundColor: Colors.green,
-              duration: const Duration(seconds: 2),
-            ),
-          );
+            ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
+              SnackBar(
+                content: Text("Discount of ${TextConstants.currencySymbol}${discountAmount.toStringAsFixed(2)} applied"),
+                backgroundColor: Colors.green,
+                duration: const Duration(seconds: 2),
+              ),
+            );
           }
           setState(() => _isDiscountLoading = false); //Build #1.0.92: fixed loader issue
           await _orderHelper.loadData();
@@ -1586,13 +1586,13 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
             }
           }
           if (Misc.showDebugSnackBar) {
-          ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
-            SnackBar(
-              content: Text("Coupon '${_couponCode}' applied successfully"),
-              backgroundColor: Colors.green,
-              duration: const Duration(seconds: 2),
-            ),
-          );
+            ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
+              SnackBar(
+                content: Text("Coupon '${_couponCode}' applied successfully"),
+                backgroundColor: Colors.green,
+                duration: const Duration(seconds: 2),
+              ),
+            );
           }
 
           setState(() { // Build #1.0.248: Fixed [SCRUM-400] -> Inappropriate Toast Message Displaying After Custom Item & Coupon Addition
@@ -1732,7 +1732,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
       //   return;
       // }
 
-    //  final serverOrderId = orderData.first[AppDBConst.orderServerId] as int?;
+      //  final serverOrderId = orderData.first[AppDBConst.orderServerId] as int?;
       final serverOrderId = OrderHelper().activeOrderId;
       //Build #1.0.78: Check for existing item with same SKU
       // final existingItems = await db.query(
@@ -1861,13 +1861,13 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
               if (kDebugMode) print("Order updated successfully for order $orderId");
               // Build #1.0.248: Fixed [SCRUM-400] -> Inappropriate Toast Message Displaying After Custom Item & Coupon Addition
               if (Misc.showDebugSnackBar) { // Build #1.0.254
-              ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
-                SnackBar(
-                  content: Text("Custom item '$_customItemName' added at ${TextConstants.currencySymbol}$_customItemPrice"),
-                  backgroundColor: Colors.green,
-                  duration: const Duration(seconds: 2),
-                ),
-              );
+                ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
+                  SnackBar(
+                    content: Text("Custom item '$_customItemName' added at ${TextConstants.currencySymbol}$_customItemPrice"),
+                    backgroundColor: Colors.green,
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
               }
               setState(() {
                 _customItemName = "";
@@ -1908,7 +1908,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
               OrderLineItem(
                 productId: response.data!.id,
                 quantity: 1,
-               // sku: _sku,
+                // sku: _sku,
               ),
             ],
           );
@@ -1917,7 +1917,7 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
           setState(() => _isCustomItemLoading = false);
           ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
             SnackBar(
-              content: Text("Failed to add custom item"), //Build #1.0.92
+              content: Text(response.message ?? "Failed to add custom item"), //Build #1.0.92
               backgroundColor: Colors.red,
               duration: const Duration(seconds: 2),
             ),
@@ -1954,18 +1954,18 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
   void _handleAddPayout() async {
     if (_payoutAmount.isEmpty || _payoutAmount == "0" || double.tryParse(_payoutAmount) == null) {
       if (kDebugMode) print("Invalid payout amount: $_payoutAmount");
-        ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
-          const SnackBar(
-            content: Text(TextConstants.invalidPayoutError), // Build #1.0.181: Added through TextConstants
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 2),
-          ),
-        );
+      ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
+        const SnackBar(
+          content: Text(TextConstants.invalidPayoutError), // Build #1.0.181: Added through TextConstants
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 2),
+        ),
+      );
       return;
     }
 
     setState(() => _isPayoutLoading = true);
-   ///  Build #1.0.219 -> FIXED ISSUE [SCRUM - 377] : Unable to Add Payouts When No Orders Exist
+    ///  Build #1.0.219 -> FIXED ISSUE [SCRUM - 377] : Unable to Add Payouts When No Orders Exist
     ///  Adding payout -> if no order exit, creating new order then adding or else adding into existing order
     try {
       // Check if we have an active order, if not create one first
@@ -2083,13 +2083,13 @@ class _AppScreenTabWidgetState extends State<AppScreenTabWidget> with LayoutSele
         if (response.status == Status.COMPLETED) {
           if (kDebugMode) print("Payout added via API for order $orderId");
           if (Misc.showDebugSnackBar) { // Build #1.0.254
-          ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
-            SnackBar(
-              content: Text("Payout of ${TextConstants.currencySymbol}$payoutAmount added successfully"),
-              backgroundColor: Colors.green,
-              duration: const Duration(seconds: 2),
-            ),
-          );
+            ScaffoldMessenger.of(widget.scaffoldMessengerContext).showSnackBar(
+              SnackBar(
+                content: Text("Payout of ${TextConstants.currencySymbol}$payoutAmount added successfully"),
+                backgroundColor: Colors.green,
+                duration: const Duration(seconds: 2),
+              ),
+            );
           }
           setState(() { // Build #1.0.248: Fixed [SCRUM-400] -> Inappropriate Toast Message Displaying After Custom Item & Coupon Addition
             _payoutAmount = "";

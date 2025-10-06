@@ -219,6 +219,7 @@ import '../../Repositories/Auth/store_validation_repository.dart';
 import '../../Repositories/Orders/order_repository.dart';
 import '../../Repositories/Search/product_search_repository.dart';
 import '../../Utilities/textfield_search.dart';
+import '../../Widgets/widget_logs_toast.dart';
 import '../../Widgets/widget_alert_popup_dialogs.dart';
 import '../../Widgets/widget_category_list.dart';
 import '../../Widgets/widget_nested_grid_layout.dart';
@@ -316,9 +317,9 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
   Future<void> _initializeData() async {
     try {
       await getUserIdFromDB();
-        if (kDebugMode) {
-          print("### FastKeyScreen: _initializeData - User ID fetched");
-        }
+      if (kDebugMode) {
+        print("### FastKeyScreen: _initializeData - User ID fetched");
+      }
     } catch (e) {
       if (kDebugMode) print("Initialization error: $e");
     }
@@ -401,36 +402,36 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
         }
         _fastKeyBloc.fetchFastKeysByUser(userId ?? 0);
         await _fastKeyBloc.getFastKeysStream.listen((onData) async {
-            if (onData.status == Status.ERROR) {
-              if (onData.message!.contains('Unauthorised')) {
-                if (kDebugMode) {
-                  print("Fast key 1 ---- Unauthorised : ${onData.message!}");
-                }
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (mounted) {
-                    Navigator.pushReplacement(context,
-                        MaterialPageRoute(builder: (context) => LoginScreen()));
+          if (onData.status == Status.ERROR) {
+            if (onData.message!.contains('Unauthorised')) {
+              if (kDebugMode) {
+                print("Fast key 1 ---- Unauthorised : ${onData.message!}");
+              }
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  Navigator.pushReplacement(context,
+                      MaterialPageRoute(builder: (context) => LoginScreen()));
 
-                    if (kDebugMode) {
-                      print("message 1--- ${onData.message}");
-                    }
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                            "Unauthorised. Session is expired on this device."),
-                        backgroundColor: Colors.red,
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
+                  if (kDebugMode) {
+                    print("message 1--- ${onData.message}");
                   }
-                });
-              }
-              else {
-                _fastKeyBloc.getFastKeysSink.add(
-                    APIResponse.error(TextConstants.retryText));
-              }
-            } else if (onData.status == Status.COMPLETED) {
-              if (onData.data != null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                          "Unauthorised. Session is expired on this device."),
+                      backgroundColor: Colors.red,
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                }
+              });
+            }
+            else {
+              _fastKeyBloc.getFastKeysSink.add(
+                  APIResponse.error(TextConstants.retryText));
+            }
+          } else if (onData.status == Status.COMPLETED) {
+            if (onData.data != null) {
               final fastKeysResponse = onData.data!;
               if (fastKeysResponse.status != "success") {
                 _fastKeyBloc.getFastKeysSink.add(APIResponse.error(TextConstants.retryText));
@@ -628,7 +629,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                 .message}");
           }
         }
-          await _loadFastKeysTabs(); // Revert UI if server deletion fails
+        await _loadFastKeysTabs(); // Revert UI if server deletion fails
       }
     });
   }
@@ -883,14 +884,14 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
         }
         await _refreshFastKeyTabItems(); // refresh UI
         if (Misc.showDebugSnackBar) { // Build #1.0.254
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(response.data?.message ?? "Product deleted from Fast Key"),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
-          ),
-        );
-       }
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response.data?.message ?? "Product deleted from Fast Key"),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
         subscription?.cancel();
       } else if (response.status == Status.ERROR) {
         if (response.message!.contains('Unauthorised')) {
@@ -947,15 +948,17 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
       });
     }
   }
-
+  Stopwatch? refreshUIStopwatch; // Build #1.0.256
   void _onItemSelected(int index, bool showAddButton, bool variantAdded) async {
 
     //Build #1.0.78: fix for parent product also adding along with variant product , we have to restrict that like categories screen
     if(variantAdded == true){
       // Build #1.0.148: we have to show loader until product adds into order panel, then hide
       // Navigator.pop(context); // Hide Loader / VariationPopup dialog
-      if (Navigator.canPop(context)) { // Build #1.0.197: Fixed [SCRUM - 345] -> Screen blackout when adding item to cart
-        Navigator.pop(context);
+      if (!Misc.enableUILogMessages) { // Build #1.0.256
+        if (Navigator.canPop(context)) { // Build #1.0.197: Fixed [SCRUM - 345] -> Screen blackout when adding item to cart
+          Navigator.pop(context);
+        }
       }
       _refreshOrderList(); // refresh UI
       return;
@@ -989,27 +992,35 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
 
     try {
       // For API orders
-    //  if (serverOrderId != null) { // Build #1.0.128: No need
-        _updateOrderSubscription?.cancel();
-        StreamSubscription? subscription;
-      //  setState(() => isAddingItemLoading = true);
-        subscription = orderBloc.updateOrderStream.listen((response) async {
-          if (!mounted) {
-            subscription?.cancel();
-            return;
-          }
-          if (response.status == Status.LOADING) { // Build #1.0.80
-            if (kDebugMode) print("Loading stated in fastkey under _onItemSelected ...");
-            const Center(child: CircularProgressIndicator());
-          }else if (response.status == Status.COMPLETED) {
-            // Build #1.0.148: we have to show loader until product adds into order panel, then hide
-          //  Navigator.pop(context); // Hide Loader / VariationPopup dialog
+      //  if (serverOrderId != null) { // Build #1.0.128: No need
+      _updateOrderSubscription?.cancel();
+      StreamSubscription? subscription;
+      // setState(() => isAddingItemLoading = true);
+      // Measure time for Add Product to Order (for non-variant or empty variations)
+      // Initialize stopwatch only if Misc.enableUILogMessages is true
+      Stopwatch? addProductStopwatch;
+      if (Misc.enableUILogMessages) {
+        addProductStopwatch = Stopwatch()..start();
+      }
+      subscription = orderBloc.updateOrderStream.listen((response) async {
+        if (!mounted) {
+          subscription?.cancel();
+          return;
+        }
+        if (response.status == Status.LOADING) { // Build #1.0.80
+          if (kDebugMode) print("Loading stated in fastkey under _onItemSelected ...");
+          const Center(child: CircularProgressIndicator());
+        } else if (response.status == Status.COMPLETED) {
+          // Build #1.0.148: we have to show loader until product adds into order panel, then hide
+          // Navigator.pop(context); // Hide Loader / VariationPopup dialog
+          if (!Misc.enableUILogMessages){
             if (Navigator.canPop(context)) { // Build #1.0.197: Fixed [SCRUM - 345] -> Screen blackout when adding item to cart
               Navigator.pop(context);
             }
-         //   setState(() => isAddingItemLoading = false);
-            if (kDebugMode) print("Item added to order $dbOrderId via API");
-            if (Misc.showDebugSnackBar) { // Build #1.0.254
+          }
+          // setState(() => isAddingItemLoading = false);
+          if (kDebugMode) print("Item added to order $dbOrderId via API");
+          if (Misc.showDebugSnackBar) { // Build #1.0.254
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text("Item '${selectedProduct[AppDBConst.fastKeyItemName]}' added to order"),
@@ -1017,88 +1028,118 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                 duration: Duration(seconds: 2),
               ),
             );
-           }
-            _refreshOrderList();
-            subscription?.cancel();
-          } else if (response.status == Status.ERROR) {
-            if (Navigator.canPop(context)) { // Build #1.0.197: Fixed [SCRUM - 345] -> Screen blackout when adding item to cart
-              Navigator.pop(context);
-            }
-            if (response.message!.contains('Unauthorised')) {
-              if (kDebugMode) {
-                print("Fast key 6---- Unauthorised : ${response.message!}");
-              }
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) {
-                  Navigator.pushReplacement(context,
-                      MaterialPageRoute(builder: (context) => LoginScreen()));
-
-                  if (kDebugMode) {
-                    print("message --- ${response.message}");
-                  }
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                          "Unauthorised. Session is expired on this device."),
-                      backgroundColor: Colors.red,
-                      duration: Duration(seconds: 2),
-                    ),
-                  );
-                }
-              });
-            }
-            else {
-              if (kDebugMode) print("Failed to add item to order: ${response.message}");
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(response.message ?? TextConstants.failedToAddItemToOrder),
-                  // Build #1.0.144
-                  backgroundColor: Colors.red,
-                  duration: const Duration(seconds: 2),
-                ),
-              );
-            }
-            subscription?.cancel();
           }
-        });
+          // Build #1.0.256: Stop stopwatch and add to steps only if enabled
+          if (Misc.enableUILogMessages && addProductStopwatch != null) {
+            addProductStopwatch.stop();
+            globalProcessSteps.add(
+              ProcessStep(
+                name: TextConstants.addProductToOrder,
+                timeTaken: addProductStopwatch.elapsedMilliseconds / 1000.0,
+              ),
+            );
+            if (kDebugMode) {
+              print("Add Product to Order completed in ${globalProcessSteps.last.timeTaken}s");
+            }
+          }
 
-        /// API CALL
-        await orderBloc.updateOrderProducts(
-          orderId: serverOrderId,
-          dbOrderId: dbOrderId,
-          lineItems: [
-            OrderLineItem(
-              productId: int.parse(selectedProduct[AppDBConst.fastKeyProductId]),
-              quantity: 1,
+          if (Misc.enableUILogMessages) {
+            refreshUIStopwatch = Stopwatch()..start();
+          }
+          _refreshOrderList();
+          subscription?.cancel();
+        } else if (response.status == Status.ERROR) {
+          if (Navigator.canPop(context)) { // Build #1.0.197: Fixed [SCRUM - 345] -> Screen blackout when adding item to cart
+            Navigator.pop(context);
+          }
+          if (response.message!.contains('Unauthorised')) {
+            if (kDebugMode) {
+              print("Fast key 6---- Unauthorised : ${response.message!}");
+            }
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                Navigator.pushReplacement(context,
+                    MaterialPageRoute(builder: (context) => LoginScreen()));
+
+                if (kDebugMode) {
+                  print("message --- ${response.message}");
+                }
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text("Unauthorised. Session is expired on this device."),
+                    backgroundColor: Colors.red,
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              }
+            });
+          } else {
+            if (kDebugMode) print("Failed to add item to order: ${response.message}");
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(response.message ?? TextConstants.failedToAddItemToOrder),
+                // Build #1.0.144
+                backgroundColor: Colors.red,
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          }
+          // Stop stopwatch and add to steps only if enabled
+          if (Misc.enableUILogMessages && addProductStopwatch != null) {
+            addProductStopwatch.stop();
+            // Clear global steps when toast is closed
+            globalProcessSteps.clear();
+            // globalProcessSteps.add(
+            //   ProcessStep(
+            //     name: TextConstants.addProductToOrder,
+            //     timeTaken: addProductStopwatch.elapsedMilliseconds / 1000.0,
+            //   ),
+            // );
+            if (kDebugMode) {
+              print("Add Product to Order (error) completed in ${globalProcessSteps.last.timeTaken}s");
+            }
+          }
+          subscription?.cancel();
+        }
+      });
+
+      /// API CALL
+      await orderBloc.updateOrderProducts(
+        orderId: serverOrderId,
+        dbOrderId: dbOrderId,
+        lineItems: [
+          OrderLineItem(
+            productId: int.parse(selectedProduct[AppDBConst.fastKeyProductId]),
+            quantity: 1,
             //  sku: selectedProduct[AppDBConst.fastKeyItemSKU] ?? 'N/A',
-            ),
-          ],
-        );
-     //  } else { // Build #1.0.128: No need
-     //    // For local orders
-     //    // await orderHelper.addItemToOrder(
-     //    //   int.parse(selectedProduct[AppDBConst.fastKeyProductId]),
-     //    //   selectedProduct[AppDBConst.fastKeyItemName],
-     //    //   selectedProduct[AppDBConst.fastKeyItemImage],
-     //    //   double.tryParse(selectedProduct[AppDBConst.fastKeyItemPrice].toString()) ?? 0.0,
-     //    //   1,
-     //    //   selectedProduct[AppDBConst.fastKeyItemSKU],
-     //    //   serverOrderId ?? 0,
-     //    //   onItemAdded: _createOrder,
-     //    // );
-     // //   setState(() => isAddingItemLoading = false);
-     //    ScaffoldMessenger.of(context).showSnackBar(
-     //      SnackBar(
-     //        content: Text("Item '${selectedProduct[AppDBConst.fastKeyItemName]}'did not added to order. OrderId not found."),
-     //        backgroundColor: Colors.green,
-     //        duration: const Duration(seconds: 2),
-     //      ),
-     //    );
-     //    _refreshOrderList();
-     //  }
+          ),
+        ],
+      );
+      //  } else { // Build #1.0.128: No need
+      //    // For local orders
+      //    // await orderHelper.addItemToOrder(
+      //    //   int.parse(selectedProduct[AppDBConst.fastKeyProductId]),
+      //    //   selectedProduct[AppDBConst.fastKeyItemName],
+      //    //   selectedProduct[AppDBConst.fastKeyItemImage],
+      //    //   double.tryParse(selectedProduct[AppDBConst.fastKeyItemPrice].toString()) ?? 0.0,
+      //    //   1,
+      //    //   selectedProduct[AppDBConst.fastKeyItemSKU],
+      //    //   serverOrderId ?? 0,
+      //    //   onItemAdded: _createOrder,
+      //    // );
+      // //   setState(() => isAddingItemLoading = false);
+      //    ScaffoldMessenger.of(context).showSnackBar(
+      //      SnackBar(
+      //        content: Text("Item '${selectedProduct[AppDBConst.fastKeyItemName]}'did not added to order. OrderId not found."),
+      //        backgroundColor: Colors.green,
+      //        duration: const Duration(seconds: 2),
+      //      ),
+      //    );
+      //    _refreshOrderList();
+      //  }
     } catch (e, s) {
       if (kDebugMode) print("Exception in _onItemSelected: $e, Stack: $s");
-    //  setState(() => isAddingItemLoading = false);
+      //  setState(() => isAddingItemLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(TextConstants.errorAddingItem), // Build #1.0.144
@@ -1115,107 +1156,107 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
   // Added alert dialog with retry option for API failures.
   // Added success toast for order creation.
   // Preserved debug prints and device ID placeholder logic.
-  Future<void> _createOrder() async {
-    try {
-      var orders = await orderHelper.getOrderById(orderHelper.activeOrderId ?? 0);
-      if (kDebugMode) {
-        print("Fast Key screen createOrder - Orders in DB $orders");
-      }
-      int? shiftId = await UserDbHelper().getUserShiftId();
-
-      //Build #1.0.78: Validation required : if shift id is empty show toast or alert user to start the shift first
-      if (shiftId == null) {
-        if (kDebugMode) print("####### _createOrder() : shiftId -> $shiftId");
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(TextConstants.pleaseStartShiftBeforeCreatingOrder), // Build #1.0.144
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
-      if (orders.isNotEmpty && orders.first[AppDBConst.orderServerId] != null) {
-        _refreshOrderList();
-        return;
-      }
-
-      final deviceDetails = await GlobalUtility.getDeviceDetails(); //Build #1.0.126: using from GlobalUtility
-      String deviceId = deviceDetails['device_id'] ?? 'unknown';
-      OrderMetaData device = OrderMetaData(key: OrderMetaData.posDeviceId, value: deviceId); // TODO: Implement dynamic device ID
-      OrderMetaData placedBy = OrderMetaData(key: OrderMetaData.posPlacedBy, value: '${userId ?? 1}');
-      OrderMetaData shiftIdValue = OrderMetaData(key: OrderMetaData.shiftId, value: shiftId.toString()); // Build #1.0.149
-      List<OrderMetaData> metaData = [device, placedBy, shiftIdValue];
-
-      StreamSubscription? subscription;
-
-      subscription = orderBloc.createOrderStream.listen((response) async {
-        if (!mounted) {
-          subscription?.cancel();
-          return;
-        }
-        if (response.status == Status.COMPLETED) {
-          if (kDebugMode) print("Order created successfully with server ID: ${response.data!.id}");
-          if (Misc.showDebugSnackBar) { // Build #1.0.254
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(TextConstants.orderCreatedSuccessfully), // Build #1.0.144
-              backgroundColor: Colors.green,
-              duration: const Duration(seconds: 2),
-            ),
-          );
-          }
-          _refreshOrderList();
-          subscription?.cancel();
-        } else if (response.status == Status.ERROR) {
-          if (response.message!.contains('Unauthorised')) {
-            if (kDebugMode) {
-              print("Fast key 7 ---- Unauthorised : ${response.message!}");
-            }
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) {
-                Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()));
-
-                if (kDebugMode) {
-                  print("message --- ${response.message}");
-                }
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                        "Unauthorised. Session is expired on this device."),
-                    backgroundColor: Colors.red,
-                    duration: Duration(seconds: 2),
-                  ),
-                );
-              }
-            });
-          }
-          else {
-            if (kDebugMode) print("Failed to create order: ${response.message}");
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(TextConstants.failedToCreateOrder),
-                // Build #1.0.144
-                backgroundColor: Colors.red,
-                duration: const Duration(seconds: 2),
-              ),
-            );
-          }
-          subscription?.cancel();
-        }
-      });
-
-      await orderBloc.createOrder(); // Build #1.0.128
-    } catch (e) {
-      if (kDebugMode) print("Exception in _createOrder: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(TextConstants.errorCreatingOrder), // Build #1.0.144
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    }
-  }
+  // Future<void> _createOrder() async {
+  //   try {
+  //     var orders = await orderHelper.getOrderById(orderHelper.activeOrderId ?? 0);
+  //     if (kDebugMode) {
+  //       print("Fast Key screen createOrder - Orders in DB $orders");
+  //     }
+  //     int? shiftId = await UserDbHelper().getUserShiftId();
+  //
+  //     //Build #1.0.78: Validation required : if shift id is empty show toast or alert user to start the shift first
+  //     if (shiftId == null) {
+  //       if (kDebugMode) print("####### _createOrder() : shiftId -> $shiftId");
+  //       ScaffoldMessenger.of(context).showSnackBar(
+  //         SnackBar(
+  //           content: Text(TextConstants.pleaseStartShiftBeforeCreatingOrder), // Build #1.0.144
+  //           backgroundColor: Colors.green,
+  //           duration: const Duration(seconds: 2),
+  //         ),
+  //       );
+  //     }
+  //     if (orders.isNotEmpty && orders.first[AppDBConst.orderServerId] != null) {
+  //       _refreshOrderList();
+  //       return;
+  //     }
+  //
+  //     final deviceDetails = await GlobalUtility.getDeviceDetails(); //Build #1.0.126: using from GlobalUtility
+  //     String deviceId = deviceDetails['device_id'] ?? 'unknown';
+  //     OrderMetaData device = OrderMetaData(key: OrderMetaData.posDeviceId, value: deviceId); // TODO: Implement dynamic device ID
+  //     OrderMetaData placedBy = OrderMetaData(key: OrderMetaData.posPlacedBy, value: '${userId ?? 1}');
+  //     OrderMetaData shiftIdValue = OrderMetaData(key: OrderMetaData.shiftId, value: shiftId.toString()); // Build #1.0.149
+  //     List<OrderMetaData> metaData = [device, placedBy, shiftIdValue];
+  //
+  //     StreamSubscription? subscription;
+  //
+  //     subscription = orderBloc.createOrderStream.listen((response) async {
+  //       if (!mounted) {
+  //         subscription?.cancel();
+  //         return;
+  //       }
+  //       if (response.status == Status.COMPLETED) {
+  //         if (kDebugMode) print("Order created successfully with server ID: ${response.data!.id}");
+  //         if (Misc.showDebugSnackBar) { // Build #1.0.254
+  //         ScaffoldMessenger.of(context).showSnackBar(
+  //           SnackBar(
+  //             content: Text(TextConstants.orderCreatedSuccessfully), // Build #1.0.144
+  //             backgroundColor: Colors.green,
+  //             duration: const Duration(seconds: 2),
+  //           ),
+  //         );
+  //         }
+  //         _refreshOrderList();
+  //         subscription?.cancel();
+  //       } else if (response.status == Status.ERROR) {
+  //         if (response.message!.contains('Unauthorised')) {
+  //           if (kDebugMode) {
+  //             print("Fast key 7 ---- Unauthorised : ${response.message!}");
+  //           }
+  //           WidgetsBinding.instance.addPostFrameCallback((_) {
+  //             if (mounted) {
+  //               Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => LoginScreen()));
+  //
+  //               if (kDebugMode) {
+  //                 print("message --- ${response.message}");
+  //               }
+  //               ScaffoldMessenger.of(context).showSnackBar(
+  //                 const SnackBar(
+  //                   content: Text(
+  //                       "Unauthorised. Session is expired on this device."),
+  //                   backgroundColor: Colors.red,
+  //                   duration: Duration(seconds: 2),
+  //                 ),
+  //               );
+  //             }
+  //           });
+  //         }
+  //         else {
+  //           if (kDebugMode) print("Failed to create order: ${response.message}");
+  //           ScaffoldMessenger.of(context).showSnackBar(
+  //             SnackBar(
+  //               content: Text(TextConstants.failedToCreateOrder),
+  //               // Build #1.0.144
+  //               backgroundColor: Colors.red,
+  //               duration: const Duration(seconds: 2),
+  //             ),
+  //           );
+  //         }
+  //         subscription?.cancel();
+  //       }
+  //     });
+  //
+  //     await orderBloc.createOrder(); // Build #1.0.128
+  //   } catch (e) {
+  //     if (kDebugMode) print("Exception in _createOrder: $e");
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       SnackBar(
+  //         content: Text(TextConstants.errorCreatingOrder), // Build #1.0.144
+  //         backgroundColor: Colors.red,
+  //         duration: const Duration(seconds: 2),
+  //       ),
+  //     );
+  //   }
+  // }
 
   void _refreshOrderList() {
     setState(() { // Build #1.0.128
@@ -1224,6 +1265,46 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
       }
       _refreshCounter++; //Build #1.0.170: Increment to signal refresh, causing didUpdateWidget to load with loader
     });
+
+    // Build #1.0.256: Stop stopwatch and add to steps only if enabled
+    if (Misc.enableUILogMessages && refreshUIStopwatch != null) {
+      refreshUIStopwatch?.stop();
+      globalProcessSteps.add(
+        ProcessStep(
+          name: TextConstants.refreshDBUITime,
+          timeTaken: refreshUIStopwatch!.elapsedMilliseconds / 1000.0,
+        ),
+      );
+      if (kDebugMode) {
+        print("Add Product to Order completed in ${globalProcessSteps.last.timeTaken}s");
+      }
+    }
+    /// Show Toast
+    if (Misc.enableUILogMessages && globalProcessSteps.isNotEmpty) {
+      if (Navigator.canPop(context)) { // Build #1.0.197: Fixed [SCRUM - 345] -> Screen blackout when adding item to cart
+        Navigator.pop(context);
+      }
+      if (kDebugMode) {
+        print("VariationPopup - Showing toast with process timings: ${globalProcessSteps.map((s) => '${s.name}: ${s.timeTaken}s').toList()}");
+      }
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) {
+          return LogsToast(
+            steps: globalProcessSteps,
+            onClose: () {
+              if (kDebugMode) {
+                print("VariationPopup - Toast closed by user");
+              }
+              // Clear global steps when toast is closed
+              globalProcessSteps.clear();
+              Navigator.of(dialogContext).pop();
+            },
+          );
+        },
+      );
+    }
   }
 
   Future<void> _showAddItemDialog() async {
@@ -1416,7 +1497,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                     if (kDebugMode) {
                       print("#### Product EXIST");
                     }
-                   // Navigator.of(dialogContext).pop(); // Close the add item dialog
+                    // Navigator.of(dialogContext).pop(); // Close the add item dialog
                     final tab = await fastKeyDBHelper.getFastKeyByServerTabId(_fastKeyTabId!); // Build #1.0.87
                     final tabName = tab.isNotEmpty ? tab.first[AppDBConst.fastKeyTabTitle] : 'Fast Key';
 
@@ -1440,8 +1521,8 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                       selectedProduct!['image'],
                       selectedProduct!['price'],
                     );
-                  //  await fastKeyDBHelper.updateFastKeyTabCount(_fastKeyTabId!, fastKeyProductItems.length);
-                   // await _loadFastKeyTabItems();
+                    //  await fastKeyDBHelper.updateFastKeyTabCount(_fastKeyTabId!, fastKeyProductItems.length);
+                    // await _loadFastKeyTabItems();
                     if (mounted) {
                       setState(() {});
                     }
@@ -1449,17 +1530,17 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                     Navigator.of(dialogContext).pop(); // Close the add item dialog
                   }
                   // Build #1.0.87: after exist dialog ok tap search not working because of bloc dispose , no need here to dispose , after dialog pop we are doing
-               //    _productSearchController.text = "";
-               //    Navigator.of(context).pop();
-               //    productBloc.dispose();
+                  //    _productSearchController.text = "";
+                  //    Navigator.of(context).pop();
+                  //    productBloc.dispose();
                 }
                     : null,
                 child: isAddingItemLoading
                     ? SizedBox(
-                     width: 16,
-                     height: 16,
-                     child: CircularProgressIndicator(strokeWidth: 2), // Build #1.0.204: Added missed loader on "Add"  button of search product dialog after tap on add
-                 ) : Text(TextConstants.addText),
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2), // Build #1.0.204: Added missed loader on "Add"  button of search product dialog after tap on add
+                ) : Text(TextConstants.addText),
               ),
             ],
           );
@@ -1475,281 +1556,217 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
 
   void _showCategoryDialog({required BuildContext context, int? index}) {
     bool isEditing = index != null;
-    TextEditingController nameController = TextEditingController(
-        text: isEditing ? fastKeyTabs[index!].fastkeyTitle : '');
-    final themeHelper = Provider.of<ThemeNotifier>(context, listen: false);
-    String imagePath = isEditing
-        ? fastKeyTabs[index!].fastkeyImage
-        : themeHelper.themeMode == ThemeMode.dark
-        ? 'assets/new_fast_dark.png'
-        : 'assets/new_icon_fastkey.png';
+    TextEditingController nameController = TextEditingController(text: isEditing ? fastKeyTabs[index!].fastkeyTitle : '');
+    String imagePath = isEditing ? fastKeyTabs[index!].fastkeyImage : 'assets/default.png';
     bool showError = false;
+    final themeHelper = Provider.of<ThemeNotifier>(context, listen: false);
     bool isLoading = false;
+
     showDialog(
       context: context,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setStateDialog) {
-            return AlertDialog(
-              backgroundColor: themeHelper.themeMode == ThemeMode.dark
-                  ? Color(0xFF201E2B)
-                  : Color(0xFFFFFFFF),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12.0),
-              ),
-              contentPadding:
-              EdgeInsets.only(left: 24, right: 24, top: 20, bottom: 0),
-              // titlePadding: EdgeInsets.only(left: 24, right: 24, top: 24, bottom: 16),
-              actionsPadding: EdgeInsets.only(right: 24, top: 10),
-              // insetPadding: EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-              title: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    isEditing
-                        ? TextConstants.editFastKeyNameText
-                        : TextConstants.addFastKeyNameText,
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w600,
-                      color: themeHelper.themeMode == ThemeMode.dark
-                          ? ThemeNotifier.textDark
-                          : Colors.black87,
-                    ),
-                  ),
-                  InkWell(
-                    onTap: () => Navigator.pop(context),
-                    child: Container(
-                      padding: EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.red[400],
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.close,
-                        color: Colors.white,
-                        size: 20,
+            return
+              AlertDialog(
+                backgroundColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : null,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12.0),
+                ),
+                contentPadding: EdgeInsets.only(left: 24, right: 24, top: 20, bottom: 0),
+                // titlePadding: EdgeInsets.only(left: 24, right: 24, top: 24, bottom: 16),
+                actionsPadding: EdgeInsets.only(right: 24, top: 10),
+                // insetPadding: EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+                title: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      isEditing
+                          ? TextConstants.editFastKeyNameText
+                          : TextConstants.addFastKeyNameText,
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.black87,
                       ),
                     ),
-                  ),
-                ],
-              ),
-              titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
-              content: SingleChildScrollView(
-                child: SizedBox(
-                  width: MediaQuery.of(context).size.width * 0.33,
-                  height: 250,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Align(
-                        alignment: Alignment.center,
-                        child: Column(
-                          mainAxisSize: MainAxisSize
-                              .min, // keep column as small as needed
-                          children: [
-                            Stack(
-                              children: [
-                                Container(
-                                  width: 125,
-                                  height: 125,
-                                  decoration: BoxDecoration(
-                                    color:
-                                    themeHelper.themeMode == ThemeMode.dark
-                                        ? Color(0xFF393B4C)
-                                        : Color(0xFFFFFFFF),
-                                    borderRadius: BorderRadius.circular(16),
-                                    boxShadow: [
-                                      themeHelper.themeMode == ThemeMode.dark
-                                          ? BoxShadow(
-                                        color: Color(0x20FFFFFF),
-                                        blurRadius: 10,
-                                        spreadRadius: 4,
-                                        offset: Offset(0, 0),
-                                      )
-                                          : BoxShadow(
-                                        color: Color(0x10373535),
-                                        blurRadius: 10,
-                                        spreadRadius: 10,
-                                        offset: Offset(0, 2),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      SizedBox(
-                                        width: 60,
-                                        height: 60,
-                                        child: _buildImageWidget(imagePath),
-                                      ),
-                                      const SizedBox(height: 10),
-                                      Text(
-                                        TextConstants.uploadImage,
-                                        style: TextStyle(
-                                          color: themeHelper.themeMode ==
-                                              ThemeMode.dark
-                                              ? Color(0xFFFFFFFF)
-                                              : Color(0xFF312E2E),
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 14,
-                                        ),
-                                        textAlign: TextAlign.center,
-                                      )
-                                    ],
-                                  ),
-                                ),
-                                Positioned(
-                                  right: 0,
-                                  top: 0,
-                                  child: Container(
-                                    margin: const EdgeInsets.all(10.0),
-                                    padding: const EdgeInsets.all(4.0),
-                                    decoration: themeHelper.themeMode ==
-                                        ThemeMode.dark
-                                        ? BoxDecoration(
-                                      color: const Color(0xFF393B4C),
-                                      borderRadius:
-                                      BorderRadius.circular(4.0),
-                                      border: Border.all(
-                                          color: const Color(0xFFFE6464)),
-                                      boxShadow: const [
-                                        BoxShadow(
-                                          color: Color(0x15000000),
-                                          blurRadius: 10,
-                                          spreadRadius: 0,
-                                          offset: Offset(0, 1),
-                                        ),
-                                      ],
-                                    )
-                                        : BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius:
-                                      BorderRadius.circular(4.0),
-                                      border: Border.all(
-                                          color: const Color(0xFFFE6464)),
-                                      boxShadow: const [
-                                        BoxShadow(
-                                          color: Color(0x15000000),
-                                          blurRadius: 10,
-                                          spreadRadius: 0,
-                                          offset: Offset(0, 1),
-                                        ),
-                                      ],
-                                    ),
-                                    child: GestureDetector(
-                                      onTap: () async {
-                                        var image =
-                                        await _showSelectImageDialog(
-                                            context: context);
-                                        if (kDebugMode) {
-                                          print(
-                                              "2 image path selected is : $image");
-                                        }
-                                        setStateDialog(() => imagePath = image);
-                                      },
-                                      child: Icon(
-                                        Icons.edit,
-                                        size: 18,
-                                        color: Colors.red[400],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      // if (!isEditing && showError && imagePath.isEmpty)
-                      //   const Padding(
-                      //     padding: EdgeInsets.only(top: 8.0),
-                      //     child: Text(
-                      //       TextConstants.imgRequiredText,
-                      //       style: TextStyle(color: Colors.red, fontSize: 12),
-                      //     ),
-                      //   ),
-                      SizedBox(height: 20),
-                      Text(
-                        TextConstants.nameText,
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: themeHelper.themeMode == ThemeMode.dark
-                              ? ThemeNotifier.textDark
-                              : Colors.black87,
-                        ),
-                      ),
-                      SizedBox(height: 8),
-                      Container(
-                        width: 400,
-                        height: 50,
+                    InkWell(
+                      onTap: () => Navigator.pop(context),
+                      child: Container(
+                        padding: EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: themeHelper.themeMode == ThemeMode.dark
-                              ? const Color(0xFF393B4C)
-                              : Colors.white,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: themeHelper.themeMode == ThemeMode.dark
-                                ? const Color(0xFF5A5A5A)
-                                : const Color(0xFFE7E2E2),
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Color(0x10000000),
-                              spreadRadius: 0,
-                              blurRadius: 10,
-                              offset: Offset(0, 1),
-                            ),
-                          ],
+                          color: Colors.red[400],
+                          shape: BoxShape.circle,
                         ),
-                        child: TextFormField(
-                          controller: nameController,
-                          style: themeHelper.themeMode == ThemeMode.dark
-                              ? TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                          )
-                              : TextStyle(
-                            color: Colors.black,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                          ),
-                          decoration: InputDecoration(
-                            hintText: TextConstants.categoryNameText,
-                            hintStyle: TextStyle(
-                              color: themeHelper.themeMode == ThemeMode.dark
-                                  ? Color(0xFFB9B6B6)
-                                  : Colors.grey[400],
-                              fontWeight: FontWeight.bold,
-                            ),
-                            errorText: (!isEditing &&
-                                showError &&
-                                nameController.text.isEmpty)
-                                ? TextConstants.categoryNameReqText
-                                : null,
-                            errorStyle: const TextStyle(
-                              color: Colors.red,
-                              fontSize: 12,
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
-                            border: InputBorder.none,
-                            enabledBorder: InputBorder.none,
-                            focusedBorder: InputBorder.none,
-                            errorBorder: InputBorder.none,
-                            focusedErrorBorder: InputBorder.none,
-                          ),
+                        child: Icon(
+                          Icons.close,
+                          color: Colors.white,
+                          size: 20,
                         ),
                       ),
-                    ],
+                    ),
+                  ],
+                ),
+                titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+                content: SingleChildScrollView(
+                  child: SizedBox(
+                    width: MediaQuery.of(context).size.width * 0.25,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Align(
+                          alignment: Alignment.center,
+                          child: Column(
+                            children: [
+                              Stack(
+                                children: [
+                                  Container(
+                                      width: 175,
+                                      height: 150,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(16),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.orderPanelTabBackground : Color(0xFFFFF7F7),
+                                            blurRadius: 3,
+                                            spreadRadius: 3,
+                                            offset: Offset(0,0),
+                                          ),
+                                        ],
+                                      ),
+                                      child: _buildImageWidget(imagePath)),
+                                  Positioned(
+                                    right: 0,
+                                    top: 0,
+                                    child: Container(
+                                      margin: EdgeInsets.all(10.0),
+                                      padding: EdgeInsets.all(4.0),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(4.0),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black12,
+                                            blurRadius: 3,
+                                            spreadRadius: 3,
+                                            offset: Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: GestureDetector(
+                                        onTap: () async {
+                                          ///Use below code to select from device space
+                                          // final pickedFile = await ImagePicker()
+                                          //     .pickImage(
+                                          //     source: ImageSource.gallery);
+                                          // if (pickedFile != null) {
+                                          //   setStateDialog(() =>
+                                          //   imagePath = pickedFile.path);
+                                          // }
+                                          ///Use below code to select from woocomerce space
+                                          var image = await _showSelectImageDialog(context: context);
+                                          ///update the selected image
+                                          if (kDebugMode) {
+                                            print("2 image path selected is : $image");
+                                          }
+                                          setStateDialog(() =>
+                                          imagePath = image);
+                                        },
+                                        child: Icon(
+                                          Icons.edit,
+                                          size: 18,
+                                          color: Colors.red[400],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                TextConstants.uploadImage,
+                                style: TextStyle(
+                                  color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.black,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // if (!isEditing && showError && imagePath.isEmpty)
+                        //   const Padding(
+                        //     padding: EdgeInsets.only(top: 8.0),
+                        //     child: Text(
+                        //       TextConstants.imgRequiredText,
+                        //       style: TextStyle(color: Colors.red, fontSize: 12),
+                        //     ),
+                        //   ),
+                        SizedBox(height: 20),
+                        Text(
+                          TextConstants.nameText,
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                            color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.black87,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.paymentEntryContainerColor : Colors.white,
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                spreadRadius: 1,
+                                blurRadius: 4,
+                                offset: Offset(0, 1),
+                              ),
+                            ],
+                          ),
+                          child: TextField(
+                            controller: nameController,
+                            decoration: InputDecoration(
+                              hintText: TextConstants.categoryNameText,
+                              hintStyle: TextStyle(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.grey[400],fontWeight: FontWeight.bold),
+                              errorText: (showError && nameController.text.trim().isEmpty)
+                                  ? TextConstants.categoryNameReqText
+                                  : null,
+                              errorStyle:
+                              const TextStyle(color: Colors.red, fontSize: 12),
+                              // suffixIcon: isEditing
+                              //     ? const Icon(Icons.edit, size: 18, color: Colors.red)
+                              //     : null,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(color: Colors.grey[300]!),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(color: Colors.grey[300]!),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(color: Colors.grey[400]!),
+                              ),
+                              contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 12),
+                            ),
+                            // Clear error when user starts typing
+                            onChanged: (value) {
+                              if (showError && value.trim().isNotEmpty) {
+                                setStateDialog(() => showError = false);
+                              }
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
                 actions: [
                   Padding(
                     padding: EdgeInsets.only(bottom: 16, right: 16),
@@ -1800,11 +1817,11 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                                 }
                                 // Build #1.0.89: updateFastKey API call integrated
                                 _fastKeyBloc.updateFastKey(
-                                  title: nameController.text.trim(), // Trim whitespace
-                                  index: index+1,//backend uses non zero indexes to be passed so increase index to 1 onwards
-                                  imageUrl: imagePath,
-                                  fastKeyServerId: fastKeyTabs[index].fastkeyServerId,
-                                  userId: userId ?? 0
+                                    title: nameController.text.trim(), // Trim whitespace
+                                    index: index+1,//backend uses non zero indexes to be passed so increase index to 1 onwards
+                                    imageUrl: imagePath,
+                                    fastKeyServerId: fastKeyTabs[index].fastkeyServerId,
+                                    userId: userId ?? 0
                                 );
 
                                 // Listen for API response
@@ -1822,14 +1839,14 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                                     _editingCategoryIndex = null;
                                     _loadFastKeysTabs();
                                   });
-                                if (Misc.showDebugSnackBar) { // Build #1.0.254
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(response.data?.message ?? "Fast Key updated successfully"),
-                                      backgroundColor: Colors.green,
-                                      duration: const Duration(seconds: 2),
-                                    ),
-                                  );
+                                  if (Misc.showDebugSnackBar) { // Build #1.0.254
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(response.data?.message ?? "Fast Key updated successfully"),
+                                        backgroundColor: Colors.green,
+                                        duration: const Duration(seconds: 2),
+                                      ),
+                                    );
                                   }
                                 }
                                 else if(response.status == Status.ERROR){
@@ -1944,7 +1961,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
             Container(
               padding: EdgeInsets.all(10),
               child:
-            _buildImageWidget(image.url),),
+              _buildImageWidget(image.url),),
           )
 
       );
@@ -1974,71 +1991,71 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
             ),
           );*/
           StatefulBuilder(
-          builder: (context, setStateDialog) {
-            return
-              AlertDialog(
+            builder: (context, setStateDialog) {
+              return
+                AlertDialog(
 
-                backgroundColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : null,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12.0),
-                ),
-                contentPadding: EdgeInsets.only(left: 24, right: 24, top: 20, bottom: 0),
-                // titlePadding: EdgeInsets.only(left: 24, right: 24, top: 24, bottom: 16),
-                actionsPadding: EdgeInsets.only(right: 24, top: 10),
-                // insetPadding: EdgeInsets.symmetric(horizontal: 24, vertical: 40),
-                title: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      TextConstants.selectImageText,
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.black87,
-                      ),
-                    ),
-                    InkWell(
-                      onTap: () => Navigator.pop(context),
-                      child: Container(
-                        padding: EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.red[400],
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.close,
-                          color: Colors.white,
-                          size: 20,
+                  backgroundColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : null,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12.0),
+                  ),
+                  contentPadding: EdgeInsets.only(left: 24, right: 24, top: 20, bottom: 0),
+                  // titlePadding: EdgeInsets.only(left: 24, right: 24, top: 24, bottom: 16),
+                  actionsPadding: EdgeInsets.only(right: 24, top: 10),
+                  // insetPadding: EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+                  title: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        TextConstants.selectImageText,
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.black87,
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
-                content:
-                Container(
-                  width: size.width *0.6,
-                  height:size.height *0.6,
-                  child:
-                  CustomScrollView(
-
-                    primary: false,
-                    slivers: <Widget>[
-                      SliverPadding(
-                        padding: const EdgeInsets.all(3.0),
-                        sliver: SliverGrid.count(
-                          mainAxisSpacing: 1, //horizontal space
-                          crossAxisSpacing: 1, //vertical space
-                          crossAxisCount: 7, //number of images for a row
-                          children: images,
+                      InkWell(
+                        onTap: () => Navigator.pop(context),
+                        child: Container(
+                          padding: EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.red[400],
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.close,
+                            color: Colors.white,
+                            size: 20,
+                          ),
                         ),
                       ),
                     ],
                   ),
-                ),
-              );
-          },
-        );
+                  titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+                  content:
+                  Container(
+                    width: size.width *0.6,
+                    height:size.height *0.6,
+                    child:
+                    CustomScrollView(
+
+                      primary: false,
+                      slivers: <Widget>[
+                        SliverPadding(
+                          padding: const EdgeInsets.all(3.0),
+                          sliver: SliverGrid.count(
+                            mainAxisSpacing: 1, //horizontal space
+                            crossAxisSpacing: 1, //vertical space
+                            crossAxisCount: 7, //number of images for a row
+                            children: images,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+            },
+          );
       },
     ).whenComplete(() async {
       await Future.delayed(Duration(milliseconds: 500));
@@ -2068,8 +2085,8 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
         width: 75,
         height: 75,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          color: Colors.white38
+            borderRadius: BorderRadius.circular(16),
+            color: Colors.white38
         ),
         child: ClipRRect(
             borderRadius: BorderRadius.circular(16.0),
@@ -2086,16 +2103,16 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                   child: const Icon(Icons.broken_image, color: Colors.grey),
                 );
               },
-        )),
+            )),
       );
     } else {
       return Platform.isWindows
-        ? Image.asset(
+          ? Image.asset(
         'assets/default.png',
         height: 75,
         width: 75,
       )
-        :Image.file(
+          :Image.file(
         File(imagePath),
         height: 80,
         width: 80,
@@ -2110,16 +2127,16 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
       return ClipRRect(
           borderRadius: BorderRadius.circular(16.0),
           child: SvgPicture.asset(
-        assetPath,
-        height: 80,
-        width: 80,
-        placeholderBuilder: (context) => const Icon(Icons.image, size: 40),
-      ));
+            assetPath,
+            height: 80,
+            width: 80,
+            placeholderBuilder: (context) => const Icon(Icons.image, size: 40),
+          ));
     } catch (e) {
       debugPrint("FastKeyScreen: SVG Parsing Error: $e");
       return ClipRRect(
           borderRadius: BorderRadius.circular(16.0),
-    child:Image.asset('assets/default.png', height: 80, width: 80));
+          child:Image.asset('assets/default.png', height: 80, width: 80));
     }
   }
 
@@ -2232,20 +2249,20 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
             screen: Screen.FASTKEY,
             onModeChanged: () async{ /// Build #1.0.192: Fixed -> Exception -> setState() callback argument returned a Future. (onModeChanged in all screens)
               String newLayout;
-                if (sidebarPosition == SidebarPosition.left) {
-                  newLayout = SharedPreferenceTextConstants.navRightOrderLeft;
-                } else if (sidebarPosition == SidebarPosition.right) {
-                  newLayout = SharedPreferenceTextConstants.navBottomOrderLeft;
-                } else {
-                  newLayout = SharedPreferenceTextConstants.navLeftOrderRight;
-                }
+              if (sidebarPosition == SidebarPosition.left) {
+                newLayout = SharedPreferenceTextConstants.navRightOrderLeft;
+              } else if (sidebarPosition == SidebarPosition.right) {
+                newLayout = SharedPreferenceTextConstants.navBottomOrderLeft;
+              } else {
+                newLayout = SharedPreferenceTextConstants.navLeftOrderRight;
+              }
 
-                // Update the notifier which will trigger _onLayoutChanged
-                PinakaPreferences.layoutSelectionNotifier.value = newLayout;
-                // No need to call saveLayoutSelection here as it's handled in the notifier
-             //   _preferences.saveLayoutSelection(newLayout);
-                //Build #1.0.122: update layout mode change selection to DB
-                await UserDbHelper().saveUserSettings({AppDBConst.layoutSelection: newLayout}, modeChange: true);
+              // Update the notifier which will trigger _onLayoutChanged
+              PinakaPreferences.layoutSelectionNotifier.value = newLayout;
+              // No need to call saveLayoutSelection here as it's handled in the notifier
+              //   _preferences.saveLayoutSelection(newLayout);
+              //Build #1.0.122: update layout mode change selection to DB
+              await UserDbHelper().saveUserSettings({AppDBConst.layoutSelection: newLayout}, modeChange: true);
               // update UI
               setState(() {});
             },
@@ -2278,9 +2295,9 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
               // }
 
               try {
-              //  if (serverOrderId != null) { ///Build #1.0.128: No need to check this condition
-                  if (kDebugMode) print("#### FastKey serverOrderId");
-                      _refreshOrderList();
+                //  if (serverOrderId != null) { ///Build #1.0.128: No need to check this condition
+                if (kDebugMode) print("#### FastKey serverOrderId");
+                _refreshOrderList();
                 // } else {
                 //   // await orderHelper.addItemToOrder(
                 //   //   product.id,
@@ -2304,7 +2321,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                 await fastKeyDBHelper.saveActiveFastKeyTab(_fastKeyTabId ?? fastKeyTabs[_selectedCategoryIndex ?? 0].fastkeyServerId);
               } catch (e, s) {
                 if (kDebugMode) print("Exception in onProductSelected: $e, Stack: $s");
-              //  setState(() => isAddingItemLoading = false);
+                //  setState(() => isAddingItemLoading = false);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(TextConstants.errorAddingItem), // Build #1.0.144
@@ -2487,7 +2504,7 @@ class _FastKeyScreenState extends State<FastKeyScreen> with WidgetsBindingObserv
                             onLongPress: _onLongPress, // Passing onLongPress callback
                           )
                               : Container();
-                             // : const Center(child: Text("Please select a category"));
+                          // : const Center(child: Text("Please select a category"));
                         },
                       )
                     ],

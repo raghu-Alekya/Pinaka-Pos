@@ -26,34 +26,6 @@ import '../Screens/Home/shift_open_close_balance.dart';
 import '../Screens/Home/total_orders_screen.dart';
 import '../Utilities/svg_images_utility.dart';
 import 'widget_alert_popup_dialogs.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_svg/svg.dart';
-import 'package:pinaka_pos/Screens/Auth/login_screen.dart';
-import 'package:pinaka_pos/Screens/Home/apps_dashboard_screen.dart';
-import 'package:pinaka_pos/Screens/Home/categories_screen.dart';
-import 'package:pinaka_pos/Screens/Home/fast_key_screen.dart';
-import 'package:provider/provider.dart';
-import 'package:quickalert/models/quickalert_animtype.dart';
-import 'package:quickalert/models/quickalert_type.dart';
-import 'package:quickalert/widgets/quickalert_dialog.dart';
-import 'package:flutter_swipe_button/flutter_swipe_button.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../Constants/misc_features.dart';
-import '../Database/order_panel_db_helper.dart';
-import '../Database/user_db_helper.dart';
-import '../Helper/Extentions/theme_notifier.dart';
-
-import '../Constants/text.dart';
-import '../Blocs/Auth/logout_bloc.dart';
-import '../Helper/api_response.dart';
-import '../Repositories/Auth/logout_repository.dart';
-import '../Screens/Home/add_screen.dart';
-import '../Screens/Home/Settings/settings_screen.dart';
-import '../Screens/Home/shift_open_close_balance.dart';
-import '../Screens/Home/total_orders_screen.dart';
-import '../Utilities/svg_images_utility.dart';
-import 'widget_alert_popup_dialogs.dart';
 
 class NavigationBar extends StatelessWidget {
   final int selectedSidebarIndex;
@@ -82,8 +54,8 @@ class NavigationBar extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(5, 10, 5, 10),
         child: Container(
           decoration: BoxDecoration(
-            //color: theme.primaryColor,
-            color: const Color(0xFF08143B),//changed from 152148
+            color: const Color(0xFF0B1023),// latest color
+            // color: theme.primaryColor,
             borderRadius: BorderRadius.all(Radius.circular(10)),
           ),
           child: FutureBuilder<String?>(
@@ -146,7 +118,7 @@ class NavigationBar extends StatelessWidget {
               onSidebarItemSelected(0);
 
               /// FastKeyScreen
-              Navigator.of(context).pushAndRemoveUntil(
+              Navigator.of(context).pushAndRemoveUntil( // Build #1.0.254 : Fixed - Push and replace is showing jump animation for nav bar
                 PageRouteBuilder(
                   pageBuilder: (context, animation, secondaryAnimation) => FastKeyScreen(lastSelectedIndex: lastSelectedIndex),
                   transitionsBuilder: (context, animation, secondaryAnimation, child) {
@@ -433,7 +405,7 @@ class NavigationBar extends StatelessWidget {
               onSidebarItemSelected(0);
 
               /// FastKeyScreen
-              Navigator.of(context).pushAndRemoveUntil(
+              Navigator.of(context).pushAndRemoveUntil( // Build #1.0.254 : Fixed - Push and replace is showing jump animation for nav bar
                 PageRouteBuilder(
                   pageBuilder: (context, animation, secondaryAnimation) => FastKeyScreen(lastSelectedIndex: lastSelectedIndex),
                   transitionsBuilder: (context, animation, secondaryAnimation, child) {
@@ -1156,7 +1128,7 @@ class SidebarButton extends StatelessWidget {
                       ? Colors.grey.shade800
                       : Colors.white70,
                   fontWeight: FontWeight.bold,
-                    fontSize: isSelected ? 10.0 : 9.0, // Increase if selected
+                  fontSize: isSelected ? 10.0 : 9.0, // Increase if selected
                 ),
                 textAlign: TextAlign.center,
               ),

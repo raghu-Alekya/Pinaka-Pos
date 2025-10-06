@@ -305,13 +305,13 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
             /// if required un-comment below line & change selectedPaymentMethod to wallet/cash
             //  if (selectedPaymentMethod == TextConstants.wallet) {
             //  paymentId = paymentData.paymentId; // Assuming the API response includes paymentId
-             // paymentId = "TXT_123456789"; // For testing purpose added here
-              paymentId = paymentData.paymentId.toString(); // paymentId
-              orderStatus = paymentData.orderStatus ?? TextConstants.processing;
-              if (kDebugMode) {
-                print("Wallet payment successful. Transaction ID: $paymentId");
-              }
-          //  }
+            // paymentId = "TXT_123456789"; // For testing purpose added here
+            paymentId = paymentData.paymentId.toString(); // paymentId
+            orderStatus = paymentData.orderStatus ?? TextConstants.processing;
+            if (kDebugMode) {
+              print("Wallet payment successful. Transaction ID: $paymentId");
+            }
+            //  }
 
             // Determine payment type
             final bool isExactPayment = (amount == balanceAmount);
@@ -489,7 +489,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                       radius: ResponsiveLayout.getRadius(18),
                       backgroundColor: Colors.deepPurple,
                       child: Text(
-                          (userDisplayName ?? TextConstants.unknown).substring(0,1),//"A", /// use initial for the login user
+                        (userDisplayName ?? TextConstants.unknown).substring(0,1),//"A", /// use initial for the login user
                         style: TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
@@ -502,7 +502,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                           userDisplayName ?? "",//'A Raghav Kumar', /// use login user display name
+                          userDisplayName ?? "",//'A Raghav Kumar', /// use login user display name
                           style: TextStyle(
                               fontWeight: FontWeight.w500,
                               color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight,
@@ -612,11 +612,11 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                   children: [
                     Container(
                         alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                       shape: BoxShape.circle,
-                        color: Colors.white,
-                        border: Border.all(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : Colors.black12)
-                      ),
+                        decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white,
+                            border: Border.all(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : Colors.black12)
+                        ),
                         child: Icon(Icons.chevron_left_rounded, size: 18, color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textLight : Colors.black,)),
                     // BackButton(
                     //   style: ButtonStyle(
@@ -643,29 +643,29 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 // Date
-            Row(
-              children: [
-                Icon(Icons.calendar_month_rounded, size: ResponsiveLayout.getIconSize(14),),
-                SizedBox(width: ResponsiveLayout.getWidth(4)),
-                Text(
-                  _displayDate, //'Sunday, 16 March 2025',
-                  style: TextStyle(color: theme.secondaryHeaderColor,
-                    fontSize: ResponsiveLayout.getFontSize(14),
-                  ),
+                Row(
+                  children: [
+                    Icon(Icons.calendar_month_rounded, size: ResponsiveLayout.getIconSize(14),),
+                    SizedBox(width: ResponsiveLayout.getWidth(4)),
+                    Text(
+                      _displayDate, //'Sunday, 16 March 2025',
+                      style: TextStyle(color: theme.secondaryHeaderColor,
+                        fontSize: ResponsiveLayout.getFontSize(14),
+                      ),
 
+                    ),
+                  ],
                 ),
-              ],
-            ),
                 SizedBox(width: ResponsiveLayout.getWidth(10)),
-            // Time
-            Row(
-              children: [
-                Icon(Icons.access_time, size: ResponsiveLayout.getIconSize(14),),
-                SizedBox(width: ResponsiveLayout.getWidth(4)),
-                Text(
-                  _displayTime,//'11:41 A.M',
-                  style: TextStyle(
-                      color: theme.secondaryHeaderColor, fontWeight: FontWeight.bold, fontSize: ResponsiveLayout.getFontSize(14)),
+                // Time
+                Row(
+                  children: [
+                    Icon(Icons.access_time, size: ResponsiveLayout.getIconSize(14),),
+                    SizedBox(width: ResponsiveLayout.getWidth(4)),
+                    Text(
+                      _displayTime,//'11:41 A.M',
+                      style: TextStyle(
+                          color: theme.secondaryHeaderColor, fontWeight: FontWeight.bold, fontSize: ResponsiveLayout.getFontSize(14)),
                     ),
                   ],
                 ),
@@ -704,9 +704,9 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
         child: Padding(
           padding: EdgeInsets.only(
               left: ResponsiveLayout.getPadding(15),
-            right: ResponsiveLayout.getPadding(15),
-            bottom: ResponsiveLayout.getPadding(15),
-            top: ResponsiveLayout.getPadding(10)
+              right: ResponsiveLayout.getPadding(15),
+              bottom: ResponsiveLayout.getPadding(15),
+              top: ResponsiveLayout.getPadding(10)
           ),
           child: Column( // Build #1.0.251 : Updated - No need loader for entire list
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -744,7 +744,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                     border: Border.all(color:themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.borderColor : Colors.grey.shade200),
                   ),
                   child: Scrollbar(
-                   controller: _scrollController,
+                    controller: _scrollController,
                     scrollbarOrientation: ScrollbarOrientation.right,
                     thumbVisibility: true,
                     thickness: 8.0,
@@ -775,31 +775,31 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
               Container(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(10)),
-                color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : Colors.white,
+                  color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground : Colors.white,
                 ),
                 //padding: EdgeInsets.all(5),
                 margin: EdgeInsets.only(top: ResponsiveLayout.getPadding(10)),
                 child: AnimatedSize(
-                   duration: Duration(milliseconds: 300),
+                  duration: Duration(milliseconds: 300),
                   curve: Curves.easeInOut,
-                    child: _showFullSummary
-                        ? Container(
-                      height: ResponsiveLayout.getHeight(205),
-                      margin: EdgeInsets.all(ResponsiveLayout.getPadding(8)),  //ResponsiveLayout.getHeight(5)
+                  child: _showFullSummary
+                      ? Container(
+                    height: ResponsiveLayout.getHeight(205),
+                    margin: EdgeInsets.all(ResponsiveLayout.getPadding(8)),  //ResponsiveLayout.getHeight(5)
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(10)),
                       color:themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground : Colors.white,
                       border: Border.all(color:themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.borderColor : Colors.grey.shade200),
                     ),
                     padding:  EdgeInsets.only(
-                        left: ResponsiveLayout.getPadding(8),
-                        right: ResponsiveLayout.getPadding(8),
-                        //top: ResponsiveLayout.getPadding(5)
+                      left: ResponsiveLayout.getPadding(8),
+                      right: ResponsiveLayout.getPadding(8),
+                      //top: ResponsiveLayout.getPadding(5)
                     ),
                     child: isSummaryLoading // Build #1.0.251 : FIXED - Show loader only for calculation container when expanded
                         ? Center(child: CircularProgressIndicator())
                         : Column(
-                        //mainAxisSize: MainAxisSize.min,
+                      //mainAxisSize: MainAxisSize.min,
                       children: [
                         // Order calculations
                         _buildOrderCalculation(TextConstants.grossTotal, '${TextConstants.currencySymbol}${grossTotal.toStringAsFixed(2)}',
@@ -813,18 +813,18 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                         //SizedBox(height: ResponsiveLayout.getHeight(3)),
                         _buildOrderCalculation(TextConstants.netPayable, '${TextConstants.currencySymbol}${balanceAmount.toStringAsFixed(2)}', // Build #1.0.80: updated balance amount dynamically
                             isTotal: true),
-                       _buildOrderCalculation(TextConstants.payByCash, '${TextConstants.currencySymbol}${payByCash.toStringAsFixed(2)}'), //Build #1.0.99: updated values from api
-                      _buildOrderCalculation(TextConstants.payByOther, '${TextConstants.currencySymbol}${payByOther.toStringAsFixed(2)}'),
-                     // _buildOrderCalculation(TextConstants.payByCash, selectedPaymentMethod == TextConstants.cash
-                    //     ? '${TextConstants.currencySymbol}${paidAmount.toStringAsFixed(2)}' : '${TextConstants.currencySymbol}${0.0.toStringAsFixed(2)}'),
-                     // _buildOrderCalculation(TextConstants.payByOther, selectedPaymentMethod != TextConstants.cash
-                    //     ? '${TextConstants.currencySymbol}${paidAmount.toStringAsFixed(2)}' : '${TextConstants.currencySymbol}${0.0.toStringAsFixed(2)}'),
+                        _buildOrderCalculation(TextConstants.payByCash, '${TextConstants.currencySymbol}${payByCash.toStringAsFixed(2)}'), //Build #1.0.99: updated values from api
+                        _buildOrderCalculation(TextConstants.payByOther, '${TextConstants.currencySymbol}${payByOther.toStringAsFixed(2)}'),
+                        // _buildOrderCalculation(TextConstants.payByCash, selectedPaymentMethod == TextConstants.cash
+                        //     ? '${TextConstants.currencySymbol}${paidAmount.toStringAsFixed(2)}' : '${TextConstants.currencySymbol}${0.0.toStringAsFixed(2)}'),
+                        // _buildOrderCalculation(TextConstants.payByOther, selectedPaymentMethod != TextConstants.cash
+                        //     ? '${TextConstants.currencySymbol}${paidAmount.toStringAsFixed(2)}' : '${TextConstants.currencySymbol}${0.0.toStringAsFixed(2)}'),
                         _buildOrderCalculation(TextConstants.tenderAmount, '${TextConstants.currencySymbol}${tenderAmount.toStringAsFixed(2)}'),
                         _buildOrderCalculation(TextConstants.change, '${TextConstants.currencySymbol}${changeAmount.toStringAsFixed(2)}'),
                       ],
-                      ),
+                    ),
                   )
-                  : SizedBox.shrink(),
+                      : SizedBox.shrink(),
                 ),
               ),
               // Toggle Summary Button
@@ -930,7 +930,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
       /// Call fetch payment details by order id API call after order id assigned here above, otherwise we get null order id
       _fetchPaymentsByOrderId();
 
-     // Build #1.0.29: Calculate balance amount from order items
+      // Build #1.0.29: Calculate balance amount from order items
       for (var item in items) {
         double price = (item[AppDBConst.itemPrice] as num).toDouble();
         int count = item[AppDBConst.itemCount] as int;
@@ -994,339 +994,339 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
       print("#### variationName: $variationName, variationCount: $variationCount, combo: $combo");
     }
     return
-    //   Expanded(
-    //   child: ReorderableListView.builder(
-    //     onReorder: (oldIndex, newIndex) {
-    //       if (kDebugMode) {
-    //         print("Reordering item from $oldIndex to $newIndex");
-    //       }
-    //       if (oldIndex < newIndex) newIndex -= 1;
-    //
-    //       setState(() {
-    //         final movedItem = orderItems.removeAt(oldIndex);
-    //         orderItems.insert(newIndex, movedItem);
-    //       });
-    //     },
-    //     itemCount: orderItems.length,
-    //     proxyDecorator: (Widget child, int index, Animation<double> animation) {
-    //       return Material(
-    //         color: Colors.transparent,
-    //         child: child,
-    //       );
-    //     },
-    //     itemBuilder: (context, index) {
-    //       final orderItem = orderItems[index];
-    //       return ClipRRect(
-    //         key: ValueKey(index),
-    //         borderRadius: BorderRadius.circular(20),
-    //         child: SizedBox(
-    //           height: 90,
-    //           child: Slidable(
-    //             key: ValueKey(index),
-    //             closeOnScroll: true,
-    //             direction: Axis.horizontal,
-    //             endActionPane: ActionPane(
-    //               motion: const DrawerMotion(),
-    //               children: [
-    //                 CustomSlidableAction(
-    //                   onPressed: (context) async {
-    //                     if (kDebugMode) {
-    //                       print("Deleting item at index $index");
-    //                     }
-    //                     deleteItemFromOrder(orderItem[AppDBConst.itemId]);
-    //                     fetchOrderItems();
-    //                   },
-    //                   backgroundColor: Colors.transparent,
-    //                   child: Column(
-    //                     mainAxisAlignment: MainAxisAlignment.center,
-    //                     children: [
-    //                       Icon(Icons.delete, color: Colors.red),
-    //                       const SizedBox(height: 4),
-    //                       const Text(TextConstants.deleteText,
-    //                           style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-    //                     ],
-    //                   ),
-    //                 ),
-    //               ],
-    //             ),
-    //             child: GestureDetector(
-    //               // onTap: () {
-    //               //   Navigator.push(
-    //               //     context,
-    //               //     MaterialPageRoute(
-    //               //       builder: (context) => EditProductScreen(
-    //               //         orderItem: orderItem,
-    //               //         onQuantityUpdated: (newQuantity) {
-    //               //           setState(() {
-    //               //             orderItem[AppDBConst.itemCount] = newQuantity;
-    //               //           });
-    //               //         },
-    //               //       ),
-    //               //     ),
-    //               //   );
-    //               // },
-    //               child: Container(
-    //                 margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-    //                 padding: const EdgeInsets.all(12),
-    //                 decoration: BoxDecoration(
-    //                   color: Colors.white,
-    //                   borderRadius: BorderRadius.circular(20),
-    //                   boxShadow: const [
-    //                     BoxShadow(
-    //                       color: Colors.black12,
-    //                       blurRadius: 5,
-    //                       spreadRadius: 1,
-    //                     )
-    //                   ],
-    //                 ),
-    //                 child: Row(
-    //                   children: [
-    //                     ClipRRect(
-    //                       borderRadius: BorderRadius.circular(10),
-    //                       child: orderItem[AppDBConst.itemImage].toString().startsWith('http')
-    //                           ? Image.network(
-    //                               orderItem[AppDBConst.itemImage],
-    //                               height: 30,
-    //                               width: 30,
-    //                               fit: BoxFit.cover,
-    //                               errorBuilder: (context, error, stackTrace) {
-    //                                 return SvgPicture.asset(
-    //                                   'assets/svg/password_placeholder.svg',
-    //                                   height: 30,
-    //                                   width: 30,
-    //                                   fit: BoxFit.cover,
-    //                                 );
-    //                               },
-    //                             )
-    //                           : orderItem[AppDBConst.itemImage].toString().startsWith('assets/')
-    //                               ? SvgPicture.asset(
-    //                                   orderItem[AppDBConst.itemImage],
-    //                                   height: 30,
-    //                                   width: 30,
-    //                                   fit: BoxFit.cover,
-    //                                 )
-    //                               : Image.file(
-    //                                   File(orderItem[AppDBConst.itemImage]),
-    //                                   height: 30,
-    //                                   width: 30,
-    //                                   fit: BoxFit.cover,
-    //                                   errorBuilder: (context, error, stackTrace) {
-    //                                     return SvgPicture.asset(
-    //                                       'assets/svg/password_placeholder.svg',
-    //                                       height: 30,
-    //                                       width: 30,
-    //                                       fit: BoxFit.cover,
-    //                                     );
-    //                                   },
-    //                                 ),
-    //                     ),
-    //                     const SizedBox(width: 10),
-    //                     Expanded(
-    //                       child: Column(
-    //                         crossAxisAlignment: CrossAxisAlignment.start,
-    //                         children: [
-    //                           Text(
-    //                             orderItem[AppDBConst.itemName],
-    //                             style: const TextStyle(
-    //                                 fontSize: 16,
-    //                                 fontWeight: FontWeight.bold,
-    //                                 color: Colors.black),
-    //                           ),
-    //                           Text(
-    //                             "${orderItem[AppDBConst.itemCount]} * ${TextConstants.currencySymbol}${orderItem[AppDBConst.itemPrice]}",
-    //                             style: const TextStyle(color: Colors.black54),
-    //                           ),
-    //                         ],
-    //                       ),
-    //                     ),
-    //                     Column(
-    //                       mainAxisAlignment: MainAxisAlignment.center,
-    //                       children: [
-    //                         Text(
-    //                           "${TextConstants.currencySymbol}${(orderItem[AppDBConst.itemCount] * orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}",
-    //                           style: const TextStyle(
-    //                               fontSize: 18,
-    //                               fontWeight: FontWeight.bold),
-    //                         ),
-    //                       ],
-    //                     ),
-    //                   ],
-    //                 ),
-    //               ),
-    //             ),
-    //           ),
-    //         ),
-    //       );
-    //     },
-    //   ),
-    // );
+      //   Expanded(
+      //   child: ReorderableListView.builder(
+      //     onReorder: (oldIndex, newIndex) {
+      //       if (kDebugMode) {
+      //         print("Reordering item from $oldIndex to $newIndex");
+      //       }
+      //       if (oldIndex < newIndex) newIndex -= 1;
+      //
+      //       setState(() {
+      //         final movedItem = orderItems.removeAt(oldIndex);
+      //         orderItems.insert(newIndex, movedItem);
+      //       });
+      //     },
+      //     itemCount: orderItems.length,
+      //     proxyDecorator: (Widget child, int index, Animation<double> animation) {
+      //       return Material(
+      //         color: Colors.transparent,
+      //         child: child,
+      //       );
+      //     },
+      //     itemBuilder: (context, index) {
+      //       final orderItem = orderItems[index];
+      //       return ClipRRect(
+      //         key: ValueKey(index),
+      //         borderRadius: BorderRadius.circular(20),
+      //         child: SizedBox(
+      //           height: 90,
+      //           child: Slidable(
+      //             key: ValueKey(index),
+      //             closeOnScroll: true,
+      //             direction: Axis.horizontal,
+      //             endActionPane: ActionPane(
+      //               motion: const DrawerMotion(),
+      //               children: [
+      //                 CustomSlidableAction(
+      //                   onPressed: (context) async {
+      //                     if (kDebugMode) {
+      //                       print("Deleting item at index $index");
+      //                     }
+      //                     deleteItemFromOrder(orderItem[AppDBConst.itemId]);
+      //                     fetchOrderItems();
+      //                   },
+      //                   backgroundColor: Colors.transparent,
+      //                   child: Column(
+      //                     mainAxisAlignment: MainAxisAlignment.center,
+      //                     children: [
+      //                       Icon(Icons.delete, color: Colors.red),
+      //                       const SizedBox(height: 4),
+      //                       const Text(TextConstants.deleteText,
+      //                           style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+      //                     ],
+      //                   ),
+      //                 ),
+      //               ],
+      //             ),
+      //             child: GestureDetector(
+      //               // onTap: () {
+      //               //   Navigator.push(
+      //               //     context,
+      //               //     MaterialPageRoute(
+      //               //       builder: (context) => EditProductScreen(
+      //               //         orderItem: orderItem,
+      //               //         onQuantityUpdated: (newQuantity) {
+      //               //           setState(() {
+      //               //             orderItem[AppDBConst.itemCount] = newQuantity;
+      //               //           });
+      //               //         },
+      //               //       ),
+      //               //     ),
+      //               //   );
+      //               // },
+      //               child: Container(
+      //                 margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+      //                 padding: const EdgeInsets.all(12),
+      //                 decoration: BoxDecoration(
+      //                   color: Colors.white,
+      //                   borderRadius: BorderRadius.circular(20),
+      //                   boxShadow: const [
+      //                     BoxShadow(
+      //                       color: Colors.black12,
+      //                       blurRadius: 5,
+      //                       spreadRadius: 1,
+      //                     )
+      //                   ],
+      //                 ),
+      //                 child: Row(
+      //                   children: [
+      //                     ClipRRect(
+      //                       borderRadius: BorderRadius.circular(10),
+      //                       child: orderItem[AppDBConst.itemImage].toString().startsWith('http')
+      //                           ? Image.network(
+      //                               orderItem[AppDBConst.itemImage],
+      //                               height: 30,
+      //                               width: 30,
+      //                               fit: BoxFit.cover,
+      //                               errorBuilder: (context, error, stackTrace) {
+      //                                 return SvgPicture.asset(
+      //                                   'assets/svg/password_placeholder.svg',
+      //                                   height: 30,
+      //                                   width: 30,
+      //                                   fit: BoxFit.cover,
+      //                                 );
+      //                               },
+      //                             )
+      //                           : orderItem[AppDBConst.itemImage].toString().startsWith('assets/')
+      //                               ? SvgPicture.asset(
+      //                                   orderItem[AppDBConst.itemImage],
+      //                                   height: 30,
+      //                                   width: 30,
+      //                                   fit: BoxFit.cover,
+      //                                 )
+      //                               : Image.file(
+      //                                   File(orderItem[AppDBConst.itemImage]),
+      //                                   height: 30,
+      //                                   width: 30,
+      //                                   fit: BoxFit.cover,
+      //                                   errorBuilder: (context, error, stackTrace) {
+      //                                     return SvgPicture.asset(
+      //                                       'assets/svg/password_placeholder.svg',
+      //                                       height: 30,
+      //                                       width: 30,
+      //                                       fit: BoxFit.cover,
+      //                                     );
+      //                                   },
+      //                                 ),
+      //                     ),
+      //                     const SizedBox(width: 10),
+      //                     Expanded(
+      //                       child: Column(
+      //                         crossAxisAlignment: CrossAxisAlignment.start,
+      //                         children: [
+      //                           Text(
+      //                             orderItem[AppDBConst.itemName],
+      //                             style: const TextStyle(
+      //                                 fontSize: 16,
+      //                                 fontWeight: FontWeight.bold,
+      //                                 color: Colors.black),
+      //                           ),
+      //                           Text(
+      //                             "${orderItem[AppDBConst.itemCount]} * ${TextConstants.currencySymbol}${orderItem[AppDBConst.itemPrice]}",
+      //                             style: const TextStyle(color: Colors.black54),
+      //                           ),
+      //                         ],
+      //                       ),
+      //                     ),
+      //                     Column(
+      //                       mainAxisAlignment: MainAxisAlignment.center,
+      //                       children: [
+      //                         Text(
+      //                           "${TextConstants.currencySymbol}${(orderItem[AppDBConst.itemCount] * orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}",
+      //                           style: const TextStyle(
+      //                               fontSize: 18,
+      //                               fontWeight: FontWeight.bold),
+      //                         ),
+      //                       ],
+      //                     ),
+      //                   ],
+      //                 ),
+      //               ),
+      //             ),
+      //           ),
+      //         ),
+      //       );
+      //     },
+      //   ),
+      // );
       Padding(
-      padding: ResponsiveLayout.getResponsivePadding(
-        vertical: 10,
-        horizontal: 12,
-      ),
-      child: SizedBox(
-        height: MediaQuery.of(context).size.height * 0.085,
-        child: Row(
-          children: [
-            // Product image
-            Container(
-              width: ResponsiveLayout.getWidth(50),
-              height: ResponsiveLayout.getHeight(100),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(8)),
-                color:  Colors.transparent,
-              ),
-              child: ClipRRect( // Build #1.0.13 : updated images from db not static default images
-                borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(8)),
-                child: orderItem[AppDBConst.itemImage].toString().startsWith('http')
-                    ? SizedBox(
-                        height: ResponsiveLayout.getHeight(40),
-                        width: ResponsiveLayout.getWidth(30),
-                        child: Image.network(
-                          orderItem[AppDBConst.itemImage],
+        padding: ResponsiveLayout.getResponsivePadding(
+          vertical: 10,
+          horizontal: 12,
+        ),
+        child: SizedBox(
+          height: MediaQuery.of(context).size.height * 0.085,
+          child: Row(
+            children: [
+              // Product image
+              Container(
+                width: ResponsiveLayout.getWidth(50),
+                height: ResponsiveLayout.getHeight(100),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(8)),
+                  color:  Colors.transparent,
+                ),
+                child: ClipRRect( // Build #1.0.13 : updated images from db not static default images
+                  borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(8)),
+                  child: orderItem[AppDBConst.itemImage].toString().startsWith('http')
+                      ? SizedBox(
+                    height: ResponsiveLayout.getHeight(40),
+                    width: ResponsiveLayout.getWidth(30),
+                    child: Image.network(
+                      orderItem[AppDBConst.itemImage],
+                      height: ResponsiveLayout.getHeight(40),
+                      width: ResponsiveLayout.getWidth(30),
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return SvgPicture.asset(
+                          'assets/svg/password_placeholder.svg',
                           height: ResponsiveLayout.getHeight(40),
                           width: ResponsiveLayout.getWidth(30),
                           fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return SvgPicture.asset(
+                        );
+                      },
+                    ),
+                  )
+                      : orderItem[AppDBConst.itemImage]
+                      .toString()
+                      .startsWith('assets/')
+                      ? SvgPicture.asset(
+                    orderItem[AppDBConst.itemImage],
+                    height: ResponsiveLayout.getHeight(40),
+                    width: ResponsiveLayout.getWidth(40),
+                    fit: BoxFit.cover,
+                  )
+                      : Platform.isWindows
+                      ? Image.asset(
+                    'assets/default.png',
+                    height: ResponsiveLayout.getHeight(40),
+                    width: ResponsiveLayout.getWidth(40),
+                  )
+                      : Image.file(
+                    File(orderItem[AppDBConst.itemImage]),
+                    height: ResponsiveLayout.getHeight(40),
+                    width: ResponsiveLayout.getWidth(40),
+                    fit: BoxFit.cover,
+                    errorBuilder:
+                        (context, error, stackTrace) {
+                      return SvgPicture.asset(
                         'assets/svg/password_placeholder.svg',
                         height: ResponsiveLayout.getHeight(40),
-                        width: ResponsiveLayout.getWidth(30),
+                        width: ResponsiveLayout.getWidth(40),
                         fit: BoxFit.cover,
                       );
-                                        },
-                                      ),
-                    )
-                    : orderItem[AppDBConst.itemImage]
-                    .toString()
-                    .startsWith('assets/')
-                    ? SvgPicture.asset(
-                  orderItem[AppDBConst.itemImage],
-                  height: ResponsiveLayout.getHeight(40),
-                  width: ResponsiveLayout.getWidth(40),
-                  fit: BoxFit.cover,
-                )
-                    : Platform.isWindows
-                    ? Image.asset(
-                  'assets/default.png',
-                  height: ResponsiveLayout.getHeight(40),
-                  width: ResponsiveLayout.getWidth(40),
-                )
-                    : Image.file(
-                  File(orderItem[AppDBConst.itemImage]),
-                  height: ResponsiveLayout.getHeight(40),
-                  width: ResponsiveLayout.getWidth(40),
-                  fit: BoxFit.cover,
-                  errorBuilder:
-                      (context, error, stackTrace) {
-                    return SvgPicture.asset(
-                      'assets/svg/password_placeholder.svg',
-                      height: ResponsiveLayout.getHeight(40),
-                      width: ResponsiveLayout.getWidth(40),
-                      fit: BoxFit.cover,
-                    );
-                  },
+                    },
+                  ),
                 ),
               ),
-            ),
-            SizedBox(width: ResponsiveLayout.getWidth(12)),
+              SizedBox(width: ResponsiveLayout.getWidth(12)),
 
-            // Product details
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  /// TODO: Change here to apply meta values for (mix & match) "combo" and "variation"
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      RichText(
-                        maxLines: 2,
-                        softWrap: true,
-                        text: TextSpan(
-                          children: [
-                            TextSpan(
-                              text: orderItem[AppDBConst.itemName],
-                              style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  color: themeHelper.themeMode == ThemeMode.dark
-                                      ? ThemeNotifier.textDark
-                                      : ThemeNotifier.textLight
+              // Product details
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    /// TODO: Change here to apply meta values for (mix & match) "combo" and "variation"
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: [
+                        RichText(
+                          maxLines: 2,
+                          softWrap: true,
+                          text: TextSpan(
+                            children: [
+                              TextSpan(
+                                text: orderItem[AppDBConst.itemName],
+                                style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: themeHelper.themeMode == ThemeMode.dark
+                                        ? ThemeNotifier.textDark
+                                        : ThemeNotifier.textLight
+                                ),
                               ),
+                              TextSpan(
+                                text: combo == '' ? '' : " (Combo)",
+                                style: TextStyle(fontSize: 8, color: Colors.cyan),
+                              ),
+                            ],
+                          ),
+                        ),
+                        variationCount == 0 ? SizedBox(width: 0,) : Row(
+                          children: [
+                            Text(
+                              variationName == '' ? "" : "(${variationName ?? ''})",
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: 10, color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.grey),
                             ),
-                            TextSpan(
-                              text: combo == '' ? '' : " (Combo)",
-                              style: TextStyle(fontSize: 8, color: Colors.cyan),
+                            SizedBox(
+                              width: 4,
+                            ),
+                            SvgPicture.asset("assets/svg/variation.svg",height: 10, width: 10,),
+                            SizedBox(
+                              width: 4,
+                            ),
+                            Text(
+                              "${variationCount ?? 0}",
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: 10, color: Color(0xFFFE6464)),
                             ),
                           ],
                         ),
-                      ),
-                      variationCount == 0 ? SizedBox(width: 0,) : Row(
-                        children: [
-                          Text(
-                            variationName == '' ? "" : "(${variationName ?? ''})",
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: 10, color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.grey),
-                          ),
-                          SizedBox(
-                            width: 4,
-                          ),
-                          SvgPicture.asset("assets/svg/variation.svg",height: 10, width: 10,),
-                          SizedBox(
-                            width: 4,
-                          ),
-                          Text(
-                            "${variationCount ?? 0}",
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: 10, color: Color(0xFFFE6464)),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  if (!isCouponOrPayout) //Build #1.0.187
-                  Text(
-                    "${TextConstants.currencySymbol} ${regularPrice.toStringAsFixed(2)} * ${orderItem[AppDBConst.itemCount]}", // Build #1.0.12: now item count will update in order panel
-                    style: TextStyle(
-                      color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.black87,
-                      fontSize: ResponsiveLayout.getFontSize(10),
+                      ],
                     ),
-                  ),
-                ],
+                    if (!isCouponOrPayout) //Build #1.0.187
+                      Text(
+                        "${TextConstants.currencySymbol} ${regularPrice.toStringAsFixed(2)} * ${orderItem[AppDBConst.itemCount]}", // Build #1.0.12: now item count will update in order panel
+                        style: TextStyle(
+                          color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.black87,
+                          fontSize: ResponsiveLayout.getFontSize(10),
+                        ),
+                      ),
+                  ],
+                ),
               ),
-            ),
-            // Regular Price
+              // Regular Price
 
-            if (!isCouponOrPayout)
+              if (!isCouponOrPayout)
+                Text(
+                  "${TextConstants.currencySymbol} ${(regularPrice * orderItem[AppDBConst.itemCount]).toStringAsFixed(2)}",
+                  // "${TextConstants.currencySymbol}${regularPrice.toStringAsFixed(2) * orderItem[AppDBConst.itemCount]}",
+                  style: TextStyle(
+                      color: themeHelper.themeMode == ThemeMode.dark
+                          ? ThemeNotifier.textDark
+                          : Colors.blueGrey,
+                      fontSize: 14),
+                ),
+              SizedBox(width: 20,),
+              //  Sale Price
               Text(
-                "${TextConstants.currencySymbol} ${(regularPrice * orderItem[AppDBConst.itemCount]).toStringAsFixed(2)}",
-                // "${TextConstants.currencySymbol}${regularPrice.toStringAsFixed(2) * orderItem[AppDBConst.itemCount]}",
+                isCouponOrPayout
+                    ? "${TextConstants.currencySymbol}${(orderItem[AppDBConst.itemCount] * orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}"
+                    : "${TextConstants.currencySymbol}${(orderItem[AppDBConst.itemCount] * salesPrice).toStringAsFixed(2)}",
                 style: TextStyle(
-                    color: themeHelper.themeMode == ThemeMode.dark
-                        ? ThemeNotifier.textDark
-                        : Colors.blueGrey,
-                    fontSize: 14),
+                  fontWeight: FontWeight.bold,
+                  fontSize: ResponsiveLayout.getFontSize(16),
+                  color: isCouponOrPayout ? Colors.red : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight, // Added: Red color for Payout/Coupon
+                ),
               ),
-            SizedBox(width: 20,),
-            //  Sale Price
-            Text(
-              isCouponOrPayout
-                  ? "${TextConstants.currencySymbol}${(orderItem[AppDBConst.itemCount] * orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}"
-                  : "${TextConstants.currencySymbol}${(orderItem[AppDBConst.itemCount] * salesPrice).toStringAsFixed(2)}",
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: ResponsiveLayout.getFontSize(16),
-                color: isCouponOrPayout ? Colors.red : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight, // Added: Red color for Payout/Coupon
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-    );
+      );
 
   }
 
@@ -1397,9 +1397,9 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
               Text(
                 label,
                 style: TextStyle(
-                  fontWeight: isTotal ? FontWeight.w600 : FontWeight.w500,
-                  fontSize: ResponsiveLayout.getFontSize(isTotal ? 14 : 12),
-                  color: labelColor
+                    fontWeight: isTotal ? FontWeight.w600 : FontWeight.w500,
+                    fontSize: ResponsiveLayout.getFontSize(isTotal ? 14 : 12),
+                    color: labelColor
                   //height: 1,
                 ),
               ),
@@ -1408,9 +1408,9 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
           Text(
             amount,
             style: TextStyle(
-              fontWeight: isTotal ? FontWeight.w600 : FontWeight.w500,
-              fontSize: ResponsiveLayout.getFontSize(isTotal ? 14 : 12),
-              color: amountColor
+                fontWeight: isTotal ? FontWeight.w600 : FontWeight.w500,
+                fontSize: ResponsiveLayout.getFontSize(isTotal ? 14 : 12),
+                color: amountColor
               //height: 1,
             ),
           ),
@@ -1753,7 +1753,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
   Widget _buildAmountDisplay(
       String label,
       String amount,
-       {
+      {
         Color? amountColor = Colors.black,
       }) {
     final themeHelper = Provider.of<ThemeNotifier>(context);
@@ -1765,8 +1765,8 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
         Text(
           label,
           style: TextStyle(
-            fontSize: ResponsiveLayout.getFontSize(12),
-            color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.black54
+              fontSize: ResponsiveLayout.getFontSize(12),
+              color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : Colors.black54
           ),
         ),
         SizedBox(height: ResponsiveLayout.getHeight(4)),
@@ -1825,7 +1825,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
       },
       child: Container(
         height: ResponsiveLayout.getHeight(43),
-       width: ResponsiveLayout.getWidth(100),
+        width: ResponsiveLayout.getWidth(100),
         alignment: Alignment.center,
         padding: EdgeInsets.all(ResponsiveLayout.getPadding(5.0)),
         decoration: BoxDecoration(
@@ -1835,9 +1835,9 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
         child: Text(
           amount,
           style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: ResponsiveLayout.getFontSize(16),
-            color: Color(0xFF518C3A)
+              fontWeight: FontWeight.bold,
+              fontSize: ResponsiveLayout.getFontSize(16),
+              color: Color(0xFF518C3A)
           ),
         ),
       ),
@@ -1919,17 +1919,17 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
       padding: ResponsiveLayout.getResponsivePadding(vertical: 10),
       margin: EdgeInsets.symmetric(vertical: 5),
       decoration: BoxDecoration(
-        color: isSelected ? Colors.red.shade100 : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground : Colors.white,
-        borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(5)),
-        border: isSelected ? Border.all(color: Colors.red.shade300) : Border.all(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.borderColor :Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 2,
-            offset: const Offset(0, 1),
-          ),
-        ]
+          color: isSelected ? Colors.red.shade100 : themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.primaryBackground : Colors.white,
+          borderRadius: BorderRadius.circular(ResponsiveLayout.getRadius(5)),
+          border: isSelected ? Border.all(color: Colors.red.shade300) : Border.all(color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.borderColor :Colors.grey.shade200),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.1),
+              spreadRadius: 1,
+              blurRadius: 2,
+              offset: const Offset(0, 1),
+            ),
+          ]
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -1998,7 +1998,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
 
     final request = VoidPaymentRequestModel(
       orderId: orderId!,
-    //  paymentId: selectedPaymentMethod == TextConstants.wallet ? paymentId ?? "" : "", // Build #1.0.175: We have to pass paymentId for partial payment if void , then it will became processing
+      //  paymentId: selectedPaymentMethod == TextConstants.wallet ? paymentId ?? "" : "", // Build #1.0.175: We have to pass paymentId for partial payment if void , then it will became processing
       paymentId: paymentId ?? "",
     );
 
@@ -2029,7 +2029,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
           }
 
           // Build #1.0.175: Call fetch payment details by order id API call
-           _fetchPaymentsByOrderId(); // Refresh payments after successful payment
+          _fetchPaymentsByOrderId(); // Refresh payments after successful payment
           /// Build #1.0.175: We are already updating all the values in _callCreatePaymentAPI method, after that again here updating again no need
           /// If required un-comment and use it!
           // orderTotal = response.data!.orderTotal ?? orderTotal;
@@ -2052,16 +2052,16 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
         });
 
         if (Misc.showDebugSnackBar) { // Build #1.0.254
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              response.data!.message ?? '',
-              style: const TextStyle(color: Colors.white),
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                response.data!.message ?? '',
+                style: const TextStyle(color: Colors.white),
+              ),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 3),
             ),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 3),
-          ),
-        );
+          );
         }
 
         // Build #1.0.175: For partial void, stay on same screen; for complete void, navigate back
@@ -2143,16 +2143,16 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
         });
 
         if (Misc.showDebugSnackBar) { // Build #1.0.254
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              response.data!.message ?? TextConstants.voidSuccess,
-              style: const TextStyle(color: Colors.white),
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                response.data!.message ?? TextConstants.voidSuccess,
+                style: const TextStyle(color: Colors.white),
+              ),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 3),
             ),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 3),
-          ),
-        );
+          );
         }
 
         // Build #1.0.175
@@ -2266,6 +2266,11 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     var printerData  = await loadPrinterData();
     var header = printerData?[AppDBConst.receiptHeaderText] ?? "";
     var footer = printerData?[AppDBConst.receiptFooterText] ?? "";
+    var logo = printerData?[AppDBConst.receiptIconPath] ?? "";
+
+    if (kDebugMode) {
+      print("OrderSummaryScreen _preparePrintTicket logo: $logo, iconPath: ${printerData?[AppDBConst.receiptIconPath] ?? ""}");
+    }
 
     bytes = [];
     final ticket =  await _printerSettings.getTicket();
@@ -2281,16 +2286,24 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
 
 
     //Pinaka Logo
-    final ByteData data = await rootBundle.load('assets/ic_logo.png');
+    final ByteData data;
+    if(logo != "") {
+      data = await GlobalUtility.fileToByteData(File(logo)) ?? await rootBundle.load('assets/Bubbas_logo.png');
+    } else {
+      data = await rootBundle.load('assets/Bubbas_logo.png');
+    }
+    if (kDebugMode) {
+      print("OrderSummaryScreen _preparePrintTicket data.lengthInBytes : ${data.lengthInBytes}");
+    }
     if (data.lengthInBytes > 0) {
       final Uint8List imageBytes = data.buffer.asUint8List();
       // decode the bytes into an image
       final decodedImage = img.decodeImage(imageBytes)!;
       // Create a black bottom layer
       // Resize the image to a 130x? thumbnail (maintaining the aspect ratio).
-      img.Image thumbnail = img.copyResize(decodedImage, height: 130);
+      img.Image thumbnail = img.copyResize(decodedImage, height: 270);
       // creates a copy of the original image with set dimensions
-      img.Image originalImg = img.copyResize(decodedImage, width: 380, height: 130);
+      img.Image originalImg = img.copyResize(decodedImage, width: 460, height: 270);
       // fills the original image with a white background
       img.fill(originalImg, color: img.ColorRgb8(255, 255, 255));
       var padding = (originalImg.width - thumbnail.width) / 2;
@@ -2312,37 +2325,36 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     ///Date and Time
     ///Store Id
     ///Address
-    //         "Store name": "Kumar Swa D",
-    //         "address": "Q No: D 1847, Shirkey Colony",
-    //         "city": "Mancherial",
+    //         "Store name": "Kumar Swa D", => < increase font to 5 and bold >
+    //         "address": "Q No: D 1847, Shirkey Colony",=>  first line will be <address>
+    //         "city": "Mancherial", => second line will be <city>,<state>-<zip_code>
     //         "state": "Telangana",
-    //         "country": "",
+    //         "country": "", => no need to show
     //         "zip_code": "504302",
-    //         "phone_number": false
+    //         "phone_number": false => third line will be <phone_number>
 
-
-    var dateToPrint = "$_displayDate";
-    var timeToPrint = "$_displayTime";
 
     var merchantDetails = await StoreDbHelper.instance.getStoreValidationData();
-    var storeId = "Store ID ${merchantDetails?[AppDBConst.storeId]}";
-    var storePhone = "Phone ${merchantDetails?[AppDBConst.storePhone]}";
+    var storeId = "${merchantDetails?[AppDBConst.storeId]}";
+    var storePhone = "${merchantDetails?[AppDBConst.storePhone]}";
 
     var storeDetails = await AssetDBHelper.instance.getStoreDetails();
     var storeName = "${storeDetails?.name}";
-    var address = "${storeDetails?.address},${storeDetails?.city},${storeDetails?.state},${storeDetails?.country},${storeDetails?.zipCode}";
-    var orderIdToPrint = '${TextConstants.orderId} #$orderId';
+    var address = "${storeDetails?.address},";
+    var cityStateZip = "${storeDetails?.city},${storeDetails?.state}-${storeDetails?.zipCode}";
+    var orderIdToPrint = '$orderId';
 
     final userData = await UserDbHelper().getUserData();
-    var cashierName = "Cashier ${userData?[AppDBConst.userDisplayName] ?? "Unknown Name"}";
+    var cashierName = "${userData?[AppDBConst.userDisplayName] ?? "Unknown Name"}";
     var cashierRole = "${userData?[AppDBConst.userRole] ?? "Unknown Role"}";
 
     if (kDebugMode) {
-      print(" >>>>> PrintOrder  dateToPrint $dateToPrint ");
-      print(" >>>>> PrintOrder  timeToPrint $timeToPrint ");
+      print(" >>>>> PrintOrder  dateToPrint $_displayDate ");
+      print(" >>>>> PrintOrder  timeToPrint $_displayTime ");
       print(" >>>>> PrintOrder  storeId $storeId ");
       print(" >>>>> PrintOrder  storeName $storeName ");
       print(" >>>>> PrintOrder  address $address ");
+      print(" >>>>> PrintOrder  cityStateZip $cityStateZip ");
       print(" >>>>> PrintOrder  storePhone $storePhone ");
       print(" >>>>> PrintOrder  orderIdToPrint $orderIdToPrint ");
       print(" >>>>> PrintOrder  cashierName $cashierName ");
@@ -2361,15 +2373,20 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
 
     //Store Name
     bytes += ticket.row([
-      PosColumn(text: "$storeName", width: 12, styles: PosStyles(align: PosAlign.center)),
+      PosColumn(text: "$storeName", width: 12, styles: PosStyles(align: PosAlign.center,bold: true, height: PosTextSize.size2, width: PosTextSize.size2)), //Build #1.0.257: increase font to 5 and bold
     ]);
+    bytes += ticket.feed(1); /// Add space between store name and address
     //Address
     bytes += ticket.row([
       PosColumn(text: "$address", width: 12, styles: PosStyles(align: PosAlign.center)),
     ]);
+    //cityStateZip
+    bytes += ticket.row([
+      PosColumn(text: "$cityStateZip", width: 12, styles: PosStyles(align: PosAlign.center)),
+    ]);
     //Store Phone
     bytes += ticket.row([
-      PosColumn(text: "$storePhone", width: 12, styles: PosStyles(align: PosAlign.center)),
+      PosColumn(text: "Phone: $storePhone", width: 12, styles: PosStyles(align: PosAlign.center)),
     ]);
 
     bytes += ticket.feed(1);
@@ -2378,25 +2395,22 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     ]);
     bytes += ticket.feed(1);
 
-    //store id and  Date
+    //Date and Time
     bytes += ticket.row([
-      PosColumn(text: "$storeId", width: 5),
-      PosColumn(text: "Date", width: 2, styles: PosStyles(align: PosAlign.right)),
-      PosColumn(text: "$dateToPrint", width: 5, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: "Date: $_displayDate", width: 7, styles: PosStyles(align: PosAlign.left)),
+      PosColumn(text: "Time: $_displayTime", width: 5, styles: PosStyles(align: PosAlign.left)),
     ]);
 
-    //order Id and  Time
+    //cashier and  store id
     bytes += ticket.row([
-      PosColumn(text: "$orderIdToPrint", width: 5),
-      PosColumn(text: "Time", width: 2, styles: PosStyles(align: PosAlign.right)),
-      PosColumn(text: "$timeToPrint", width: 5, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: "Cashier: $cashierName", width: 7, styles: PosStyles(align: PosAlign.left)),
+      PosColumn(text: "StoreID: $storeId", width: 5, styles: PosStyles(align: PosAlign.left)),
     ]);
 
-    //cashier and role
+    //role and order Id
     bytes += ticket.row([
-      PosColumn(text: "$cashierName", width: 5),
-      PosColumn(text: "Role", width: 2, styles: PosStyles(align: PosAlign.right)),
-      PosColumn(text: "$cashierRole", width: 5, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: "Role: $cashierRole", width: 7, styles: PosStyles(align: PosAlign.left)),
+      PosColumn(text: "OrderID: $orderIdToPrint", width: 5, styles: PosStyles(align: PosAlign.left)),
     ]);
 
     bytes += ticket.feed(1);
@@ -2408,11 +2422,11 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     //Item header
     bytes += ticket.row([
       PosColumn(text: "#", width: 1),
-      PosColumn(text: "Description", width:6),
-      PosColumn(text: "Qty", width: 1, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: "Description", width:5),
+      PosColumn(text: "Qty", width: 1, styles: PosStyles(align: PosAlign.center)),
       PosColumn(text: "Rate", width: 2, styles: PosStyles(align: PosAlign.right)),
       // PosColumn(text: "Dis", width: 1, styles: PosStyles(align: PosAlign.right)), ///removed based on request on 3-Sep-25
-      PosColumn(text: "Amt", width: 2, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: "Amt", width: 3, styles: PosStyles(align: PosAlign.right)),
     ]);
     bytes += ticket.feed(1);
 
@@ -2444,27 +2458,37 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
           ? orderItem[AppDBConst.itemUnitPrice]?.toDouble() ?? 0.0
           : orderItem[AppDBConst.itemRegularPrice]!.toDouble();
 
+      double negativeItemPrice = orderItem[AppDBConst.itemCount] * orderItem[AppDBConst.itemPrice];
+      ///Check if payout is showing $-25.00, make it -$25.00
+      var itemPrice = negativeItemPrice.toStringAsFixed(2);
+      if(negativeItemPrice.isNegative){
+        itemPrice = "-${TextConstants.currencySymbol}${negativeItemPrice.abs().toStringAsFixed(2)}";
+      }
+
       if (kDebugMode) {
         if(isCouponOrPayout){
-          print(" >>>>> Adding item ${orderItem[AppDBConst.itemName]} to print with salesPrice ${(orderItem[AppDBConst.itemCount] * orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}");
+          print(" >>>>> Adding isCouponOrPayout item ${orderItem[AppDBConst.itemName]} to print with salesPrice $itemPrice");
         }
         else {
-          print(" >>>>> Adding item ${orderItem[AppDBConst.itemName]} to print with salesPrice ${(orderItem[AppDBConst.itemCount] * salesPrice).toStringAsFixed(2)}");
+          print(" >>>>> Adding regular item ${orderItem[AppDBConst.itemName]} to print with salesPrice ${(orderItem[AppDBConst.itemCount] * salesPrice).toStringAsFixed(2)}");
         }
       }
 
       bytes += ticket.row([
         PosColumn(text: "${i+1}", width: 1),
-        PosColumn(text: "${orderItem[AppDBConst.itemName]}", width:6),
-        PosColumn(text: "${orderItem[AppDBConst.itemCount]}", width: 1,styles: PosStyles(align: PosAlign.right)),
-        PosColumn(text: "${TextConstants.currencySymbol} ${salesPrice.toStringAsFixed(2)}", width:2, styles: PosStyles(align: PosAlign.right)),
+        PosColumn(text: "${orderItem[AppDBConst.itemName]}", width:5,),
+        PosColumn(text: "${orderItem[AppDBConst.itemCount]}", width: 1,styles: PosStyles(align: PosAlign.center)),
+        PosColumn(text: "${TextConstants.currencySymbol}${salesPrice.toStringAsFixed(2)}", width:2, styles: PosStyles(align: PosAlign.right)),
         // PosColumn(text: "${(regularPrice - salesPrice).toStringAsFixed(2)}", width: 1, styles: PosStyles(align: PosAlign.right)),, ///removed based on request on 3-Sep-25
         PosColumn(text: isCouponOrPayout
-            ? "${TextConstants.currencySymbol} ${(orderItem[AppDBConst.itemCount] * orderItem[AppDBConst.itemPrice]).toStringAsFixed(2)}"
-            : "${TextConstants.currencySymbol} ${(orderItem[AppDBConst.itemCount] * salesPrice).toStringAsFixed(2)}", width: 2, styles: PosStyles(align: PosAlign.right)),
+            ? itemPrice
+            : "${TextConstants.currencySymbol}${(orderItem[AppDBConst.itemCount] * salesPrice).toStringAsFixed(2)}", width: 3, styles: PosStyles(align: PosAlign.right)),
       ]);
       // bytes += ticket.feed(1);
+      bytes += ticket.emptyLines(1);///check if we can add spaces after product line to look spacious
     }
+
+    final grossTotal = GlobalUtility.getGrossTotal(orderItems);
 
     bytes += ticket.feed(1);
     bytes += ticket.row([
@@ -2475,6 +2499,8 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     if (kDebugMode) {
       print(" >>>>> Printer Order merchantDiscount -${merchantDiscount.toStringAsFixed(2)} ");
       print(" >>>>> Printer Order discount -${discount.toStringAsFixed(2)} ");
+      print(" >>>>> Printer Order total  $total ");
+      print(" >>>>> Printer Order Gross total  $grossTotal ");
       print(" >>>>> Printer Order balanceAmount  $balanceAmount ");
       print(" >>>>> Printer Order orderTotal  $orderTotal ");
       print(" >>>>> Printer Order tenderAmount $tenderAmount ");
@@ -2490,22 +2516,22 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
 
     bytes += ticket.row([
       PosColumn(text: TextConstants.grossTotal, width: 10),
-      PosColumn(text: "${TextConstants.currencySymbol} ${total.toStringAsFixed(2)}", width:2, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: "${TextConstants.currencySymbol}${grossTotal.toStringAsFixed(2)}", width:2, styles: PosStyles(align: PosAlign.right)),
     ]);
     // bytes += ticket.feed(1);
     bytes += ticket.row([
       PosColumn(text: TextConstants.discountText, width: 10), // Build #1.0.148: deleted duplicate discount string from constants , already we have discountText using !
-      PosColumn(text: "-${TextConstants.currencySymbol} ${discount.toStringAsFixed(2)}", width:2, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: "-${TextConstants.currencySymbol}${discount.toStringAsFixed(2)}", width:2, styles: PosStyles(align: PosAlign.right)),
     ]);
     // bytes += ticket.feed(1);
     bytes += ticket.row([
       PosColumn(text: TextConstants.merchantDiscount, width: 10),
-      PosColumn(text: "-${TextConstants.currencySymbol} ${merchantDiscount.toStringAsFixed(2)}", width:2, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: "-${TextConstants.currencySymbol}${merchantDiscount.toStringAsFixed(2)}", width:2, styles: PosStyles(align: PosAlign.right)),
     ]);
     // bytes += ticket.feed(1);
     bytes += ticket.row([
       PosColumn(text: TextConstants.taxText, width: 10),
-      PosColumn(text: "${TextConstants.currencySymbol} ${tax.toStringAsFixed(2)}", width:2, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: "${TextConstants.currencySymbol}${tax.toStringAsFixed(2)}", width:2, styles: PosStyles(align: PosAlign.right)),
     ]);
     // bytes += ticket.feed(1);
     //line
@@ -2517,29 +2543,29 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     //Net Payable
     bytes += ticket.row([
       PosColumn(text: TextConstants.netPayable, width: 10),
-      PosColumn(text: "${TextConstants.currencySymbol} ${orderTotal.toStringAsFixed(2)}", width:2, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: "${TextConstants.currencySymbol}${orderTotal.toStringAsFixed(2)}", width:2, styles: PosStyles(align: PosAlign.right)),
     ]);
     ///Todo: get pay by cash amount
     // bytes += ticket.feed(1);
     bytes += ticket.row([
       PosColumn(text: TextConstants.payByCash, width: 10),
-      PosColumn(text: "${TextConstants.currencySymbol} ${payByCash.toStringAsFixed(2)}", width:2,styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: "${TextConstants.currencySymbol}${payByCash.toStringAsFixed(2)}", width:2,styles: PosStyles(align: PosAlign.right)),
     ]);
     ///Todo: get pay by other amount
     // bytes += ticket.feed(1);
     bytes += ticket.row([
       PosColumn(text: TextConstants.payByOther, width: 10),
-      PosColumn(text: "${TextConstants.currencySymbol} ${payByOther.toStringAsFixed(2)}", width:2, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: "${TextConstants.currencySymbol}${payByOther.toStringAsFixed(2)}", width:2, styles: PosStyles(align: PosAlign.right)),
     ]);
     // bytes += ticket.feed(1);
     bytes += ticket.row([
       PosColumn(text: TextConstants.tenderAmount, width: 10),
-      PosColumn(text: "${TextConstants.currencySymbol} ${tenderAmount.toStringAsFixed(2)}", width:2, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: "${TextConstants.currencySymbol}${tenderAmount.toStringAsFixed(2)}", width:2, styles: PosStyles(align: PosAlign.right)),
     ]);
     // bytes += ticket.feed(1);
     bytes += ticket.row([
       PosColumn(text: TextConstants.change, width: 10),
-      PosColumn(text: "${TextConstants.currencySymbol} ${changeAmount.toStringAsFixed(2)}", width:2, styles: PosStyles(align: PosAlign.right)),
+      PosColumn(text: "${TextConstants.currencySymbol}${changeAmount.toStringAsFixed(2)}", width:2, styles: PosStyles(align: PosAlign.right)),
     ]);
     bytes += ticket.feed(1);
 
@@ -2647,7 +2673,7 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     }
     switch (result) {
       case Ok<BluetoothPrinter>():
-        // BluetoothPrinter printer = result.value;
+      // BluetoothPrinter printer = result.value;
         break;
       case Error<BluetoothPrinter>():
         WidgetsBinding.instance.addPostFrameCallback((_) { // Build #1.0.16
@@ -2740,13 +2766,13 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
                   print("Email sent successfully: ${response.data!.message}");
                 }
                 if (Misc.showDebugSnackBar) { // Build #1.0.254
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(response.data!.message),
-                    backgroundColor: Colors.green,
-                    duration: const Duration(seconds: 3),
-                  ),
-                );
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(response.data!.message),
+                      backgroundColor: Colors.green,
+                      duration: const Duration(seconds: 3),
+                    ),
+                  );
                 }
               } else if (response.status == Status.ERROR) {
                 if (kDebugMode) {
@@ -2798,14 +2824,14 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
           print("printing the ticket --- $isReceipt");
         }
       }
-    // } else if (selectedOption == TextConstants.email) { // Build #1.0.159: Email receipt -> No need
-    //   ScaffoldMessenger.of(context).showSnackBar(
-    //     SnackBar(
-    //       content: Text(TextConstants.emailConfiguration),
-    //       backgroundColor: Colors.red,
-    //       duration: const Duration(seconds: 2),
-    //     ),
-    //   );
+      // } else if (selectedOption == TextConstants.email) { // Build #1.0.159: Email receipt -> No need
+      //   ScaffoldMessenger.of(context).showSnackBar(
+      //     SnackBar(
+      //       content: Text(TextConstants.emailConfiguration),
+      //       backgroundColor: Colors.red,
+      //       duration: const Duration(seconds: 2),
+      //     ),
+      //   );
 
     } else if (selectedOption == TextConstants.sms) {// SMS receipt
       ScaffoldMessenger.of(context).showSnackBar(
@@ -2838,32 +2864,32 @@ class _OrderSummaryScreenState extends State<OrderSummaryScreen> {
     //       // Build #1.0.104:  Pop back to the previous screen with a refresh signal
     //       Navigator.of(context).pop(TextConstants.refresh);
     //     }
-      /// Build #1.0.175: No need change status to completed API call
-     /// It was handling from backend
-       Navigator.of(context).pop();  // Dismiss the receipt dialog
-       // Navigator.of(context).pop(TextConstants.refresh); // Dismiss back to the previous screen with a refresh signal
+    /// Build #1.0.175: No need change status to completed API call
+    /// It was handling from backend
+    Navigator.of(context).pop();  // Dismiss the receipt dialog
+    // Navigator.of(context).pop(TextConstants.refresh); // Dismiss back to the previous screen with a refresh signal
     if (kDebugMode) {
       print("changeStatusToCompletedAndExit -> 3:");
     }
     ///Completed order
-      OrderHelper.isOrderPanelLoaded = false;
-      Navigator.pushReplacement(result: TextConstants.refresh,
-        context,
-        MaterialPageRoute(builder: (_) => FastKeyScreen()),
-      );
+    OrderHelper.isOrderPanelLoaded = false;
+    Navigator.pushReplacement(result: TextConstants.refresh,
+      context,
+      MaterialPageRoute(builder: (_) => FastKeyScreen()),
+    );
 
-       ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              TextConstants.orderCompleted,
-              style: const TextStyle(color: Colors.white),
-            ),
-            backgroundColor: Colors.green, // Build #1.0.104: updated to green
-            duration: const Duration(seconds: 3),
-          ),
-        );
-        // Optionally refresh UI or remove tab
-        // fetchOrderItems();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          TextConstants.orderCompleted,
+          style: const TextStyle(color: Colors.white),
+        ),
+        backgroundColor: Colors.green, // Build #1.0.104: updated to green
+        duration: const Duration(seconds: 3),
+      ),
+    );
+    // Optionally refresh UI or remove tab
+    // fetchOrderItems();
     //   } else if (response.status == Status.ERROR) {
     //     if (kDebugMode) {
     //       print("OrderPanel - completed failed: ${response.message}");

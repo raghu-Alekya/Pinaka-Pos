@@ -10,7 +10,7 @@ class Misc{
   static bool enableHardwareBackButton = kDebugMode ? true : true;
   static bool enableReordering = false; // Build #1.0.204: Added this to control reordering in nested grid items
   static bool showDebugSnackBar = kDebugMode ? false : false; // Build #1.0.254: Disable Toast messages for api success call on every screen
-
+  static bool enableUILogMessages = false; // Build #1.0.256: Enable/disable UI log messages for toast
   printFeatures(){
     if (kDebugMode) {
       print("enableCategoryProductWithSubCategoryList : $enableCategoryProductWithSubCategoryList");

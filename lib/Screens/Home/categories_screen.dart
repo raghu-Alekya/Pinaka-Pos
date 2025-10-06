@@ -187,6 +187,7 @@ import '../../Models/Orders/orders_model.dart';
 import '../../Preferences/pinaka_preferences.dart';
 import '../../Repositories/Orders/order_repository.dart';
 import '../../Repositories/Search/product_search_repository.dart';
+import '../../Widgets/widget_logs_toast.dart';
 import '../../Widgets/widget_category_list.dart';
 import '../../Widgets/widget_nested_grid_layout.dart';
 import '../../Widgets/widget_order_panel.dart';
@@ -512,6 +513,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
   // Added alert dialog with retry option for API failures.
   // Added success toasts for both API and local cases.
   // Preserved debug prints, variantAdded logic, and back button functionality.
+  Stopwatch? refreshUIStopwatch; // Build #1.0.256
   void _onItemSelected(int index, bool variantAdded) async {
     if (index == 0 && showBackButton) {
       _onBackToCategories();
@@ -522,8 +524,10 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
     if(variantAdded == true){
       // Build #1.0.148: we have to show loader until product adds into order panel, then hide
       // Navigator.pop(context); // Hide Loader / VariationPopup dialog
-      if (Navigator.canPop(context)) { // Build #1.0.197: Fixed [SCRUM - 345] -> Screen blackout when adding item to cart
-        Navigator.pop(context);
+      if (!Misc.enableUILogMessages) { // Build #1.0.256
+        if (Navigator.canPop(context)) { // Build #1.0.197: Fixed [SCRUM - 345] -> Screen blackout when adding item to cart
+          Navigator.pop(context);
+        }
       }
       _refreshOrderList(); // refresh UI
       return;
@@ -560,7 +564,11 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
       // if (serverOrderId != null) { //Build #1.0.78: if server id is available use API call and save to db else save to db
       _updateOrderSubscription?.cancel();
       StreamSubscription? subscription;
-
+      // Build #1.0.256: Measure time for Add Product to Order (for non-variant or empty variations)
+      Stopwatch? addProductStopwatch;
+      if (Misc.enableUILogMessages) {
+        addProductStopwatch = Stopwatch()..start();
+      }
       subscription = orderBloc.updateOrderStream.listen((response) async {
         if (!mounted) {
           subscription?.cancel();
@@ -572,8 +580,10 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
         }else if (response.status == Status.COMPLETED) {
           // Build #1.0.148: we have to show loader until product adds into order panel, then hide
           // Navigator.pop(context); // Hide Loader / VariationPopup dialog
-          if (Navigator.canPop(context)) { // Build #1.0.197: Fixed [SCRUM - 345] -> Screen blackout when adding item to cart
-            Navigator.pop(context);
+          if (!Misc.enableUILogMessages){ // Build #1.0.256
+            if (Navigator.canPop(context)) { // Build #1.0.197: Fixed [SCRUM - 345] -> Screen blackout when adding item to cart
+              Navigator.pop(context);
+            }
           }
           if (kDebugMode) print("Item added to order $dbOrderId via API");
           if (Misc.showDebugSnackBar) { // Build #1.0.254
@@ -584,6 +594,23 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
                 duration: Duration(seconds: 2),
               ),
             );
+          }
+          // Build #1.0.256: Store logs and display on toast for testing
+          if (Misc.enableUILogMessages && addProductStopwatch != null) {
+            addProductStopwatch.stop();
+            globalProcessSteps.add(
+              ProcessStep(
+                name: TextConstants.addProductToOrder,
+                timeTaken: addProductStopwatch.elapsedMilliseconds / 1000.0,
+              ),
+            );
+            if (kDebugMode) {
+              print("Add Product to Order completed in ${globalProcessSteps.last.timeTaken}s");
+            }
+          }
+
+          if (Misc.enableUILogMessages) {
+            refreshUIStopwatch = Stopwatch()..start();
           }
           _refreshOrderList();
           subscription?.cancel();
@@ -599,6 +626,18 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
               duration: const Duration(seconds: 2),
             ),
           );
+          // Build #1.0.256: Stop stopwatch and add to steps only if enabled
+          if (Misc.enableUILogMessages && addProductStopwatch != null) {
+            addProductStopwatch.stop();
+            // Clear global steps when toast is closed
+            globalProcessSteps.clear();
+            // globalProcessSteps.add(
+            //   ProcessStep(
+            //     name: TextConstants.addProductToOrder,
+            //     timeTaken: addProductStopwatch.elapsedMilliseconds / 1000.0,
+            //   ),
+            // );
+          }
           _refreshOrderList();
           subscription?.cancel();
         }
@@ -685,6 +724,45 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
       }
       _refreshCounter++; //Build #1.0.170: Increment to signal refresh, causing didUpdateWidget to load with loader
     });
+    // Build #1.0.256: Stop stopwatch and add to steps only if enabled
+    if (Misc.enableUILogMessages && refreshUIStopwatch != null) {
+      refreshUIStopwatch?.stop();
+      globalProcessSteps.add(
+        ProcessStep(
+          name: TextConstants.refreshDBUITime,
+          timeTaken: refreshUIStopwatch!.elapsedMilliseconds / 1000.0,
+        ),
+      );
+      if (kDebugMode) {
+        print("Add Product to Order completed in ${globalProcessSteps.last.timeTaken}s");
+      }
+    }
+    /// Show Toast
+    if (Misc.enableUILogMessages && globalProcessSteps.isNotEmpty) {
+      if (Navigator.canPop(context)) { // Build #1.0.197: Fixed [SCRUM - 345] -> Screen blackout when adding item to cart
+        Navigator.pop(context);
+      }
+      if (kDebugMode) {
+        print("VariationPopup - Showing toast with process timings: ${globalProcessSteps.map((s) => '${s.name}: ${s.timeTaken}s').toList()}");
+      }
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) {
+          return LogsToast(
+            steps: globalProcessSteps,
+            onClose: () {
+              if (kDebugMode) {
+                print("VariationPopup - Toast closed by user");
+              }
+              // Clear global steps when toast is closed
+              globalProcessSteps.clear();
+              Navigator.of(dialogContext).pop();
+            },
+          );
+        },
+      );
+    }
   }
 
   // bool get showBackButton => categoryProducts.isNotEmpty;
@@ -954,7 +1032,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> with WidgetsBinding
                                   if (navigationPath.isNotEmpty)
                                     Padding(
                                       padding: const EdgeInsets.fromLTRB(
-                                          16, 12, 10, 8),
+                                          16, 5, 10, 4),
                                       child: SingleChildScrollView(
                                         scrollDirection: Axis.horizontal,
                                         child: Row(

@@ -28,20 +28,15 @@ import '../../Widgets/widget_navigation_bar.dart' as custom_widgets;
 
 class SafeOpenScreen extends StatefulWidget {
   final int? lastSelectedIndex;
-  final double cashNotesCoins; // Build #1.0.70
+  final double cashNotesCoins;  // Build #1.0.70
   final String? previousScreen;
-  const SafeOpenScreen(
-      {super.key,
-      this.lastSelectedIndex,
-      required this.cashNotesCoins,
-      this.previousScreen});
+  const SafeOpenScreen({super.key, this.lastSelectedIndex, required this.cashNotesCoins, this.previousScreen});
 
   @override
   State<SafeOpenScreen> createState() => _SafeOpenScreenState();
 }
 
-class _SafeOpenScreenState extends State<SafeOpenScreen>
-    with LayoutSelectionMixin {
+class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMixin {
   // Build #1.0.70
   List<Denom> _tubeDenominations = [];
   late ShiftBloc _shiftBloc;
@@ -68,7 +63,7 @@ class _SafeOpenScreenState extends State<SafeOpenScreen>
     _selectedSidebarIndex = widget.lastSelectedIndex ?? 4;
     cashNotesCoin = widget.cashNotesCoins;
     _fetchTubeDenominations();
-    _shiftBloc = ShiftBloc(ShiftRepository()); // Build #1.0.70
+    _shiftBloc = ShiftBloc(ShiftRepository());  // Build #1.0.70
     _fetchNotesAndCoinsDenominations();
     updateAmounts();
 
@@ -111,8 +106,7 @@ class _SafeOpenScreenState extends State<SafeOpenScreen>
       calculatedCashTubes += amount;
 
       if (kDebugMode) {
-        print(
-            "Denom: $symbol$denomValue, Tubes: $tubeCount, Limit: $tubeLimit, Amount: $amount");
+        print("Denom: $symbol$denomValue, Tubes: $tubeCount, Limit: $tubeLimit, Amount: $amount");
       }
     }
 
@@ -121,8 +115,7 @@ class _SafeOpenScreenState extends State<SafeOpenScreen>
       cashTubes = calculatedCashTubes;
 
       if (kDebugMode) {
-        print(
-            "Updated totals - Cash Tubes: $cashTubes, Total Amount: $totalAmount");
+        print("Updated totals - Cash Tubes: $cashTubes, Total Amount: $totalAmount");
       }
     });
   }
@@ -154,8 +147,7 @@ class _SafeOpenScreenState extends State<SafeOpenScreen>
         });
 
         if (kDebugMode) {
-          print(
-              "Added denomination: ${denom.denom} with symbol ${denom.symbol}");
+          print("Added denomination: ${denom.denom} with symbol ${denom.symbol}");
         }
       }
     });
@@ -214,19 +206,12 @@ class _SafeOpenScreenState extends State<SafeOpenScreen>
     List<Denomination> drawerDenoms = [];
 
     _notesDenominations.forEach((denom) {
-      int count =
-          int.tryParse(_controllers[denom.denom.toString()]?.text ?? '0') ?? 0;
-      drawerDenoms.add(Denomination(
-          denomination: num.tryParse(denom.denom.toString()) ?? 0,
-          denomCount: count));
+      int count = int.tryParse(_controllers[denom.denom.toString()]?.text ?? '0') ?? 0;
+      drawerDenoms.add(Denomination(denomination: num.tryParse(denom.denom.toString()) ?? 0, denomCount: count));
     });
     _coinsDenominations.forEach((denom) {
-      int count =
-          int.tryParse(_coinControllers[denom.denom.toString()]?.text ?? '0') ??
-              0;
-      drawerDenoms.add(Denomination(
-          denomination: num.tryParse(denom.denom.toString()) ?? 0,
-          denomCount: count));
+      int count = int.tryParse(_coinControllers[denom.denom.toString()]?.text ?? '0') ?? 0;
+      drawerDenoms.add(Denomination(denomination: num.tryParse(denom.denom.toString()) ?? 0, denomCount: count));
     });
 
     List<TubeDenomination> tubeDenoms = [];
@@ -265,11 +250,11 @@ class _SafeOpenScreenState extends State<SafeOpenScreen>
 
       if (kDebugMode) {
         print("All tube values have been reset");
-        print(
-            "Current totals - Cash Tubes: $cashTubes, Total Amount: $totalAmount");
+        print("Current totals - Cash Tubes: $cashTubes, Total Amount: $totalAmount");
       }
     });
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -360,7 +345,7 @@ class _SafeOpenScreenState extends State<SafeOpenScreen>
                               ),
                               child: Row(
                                 mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
+                                MainAxisAlignment.spaceBetween,
                                 children: [
                                   const Text('Safe',
                                       style: TextStyle(
@@ -370,17 +355,17 @@ class _SafeOpenScreenState extends State<SafeOpenScreen>
                                     children: [
                                       SizedBox(
                                         height:
-                                            MediaQuery.of(context).size.height *
-                                                0.06,
+                                        MediaQuery.of(context).size.height *
+                                            0.06,
                                         width:
-                                            MediaQuery.of(context).size.width *
-                                                0.1,
+                                        MediaQuery.of(context).size.width *
+                                            0.1,
                                         child: OutlinedButton(
                                           // Build #1.0.148: Fixed Issue : Disable Back Button in Safe open screen while tap on submit button
                                           onPressed: _isSubmitting
                                               ? null
                                               : () => Navigator.pop(
-                                                  context), // Disable button when _isSubmitting is true
+                                              context), // Disable button when _isSubmitting is true
                                           style: OutlinedButton.styleFrom(
                                             padding: const EdgeInsets.symmetric(
                                                 horizontal: 16, vertical: 8),
@@ -388,34 +373,34 @@ class _SafeOpenScreenState extends State<SafeOpenScreen>
                                               color: _isSubmitting
                                                   ? Colors.grey.shade400
                                                   : Colors.grey
-                                                      .shade300, // Greyed-out border when disabled, active border when enabled
+                                                  .shade300, // Greyed-out border when disabled, active border when enabled
                                             ),
                                             shape: RoundedRectangleBorder(
                                               borderRadius:
-                                                  BorderRadius.circular(8),
+                                              BorderRadius.circular(8),
                                             ),
                                             foregroundColor: _isSubmitting
                                                 ? Colors.grey.shade400
                                                 : Colors
-                                                    .blueGrey, // Greyed-out text when disabled, active text when enabled
+                                                .blueGrey, // Greyed-out text when disabled, active text when enabled
                                             backgroundColor: _isSubmitting
                                                 ? Colors.grey.shade100
                                                 : Colors
-                                                    .transparent, // Subtle background when disabled, no background when active
+                                                .transparent, // Subtle background when disabled, no background when active
                                           ),
                                           child: Text(
                                             'Back',
                                             style: TextStyle(
                                               color: _isSubmitting
                                                   ? Colors.grey
-                                                      .shade400 // Greyed-out text when disabled
+                                                  .shade400 // Greyed-out text when disabled
                                                   : (themeHelper.themeMode ==
-                                                          ThemeMode.dark
-                                                      ? ThemeNotifier.textDark
-                                                      : Colors
-                                                          .blueGrey), // Active text color
+                                                  ThemeMode.dark
+                                                  ? ThemeNotifier.textDark
+                                                  : Colors
+                                                  .blueGrey), // Active text color
                                               fontSize:
-                                                  16, // Keep your font size
+                                              16, // Keep your font size
                                             ),
                                           ),
                                         ),
@@ -423,12 +408,12 @@ class _SafeOpenScreenState extends State<SafeOpenScreen>
                                       const SizedBox(width: 20),
                                       SizedBox(
                                           height: MediaQuery.of(context)
-                                                  .size
-                                                  .height *
+                                              .size
+                                              .height *
                                               0.06,
                                           width: MediaQuery.of(context)
-                                                  .size
-                                                  .width *
+                                              .size
+                                              .width *
                                               0.1,
                                           child: ElevatedButton(
                                             // Build #1.0.70: updated code
@@ -439,7 +424,7 @@ class _SafeOpenScreenState extends State<SafeOpenScreen>
                                                     "Submit button pressed, setting _isSubmitting to true");
                                               }
                                               setState(
-                                                  () => _isSubmitting = true);
+                                                      () => _isSubmitting = true);
 
                                               try {
                                                 int? shiftId = await UserDbHelper()
@@ -449,7 +434,7 @@ class _SafeOpenScreenState extends State<SafeOpenScreen>
                                                 String status =
                                                     TextConstants.open;
                                                 String?
-                                                    closeShiftStatus; // Build #1.0.247
+                                                closeShiftStatus; // Build #1.0.247
 
                                                 if (shiftId != null) {
                                                   if (previousScreen ==
@@ -480,7 +465,7 @@ class _SafeOpenScreenState extends State<SafeOpenScreen>
                                                     ?.cancel();
 
                                                 final request =
-                                                    _buildShiftRequest(
+                                                _buildShiftRequest(
                                                   shiftId: shiftId,
                                                   status: status,
                                                 );
@@ -488,13 +473,13 @@ class _SafeOpenScreenState extends State<SafeOpenScreen>
                                                 _shiftBloc.manageShift(request);
 
                                                 bool dialogShown =
-                                                    false; // Flag to prevent multiple dialogs
+                                                false; // Flag to prevent multiple dialogs
 
                                                 _shiftSubscription = _shiftBloc
                                                     .shiftStream
                                                     .listen((response) async {
                                                   if (response.status ==
-                                                          Status.COMPLETED &&
+                                                      Status.COMPLETED &&
                                                       !dialogShown) {
                                                     if (kDebugMode) {
                                                       print(
@@ -502,7 +487,7 @@ class _SafeOpenScreenState extends State<SafeOpenScreen>
                                                     }
 
                                                     dialogShown =
-                                                        true; // Mark dialog as shown
+                                                    true; // Mark dialog as shown
 
                                                     if (status ==
                                                         TextConstants.open) {
@@ -511,11 +496,11 @@ class _SafeOpenScreenState extends State<SafeOpenScreen>
                                                       // Build #1.0.149 : update shift id while create shift
                                                       await UserDbHelper()
                                                           .updateUserShiftId(
-                                                              response.data!
-                                                                  .shiftId);
+                                                          response.data!
+                                                              .shiftId);
                                                     }
                                                     setState(() => _isSubmitting =
-                                                        false); // Build #1.0. 140: hide loader
+                                                    false); // Build #1.0. 140: hide loader
                                                     // Show dialog only once
                                                     // Build #1.0.70: Show appropriate dialog based on status
                                                     bool? result;
@@ -525,14 +510,14 @@ class _SafeOpenScreenState extends State<SafeOpenScreen>
                                                           .showStartShiftVerification(
                                                         context,
                                                         totalAmount:
-                                                            totalAmount,
+                                                        totalAmount,
                                                         overShort: response
                                                             .data!.overShort
                                                             .toDouble(), //Build #1.0.74
                                                       );
                                                     } else if (status ==
-                                                            TextConstants
-                                                                .update &&
+                                                        TextConstants
+                                                            .update &&
                                                         closeShiftStatus ==
                                                             null) {
                                                       // Build #1.0.247
@@ -540,24 +525,24 @@ class _SafeOpenScreenState extends State<SafeOpenScreen>
                                                           .showUpdateShiftVerification(
                                                         context,
                                                         totalAmount:
-                                                            totalAmount,
+                                                        totalAmount,
                                                         overShort: response
                                                             .data!.overShort
                                                             .toDouble(),
                                                       );
                                                     } else if (status ==
-                                                            TextConstants
-                                                                .update &&
+                                                        TextConstants
+                                                            .update &&
                                                         closeShiftStatus ==
                                                             TextConstants
                                                                 .closed) {
                                                       // Build #1.0.247
                                                       bool? result =
-                                                          await CustomDialog
-                                                              .showCloseShiftVerification(
+                                                      await CustomDialog
+                                                          .showCloseShiftVerification(
                                                         context,
                                                         totalAmount:
-                                                            totalAmount,
+                                                        totalAmount,
                                                         overShort: response
                                                             .data!.overShort
                                                             .toDouble(),
@@ -576,12 +561,12 @@ class _SafeOpenScreenState extends State<SafeOpenScreen>
                                                             .showCloseShiftVerification(
                                                           context,
                                                           totalAmount:
-                                                              totalAmount,
+                                                          totalAmount,
                                                           overShort: response
                                                               .data!.overShort
                                                               .toDouble(),
                                                           isLoading:
-                                                              true, // Show loader on button
+                                                          true, // Show loader on button
                                                         );
 
                                                         // Cancel previous subscription
@@ -590,7 +575,7 @@ class _SafeOpenScreenState extends State<SafeOpenScreen>
 
                                                         // Create close shift request
                                                         final closeRequest =
-                                                            _buildShiftRequest(
+                                                        _buildShiftRequest(
                                                           shiftId: shiftId,
                                                           status: TextConstants
                                                               .closed,
@@ -605,204 +590,204 @@ class _SafeOpenScreenState extends State<SafeOpenScreen>
                                                                 .shiftStream
                                                                 .listen(
                                                                     (closeResponse) async {
-                                                          if (closeResponse
-                                                                  .status ==
-                                                              Status
-                                                                  .COMPLETED) {
-                                                            if (kDebugMode) {
-                                                              print(
-                                                                  "##### Close shift COMPLETED");
-                                                            }
-
-                                                            if (mounted) {
-                                                              _resetAllTubes();
-                                                              if (kDebugMode) {
-                                                                print(
-                                                                    "##### Dialog result: $result");
-                                                              }
-                                                            }
-
-                                                            await UserDbHelper()
-                                                                .updateUserShiftId(
-                                                                    null);
-
-                                                            // KEEP THE LOGOUT STREAM HANDLING - call logout API
-                                                            logoutBloc
-                                                                .performLogout();
-
-                                                            // Listen for logout response
-                                                            logoutBloc
-                                                                .logoutStream
-                                                                .listen(
-                                                                    (logoutResponse) {
-                                                              if (logoutResponse
+                                                                  if (closeResponse
                                                                       .status ==
-                                                                  Status
-                                                                      .COMPLETED) {
-                                                                // Close the verification dialog with loader
-                                                                Navigator.of(
-                                                                        context)
-                                                                    .pop(); // This will close the loader dialog
-                                                                if (kDebugMode) {
-                                                                  print(
-                                                                      "Logout successful, navigating to LoginScreen");
-                                                                }
-                                                                if (Misc
-                                                                    .showDebugSnackBar) {
-                                                                  // Build #1.0.254
-                                                                  ScaffoldMessenger.of(
-                                                                          context)
-                                                                      .showSnackBar(
-                                                                    SnackBar(
-                                                                      content: Text(logoutResponse
-                                                                              .message ??
-                                                                          TextConstants
-                                                                              .successfullyLogout),
-                                                                      backgroundColor:
-                                                                          Colors
-                                                                              .green,
-                                                                      duration: const Duration(
-                                                                          seconds:
-                                                                              2),
-                                                                    ),
-                                                                  );
-                                                                }
-                                                                Navigator.pushReplacement(
-                                                                    context,
-                                                                    MaterialPageRoute(
-                                                                        builder:
-                                                                            (context) =>
-                                                                                LoginScreen()));
-                                                              } else if (logoutResponse
-                                                                      .status ==
-                                                                  Status
-                                                                      .ERROR) {
-                                                                if (logoutResponse
-                                                                    .message!
-                                                                    .contains(
-                                                                        'Unauthorised')) {
-                                                                  if (kDebugMode) {
-                                                                    print(
-                                                                        " safe open screen -- Unauthorised : response.message ${logoutResponse.message!}");
-                                                                  }
-                                                                  WidgetsBinding
-                                                                      .instance
-                                                                      .addPostFrameCallback(
-                                                                          (_) {
+                                                                      Status
+                                                                          .COMPLETED) {
+                                                                    if (kDebugMode) {
+                                                                      print(
+                                                                          "##### Close shift COMPLETED");
+                                                                    }
+
                                                                     if (mounted) {
-                                                                      Navigator.pushReplacement(
-                                                                          context,
-                                                                          MaterialPageRoute(
-                                                                              builder: (context) => LoginScreen()));
-                                                                      ScaffoldMessenger.of(
-                                                                              context)
+                                                                      _resetAllTubes();
+                                                                      if (kDebugMode) {
+                                                                        print(
+                                                                            "##### Dialog result: $result");
+                                                                      }
+                                                                    }
+
+                                                                    await UserDbHelper()
+                                                                        .updateUserShiftId(
+                                                                        null);
+
+                                                                    // KEEP THE LOGOUT STREAM HANDLING - call logout API
+                                                                    logoutBloc
+                                                                        .performLogout();
+
+                                                                    // Listen for logout response
+                                                                    logoutBloc
+                                                                        .logoutStream
+                                                                        .listen(
+                                                                            (logoutResponse) {
+                                                                          if (logoutResponse
+                                                                              .status ==
+                                                                              Status
+                                                                                  .COMPLETED) {
+                                                                            // Close the verification dialog with loader
+                                                                            Navigator.of(
+                                                                                context)
+                                                                                .pop(); // This will close the loader dialog
+                                                                            if (kDebugMode) {
+                                                                              print(
+                                                                                  "Logout successful, navigating to LoginScreen");
+                                                                            }
+                                                                            if (Misc
+                                                                                .showDebugSnackBar) {
+                                                                              // Build #1.0.254
+                                                                              ScaffoldMessenger.of(
+                                                                                  context)
+                                                                                  .showSnackBar(
+                                                                                SnackBar(
+                                                                                  content: Text(logoutResponse
+                                                                                      .message ??
+                                                                                      TextConstants
+                                                                                          .successfullyLogout),
+                                                                                  backgroundColor:
+                                                                                  Colors
+                                                                                      .green,
+                                                                                  duration: const Duration(
+                                                                                      seconds:
+                                                                                      2),
+                                                                                ),
+                                                                              );
+                                                                            }
+                                                                            Navigator.pushReplacement(
+                                                                                context,
+                                                                                MaterialPageRoute(
+                                                                                    builder:
+                                                                                        (context) =>
+                                                                                        LoginScreen()));
+                                                                          } else if (logoutResponse
+                                                                              .status ==
+                                                                              Status
+                                                                                  .ERROR) {
+                                                                            if (logoutResponse
+                                                                                .message!
+                                                                                .contains(
+                                                                                'Unauthorised')) {
+                                                                              if (kDebugMode) {
+                                                                                print(
+                                                                                    " safe open screen -- Unauthorised : response.message ${logoutResponse.message!}");
+                                                                              }
+                                                                              WidgetsBinding
+                                                                                  .instance
+                                                                                  .addPostFrameCallback(
+                                                                                      (_) {
+                                                                                    if (mounted) {
+                                                                                      Navigator.pushReplacement(
+                                                                                          context,
+                                                                                          MaterialPageRoute(
+                                                                                              builder: (context) => LoginScreen()));
+                                                                                      ScaffoldMessenger.of(
+                                                                                          context)
+                                                                                          .showSnackBar(
+                                                                                        const SnackBar(
+                                                                                          content:
+                                                                                          Text("Unauthorised. Session is expired on this device."),
+                                                                                          backgroundColor:
+                                                                                          Colors.red,
+                                                                                          duration:
+                                                                                          Duration(seconds: 2),
+                                                                                        ),
+                                                                                      );
+                                                                                    }
+                                                                                  });
+                                                                            } else {
+                                                                              if (kDebugMode) {
+                                                                                print(
+                                                                                    "Logout failed: ${logoutResponse.message}");
+                                                                              }
+                                                                              ScaffoldMessenger.of(
+                                                                                  context)
+                                                                                  .showSnackBar(
+                                                                                SnackBar(
+                                                                                  content: Text(logoutResponse
+                                                                                      .message ??
+                                                                                      TextConstants
+                                                                                          .failedToLogout),
+                                                                                  backgroundColor:
+                                                                                  Colors
+                                                                                      .red,
+                                                                                  duration: const Duration(
+                                                                                      seconds:
+                                                                                      2),
+                                                                                ),
+                                                                              );
+                                                                            }
+                                                                          }
+                                                                        });
+                                                                  } else if (closeResponse
+                                                                      .status ==
+                                                                      Status.ERROR) {
+                                                                    // Close the verification dialog on error
+                                                                    Navigator.of(
+                                                                        context)
+                                                                        .pop();
+                                                                    // Build #1.0.248: ADDED THIS: Stop loading on any error
+                                                                    setState(() =>
+                                                                    _isSubmitting =
+                                                                    false);
+                                                                    if (closeResponse
+                                                                        .message!
+                                                                        .contains(
+                                                                        TextConstants
+                                                                            .unAuth)) {
+                                                                      if (kDebugMode) {
+                                                                        print(
+                                                                            " safe open screen -- Unauthorised in close shift: response.message ${closeResponse.message!}");
+                                                                      }
+                                                                      WidgetsBinding
+                                                                          .instance
+                                                                          .addPostFrameCallback(
+                                                                              (_) {
+                                                                            if (mounted) {
+                                                                              Navigator.pushReplacement(
+                                                                                  context,
+                                                                                  MaterialPageRoute(
+                                                                                      builder: (context) =>
+                                                                                          LoginScreen()));
+                                                                              ScaffoldMessenger.of(
+                                                                                  context)
+                                                                                  .showSnackBar(
+                                                                                const SnackBar(
+                                                                                  content: Text(
+                                                                                      TextConstants
+                                                                                          .unAuthMessage),
+                                                                                  backgroundColor:
+                                                                                  Colors
+                                                                                      .red,
+                                                                                  duration: Duration(
+                                                                                      seconds:
+                                                                                      2),
+                                                                                ),
+                                                                              );
+                                                                            }
+                                                                          });
+                                                                    } else {
+                                                                      if (kDebugMode) {
+                                                                        print(
+                                                                            "Close shift failed: ${closeResponse.message}");
+                                                                      }
+                                                                      ScaffoldMessenger
+                                                                          .of(context)
                                                                           .showSnackBar(
-                                                                        const SnackBar(
-                                                                          content:
-                                                                              Text("Unauthorised. Session is expired on this device."),
+                                                                        SnackBar(
+                                                                          content: Text(
+                                                                              TextConstants
+                                                                                  .failedCloseShift), // Build #1.0.248: added into constants
                                                                           backgroundColor:
-                                                                              Colors.red,
+                                                                          Colors
+                                                                              .red,
                                                                           duration:
-                                                                              Duration(seconds: 2),
+                                                                          const Duration(
+                                                                              seconds:
+                                                                              3),
                                                                         ),
                                                                       );
                                                                     }
-                                                                  });
-                                                                } else {
-                                                                  if (kDebugMode) {
-                                                                    print(
-                                                                        "Logout failed: ${logoutResponse.message}");
                                                                   }
-                                                                  ScaffoldMessenger.of(
-                                                                          context)
-                                                                      .showSnackBar(
-                                                                    SnackBar(
-                                                                      content: Text(logoutResponse
-                                                                              .message ??
-                                                                          TextConstants
-                                                                              .failedToLogout),
-                                                                      backgroundColor:
-                                                                          Colors
-                                                                              .red,
-                                                                      duration: const Duration(
-                                                                          seconds:
-                                                                              2),
-                                                                    ),
-                                                                  );
-                                                                }
-                                                              }
-                                                            });
-                                                          } else if (closeResponse
-                                                                  .status ==
-                                                              Status.ERROR) {
-                                                            // Close the verification dialog on error
-                                                            Navigator.of(
-                                                                    context)
-                                                                .pop();
-                                                            // Build #1.0.248: ADDED THIS: Stop loading on any error
-                                                            setState(() =>
-                                                                _isSubmitting =
-                                                                    false);
-                                                            if (closeResponse
-                                                                .message!
-                                                                .contains(
-                                                                    TextConstants
-                                                                        .unAuth)) {
-                                                              if (kDebugMode) {
-                                                                print(
-                                                                    " safe open screen -- Unauthorised in close shift: response.message ${closeResponse.message!}");
-                                                              }
-                                                              WidgetsBinding
-                                                                  .instance
-                                                                  .addPostFrameCallback(
-                                                                      (_) {
-                                                                if (mounted) {
-                                                                  Navigator.pushReplacement(
-                                                                      context,
-                                                                      MaterialPageRoute(
-                                                                          builder: (context) =>
-                                                                              LoginScreen()));
-                                                                  ScaffoldMessenger.of(
-                                                                          context)
-                                                                      .showSnackBar(
-                                                                    const SnackBar(
-                                                                      content: Text(
-                                                                          TextConstants
-                                                                              .unAuthMessage),
-                                                                      backgroundColor:
-                                                                          Colors
-                                                                              .red,
-                                                                      duration: Duration(
-                                                                          seconds:
-                                                                              2),
-                                                                    ),
-                                                                  );
-                                                                }
-                                                              });
-                                                            } else {
-                                                              if (kDebugMode) {
-                                                                print(
-                                                                    "Close shift failed: ${closeResponse.message}");
-                                                              }
-                                                              ScaffoldMessenger
-                                                                      .of(context)
-                                                                  .showSnackBar(
-                                                                SnackBar(
-                                                                  content: Text(
-                                                                      TextConstants
-                                                                          .failedCloseShift), // Build #1.0.248: added into constants
-                                                                  backgroundColor:
-                                                                      Colors
-                                                                          .red,
-                                                                  duration:
-                                                                      const Duration(
-                                                                          seconds:
-                                                                              3),
-                                                                ),
-                                                              );
-                                                            }
-                                                          }
-                                                        });
+                                                                });
                                                       }
                                                     }
 
@@ -835,11 +820,11 @@ class _SafeOpenScreenState extends State<SafeOpenScreen>
                                                         Status.ERROR) {
                                                       // Build #1.0.248: ADDED THIS: Stop loading on any error
                                                       setState(() => _isSubmitting =
-                                                          false); // Build #1.0.248: Hide loader for all errors
+                                                      false); // Build #1.0.248: Hide loader for all errors
                                                       if (response.message!
                                                           .contains(
-                                                              TextConstants
-                                                                  .unAuth)) {
+                                                          TextConstants
+                                                              .unAuth)) {
                                                         if (kDebugMode) {
                                                           print(
                                                               " safe open screen 2 -- Unauthorised : response.message ${response.message!}");
@@ -849,56 +834,56 @@ class _SafeOpenScreenState extends State<SafeOpenScreen>
                                                         WidgetsBinding.instance
                                                             .addPostFrameCallback(
                                                                 (_) {
-                                                          if (mounted) {
-                                                            Navigator.pushReplacement(
-                                                                context,
-                                                                MaterialPageRoute(
-                                                                    builder:
-                                                                        (context) =>
+                                                              if (mounted) {
+                                                                Navigator.pushReplacement(
+                                                                    context,
+                                                                    MaterialPageRoute(
+                                                                        builder:
+                                                                            (context) =>
                                                                             LoginScreen()));
 
-                                                            if (kDebugMode) {
-                                                              print(
-                                                                  "message 2 --- ${response.message}");
-                                                            }
-                                                            ScaffoldMessenger
+                                                                if (kDebugMode) {
+                                                                  print(
+                                                                      "message 2 --- ${response.message}");
+                                                                }
+                                                                ScaffoldMessenger
                                                                     .of(context)
-                                                                .showSnackBar(
-                                                              const SnackBar(
-                                                                content: Text(
-                                                                    TextConstants
-                                                                        .unAuthMessage),
-                                                                backgroundColor:
+                                                                    .showSnackBar(
+                                                                  const SnackBar(
+                                                                    content: Text(
+                                                                        TextConstants
+                                                                            .unAuthMessage),
+                                                                    backgroundColor:
                                                                     Colors.red,
-                                                                duration:
+                                                                    duration:
                                                                     Duration(
                                                                         seconds:
-                                                                            2),
-                                                              ),
-                                                            );
-                                                          }
-                                                        });
+                                                                        2),
+                                                                  ),
+                                                                );
+                                                              }
+                                                            });
                                                       } else {
                                                         // Build #1.0.248: added based on shift error
                                                         String errorMessage = status ==
-                                                                TextConstants
-                                                                    .open
+                                                            TextConstants
+                                                                .open
                                                             ? TextConstants
-                                                                .failedToStartShift
+                                                            .failedToStartShift
                                                             : TextConstants
-                                                                .failedToUpdateShift;
+                                                            .failedToUpdateShift;
 
                                                         ScaffoldMessenger.of(
-                                                                context)
+                                                            context)
                                                             .showSnackBar(
                                                           SnackBar(
                                                             content: Text(
                                                                 errorMessage),
                                                             backgroundColor:
-                                                                Colors.red,
+                                                            Colors.red,
                                                             duration:
-                                                                const Duration(
-                                                                    seconds: 3),
+                                                            const Duration(
+                                                                seconds: 3),
                                                           ),
                                                         );
                                                       }
@@ -907,7 +892,7 @@ class _SafeOpenScreenState extends State<SafeOpenScreen>
                                                 });
                                               } catch (e) {
                                                 setState(() => _isSubmitting =
-                                                    false); // Build #1.0. 140: hide loader
+                                                false); // Build #1.0. 140: hide loader
                                                 if (kDebugMode) {
                                                   print(
                                                       "Error during submit: $e");
@@ -919,27 +904,27 @@ class _SafeOpenScreenState extends State<SafeOpenScreen>
                                                   0xFFFF6B6B), //Build #1.0.78: no need to change bg
                                               foregroundColor: Colors.white,
                                               padding:
-                                                  const EdgeInsets.symmetric(
-                                                      horizontal: 16,
-                                                      vertical: 8),
+                                              const EdgeInsets.symmetric(
+                                                  horizontal: 16,
+                                                  vertical: 8),
                                               shape: RoundedRectangleBorder(
                                                   borderRadius:
-                                                      BorderRadius.circular(8)),
+                                                  BorderRadius.circular(8)),
                                             ),
                                             child:
-                                                _isSubmitting // Build #1.0.70:
-                                                    ? const SizedBox(
-                                                        width: 20,
-                                                        height: 20,
-                                                        child:
-                                                            CircularProgressIndicator(
-                                                          strokeWidth: 2,
-                                                          color: Colors.white,
-                                                        ),
-                                                      )
-                                                    : const Text('Submit',
-                                                        style: TextStyle(
-                                                            fontSize: 16)),
+                                            _isSubmitting // Build #1.0.70:
+                                                ? const SizedBox(
+                                              width: 20,
+                                              height: 20,
+                                              child:
+                                              CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color: Colors.white,
+                                              ),
+                                            )
+                                                : const Text('Submit',
+                                                style: TextStyle(
+                                                    fontSize: 16)),
                                           )),
                                     ],
                                   ),
@@ -960,17 +945,17 @@ class _SafeOpenScreenState extends State<SafeOpenScreen>
                                   padding: EdgeInsets.only(left: 5, bottom: 10),
                                   child: Row(
                                     crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                    CrossAxisAlignment.start,
                                     children: [
                                       // Left label column
                                       Column(
                                         crossAxisAlignment:
-                                            CrossAxisAlignment.start,
+                                        CrossAxisAlignment.start,
                                         children: [
                                           SizedBox(
                                             height: MediaQuery.of(context)
-                                                    .size
-                                                    .height *
+                                                .size
+                                                .height *
                                                 0.065,
                                             child: Align(
                                               alignment: Alignment.centerLeft,
@@ -979,8 +964,8 @@ class _SafeOpenScreenState extends State<SafeOpenScreen>
                                                 style: TextStyle(
                                                   fontSize: 14,
                                                   color: themeHelper
-                                                              .themeMode ==
-                                                          ThemeMode.dark
+                                                      .themeMode ==
+                                                      ThemeMode.dark
                                                       ? ThemeNotifier.textDark
                                                       : Colors.grey.shade700,
                                                   fontWeight: FontWeight.w500,
@@ -991,8 +976,8 @@ class _SafeOpenScreenState extends State<SafeOpenScreen>
                                           const SizedBox(height: 2),
                                           SizedBox(
                                             height: MediaQuery.of(context)
-                                                    .size
-                                                    .height *
+                                                .size
+                                                .height *
                                                 0.045,
                                             child: Align(
                                               alignment: Alignment.centerLeft,
@@ -1001,8 +986,8 @@ class _SafeOpenScreenState extends State<SafeOpenScreen>
                                                 style: TextStyle(
                                                   fontSize: 14,
                                                   color: themeHelper
-                                                              .themeMode ==
-                                                          ThemeMode.dark
+                                                      .themeMode ==
+                                                      ThemeMode.dark
                                                       ? ThemeNotifier.textDark
                                                       : Colors.grey.shade700,
                                                   fontWeight: FontWeight.w500,
@@ -1088,43 +1073,43 @@ class _SafeOpenScreenState extends State<SafeOpenScreen>
                                     scrollDirection: Axis.horizontal,
                                     child: Container(
                                       height:
-                                          MediaQuery.of(context).size.height *
-                                              0.65,
+                                      MediaQuery.of(context).size.height *
+                                          0.65,
                                       padding:
-                                          EdgeInsets.only(left: 5, right: 5),
+                                      EdgeInsets.only(left: 5, right: 5),
                                       child: Column(
                                         children: [
                                           SizedBox(
                                             child: Row(
                                               mainAxisAlignment:
-                                                  MainAxisAlignment.start,
+                                              MainAxisAlignment.start,
                                               crossAxisAlignment:
-                                                  CrossAxisAlignment.end,
+                                              CrossAxisAlignment.end,
                                               children: List.generate(
                                                 denominations.length,
-                                                (index) => MoneyColumn(
+                                                    (index) => MoneyColumn(
                                                   denomination:
-                                                      denominations[index]
-                                                          ['value'],
+                                                  denominations[index]
+                                                  ['value'],
                                                   color: denominations[index]
-                                                      ['color'],
+                                                  ['color'],
                                                   tubeCount:
-                                                      denominations[index]
-                                                          ['tubeCount'],
+                                                  denominations[index]
+                                                  ['tubeCount'],
                                                   onChanged: (value) {
                                                     setState(() {
                                                       denominations[index]
-                                                          ['tubeCount'] = value;
+                                                      ['tubeCount'] = value;
                                                     });
                                                     updateAmounts();
                                                   },
                                                   amount: denominations[index]
-                                                          ['amount']
+                                                  ['amount']
                                                       .toDouble(),
                                                   updateTubes: (value) {
                                                     setState(() {
                                                       denominations[index]
-                                                              ['tubeCount'] =
+                                                      ['tubeCount'] =
                                                           value ?? 0;
                                                     });
                                                     updateAmounts();
@@ -1146,64 +1131,64 @@ class _SafeOpenScreenState extends State<SafeOpenScreen>
                                     height: MediaQuery.of(context).size.height *
                                         0.70,
                                     margin: EdgeInsets.all(sidebarPosition ==
-                                            SidebarPosition.bottom
+                                        SidebarPosition.bottom
                                         ? 8
                                         : 10),
                                     padding: EdgeInsets.all(10),
                                     decoration: BoxDecoration(
                                       color: themeHelper.themeMode ==
-                                              ThemeMode.dark
+                                          ThemeMode.dark
                                           ? Color(0xFF31354A)
                                           : Color(
-                                              0xFFFEF4F4), // move color here
+                                          0xFFFEF4F4), // move color here
                                       borderRadius: BorderRadius.circular(
                                           15), // your radius
                                     ),
                                     child: Column(
                                       mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
+                                      MainAxisAlignment.spaceBetween,
                                       crossAxisAlignment:
-                                          CrossAxisAlignment.start,
+                                      CrossAxisAlignment.start,
                                       children: [
                                         // Total Columns
                                         Center(
                                           child: Container(
                                             width: MediaQuery.of(context)
-                                                    .size
-                                                    .width *
+                                                .size
+                                                .width *
                                                 0.35,
                                             margin: EdgeInsets.only(top: 20),
                                             padding: EdgeInsets.all(10),
                                             decoration: BoxDecoration(
                                               color: themeHelper.themeMode ==
-                                                      ThemeMode.dark
+                                                  ThemeMode.dark
                                                   ? ThemeNotifier
-                                                      .secondaryBackground
+                                                  .secondaryBackground
                                                   : Colors.white,
                                               borderRadius:
-                                                  BorderRadius.circular(8),
+                                              BorderRadius.circular(8),
                                               border: Border.all(
                                                   color: themeHelper
-                                                              .themeMode ==
-                                                          ThemeMode.dark
+                                                      .themeMode ==
+                                                      ThemeMode.dark
                                                       ? ThemeNotifier
-                                                          .borderColor
+                                                      .borderColor
                                                       : Colors.grey.shade300),
                                             ),
                                             child: Column(
                                               crossAxisAlignment:
-                                                  CrossAxisAlignment.center,
+                                              CrossAxisAlignment.center,
                                               children: [
                                                 Text(TextConstants.totalColumns,
                                                     style: TextStyle(
                                                         fontSize: 16,
                                                         color: themeHelper
-                                                                    .themeMode ==
-                                                                ThemeMode.dark
+                                                            .themeMode ==
+                                                            ThemeMode.dark
                                                             ? ThemeNotifier
-                                                                .textDark
+                                                            .textDark
                                                             : Colors.grey
-                                                                .shade700)),
+                                                            .shade700)),
                                                 const SizedBox(height: 8),
                                                 Text(
                                                     denominations.length
@@ -1212,7 +1197,7 @@ class _SafeOpenScreenState extends State<SafeOpenScreen>
                                                     style: TextStyle(
                                                         fontSize: 28,
                                                         fontWeight:
-                                                            FontWeight.bold)),
+                                                        FontWeight.bold)),
                                               ],
                                             ),
                                           ),
@@ -1222,20 +1207,20 @@ class _SafeOpenScreenState extends State<SafeOpenScreen>
                                             // Cash (Tubes)
                                             Row(
                                               crossAxisAlignment:
-                                                  CrossAxisAlignment.center,
+                                              CrossAxisAlignment.center,
                                               mainAxisAlignment:
-                                                  MainAxisAlignment.spaceAround,
+                                              MainAxisAlignment.spaceAround,
                                               children: [
                                                 Expanded(
                                                   child: Column(
                                                     crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .center,
+                                                    CrossAxisAlignment
+                                                        .center,
                                                     children: [
                                                       Padding(
                                                         padding:
-                                                            const EdgeInsets
-                                                                .only(left: 20),
+                                                        const EdgeInsets
+                                                            .only(left: 20),
                                                         child: Row(
                                                           children: [
                                                             Text(
@@ -1243,10 +1228,10 @@ class _SafeOpenScreenState extends State<SafeOpenScreen>
                                                                     .cash,
                                                                 style: TextStyle(
                                                                     fontSize:
-                                                                        18,
+                                                                    18,
                                                                     fontWeight:
-                                                                        FontWeight
-                                                                            .bold)),
+                                                                    FontWeight
+                                                                        .bold)),
                                                             const SizedBox(
                                                                 width: 6),
                                                             Text(
@@ -1254,7 +1239,7 @@ class _SafeOpenScreenState extends State<SafeOpenScreen>
                                                                     .tubes,
                                                                 style: TextStyle(
                                                                     fontSize:
-                                                                        12,
+                                                                    12,
                                                                     color: Colors
                                                                         .grey)),
                                                           ],
@@ -1262,8 +1247,8 @@ class _SafeOpenScreenState extends State<SafeOpenScreen>
                                                       ),
                                                       Padding(
                                                         padding:
-                                                            const EdgeInsets
-                                                                .only(left: 20),
+                                                        const EdgeInsets
+                                                            .only(left: 20),
                                                         child: Row(
                                                           children: [
                                                             Icon(
@@ -1280,7 +1265,7 @@ class _SafeOpenScreenState extends State<SafeOpenScreen>
                                                                       .safeTotalAmount,
                                                                   style: TextStyle(
                                                                       fontSize:
-                                                                          12,
+                                                                      12,
                                                                       color: Colors
                                                                           .grey)),
                                                             ),
@@ -1293,50 +1278,50 @@ class _SafeOpenScreenState extends State<SafeOpenScreen>
                                                 const SizedBox(width: 20),
                                                 Padding(
                                                   padding:
-                                                      const EdgeInsets.only(
-                                                          right: 20),
+                                                  const EdgeInsets.only(
+                                                      right: 20),
                                                   child: Text(
                                                     ':',
                                                     style: TextStyle(
                                                         fontSize: 18,
                                                         fontWeight:
-                                                            FontWeight.bold),
+                                                        FontWeight.bold),
                                                   ),
                                                 ),
                                                 Padding(
                                                   padding:
-                                                      const EdgeInsets.only(
-                                                          right: 20),
+                                                  const EdgeInsets.only(
+                                                      right: 20),
                                                   child: Container(
                                                     margin: EdgeInsets.all(8.0),
                                                     width:
-                                                        MediaQuery.of(context)
-                                                                .size
-                                                                .width *
-                                                            0.125,
+                                                    MediaQuery.of(context)
+                                                        .size
+                                                        .width *
+                                                        0.125,
                                                     padding:
-                                                        EdgeInsets.symmetric(
-                                                            horizontal: 10,
-                                                            vertical: 8),
+                                                    EdgeInsets.symmetric(
+                                                        horizontal: 10,
+                                                        vertical: 8),
                                                     decoration: BoxDecoration(
                                                       border: Border.all(
                                                           color: Colors
                                                               .grey.shade300),
                                                       borderRadius:
-                                                          BorderRadius.circular(
-                                                              8),
+                                                      BorderRadius.circular(
+                                                          8),
                                                     ),
                                                     child: Row(
                                                       mainAxisAlignment:
-                                                          MainAxisAlignment.end,
+                                                      MainAxisAlignment.end,
                                                       children: [
                                                         Text(
                                                             '${TextConstants.currencySymbol}${cashTubes.toStringAsFixed(2)}',
                                                             style: TextStyle(
                                                                 fontSize: 18,
                                                                 fontWeight:
-                                                                    FontWeight
-                                                                        .bold)),
+                                                                FontWeight
+                                                                    .bold)),
                                                       ],
                                                     ),
                                                   ),
@@ -1347,36 +1332,36 @@ class _SafeOpenScreenState extends State<SafeOpenScreen>
                                             // Cash (Notes/coins)
                                             Row(
                                               crossAxisAlignment:
-                                                  CrossAxisAlignment.center,
+                                              CrossAxisAlignment.center,
                                               mainAxisAlignment:
-                                                  MainAxisAlignment.spaceAround,
+                                              MainAxisAlignment.spaceAround,
                                               children: [
                                                 Expanded(
                                                   child: Column(
                                                     crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .start,
+                                                    CrossAxisAlignment
+                                                        .start,
                                                     children: [
                                                       Padding(
                                                         padding:
-                                                            const EdgeInsets
-                                                                .only(left: 20),
+                                                        const EdgeInsets
+                                                            .only(left: 20),
                                                         child: Row(
                                                           children: [
                                                             Text('Cash',
                                                                 style: TextStyle(
                                                                     fontSize:
-                                                                        18,
+                                                                    18,
                                                                     fontWeight:
-                                                                        FontWeight
-                                                                            .bold)),
+                                                                    FontWeight
+                                                                        .bold)),
                                                             const SizedBox(
                                                                 width: 6),
                                                             Text(
                                                                 '(Notes/coins)',
                                                                 style: TextStyle(
                                                                     fontSize:
-                                                                        14,
+                                                                    14,
                                                                     color: Colors
                                                                         .grey)),
                                                           ],
@@ -1384,8 +1369,8 @@ class _SafeOpenScreenState extends State<SafeOpenScreen>
                                                       ),
                                                       Padding(
                                                         padding:
-                                                            const EdgeInsets
-                                                                .only(left: 20),
+                                                        const EdgeInsets
+                                                            .only(left: 20),
                                                         child: Row(
                                                           children: [
                                                             Icon(
@@ -1401,7 +1386,7 @@ class _SafeOpenScreenState extends State<SafeOpenScreen>
                                                                   'Total Amount of Physical money in the form of notes and coins',
                                                                   style: TextStyle(
                                                                       fontSize:
-                                                                          12,
+                                                                      12,
                                                                       color: Colors
                                                                           .grey)),
                                                             ),
@@ -1414,41 +1399,41 @@ class _SafeOpenScreenState extends State<SafeOpenScreen>
                                                 const SizedBox(width: 20),
                                                 Padding(
                                                   padding:
-                                                      const EdgeInsets.only(
-                                                          right: 10),
+                                                  const EdgeInsets.only(
+                                                      right: 10),
                                                   child: Text(' : ',
                                                       style: TextStyle(
                                                           fontSize: 18,
                                                           fontWeight:
-                                                              FontWeight.bold)),
+                                                          FontWeight.bold)),
                                                 ),
                                                 const SizedBox(width: 8),
                                                 Padding(
                                                   padding:
-                                                      const EdgeInsets.only(
-                                                          right: 20),
+                                                  const EdgeInsets.only(
+                                                      right: 20),
                                                   child: Container(
                                                     margin: EdgeInsets.all(8.0),
                                                     width:
-                                                        MediaQuery.of(context)
-                                                                .size
-                                                                .width *
-                                                            0.125,
+                                                    MediaQuery.of(context)
+                                                        .size
+                                                        .width *
+                                                        0.125,
                                                     padding:
-                                                        EdgeInsets.symmetric(
-                                                            horizontal: 10,
-                                                            vertical: 8),
+                                                    EdgeInsets.symmetric(
+                                                        horizontal: 10,
+                                                        vertical: 8),
                                                     decoration: BoxDecoration(
                                                       border: Border.all(
                                                           color: Colors
                                                               .grey.shade300),
                                                       borderRadius:
-                                                          BorderRadius.circular(
-                                                              8),
+                                                      BorderRadius.circular(
+                                                          8),
                                                     ),
                                                     child: Row(
                                                       mainAxisAlignment:
-                                                          MainAxisAlignment.end,
+                                                      MainAxisAlignment.end,
                                                       children: [
                                                         Text(
                                                             '${TextConstants.currencySymbol}${cashNotesCoin.toStringAsFixed(2)}',
@@ -1478,15 +1463,15 @@ class _SafeOpenScreenState extends State<SafeOpenScreen>
                                                         style: TextStyle(
                                                             fontSize: 18,
                                                             fontWeight:
-                                                                FontWeight
-                                                                    .bold)),
+                                                            FontWeight
+                                                                .bold)),
                                                     const SizedBox(width: 5),
                                                     const Text(' : ',
                                                         style: TextStyle(
                                                             fontSize: 18,
                                                             fontWeight:
-                                                                FontWeight
-                                                                    .bold)),
+                                                            FontWeight
+                                                                .bold)),
                                                   ],
                                                 ),
                                               ),
@@ -1498,8 +1483,8 @@ class _SafeOpenScreenState extends State<SafeOpenScreen>
                                               child: Container(
                                                 margin: EdgeInsets.all(8.0),
                                                 width: MediaQuery.of(context)
-                                                        .size
-                                                        .width *
+                                                    .size
+                                                    .width *
                                                     0.15,
                                                 padding: EdgeInsets.symmetric(
                                                     horizontal: 10,
@@ -1507,21 +1492,21 @@ class _SafeOpenScreenState extends State<SafeOpenScreen>
                                                 decoration: BoxDecoration(
                                                   border: Border.all(
                                                       color:
-                                                          Colors.grey.shade300),
+                                                      Colors.grey.shade300),
                                                   borderRadius:
-                                                      BorderRadius.circular(8),
+                                                  BorderRadius.circular(8),
                                                 ),
                                                 child: Row(
                                                   mainAxisAlignment:
-                                                      MainAxisAlignment.end,
+                                                  MainAxisAlignment.end,
                                                   children: [
                                                     Text(
                                                         '${TextConstants.currencySymbol}${totalAmount.toStringAsFixed(2)}',
                                                         style: TextStyle(
                                                             fontSize: 18,
                                                             fontWeight:
-                                                                FontWeight
-                                                                    .bold)),
+                                                            FontWeight
+                                                                .bold)),
                                                   ],
                                                 ),
                                               ),
@@ -1579,12 +1564,12 @@ class MoneyColumn extends StatelessWidget {
 
   const MoneyColumn(
       {Key? key,
-      required this.denomination,
-      required this.color,
-      required this.tubeCount,
-      required this.onChanged,
-      required this.amount,
-      this.updateTubes})
+        required this.denomination,
+        required this.color,
+        required this.tubeCount,
+        required this.onChanged,
+        required this.amount,
+        this.updateTubes})
       : super(key: key);
 
   @override
@@ -1608,7 +1593,7 @@ class MoneyColumn extends StatelessWidget {
                 height: MediaQuery.of(context).size.height * 0.45,
                 child: Stack(
                   alignment:
-                      Alignment.bottomCenter, // keep vertical center by default
+                  Alignment.bottomCenter, // keep vertical center by default
                   children: [
                     Container(
                       height: MediaQuery.of(context).size.height * 0.5,
@@ -1619,11 +1604,11 @@ class MoneyColumn extends StatelessWidget {
                         ),
                         border: Border(
                           left:
-                              BorderSide(color: Colors.grey.shade300, width: 1),
+                          BorderSide(color: Colors.grey.shade300, width: 1),
                           right:
-                              BorderSide(color: Colors.grey.shade300, width: 1),
+                          BorderSide(color: Colors.grey.shade300, width: 1),
                           bottom:
-                              BorderSide(color: Colors.grey.shade300, width: 1),
+                          BorderSide(color: Colors.grey.shade300, width: 1),
                           top: BorderSide.none,
                         ),
                       ),
@@ -1644,7 +1629,7 @@ class MoneyColumn extends StatelessWidget {
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: List.generate(
                               10,
-                              (index) {
+                                  (index) {
                                 int reversedIndex = 9 - index;
                                 return Container(
                                   height: 29, // height of each cube
@@ -1652,9 +1637,9 @@ class MoneyColumn extends StatelessWidget {
                                     color: reversedIndex < tubeCount
                                         ? color
                                         : themeHelper.themeMode ==
-                                                ThemeMode.dark
-                                            ? const Color(0xFF8E8D8D)
-                                            : const Color(0xFFD9D9D9),
+                                        ThemeMode.dark
+                                        ? const Color(0xFF8E8D8D)
+                                        : const Color(0xFFD9D9D9),
                                     borderRadius: BorderRadius.circular(0),
                                   ),
                                 );
@@ -1669,7 +1654,7 @@ class MoneyColumn extends StatelessWidget {
                       Positioned(
                         bottom: 1,
                         left: (MediaQuery.of(context).size.width * 0.06 -
-                                MediaQuery.of(context).size.width * 0.05) /
+                            MediaQuery.of(context).size.width * 0.05) /
                             2, // 🔹 center horizontally
                         child: SizedBox(
                           width: MediaQuery.of(context).size.width * 0.05,
@@ -1678,7 +1663,7 @@ class MoneyColumn extends StatelessWidget {
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: List.generate(
                               tubeCount - 1,
-                              (index) => Container(
+                                  (index) => Container(
                                 height: 1,
                                 width: MediaQuery.of(context).size.width * 0.05,
                                 //color: Colors.white.withValues(alpha: 1),

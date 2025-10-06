@@ -762,6 +762,7 @@ import '../Providers/Auth/product_variation_provider.dart';
 import '../Utilities/shimmer_effect.dart';
 import 'package:reorderable_grid_view/reorderable_grid_view.dart';
 import '../Utilities/svg_images_utility.dart';
+import 'widget_logs_toast.dart';
 
 class NestedGridWidget extends StatelessWidget {
   final bool isHorizontal;
@@ -860,7 +861,7 @@ class NestedGridWidget extends StatelessWidget {
 
     return Expanded(
       child: Container(
-        margin: EdgeInsets.fromLTRB(6, 0, 8, 10),
+        margin: EdgeInsets.symmetric(vertical: 10, horizontal: 0),
         height: MediaQuery.of(context).size.height /2,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
@@ -893,7 +894,7 @@ class NestedGridWidget extends StatelessWidget {
                       children: [
                         const Icon(Icons.add, size: 40, color: Color(0xFFFE6464)),
                         //SizedBox(height: 2),
-                        Text(TextConstants.addProductText, style: TextStyle(color: Color(0xFFFE6464),fontSize: 17,fontWeight: FontWeight.bold)),
+                        Text(TextConstants.addProductText, style: TextStyle(color: Color(0xFFFE6464))),
                       ],
                     ),themeHelper, accentColor: Colors.redAccent),
                   ),
@@ -962,11 +963,29 @@ class NestedGridWidget extends StatelessWidget {
                         final String ageRestrictedValue = order?[AppDBConst.orderAgeRestricted]?.toString() ?? 'false';
                         final bool isAgeRestricted = ageRestrictedValue.toLowerCase() == 'true' || ageRestrictedValue == "1";
 
-                        if (!isAgeRestricted) {
-                          /// Verify Age and proceed else return
+                        if (!isAgeRestricted) { // Fixed: only if !isAgeRestricted
+                          if (kDebugMode) {
+                            print("NestedGridWidget - Starting Age Verification for product ID: $productId");
+                          }
+
+                          Stopwatch? ageCheckStopwatch;
+                          if (Misc.enableUILogMessages) { // Build #1.0.256
+                            ageCheckStopwatch = Stopwatch()..start(); // Start timer before verifyAge
+                          }
                           final ageVerificationProvider = AgeVerificationProvider();
-                          var isVerified = await ageVerificationProvider.verifyAge(context, minAge: item[AppDBConst.fastKeyItemMinAge] ?? 0);
-                          if(!isVerified){
+                          final isVerified = await ageVerificationProvider.verifyAge(context, minAge: item[AppDBConst.fastKeyItemMinAge] ?? 0);
+
+                          if (Misc.enableUILogMessages && ageCheckStopwatch != null) {
+                            ageCheckStopwatch.stop(); // Stop after verifyAge
+                            globalProcessSteps.add(ProcessStep(
+                              name: TextConstants.ageVerificationProcess,
+                              timeTaken: ageCheckStopwatch.elapsedMilliseconds / 1000.0,
+                            ));
+                          }
+                          if (!isVerified) {
+                            if (kDebugMode) {
+                              print("NestedGridWidget - Age Verification failed for product ID: $productId");
+                            }
                             return;
                           }
                         }
@@ -1171,7 +1190,7 @@ class NestedGridWidget extends StatelessWidget {
   Widget _getCardWidget(Widget widget, ThemeNotifier themeHelper, {MaterialAccentColor accentColor = Colors.blueAccent}){
     return Card(
       color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.secondaryBackground :Colors.white,/// card color
-      elevation: 3,
+      elevation: 5,
       shadowColor: accentColor, /// card shadow color
       clipBehavior: Clip.antiAliasWithSaveLayer ,
       shape: RoundedRectangleBorder( /// Optional: remove if no border required

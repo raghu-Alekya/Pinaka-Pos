@@ -6,7 +6,7 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
 
   static const String age_restricted              = 'Age Restricted';
   static String currencySymbol              =  '\u{20AC}';//"\u{20B9}"; //  \\u{20AC})
-  static String dateFormat                  =  "EEE, MMM d, yyyy";
+  static String dateFormat                  =  "MMM d, yyyy";
   static String timeFormat                  =  "hh:mm:ss a";
   static const String loginBtnText          = "Login";
   static const String settingsHeaderText    = "Settings";
@@ -132,6 +132,7 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String modeText              = "Mode";
 
   static const String orderId              = "Order ID";
+  static const String orderID              = "OrderID:";
   static const String paymentSummary       = "Payment Summary";
   static const String merchantDiscount     = "Merchant Discount";
   static const String total                = "Total";
@@ -388,6 +389,14 @@ class TextConstants { // Build #1.0.7 , Naveen - added TextConstants and SharedP
   static const String failedToStartShift  = 'Failed to start shift. Please try again.';
   static const String failedToUpdateShift = 'Failed to update shift. Please try again.';
   static const String failedCloseShift    = 'Failed to close shift. Please try again.';
+
+  // Build #1.0.256: added constants
+  static const String processingItem = 'Processing Time Logs';
+  static const String ageVerificationProcess = 'Age Verification Check';
+  static const String variationCheck = 'Product Variation Check';
+  static const String addProductToOrder = 'Added Product to Order API Time';
+  static const String refreshDBUITime = 'Refresh DB & UI Time';
+  static const String closeText = 'Close';
 }
 
 class TextFontSize {

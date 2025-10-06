@@ -45,7 +45,7 @@ class _LoginScreenState extends State<LoginScreen> {
     super.initState();
     _bloc = LoginBloc(LoginRepository());
     _assetBloc = AssetBloc(AssetRepository());
-  //  _checkExistingUser(); // Un comment this line if auto login needed
+    //  _checkExistingUser(); // Un comment this line if auto login needed
   }
 
   Future<void> _checkExistingUser() async {
@@ -108,7 +108,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (_password.any((digit) => digit.isEmpty)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter 6-digit PIN',
-          style: TextStyle(color: Colors.red))),
+            style: TextStyle(color: Colors.red))),
       );
       return false;
     }
@@ -122,11 +122,11 @@ class _LoginScreenState extends State<LoginScreen> {
     _bloc.fetchLoginToken(LoginRequest(pin));
 
     //Build #1.0.54: added, check if assets are already saved in the database
-  //  String? baseUrl = await AssetDBHelper.instance.getAppBaseUrl();
-   // if (baseUrl == null) { //Build #1.0.64: updated
-      if (kDebugMode) {
-        print("#### LoginScreen: No assets found in database, fetching assets");
-      }
+    //  String? baseUrl = await AssetDBHelper.instance.getAppBaseUrl();
+    // if (baseUrl == null) { //Build #1.0.64: updated
+    if (kDebugMode) {
+      print("#### LoginScreen: No assets found in database, fetching assets");
+    }
     //Build 1.0.68: await added for completion of save assets else getting empty data
     // } else {
     //   if (kDebugMode) {
@@ -423,7 +423,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                                             if (kDebugMode) {
                                                               print("#### COMPLETED performLogoutByEmpPin : Logout successful using pin");
                                                             }
-                                                          if (Misc.showDebugSnackBar) { // Build #1.0.254
+                                                            // if (Misc.showDebugSnackBar) { // Build #1.0.254
                                                             ScaffoldMessenger.of(context).showSnackBar(
                                                               SnackBar(
                                                                 content: Text(response.message ?? TextConstants.successfullyLogout),
@@ -431,7 +431,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                                                 duration: const Duration(seconds: 2),
                                                               ),
                                                             );
-                                                            }
+                                                            // }
                                                             // Update loading state and navigate
                                                             isLoading = false;
                                                             Navigator.of(context).pop(); // Close loader dialog
@@ -485,17 +485,17 @@ class _LoginScreenState extends State<LoginScreen> {
                                         );
                                       });
                                     }
-                                  // return Center(
-                                    //   child: Text(
-                                    //     snapshot.data?.message ?? "Something went wrong",
-                                    //     textAlign: TextAlign.center,
-                                    //     style: const TextStyle(
-                                    //       fontWeight: FontWeight.w600,
-                                    //       fontSize: 16,
-                                    //       color: Colors.red,
-                                    //     ),
-                                    //   ),
-                                    // );
+                                // return Center(
+                                //   child: Text(
+                                //     snapshot.data?.message ?? "Something went wrong",
+                                //     textAlign: TextAlign.center,
+                                //     style: const TextStyle(
+                                //       fontWeight: FontWeight.w600,
+                                //       fontSize: 16,
+                                //       color: Colors.red,
+                                //     ),
+                                //   ),
+                                // );
                                   default:
                                     break;
                                 }

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:pinaka_pos/Widgets/widget_tabs.dart';
 
+import '../../Constants/misc_features.dart';
 import '../../Constants/text.dart';
 import '../../Database/db_helper.dart';
 import '../../Database/order_panel_db_helper.dart';
@@ -8,6 +9,7 @@ import '../../Database/user_db_helper.dart';
 import '../../Helper/Extentions/nav_layout_manager.dart';
 import '../../Preferences/pinaka_preferences.dart';
 import '../../Widgets/widget_category_list.dart';
+import '../../Widgets/widget_logs_toast.dart';
 import '../../Widgets/widget_nested_grid_layout.dart';
 import '../../Widgets/widget_order_panel.dart';
 import '../../Widgets/widget_topbar.dart';
@@ -42,13 +44,64 @@ class _AddScreenState extends State<AddScreen> with LayoutSelectionMixin {
     _selectedSidebarIndex = widget.lastSelectedIndex ?? 2; // Build #1.0.7: Restore previous selection
   }
 
-  void _refreshOrderList() { // Build #1.0.10 - Naveen: This will trigger a rebuild of the RightOrderPanel (Callback)
-    setState(() {
+  // //Build 1.1.36: Update the products loading to not add to navigation path
+  // // Explanation:
+  // // Added sku to OrderLineItem in the API call, using the same placeholder format (SKU${name}) as the original code.
+  // // Moved database operations to OrderBloc.updateOrderProducts (already updated to handle database updates).
+  // // Added dbOrderId parameter to updateOrderProducts.
+  // // Kept local insertion via orderHelper.addItemToOrder for non-API orders.
+  // // Added isAddingItemLoading to show a loader during API calls.
+  // // Added alert dialog with retry option for API failures.
+  // // Added success toasts for both API and local cases.
+  // // Preserved debug prints, variantAdded logic, and back button functionality.
+  // Stopwatch? refreshUIStopwatch; // Build #1.0.256
+  void _refreshOrderList() {
+    setState(() { // Build #1.0.128
       if (kDebugMode) {
         print("##### _refreshOrderList: Incrementing _refreshCounter to $_refreshCounter to trigger RightOrderPanel refresh");
       }
       _refreshCounter++; //Build #1.0.170: Increment to signal refresh, causing didUpdateWidget to load with loader
     });
+
+    // // Build #1.0.256: Stop stopwatch and add to steps only if enabled
+    // if (Misc.enableUILogMessages && refreshUIStopwatch != null) {
+    //   refreshUIStopwatch?.stop();
+    //   globalProcessSteps.add(
+    //     ProcessStep(
+    //       name: TextConstants.refreshDBUITime,
+    //       timeTaken: refreshUIStopwatch!.elapsedMilliseconds / 1000.0,
+    //     ),
+    //   );
+    //   if (kDebugMode) {
+    //     print("Add Product to Order completed in ${globalProcessSteps.last.timeTaken}s");
+    //   }
+    // }
+    // /// Show Toast
+    // if (Misc.enableUILogMessages && globalProcessSteps.isNotEmpty) {
+    //   if (Navigator.canPop(context)) { // Build #1.0.197: Fixed [SCRUM - 345] -> Screen blackout when adding item to cart
+    //     Navigator.pop(context);
+    //   }
+    //   if (kDebugMode) {
+    //     print("VariationPopup - Showing toast with process timings: ${globalProcessSteps.map((s) => '${s.name}: ${s.timeTaken}s').toList()}");
+    //   }
+    //   showDialog(
+    //     context: context,
+    //     barrierDismissible: false,
+    //     builder: (dialogContext) {
+    //       return LogsToast(
+    //         steps: globalProcessSteps,
+    //         onClose: () {
+    //           if (kDebugMode) {
+    //             print("VariationPopup - Toast closed by user");
+    //           }
+    //           // Clear global steps when toast is closed
+    //           globalProcessSteps.clear();
+    //           Navigator.of(dialogContext).pop();
+    //         },
+    //       );
+    //     },
+    //   );
+    // }
   }
 
   @override
@@ -81,7 +134,7 @@ class _AddScreenState extends State<AddScreen> with LayoutSelectionMixin {
                 // update UI
                 setState(() {});
             },
-            onProductSelected: (product) async { //Build #1.0.126: Missed code added
+              onProductSelected: (product) async { //Build #1.0.126: Missed code added
                 if (kDebugMode) print("#### AddScreen onProductSelected");
                 double price;
                 try {

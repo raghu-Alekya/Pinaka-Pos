@@ -660,17 +660,19 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMix
                               Container(
                                 width: MediaQuery.of(context).size.width * 0.0725,
                                 //color: Colors.green,
-                                alignment: Alignment.bottomLeft,
+                                alignment: Alignment.bottomCenter,
                                 padding: EdgeInsets.only(left:5,bottom: 10),
                                 child: Row(
                                   crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     // Left label column
                                     Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
                                         SizedBox(
-                                          height: MediaQuery.of(context).size.height * 0.065,
+                                          height: MediaQuery.of(context).size.height * 0.07,
                                           child: Align(
                                             alignment: Alignment.centerLeft,
                                             child: Text(
@@ -686,7 +688,7 @@ class _SafeOpenScreenState extends State<SafeOpenScreen> with LayoutSelectionMix
                                         ),
                                         const SizedBox(height: 2),
                                         SizedBox(
-                                          height: MediaQuery.of(context).size.height * 0.045,
+                                          height: MediaQuery.of(context).size.height * 0.05 ,
                                           child: Align(
                                             alignment: Alignment.centerLeft,
                                             child: Text(

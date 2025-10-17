@@ -77,6 +77,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
   List<Map<String, dynamic>> orderItems = []; // List of items in the selected order
   final OrderHelper orderHelper = OrderHelper(); // Helper instance to manage orders
   bool _isLoading = false;
+  static bool _isCustomItemLoading = false;
   bool _isPayBtnLoading = false;
   late OrderBloc orderBloc;
   StreamSubscription? _updateOrderSubscription;
@@ -84,6 +85,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
   final ProductBloc productBloc = ProductBloc(ProductRepository()); // Build #1.0.44 : Added for barcode scanning
   StreamSubscription? _productBySkuSubscription; // Build #1.0.44 : Added for product stream
   StreamSubscription? _removePayoutOrDiscountSubscription;
+  StreamSubscription? _removeMerchantDiscountSubscription; // Build #1.0.274
   StreamSubscription? _removeCouponSubscription;
   bool _showFullSummary = false;
   late ScaffoldMessengerState _scaffoldMessenger;
@@ -896,6 +898,7 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
     _updateOrderSubscription?.cancel(); // Cancel the subscription
     //orderBloc.dispose(); // Dispose the bloc if needed
     _fetchOrdersSubscription?.cancel();
+    _removeMerchantDiscountSubscription?.cancel();
     orderBloc.dispose();
     productBloc.dispose();
     _tabController?.dispose();
@@ -940,8 +943,11 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
     }
     return null;
   }
-
-  // final GlobalKey<BarcodeKeyboardListenerState> _scannerKey = GlobalKey();//Build #1.0.268
+//Build #1.0.268: 1. add below function in  BarcodeKeyboardListenerState lib
+  // void callback(String barcode){
+  //   _onBarcodeScannedCallback.call(barcode);
+  // }
+  // final GlobalKey<BarcodeKeyboardListenerState> _scannerKey = GlobalKey();//Build #1.0.268: 2. create global key
   @override
   Widget build(BuildContext context) {
 
@@ -949,12 +955,13 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
     return FocusDetector(
       onFocusLost: () { // Build #1.0.219 -> FIXED ISSUE [SCRUM - 366] : Swipe-to-Delete UI State Not Resetting
         // When this widget regains focus, reset slidable states
+        if(!mounted) return;
         setState(() {
           _listVersion++;
         });
       },
       child: BarcodeKeyboardListener( // Build #1.0.44 : Added - Wrap with BarcodeKeyboardListener for barcode scanning
-        // key:  _scannerKey,//Build #1.0.268
+        // key:  _scannerKey,//Build #1.0.268: 3. Add key for scanner event
         bufferDuration: Duration(milliseconds: 700),
         //Build #1.0.78: Removed orderHelper.addItemToOrder from the API success block, as it’s now in OrderBloc.updateOrderProducts.
         // Kept local addItemToOrder for non-API orders.
@@ -966,14 +973,15 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
         try{
           //barcode = barcode.trim().replaceAll(' ', '');
           if (kDebugMode) {
-            print("##### DEBUG: onBarcodeScanned - Scanned barcode: -$barcode, isOrderInForeground = $isOrderInForeground, _isLoading: $_isLoading");
+            print("##### DEBUG: onBarcodeScanned - Scanned barcode: -$barcode, isOrderInForeground = $isOrderInForeground, _isLoading: $_isLoading, _isCustomItemLoading: $_isCustomItemLoading");
           }
           showLogs = true;
-          logString += "##### DEBUG: onBarcodeScanned - Scanned barcode: -$barcode, isOrderInForeground = $isOrderInForeground, _isLoading: $_isLoading \n ";
+          logString += "##### DEBUG: onBarcodeScanned - Scanned barcode: -$barcode, isOrderInForeground = $isOrderInForeground, _isLoading: $_isLoading, _isCustomItemLoading: $_isCustomItemLoading \n ";
           if(!isOrderInForeground){ // to restrict order panel in background to scanner events
             return;
           }
           if (_isLoading) return; // Build #1.0.256: Prevent multiple simultaneous scans
+          if (_isCustomItemLoading) return;
           if(_productBySkuSubscription != null) {
             // _productBySkuSubscription?.cancel();
             logString += "##### DEBUG: onBarcodeScanned - Cancelled _productBySkuSubscription \n ";
@@ -1214,28 +1222,41 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
               } else {
                 // Show error if product not found
                 if (kDebugMode) {
-                  print("##### DEBUG: onBarcodeScanned - Product not found for SKU: $barcode");
+                  print("##### DEBUG: onBarcodeScanned - Product not found for SKU: $barcode, _isCustomItemLoading: $_isCustomItemLoading");
                 }
-                logString += "##### DEBUG: onBarcodeScanned - Product not found for SKU: $barcode \n ";
+                logString += "##### DEBUG: onBarcodeScanned - Product not found for SKU: $barcode, _isCustomItemLoading: $_isCustomItemLoading \n ";
                 _isLoading = false;
+                _productBySkuSubscription?.cancel();
+                _productBySkuSubscription = null; // Fixed Scanner issue creating two order in order panel
                 setState(() {
                   // barcode = "";
                 });
                 if (!mounted) return;
-                await CustomDialog.showCustomItemNotAdded(context,onRetry: (){
-                  // Navigate to AddScreen when "Let's Try Again" is pressed
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => AddScreen(
-                        barcode: barcode,
-                        selectedTabIndex: 2, // Custom items tab
-                      ),
-                    ),
-                  );
-                }).then((_) { //Build #1.0.54: added
+                if (!_isCustomItemLoading) {
+                  _isCustomItemLoading = true; // added to avoid showing dialog twice as per scan
 
-                });
+                  await CustomDialog.showCustomItemNotAdded(
+                      context, onRetry: () {
+                    // Navigate to AddScreen when "Let's Try Again" is pressed
+                    Navigator.of(context).pop();
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            AddScreen(
+                              barcode: barcode,
+                              selectedTabIndex: 2, // Custom items tab
+                            ),
+                      ),(route) => false,
+                    );
+                  }).then((_) { //Build #1.0.54: added
+                    if (kDebugMode) {
+                      print(
+                          "OrderPanel CustomDialog.showCustomItemNotAdded is dismissed and _isCustomItemLoading was $_isCustomItemLoading");
+                    }
+                    _isCustomItemLoading = false;
+                  });
+                }
               }
             });
             _productBySkuSubscription?.onError((handleError){
@@ -1384,8 +1405,8 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
               ),
             ),
           ),
-            //Build #1.0.268
             // showLogs ? _showLogString() : SizedBox(),
+            //Build #1.0.268: 4. call the scanner event using below code
             //Test code to invoke manual scan without scanner on button click
             // !kDebugMode ? SizedBox() : Positioned(
             //     top: 100,
@@ -1397,14 +1418,47 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
             //
             //       });
             //       _scannerKey.currentState?.callback("8902519011572"); //onKeyEvent("9780143465065\n");
-            //     }, child: Text("Scan"),))
+            //     }, child: Text("Scan1"),)),
+            // !kDebugMode ? SizedBox() : Positioned(
+            //     top: 150,
+            //     right: 2,
+            //     child: ElevatedButton(onPressed: (){
+            //       showLogs = true;
+            //       logString += "Scanned SKU: 9780143465065";
+            //       setState(() {
+            //
+            //       });
+            //       _scannerKey.currentState?.callback("9780143465065"); //onKeyEvent("9780143465065\n");
+            //     }, child: Text("Scan2"),)),
+            // !kDebugMode ? SizedBox() : Positioned(
+            //     top: 200,
+            //     right: 2,
+            //     child: ElevatedButton(onPressed: (){
+            //       showLogs = true;
+            //       logString += "Scanned SKU: 9780143465065111";
+            //       setState(() {
+            //
+            //       });
+            //       _scannerKey.currentState?.callback("9780143465065111"); //onKeyEvent("9780143465065\n");
+            //     }, child: Text("Scan3"),)),
+            // !kDebugMode ? SizedBox() : Positioned(
+            //     top: 250,
+            //     right: 2,
+            //     child: ElevatedButton(onPressed: (){
+            //       showLogs = true;
+            //       logString += "Scanned SKU: 9780143465065222";
+            //       setState(() {
+            //
+            //       });
+            //       _scannerKey.currentState?.callback("9780143465065222"); //onKeyEvent("9780143465065\n");
+            //     }, child: Text("Scan4"),))
           ]
         ),
       ),
     );
   }
 
-  //Build #1.0.268
+  //Build #1.0.268: 5. (optional) to show logs on screen
   bool showLogs = false;
   Widget _showLogString(){
     return Container(
@@ -1859,13 +1913,13 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
 
                         return ClipRRect(
                         // Build #1.0.151: FIXED - change ensures that sliding an item in one order does not affect the Slidable state of items at the same index in other orders.
-                          key: ValueKey('${orderItem[AppDBConst.itemServerId]}_$_listVersion'), // Build 1.0.214: Fixed Issue [SCRUM - 366] -> Swipe-to-Delete UI State Not Resetting After Add/Delete Operations // Updated key to include order ID
+                          key: ValueKey('${orderItem[AppDBConst.itemServerId]}_${_listVersion}_ClipRRect_$index'), // Build 1.0.214: Fixed Issue [SCRUM - 366] -> Swipe-to-Delete UI State Not Resetting After Add/Delete Operations // Updated key to include order ID
                           borderRadius: BorderRadius.circular(20),
                           child: SizedBox(
                             height: MediaQuery.of(context).size.height * 0.12,
                             child: Slidable(
                               // Build #1.0.151: FIXED - change ensures that sliding an item in one order does not affect the Slidable state of items at the same index in other orders.
-                              key: ValueKey('${orderItem[AppDBConst.itemServerId]}_$_listVersion'), // Build 1.0.214: Fixed Issue [SCRUM - 366] -> Swipe-to-Delete UI State Not Resetting After Add/Delete Operations // Updated key to include order ID
+                              key: ValueKey('${orderItem[AppDBConst.itemServerId]}_${_listVersion}_Slidable_$index'), // Build 1.0.214: Fixed Issue [SCRUM - 366] -> Swipe-to-Delete UI State Not Resetting After Add/Delete Operations // Updated key to include order ID
                               closeOnScroll: true,
                               direction: Axis.horizontal,
                               endActionPane: ActionPane(
@@ -2480,76 +2534,95 @@ class _RightOrderPanelState extends State<RightOrderPanel> with TickerProviderSt
                                                 // With this fixed version:
                                                 // Build #1.0.216: FIXED Issue - Merchant discount not deleting, showing error "Payout ID not found"
                                                 String discountIdsString = merchantDiscountValue.first[AppDBConst.merchantDiscountIds].toString();
-                                                List<String> payoutIds = discountIdsString.split(',').where((id) => id.isNotEmpty).toList();
+                                                List<String> discountIds = discountIdsString.split(',').where((id) => id.isNotEmpty).toList();
                                                 if (kDebugMode) {
-                                                  print("OrderPanel - payouts to delete $payoutIds");
+                                                  print("OrderPanel - payouts to delete $discountIds");
                                                 }
-                                                if (payoutIds.isNotEmpty) {
+                                                if (discountIds.isNotEmpty) {
                                                   //Build #1.0.99: Cancel any existing subscription to prevent multiple listeners
-                                                  _removePayoutOrDiscountSubscription?.cancel();
+                                                  _removeMerchantDiscountSubscription?.cancel();
                                                   retryCallback() async {
                                                     setState(() => _isLoading = true);
-                                                    await orderBloc.removeFeeLines(orderId: serverOrderId, feeLineIds: payoutIds);
+                                                    //  await orderBloc.removeFeeLines(orderId: serverOrderId, feeLineIds: payoutIds);
+                                                    // Creating line items for deletion (quantity = 0 to remove)
+                                                    List<OrderLineItem> merchantDiscountToDelete = discountIds.map((id) =>
+                                                        OrderLineItem(id: int.parse(id), quantity: 0)
+                                                    ).toList();
+                                                    await orderBloc.deleteOrderItem( // Build #1.0.274: Updated to deleteOrderItem api call for removing merchant discount
+                                                      orderId: serverOrderId,
+                                                      lineItems: merchantDiscountToDelete,
+                                                      //  dbItemId: int.parse(discountIds.first) // No need for merchant Discount // Using first ID as representative
+                                                    );
                                                     // Dismiss dialog after retry
                                                     Navigator.of(context, rootNavigator: true).pop();
                                                   };
-                                                    _removePayoutOrDiscountSubscription =
-                                                        orderBloc.removePayoutStream.listen((response) async {
-                                                          if (response.status == Status.COMPLETED) {
-                                                            setState(() => _isLoading = false); //Build #1.0.92
-                                                            await fetchOrderItems();
-                                                            widget.refreshOrderList?.call();
-                                                            if (Misc.showDebugSnackBar) { // Build #1.0.254
+                                                  _removeMerchantDiscountSubscription =
+                                                      orderBloc.deleteOrderItemStream.listen((response) async {
+                                                        if (response.status == Status.COMPLETED) {
+                                                          setState(() => _isLoading = false); //Build #1.0.92
+                                                          await fetchOrderItems();
+                                                          widget.refreshOrderList?.call();
+                                                          if (Misc.showDebugSnackBar) { // Build #1.0.254
                                                             _scaffoldMessenger.showSnackBar(
                                                               SnackBar(content: Text("Merchant Discount removed successfully"),
                                                                 backgroundColor: Colors.green,
                                                                 duration: const Duration(seconds: 2),
                                                               ),
                                                             );
-                                                           }
-                                                          } else if (response.status == Status.ERROR) {
-                                                                  if (response.message!.contains('Unauthorised')) {
-                                                                    if (kDebugMode) {
-                                                                      print("categories screen 7 ---- Unauthorised : ${response.message!}");
-                                                                    }
-                                                                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                                                                      if (mounted) {
-                                                                        Navigator.pushReplacement(context,
-                                                                            MaterialPageRoute(builder: (context) => LoginScreen()));
+                                                          }
+                                                        } else if (response.status == Status.ERROR) {
+                                                          if (response.message!.contains('Unauthorised')) {
+                                                            if (kDebugMode) {
+                                                              print("categories screen 7 ---- Unauthorised : ${response.message!}");
+                                                            }
+                                                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                                                              if (mounted) {
+                                                                Navigator.pushReplacement(context,
+                                                                    MaterialPageRoute(builder: (context) => LoginScreen()));
 
-                                                                        if (kDebugMode) {
-                                                                          print("message 7 --- ${response.message}");
-                                                                        }
-                                                                        ScaffoldMessenger.of(context).showSnackBar(
-                                                                          const SnackBar(
-                                                                            content: Text("Unauthorised. Session is expired on this device."),
-                                                                            backgroundColor: Colors.red,
-                                                                            duration: Duration(seconds: 2),
-                                                                          ),
-                                                                        );
-                                                                      }
-                                                                    });
-                                                                  } else {
-                                                                    if (kDebugMode) {
-                                                                      print("###### Delete Discount API error");
-                                                                    }
-                                                                    setState(() => _isLoading = false);
-                                                                    _scaffoldMessenger.showSnackBar(
-                                                                      SnackBar(
-                                                                        content: Text("Failed to remove discount"),
-                                                                        backgroundColor: Colors.red,
-                                                                        duration: const Duration(seconds: 2),
-                                                                      ),
-                                                                    );
-                                                                  }
-                                                                  await CustomDialog.showDiscountNotApplied(context,
-                                                              errorMessageTitle: TextConstants.removeDiscountFailed,
-                                                              errorMessageDes: response.message ?? TextConstants.discountNotAppliedDescription,
-                                                              onRetry: retryCallback,
+                                                                if (kDebugMode) {
+                                                                  print("message 7 --- ${response.message}");
+                                                                }
+                                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                                  const SnackBar(
+                                                                    content: Text("Unauthorised. Session is expired on this device."),
+                                                                    backgroundColor: Colors.red,
+                                                                    duration: Duration(seconds: 2),
+                                                                  ),
+                                                                );
+                                                              }
+                                                            });
+                                                          } else {
+                                                            if (kDebugMode) {
+                                                              print("###### Delete Discount API error");
+                                                            }
+                                                            setState(() => _isLoading = false);
+                                                            _scaffoldMessenger.showSnackBar(
+                                                              SnackBar(
+                                                                content: Text("Failed to remove discount"),
+                                                                backgroundColor: Colors.red,
+                                                                duration: const Duration(seconds: 2),
+                                                              ),
                                                             );
                                                           }
-                                                        });
-                                                    await orderBloc.removeFeeLines(orderId: serverOrderId,feeLineIds: payoutIds);
+                                                          await CustomDialog.showDiscountNotApplied(context,
+                                                            errorMessageTitle: TextConstants.removeDiscountFailed,
+                                                            errorMessageDes: response.message ?? TextConstants.discountNotAppliedDescription,
+                                                            onRetry: retryCallback,
+                                                          );
+                                                        }
+                                                      });
+                                                  // Creating line items for deletion (quantity = 0 to remove)
+                                                  List<OrderLineItem> merchantDiscountToDelete = discountIds.map((id) =>
+                                                      OrderLineItem(id: int.parse(id), quantity: 0)
+                                                  ).toList();
+
+                                                  await orderBloc.deleteOrderItem( // Build #1.0.274 : Added api call
+                                                    orderId: serverOrderId,
+                                                    lineItems: merchantDiscountToDelete,
+                                                    // dbItemId: int.parse(discountIds.first) // No need for merchant Discount // Using first ID as representative
+                                                  );
+                                                  //  await orderBloc.removeFeeLines(orderId: serverOrderId,feeLineIds: discountIds);
                                                 } else {
                                                   setState(() => _isLoading = false);
                                                   _scaffoldMessenger.showSnackBar(

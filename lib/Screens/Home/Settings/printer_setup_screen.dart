@@ -367,20 +367,24 @@ class _PrinterSetupState extends State<PrinterSetup> {
     //   home: ,
     // );
       Scaffold(
-        backgroundColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textDark,
+        backgroundColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textLight : ThemeNotifier.textDark,
         appBar: AppBar(
-          title: const Text('Select a device to connect'),
-          foregroundColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textLight : ThemeNotifier.textDark,
-          backgroundColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.cardLight : ThemeNotifier.cardDark,
+          title: Text('Select a device to connect',
+            style: TextStyle(
+              color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight,
+            ),
+          ),
+          foregroundColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight,
+          backgroundColor: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.cardDark : ThemeNotifier.cardLight,
           leading: IconButton(
-            icon: Icon(Icons.arrow_back, color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textLight : ThemeNotifier.textDark,),
+            icon: Icon(Icons.arrow_back, color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textLight,),
             onPressed: () => Navigator.of(context).pop(),
           ),
         ),
         body: SafeArea(
           child: Center(
             child: Container(
-              color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textDark : ThemeNotifier.textDark,
+              color: themeHelper.themeMode == ThemeMode.dark ? ThemeNotifier.textLight : ThemeNotifier.textDark,
               height: double.infinity,
               constraints: const BoxConstraints(maxWidth: 400),
               child: SingleChildScrollView(

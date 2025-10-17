@@ -108,6 +108,8 @@ class PrinterSettings {
         print(">>>>> PrinterSettings : printerDB is empty");
       }
       return;
+    } else if (printerDB.first[AppDBConst.printerDeviceName].toString().isEmpty){
+      return;
     }
     BluetoothPrinter printer = BluetoothPrinter();
 

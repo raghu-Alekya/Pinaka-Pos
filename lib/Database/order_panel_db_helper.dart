@@ -375,7 +375,7 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
       await updateOrderPayoutItem(apiOrder.id, apiOrder.lineItems); // Build #1.0.198
       // Build #1.0.207: Fixed Issue - Always Merchant discount showing "0"
       // Ex: updateOrderPayoutItem modified to lineItems but discount we are getting in fee lines only , we are not using this, that's why merchant discount calculation is 0.
-      await updateOrderMerchantDiscount(apiOrder.id, apiOrder.feeLines ?? []);
+      await updateOrderMerchantDiscount(apiOrder.id, apiOrder.lineItems ?? []); // Build #1.0.274 : updated fee lines to line items change
       await updateOrderCouponItems(apiOrder.id, apiOrder.couponLines ?? []);
     }
 
@@ -434,8 +434,8 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
       print("#### DEBUG: updateOrderItems - Processing ${apiItems.length} items for order $orderId, existing items: ${existingItemsMap.length}");
     }
 
-    for (var apiItem in apiItems) {
-      if(apiItem.name.contains('Payout')){ //Build #1.0.198: do not add payout item again, it is already added by separate function
+    for (var apiItem in apiItems) { // Build #1.0.274 : updated : skip merchant discount adding into order
+      if(apiItem.name.contains('Payout') || apiItem.name == TextConstants.discountText){  //Build #1.0.198: do not add payout item again, it is already added by separate function
         continue;
       }
       final itemId = apiItem.id.toString();
@@ -802,16 +802,16 @@ class OrderHelper { // Build #1.0.10 - Naveen: Added Order Helper to Maintain Or
   // Build #1.0.207: Fixed Issue - Always Merchant discount showing "0"
   // Ex: updateOrderPayoutItem modified to lineItems but discount we are getting in fee lines only , we are not using this, that's why merchant discount calculation is 0.
   // Added this function to handle merchant discounts from feeLines
-  Future<void> updateOrderMerchantDiscount(int orderId, List<model.FeeLine> feeLines) async {
+  Future<void> updateOrderMerchantDiscount(int orderId, List<model.LineItem> lineItems) async { // Build #1.0.274 : updated fee lines to line items
     final db = await DBHelper.instance.database;
     double merchantDiscount = 0.0;
    // Use a list instead of string concatenation
     List<String> merchantDiscountIdsList = []; // Build #1.0.216: FIXED Issue - Merchant discount not deleting, showing error "Payout ID not found"
 
-    for (var feeLine in feeLines) {
-      if (feeLine.name == TextConstants.discountText) {
-        merchantDiscount += double.parse(feeLine.total ?? '0.0').abs();
-        merchantDiscountIdsList.add(feeLine.id.toString()); // Added to list
+    for (var lineItem in lineItems) {
+      if (lineItem.name == TextConstants.discountText) {
+        merchantDiscount += double.parse(lineItem.total ?? '0.0').abs();
+        merchantDiscountIdsList.add(lineItem.id.toString()); // Added to list
       }
     }
     // Build #1.0.216: Join with commas and ensure no leading comma

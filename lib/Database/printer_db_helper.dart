@@ -17,30 +17,19 @@ class PrinterDBHelper {
 
   Future<int> addPrinterToDB(BluetoothPrinter printer) async {
     final db = await DBHelper.instance.database;
-    final int device;
-    var printerDB = await getPrinterFromDB();
 
-    if(printerDB.isEmpty){
-      ///insert
-      device = await db.insert(AppDBConst.printerTable, {
-        AppDBConst.printerDeviceName: printer.deviceName,
-        AppDBConst.printerProductId: printer.productId ?? printer.address,
-        AppDBConst.printerVendorId: printer.vendorId ?? 'bluetooth',
-        AppDBConst.printerType: EnumToString.convertToString(printer.typePrinter),
-      });
-    } else {
-      ///update
-      device = await db.update(AppDBConst.printerTable, {
-        AppDBConst.printerDeviceName: printer.deviceName,
-        AppDBConst.printerProductId: printer.productId ?? printer.address,
-        AppDBConst.printerVendorId: printer.vendorId ?? 'bluetooth',
-        AppDBConst.printerType: EnumToString.convertToString(printer.typePrinter),
-      },
-        where: '${AppDBConst.printerId} = ?',
-        whereArgs: [1],
-      );
-    }
+    //Build #1.0.279: Code Updated - Could not re add printer device to POS machine in setting-printer setting
+    //Clear ALL old printers first
+    await db.delete(AppDBConst.printerTable);
 
+    // Then insert the new printer
+    final device = await db.insert(AppDBConst.printerTable, {
+      AppDBConst.printerDeviceName: printer.deviceName,
+      AppDBConst.printerProductId: printer.productId ?? printer.address,
+      AppDBConst.printerVendorId: printer.vendorId ?? 'bluetooth',
+      AppDBConst.printerType: EnumToString.convertToString(printer.typePrinter),
+    });
+    
     if (kDebugMode) {
       print("#### Printer added in DB with deviceName: ${printer.deviceName}");
     }
@@ -85,11 +74,8 @@ class PrinterDBHelper {
 
   Future<List<Map<String, dynamic>>> getPrinterFromDB() async {
     final db = await DBHelper.instance.database;
-    final printerDevice = await db.query(
-      AppDBConst.printerTable,
-      where: '${AppDBConst.printerId} = ?',
-      whereArgs: [1],
-    );
+    //Build #1.0.279: Code Updated - Could not re add printer device to POS machine in setting-printer setting
+    final printerDevice = await db.query(AppDBConst.printerTable);
 
     if (kDebugMode) {
       print("#### PrinterDb Retrieved no. of printerDevices = '${printerDevice.length}' from DB");
